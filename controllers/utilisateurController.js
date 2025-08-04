@@ -16,7 +16,7 @@ const register = async (req, res) => {
             telephone,
             dateNaissance,
             sexe,
-            photoProfil
+            adresse
         });
         
         await newUser.save();
@@ -139,22 +139,34 @@ const getProfile = async (req, res) => {
 // Fonction pour obtenir les utilisateurs à proximité
 const getNearbyUsers = async (req, res) => {
     try {
-        const { longitude, latitude, maxDistance = 10000 } = req.query;
+        // Récupère les paramètres depuis query ou body
+        const longitude = req.query.longitude || req.body.longitude;
+        const latitude = req.query.latitude || req.body.latitude;
+        const maxDistance = req.query.maxDistance || req.body.maxDistance || 10000;
+        
+        console.log('Paramètres reçus:', { longitude, latitude, maxDistance });
         
         if (!longitude || !latitude) {
             return res.status(400).json({
                 success: false,
-                message: 'Coordonnées GPS requises (longitude, latitude)'
+                message: 'Coordonnées GPS requises (longitude, latitude)',
+                received: { longitude, latitude } // Pour debug
             });
         }
         
-        const users = await User.findNearby(
-            parseFloat(longitude), 
-            parseFloat(latitude), 
-            parseInt(maxDistance)
-        );
+        // Validation des coordonnées
+        const lon = parseFloat(longitude);
+        const lat = parseFloat(latitude);
+        const dist = parseInt(maxDistance);
         
-        // Retourner les utilisateurs sans données sensibles
+        if (isNaN(lon) || isNaN(lat) || lon < -180 || lon > 180 || lat < -90 || lat > 90) {
+            return res.status(400).json({
+                success: false,
+                message: 'Coordonnées GPS invalides'
+            });
+        }
+        
+        const users = await User.findNearby(lon, lat, dist);
         const safeUsers = users.map(user => user.toSafeObject());
         
         res.json({
