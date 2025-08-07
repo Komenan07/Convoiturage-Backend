@@ -8,7 +8,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
-const utilisateurRouter = require('./routers/utilisateurRouter');
+const utilisateurRouter = require('./routes/utilisateurRouter');
 
 const app = express();
 
