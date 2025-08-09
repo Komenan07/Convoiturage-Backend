@@ -1,76 +1,131 @@
+// models/Utilisateur.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const validator = require('validator');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
-const userSchema = new mongoose.Schema({
+const utilisateurSchema = new mongoose.Schema({
+  // Informations de base
   email: {
     type: String,
-    required: [true, 'Email est requis'],
+    required: [true, 'L\'email est requis'],
     unique: true,
     lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Email invalide']
+    validate: [validator.isEmail, 'Email invalide'],
+    trim: true
   },
+  
   telephone: {
     type: String,
-    required: [true, 'Téléphone est requis'],
+    required: [true, 'Le numéro de téléphone est requis'],
     unique: true,
-    match: [/^(\+225|0)[0-9]{8,10}$/, 'Format téléphone ivoirien invalide']
+    validate: {
+      validator: function(v) {
+        // Validation pour numéros ivoiriens (+225 ou 07/05/01)
+        return /^(\+225)?[0-9]{8,10}$/.test(v);
+      },
+      message: 'Numéro de téléphone invalide'
+    },
+    trim: true
   },
+  
   motDePasse: {
     type: String,
-    required: [true, 'Mot de passe requis'],
-    minlength: [6, 'Mot de passe minimum 6 caractères'],
-    select: false // Masqué par défaut dans les requêtes
+    required: [true, 'Le mot de passe est requis'],
+    minlength: [8, 'Le mot de passe doit contenir au moins 8 caractères'],
+    validate: {
+      validator: function(password) {
+        // Au moins 1 majuscule, 1 minuscule, 1 chiffre
+        return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password);
+      },
+      message: 'Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre'
+    },
+    select: false // Exclut par défaut le mot de passe des requêtes
   },
+  
   nom: {
     type: String,
-    required: [true, 'Nom requis'],
+    required: [true, 'Le nom est requis'],
     trim: true,
-    maxlength: [50, 'Nom maximum 50 caractères']
+    minlength: [2, 'Le nom doit contenir au moins 2 caractères'],
+    maxlength: [50, 'Le nom ne peut dépasser 50 caractères']
   },
+  
   prenom: {
     type: String,
-    required: [true, 'Prénom requis'],
+    required: [true, 'Le prénom est requis'],
     trim: true,
-    maxlength: [50, 'Prénom maximum 50 caractères']
+    minlength: [2, 'Le prénom doit contenir au moins 2 caractères'],
+    maxlength: [50, 'Le prénom ne peut dépasser 50 caractères']
   },
+  
   dateNaissance: {
     type: Date,
-    required: [true, 'Date de naissance requise'],
+    required: [true, 'La date de naissance est requise'],
     validate: {
       validator: function(date) {
         const age = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24 * 365);
         return age >= 18 && age <= 80;
       },
-      message: 'Age doit être entre 18 et 80 ans'
+      message: 'L\'âge doit être compris entre 18 et 80 ans'
     }
-  },
-  sexe: {
-    type: String,
-    required: [true, 'Sexe requis'],
-    enum: {
-      values: ['M', 'F'],
-      message: 'Sexe doit être M ou F'
-    }
-  },
-  photoProfil: {
-    type: String,
-    default: null
   },
   
+  sexe: {
+    type: String,
+    required: [true, 'Le sexe est requis'],
+    enum: {
+      values: ['M', 'F'],
+      message: 'Le sexe doit être M (Masculin) ou F (Féminin)'
+    }
+  },
+  
+  photoProfil: {
+    type: String,
+    validate: {
+      validator: function(url) {
+        return !url || validator.isURL(url);
+      },
+      message: 'URL de photo invalide'
+    }
+  },
+
   // Vérification d'identité
   documentIdentite: {
     type: {
       type: String,
-      enum: ['CNI', 'PASSEPORT'],
-      default: null
+      enum: {
+        values: ['CNI', 'PASSEPORT'],
+        message: 'Type de document invalide'
+      }
     },
     numero: {
       type: String,
-      default: null
+      validate: {
+        validator: function(numero) {
+          if (!numero || !this.documentIdentite.type) return true;
+          
+          if (this.documentIdentite.type === 'CNI') {
+            // Format CNI ivoirienne
+            return /^[A-Z]{2}[0-9]{8}$/.test(numero);
+          } else if (this.documentIdentite.type === 'PASSEPORT') {
+            // Format passeport
+            return /^[A-Z0-9]{6,9}$/.test(numero);
+          }
+          return true;
+        },
+        message: 'Numéro de document invalide'
+      }
     },
     photoDocument: {
       type: String,
-      default: null
+      validate: {
+        validator: function(url) {
+          return !url || validator.isURL(url);
+        },
+        message: 'URL de document invalide'
+      }
     },
     statutVerification: {
       type: String,
@@ -80,23 +135,27 @@ const userSchema = new mongoose.Schema({
     dateVerification: Date,
     verificateurId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Admin'
-    }
+      ref: 'Administrateur'
+    },
+    raisonRejet: String // Ajouté pour expliquer le rejet
   },
-  
+
   // Localisation
   adresse: {
     commune: {
       type: String,
-      required: [true, 'Commune requise']
+      required: [true, 'La commune est requise'],
+      trim: true
     },
     quartier: {
       type: String,
-      required: [true, 'Quartier requis']
+      required: [true, 'Le quartier est requis'],
+      trim: true
     },
     ville: {
       type: String,
-      required: [true, 'Ville requise'],
+      required: [true, 'La ville est requise'],
+      trim: true,
       default: 'Abidjan'
     },
     coordonnees: {
@@ -107,19 +166,18 @@ const userSchema = new mongoose.Schema({
       },
       coordinates: {
         type: [Number], // [longitude, latitude]
-        required: [true, 'Coordonnées GPS requises'],
         validate: {
           validator: function(coords) {
             return coords.length === 2 && 
-                   coords[0] >= -180 && coords[0] <= 180 &&
-                   coords[1] >= -90 && coords[1] <= 90;
+                   coords[0] >= -180 && coords[0] <= 180 && // longitude
+                   coords[1] >= -90 && coords[1] <= 90;     // latitude
           },
-          message: 'Coordonnées GPS invalides'
+          message: 'Coordonnées invalides'
         }
       }
     }
   },
-  
+
   // Préférences utilisateur
   preferences: {
     musique: {
@@ -132,167 +190,182 @@ const userSchema = new mongoose.Schema({
     },
     conversation: {
       type: String,
-      enum: ['BAVARD', 'CALME', 'NEUTRE'],
+      enum: {
+        values: ['BAVARD', 'CALME', 'NEUTRE'],
+        message: 'Préférence de conversation invalide'
+      },
       default: 'NEUTRE'
     },
     languePreferee: {
       type: String,
-      enum: ['FR', 'ANG'],
+      enum: {
+        values: ['FR', 'ANG'],
+        message: 'Langue préférée invalide'
+      },
       default: 'FR'
     }
   },
-  
+
   // Contacts d'urgence
   contactsUrgence: [{
     nom: {
       type: String,
-      required: [true, 'Nom contact urgence requis']
+      required: [true, 'Le nom du contact d\'urgence est requis'],
+      trim: true,
+      maxlength: [50, 'Le nom ne peut dépasser 50 caractères']
     },
     telephone: {
       type: String,
-      required: [true, 'Téléphone contact urgence requis'],
-      match: [/^(\+225|0)[0-9]{8,10}$/, 'Format téléphone invalide']
+      required: [true, 'Le téléphone du contact d\'urgence est requis'],
+      validate: {
+        validator: function(v) {
+          return /^(\+225)?[0-9]{8,10}$/.test(v);
+        },
+        message: 'Numéro de téléphone du contact invalide'
+      }
     },
     relation: {
       type: String,
-      enum: ['FAMILLE', 'AMI', 'COLLEGUE'],
-      required: [true, 'Relation requise']
+      required: [true, 'La relation avec le contact est requise'],
+      enum: {
+        values: ['FAMILLE', 'AMI', 'COLLEGUE'],
+        message: 'Relation invalide'
+      }
     }
   }],
-  
+
   // Réputation et statistiques
   scoreConfiance: {
     type: Number,
-    min: 0,
-    max: 100,
+    min: [0, 'Le score de confiance ne peut être inférieur à 0'],
+    max: [100, 'Le score de confiance ne peut dépasser 100'],
     default: 50
   },
+  
   nombreTrajetsEffectues: {
     type: Number,
-    default: 0,
-    min: 0
-  },
-  nombreTrajetsAnnules: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  noteGenerale: {
-    type: Number,
-    min: 0,
-    max: 5,
+    min: [0, 'Le nombre de trajets ne peut être négatif'],
     default: 0
   },
+  
+  nombreTrajetsAnnules: {
+    type: Number,
+    min: [0, 'Le nombre d\'annulations ne peut être négatif'],
+    default: 0
+  },
+  
+  noteGenerale: {
+    type: Number,
+    min: [0, 'La note ne peut être inférieure à 0'],
+    max: [5, 'La note ne peut dépasser 5'],
+    default: 0
+  },
+  
   badges: [{
     type: String,
-    enum: ['PONCTUEL', 'PROPRE', 'SYMPATHIQUE', 'ECO_CONDUITE', 'BAVARD', 'CALME']
+    enum: [
+      'PONCTUEL', 
+      'PROPRE', 
+      'SYMPATHIQUE', 
+      'CONDUCTEUR_SECURISE',
+      'COMMUNICATIF',
+      'RESPECTUEUX',
+      'ECO_CONDUITE',
+      'NOUVEAU',
+      'VETERAN',
+      'TOP_RATED'
+    ]
   }],
-  
+
   // Statut du compte
   statutCompte: {
     type: String,
-    enum: ['ACTIF', 'SUSPENDU', 'BLOQUE'],
-    default: 'ACTIF'
+    enum: {
+      values: ['ACTIF', 'SUSPENDU', 'BLOQUE', 'EN_ATTENTE_VERIFICATION'],
+      message: 'Statut de compte invalide'
+    },
+    default: 'EN_ATTENTE_VERIFICATION'
   },
+  
   dateInscription: {
     type: Date,
     default: Date.now
   },
+  
   derniereConnexion: {
     type: Date,
     default: Date.now
   },
+  
   estVerifie: {
     type: Boolean,
     default: false
   },
+
+  // Champs additionnels pour la gestion
+  tokenResetMotDePasse: String,
+  expirationTokenReset: Date,
+  tentativesConnexionEchouees: {
+    type: Number,
+    default: 0
+  },
+  compteBloqueTempJusqu: Date,
   
-  // Véhicules
-  vehicules: [{
-    marque: {
-      type: String,
-      required: [true, 'Marque véhicule requise']
+  // Historique des modifications importantes
+  historiqueStatuts: [{
+    ancienStatut: String,
+    nouveauStatut: String,
+    raison: String,
+    dateModification: {
+      type: Date,
+      default: Date.now
     },
-    modele: {
-      type: String,
-      required: [true, 'Modèle véhicule requis']
-    },
-    couleur: {
-      type: String,
-      required: [true, 'Couleur véhicule requise']
-    },
-    immatriculation: {
-      type: String,
-      required: [true, 'Immatriculation requise'],
-      unique: true,
-      uppercase: true
-    },
-    nombrePlaces: {
-      type: Number,
-      required: [true, 'Nombre de places requis'],
-      min: 2,
-      max: 8
-    },
-    photoVehicule: String,
-    assurance: {
-      numeroPolice: {
-        type: String,
-        required: [true, 'Numéro police assurance requis']
-      },
-      dateExpiration: {
-        type: Date,
-        required: [true, 'Date expiration assurance requise'],
-        validate: {
-          validator: function(date) {
-            return date > Date.now();
-          },
-          message: 'Assurance expirée'
-        }
-      },
-      compagnie: {
-        type: String,
-        required: [true, 'Compagnie assurance requise']
-      }
-    },
-    visiteTechnique: {
-      dateExpiration: {
-        type: Date,
-        required: [true, 'Date expiration visite technique requise'],
-        validate: {
-          validator: function(date) {
-            return date > Date.now();
-          },
-          message: 'Visite technique expirée'
-        }
-      },
-      certificatUrl: String
+    administrateurId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Administrateur'
     }
   }]
+
 }, {
-  timestamps: true,
+  timestamps: true, // Ajoute createdAt et updatedAt automatiquement
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
-// Index pour optimisation
-userSchema.index({ "adresse.coordonnees": "2dsphere" });
-userSchema.index({ scoreConfiance: -1 });
-userSchema.index({ statutCompte: 1 });
+// Index géospatial pour les coordonnées
+utilisateurSchema.index({ 'adresse.coordonnees': '2dsphere' });
 
-// Virtuals
-userSchema.virtual('age').get(function() {
-  return Math.floor((Date.now() - this.dateNaissance.getTime()) / (1000 * 60 * 60 * 24 * 365));
-});
+// Index composé pour les recherches fréquentes
+utilisateurSchema.index({ email: 1, statutCompte: 1 });
+utilisateurSchema.index({ telephone: 1, statutCompte: 1 });
+utilisateurSchema.index({ nom: 1, prenom: 1 });
 
-userSchema.virtual('nomComplet').get(function() {
+// Virtuals (propriétés calculées)
+utilisateurSchema.virtual('nomComplet').get(function() {
   return `${this.prenom} ${this.nom}`;
 });
 
-// Middleware pré-sauvegarde pour hash password
-userSchema.pre('save', async function(next) {
+utilisateurSchema.virtual('age').get(function() {
+  if (!this.dateNaissance) return null;
+  return Math.floor((Date.now() - this.dateNaissance.getTime()) / (1000 * 60 * 60 * 24 * 365));
+});
+
+utilisateurSchema.virtual('tauxAnnulation').get(function() {
+  if (this.nombreTrajetsEffectues === 0) return 0;
+  return Math.round((this.nombreTrajetsAnnules / (this.nombreTrajetsEffectues + this.nombreTrajetsAnnules)) * 100);
+});
+
+utilisateurSchema.virtual('estDocumentVerifie').get(function() {
+  return this.documentIdentite && this.documentIdentite.statutVerification === 'VERIFIE';
+});
+
+// Middleware pre-save pour hasher le mot de passe
+utilisateurSchema.pre('save', async function(next) {
+  // Si le mot de passe n'a pas été modifié, continuer
   if (!this.isModified('motDePasse')) return next();
   
   try {
+    // Hasher le mot de passe
     const salt = await bcrypt.genSalt(12);
     this.motDePasse = await bcrypt.hash(this.motDePasse, salt);
     next();
@@ -301,66 +374,161 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// Middleware pour calculer score confiance
-userSchema.pre('save', function(next) {
-  if (this.isModified('nombreTrajetsEffectues') || this.isModified('nombreTrajetsAnnules')) {
-    this.calculateTrustScore();
+// Middleware pour mettre à jour le statut de vérification
+utilisateurSchema.pre('save', function(next) {
+  if (this.isModified('documentIdentite.statutVerification')) {
+    if (this.documentIdentite.statutVerification === 'VERIFIE') {
+      this.estVerifie = true;
+      if (this.statutCompte === 'EN_ATTENTE_VERIFICATION') {
+        this.statutCompte = 'ACTIF';
+      }
+    }
   }
   next();
 });
 
-// Méthodes du modèle
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  try {
-    return await bcrypt.compare(candidatePassword, this.motDePasse);
-  } catch (error) {
-    throw new Error('Erreur comparaison mot de passe');
-  }
+// Méthodes d'instance
+utilisateurSchema.methods.verifierMotDePasse = async function(motDePasseCandidat) {
+  return await bcrypt.compare(motDePasseCandidat, this.motDePasse);
 };
 
-userSchema.methods.calculateTrustScore = function() {
-  let score = 50; // Score de base
-  
-  // Bonus trajets effectués
-  score += Math.min(this.nombreTrajetsEffectues * 2, 30);
-  
-  // Malus trajets annulés
-  if (this.nombreTrajetsEffectues > 0) {
-    const ratioAnnulation = this.nombreTrajetsAnnules / this.nombreTrajetsEffectues;
-    score -= ratioAnnulation * 40;
+utilisateurSchema.methods.peutSeConnecter = function() {
+  if (this.compteBloqueTempJusqu && this.compteBloqueTempJusqu > Date.now()) {
+    return {
+      autorise: false,
+      raison: 'Compte temporairement bloqué',
+      deblocageA: this.compteBloqueTempJusqu
+    };
   }
   
-  // Bonus vérification identité
-  if (this.estVerifie) score += 10;
-  
-  // Bonus note générale
-  if (this.noteGenerale > 0) {
-    score += (this.noteGenerale - 2.5) * 8;
+  if (this.statutCompte === 'BLOQUE') {
+    return {
+      autorise: false,
+      raison: 'Compte définitivement bloqué'
+    };
   }
   
-  this.scoreConfiance = Math.max(0, Math.min(100, Math.round(score)));
+  if (this.statutCompte === 'SUSPENDU') {
+    return {
+      autorise: false,
+      raison: 'Compte suspendu'
+    };
+  }
+  
+  return { autorise: true };
 };
 
-userSchema.methods.toSafeObject = function() {
-  const userObject = this.toObject();
-  delete userObject.motDePasse;
-  return userObject;
+utilisateurSchema.methods.mettreAJourDerniereConnexion = function() {
+  this.derniereConnexion = new Date();
+  this.tentativesConnexionEchouees = 0;
+  return this.save({ validateBeforeSave: false });
 };
 
-// Méthode statique pour recherche géographique
-userSchema.statics.findNearby = function(longitude, latitude, maxDistance = 10000) {
+utilisateurSchema.methods.incrementerTentativesEchouees = async function() {
+  this.tentativesConnexionEchouees += 1;
+  
+  // Bloquer temporairement après 5 tentatives
+  if (this.tentativesConnexionEchouees >= 5) {
+    this.compteBloqueTempJusqu = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+  }
+  
+  return this.save({ validateBeforeSave: false });
+};
+
+utilisateurSchema.methods.ajouterBadge = function(badge) {
+  if (!this.badges.includes(badge)) {
+    this.badges.push(badge);
+    return this.save({ validateBeforeSave: false });
+  }
+  return Promise.resolve(this);
+};
+
+utilisateurSchema.methods.supprimerBadge = function(badge) {
+  this.badges = this.badges.filter(b => b !== badge);
+  return this.save({ validateBeforeSave: false });
+};
+
+utilisateurSchema.methods.changerStatut = function(nouveauStatut, raison, administrateurId) {
+  const ancienStatut = this.statutCompte;
+  
+  this.historiqueStatuts.push({
+    ancienStatut,
+    nouveauStatut,
+    raison,
+    administrateurId
+  });
+  
+  this.statutCompte = nouveauStatut;
+  return this.save();
+};
+
+// Méthode pour générer un token JWT
+utilisateurSchema.methods.getSignedJwtToken = function() {
+  return jwt.sign(
+    { 
+      userId: this._id,
+      email: this.email 
+    },
+    process.env.JWT_SECRET || 'votre-cle-secrete-super-longue-et-complexe',
+    {
+      expiresIn: process.env.JWT_EXPIRE || '7d'
+    }
+  );
+};
+
+// Méthode pour générer un token de réinitialisation
+utilisateurSchema.methods.getResetPasswordToken = function() {
+  // Générer le token
+  const resetToken = crypto.randomBytes(20).toString('hex');
+  
+  // Hash du token et sauvegarde dans la DB
+  this.tokenResetMotDePasse = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+    
+  // Définir l'expiration (10 minutes)
+  this.expirationTokenReset = Date.now() + 10 * 60 * 1000;
+  
+  return resetToken;
+};
+
+// Méthodes statiques
+utilisateurSchema.statics.rechercherParProximite = function(longitude, latitude, rayonKm = 10) {
   return this.find({
-    "adresse.coordonnees": {
+    'adresse.coordonnees': {
       $near: {
         $geometry: {
-          type: "Point",
+          type: 'Point',
           coordinates: [longitude, latitude]
         },
-        $maxDistance: maxDistance
+        $maxDistance: rayonKm * 1000 // Conversion en mètres
       }
     },
     statutCompte: 'ACTIF'
   });
 };
 
-module.exports = mongoose.model('Utilisateur', userSchema);
+utilisateurSchema.statics.statistiquesGlobales = async function() {
+  const stats = await this.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalUtilisateurs: { $sum: 1 },
+        utilisateursActifs: {
+          $sum: { $cond: [{ $eq: ['$statutCompte', 'ACTIF'] }, 1, 0] }
+        },
+        utilisateursVerifies: {
+          $sum: { $cond: ['$estVerifie', 1, 0] }
+        },
+        moyenneAge: { $avg: { $divide: [{ $subtract: [new Date(), '$dateNaissance'] }, 365.25 * 24 * 60 * 60 * 1000] } },
+        scoreConfianceMoyen: { $avg: '$scoreConfiance' }
+      }
+    }
+  ]);
+  
+  return stats[0] || {};
+};
+
+// Export du modèle
+module.exports = mongoose.model('Utilisateur', utilisateurSchema);
