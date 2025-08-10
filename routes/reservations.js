@@ -3,7 +3,7 @@ const router = express.Router();
 const Reservation = require('../models/Reservation');
 const Trajet = require('../models/Trajet');
 const Utilisateur = require('../models/Utilisateur');
-const auth = require('../middleware/auth');
+const auth = require('../middleware/authMiddleware');
 const { body, param, query, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 

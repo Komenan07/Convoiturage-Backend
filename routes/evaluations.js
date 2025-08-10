@@ -1,29 +1,39 @@
-// routes/evaluations.js
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, isAdmin } = require('../middleware/auth');
+const EvaluationService = require('../services/evaluationService');
+const EvaluationController = require('../controllers/evaluationController');
+const { protect, isAdmin } = require('../middleware/authMiddleware');
 
-module.exports = (evaluationController) => {
-  // Routes publiques (lecture)
-  router.get('/user/:userId', evaluationController.obtenirEvaluationsUtilisateur.bind(evaluationController));
-  router.get('/user/:userId/moyenne', evaluationController.obtenirMoyenneUtilisateur.bind(evaluationController));
-  router.get('/trajet/:trajetId', evaluationController.obtenirEvaluationsTrajet.bind(evaluationController));
+const controller = new EvaluationController(new EvaluationService());
 
-  // Routes authentifiées
-  router.use(authenticateToken);
-  
-  // Création et gestion des évaluations
-  router.post('/', evaluationController.creerEvaluation.bind(evaluationController));
-  router.put('/:id/reponse', evaluationController.repondreEvaluation.bind(evaluationController));
-  router.post('/:id/signaler', evaluationController.signalerEvaluationAbusive.bind(evaluationController));
-  
-  // Détection et gestion des scores
-  router.get('/user/:userId/suspectes', evaluationController.detecterEvaluationsSuspectes.bind(evaluationController));
-  router.put('/user/:userId/score', evaluationController.recalculerScoreConfiance.bind(evaluationController));
+// Création
+router.post('/', protect, controller.creerEvaluation);
 
-  // Routes admin uniquement
-  router.delete('/:id', isAdmin, evaluationController.supprimerEvaluation.bind(evaluationController));
-  router.get('/statistiques', isAdmin, evaluationController.obtenirStatistiquesGlobales.bind(evaluationController));
+// Réponse à une évaluation
+router.put('/:id/reponse', protect, controller.repondreEvaluation);
 
-  return router;
-};
+// Signalement abusif
+router.post('/:id/signaler', protect, controller.signalerEvaluationAbusive);
+
+// Suppression (admin)
+router.delete('/:id', protect, isAdmin, controller.supprimerEvaluation);
+
+// Évaluations par utilisateur
+router.get('/user/:userId', protect, controller.obtenirEvaluationsUtilisateur);
+
+// Moyenne des notes
+router.get('/user/:userId/moyenne', protect, controller.obtenirMoyenneUtilisateur);
+
+// Détection suspecte
+router.get('/user/:userId/suspectes', protect, controller.detecterEvaluationsSuspectes);
+
+// Évaluations par trajet
+router.get('/trajet/:trajetId', protect, controller.obtenirEvaluationsTrajet);
+
+// Statistiques globales
+router.get('/statistiques', protect, controller.obtenirStatistiquesGlobales);
+
+// Recalcul score de confiance
+router.put('/user/:userId/score', protect, controller.recalculerScoreConfiance);
+
+module.exports = router;

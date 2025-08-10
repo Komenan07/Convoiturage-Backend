@@ -9,7 +9,7 @@ const router = express.Router();
 // Import sécurisé des middlewares
 let auth = {};
 try {
-  auth = require('../middleware/auth');
+  auth = require('../middleware/authMiddleware');
 } catch (error) {
   console.warn('⚠️ Middleware auth non trouvé, utilisation des méthodes par défaut');
 }

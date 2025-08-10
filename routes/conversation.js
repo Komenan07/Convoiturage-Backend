@@ -1,308 +1,440 @@
-// routes/conversation.js - Version ES6
-import express from 'express';
-import * as conversationController from '../controllers/conversationController.js';
-import { body, param, query } from 'express-validator';
-import authMiddleware from '../middleware/auth.js';
-import rateLimitMiddleware from '../middleware/rateLimiter.js';
+// routes/conversation.js
+const express = require('express');
+const { body, param, query } = require('express-validator');
+const {
+  creerConversation,
+  obtenirConversationsUtilisateur,
+  obtenirDetailsConversation,
+  archiverConversation,
+  mettreAJourActivite,
+  ajouterParticipant,
+  retirerParticipant,
+  marquerCommeLu,
+  supprimerConversation,
+  obtenirConversationParTrajet
+} = require('../controllers/conversationController');
 
+// Middleware d'authentification
+const { auth } = require('../middleware/authMiddleware');
+
+// Middleware de rate limiting spécialisé
+const { rateLimiter } = require('../middleware/rateLimiter.middleware');
 
 const router = express.Router();
 
-// DEBUG: Vérifier l'import du contrôleur
-console.log('conversationController:', conversationController);
-console.log('creerConversation:', conversationController.creerConversation);
-if (!conversationController.creerConversation) {
-  console.error('ERREUR: creerConversation n\'est pas défini!');
-}
+// =====================================================
+// VALIDATEURS DE DONNÉES
+// =====================================================
 
-// Middleware d'authentification pour toutes les routes
-router.use(authMiddleware.auth);
-
-// Validations communes
-const conversationValidation = {
-  create: [
-    body('trajetId')
-      .isMongoId()
-      .withMessage('ID de trajet invalide'),
-    body('participants')
-      .optional()
-      .isArray()
-      .withMessage('Les participants doivent être un tableau')
-      .custom((value) => {
-        if (value && value.some(id => !id.match(/^[0-9a-fA-F]{24}$/))) {
+// Validateur pour la création de conversation
+const validateCreateConversation = [
+  body('trajetId')
+    .isMongoId()
+    .withMessage('ID de trajet invalide'),
+  body('participants')
+    .optional()
+    .isArray()
+    .withMessage('Les participants doivent être un tableau')
+    .custom((value) => {
+      if (value && value.length > 0) {
+        const isValid = value.every(id => /^[0-9a-fA-F]{24}$/.test(id));
+        if (!isValid) {
           throw new Error('IDs de participants invalides');
         }
-        return true;
-      }),
-    body('titre')
-      .optional()
-      .trim()
-      .isLength({ min: 1, max: 100 })
-      .withMessage('Le titre doit contenir entre 1 et 100 caractères'),
-    body('type')
-      .optional()
-      .isIn(['trajet', 'groupe', 'prive'])
-      .withMessage('Type de conversation invalide')
-  ],
-  
-  mongoId: [
-    param('id')
-      .isMongoId()
-      .withMessage('ID de conversation invalide')
-  ],
-  
-  pagination: [
-    query('page')
-      .optional()
-      .isInt({ min: 1 })
-      .withMessage('Le numéro de page doit être un entier positif'),
-    query('limit')
-      .optional()
-      .isInt({ min: 1, max: 100 })
-      .withMessage('La limite doit être entre 1 et 100'),
-    query('includeArchived')
-      .optional()
-      .isBoolean()
-      .withMessage('includeArchived doit être un booléen')
-  ],
-  
-  participant: [
-    body('utilisateurId')
-      .isMongoId()
-      .withMessage('ID utilisateur invalide')
-  ]
-};
+      }
+      return true;
+    }),
+  body('titre')
+    .optional()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Le titre doit contenir entre 1 et 100 caractères')
+    .trim(),
+  body('type')
+    .optional()
+    .isIn(['trajet', 'groupe', 'prive'])
+    .withMessage('Type de conversation invalide')
+];
 
-// IMPORTANT: Routes spécifiques AVANT les routes avec paramètres
+// Validateur pour les paramètres de conversation
+const validateConversationId = [
+  param('id')
+    .isMongoId()
+    .withMessage('ID de conversation invalide')
+];
+
+// Validateur pour les paramètres de trajet
+const validateTrajetId = [
+  param('trajetId')
+    .isMongoId()
+    .withMessage('ID de trajet invalide')
+];
+
+// Validateur pour la pagination
+const validatePagination = [
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('La page doit être un nombre entier positif'),
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('La limite doit être entre 1 et 100'),
+  query('includeArchived')
+    .optional()
+    .isBoolean()
+    .withMessage('includeArchived doit être un booléen'),
+  query('type')
+    .optional()
+    .isIn(['trajet', 'groupe', 'prive'])
+    .withMessage('Type de conversation invalide')
+];
+
+// Validateur pour l'archivage
+const validateArchive = [
+  body('archiver')
+    .optional()
+    .isBoolean()
+    .withMessage('Le paramètre archiver doit être un booléen')
+];
+
+// Validateur pour ajouter un participant
+const validateAddParticipant = [
+  body('utilisateurId')
+    .isMongoId()
+    .withMessage('ID utilisateur invalide')
+];
+
+// Validateur pour retirer un participant
+const validateRemoveParticipant = [
+  param('utilisateurId')
+    .isMongoId()
+    .withMessage('ID utilisateur invalide')
+];
+
+// Validateur pour les détails de conversation
+const validateConversationDetails = [
+  query('includeMessages')
+    .optional()
+    .isBoolean()
+    .withMessage('includeMessages doit être un booléen'),
+  query('messageLimit')
+    .optional()
+    .isInt({ min: 1, max: 200 })
+    .withMessage('messageLimit doit être entre 1 et 200')
+];
+
+// =====================================================
+// MIDDLEWARE DE RATE LIMITING SPÉCIALISÉ
+// =====================================================
+
+// Rate limiting pour la création (plus restrictif)
+const createRateLimit = rateLimiter.strict || rateLimiter;
+
+// Rate limiting standard pour la lecture
+const readRateLimit = rateLimiter.standard || rateLimiter;
+
+// Rate limiting pour les actions sensibles
+const sensitiveActionsLimit = rateLimiter.strict || rateLimiter;
+
+// =====================================================
+// ROUTES PRINCIPALES
+// =====================================================
+
 /**
- * @route   GET /api/conversations/stats
- * @desc    Obtenir les statistiques des conversations de l'utilisateur
- * @access  Privé
+ * @route   POST /api/conversations
+ * @desc    Créer une nouvelle conversation
+ * @access  Private
+ * @body    { trajetId, participants?, titre?, type? }
  */
-router.get('/stats',
-  async (req, res) => {
-    try {
-      const userId = req.user.id;
-      
-      // TODO: Implémenter avec vos modèles réels
-      // const Conversation = require('../models/Conversation');
-      
-      // Pour l'instant, retourner des données de test
-      res.json({
-        success: true,
-        data: {
-          total: 0,
-          archivees: 0,
-          nonLues: 0,
-          actives: 0
-        }
-      });
-      
-    } catch (error) {
-      console.error('Erreur statistiques conversations:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur serveur'
-      });
-    }
-  }
+router.post('/',
+  createRateLimit,
+  auth,
+  validateCreateConversation,
+  creerConversation
+);
+
+/**
+ * @route   GET /api/conversations
+ * @desc    Obtenir toutes les conversations de l'utilisateur connecté
+ * @access  Private
+ * @query   { page?, limit?, includeArchived?, type? }
+ */
+router.get('/',
+  readRateLimit,
+  auth,
+  validatePagination,
+  obtenirConversationsUtilisateur
 );
 
 /**
  * @route   GET /api/conversations/trajet/:trajetId
  * @desc    Obtenir la conversation d'un trajet spécifique
- * @access  Privé (participants du trajet)
+ * @access  Private
  */
 router.get('/trajet/:trajetId',
-  [
-    param('trajetId')
-      .isMongoId()
-      .withMessage('ID de trajet invalide')
-  ],
-  async (req, res, next) => {
-    try {
-      const { trajetId } = req.params;
-      const userId = req.user.id;
-      
-      // TODO: Remplacer par vos modèles réels quand ils seront disponibles
-      /*
-      const Conversation = await import('../models/Conversation.js');
-      const Trajet = await import('../models/Trajet.js');
-      
-      // Vérifier l'accès au trajet
-      const trajet = await Trajet.findById(trajetId);
-      if (!trajet) {
-        return res.status(404).json({
-          success: false,
-          message: 'Trajet non trouvé'
-        });
-      }
-      
-      const aAcces = trajet.conducteur.toString() === userId || 
-                     trajet.passagers.some(p => p.utilisateur.toString() === userId);
-      
-      if (!aAcces) {
-        return res.status(403).json({
-          success: false,
-          message: 'Accès non autorisé à ce trajet'
-        });
-      }
-      
-      const conversation = await Conversation.findByTrajet(trajetId);
-      
-      if (!conversation) {
-        return res.status(404).json({
-          success: false,
-          message: 'Aucune conversation trouvée pour ce trajet'
-        });
-      }
-      
-      // Marquer comme lu
-      conversation.marquerCommeLu(userId);
-      await conversation.save();
-      
-      const conversationObj = conversation.toObject();
-      conversationObj.messagesNonLus = conversation.nombreMessagesNonLus.get(userId.toString()) || 0;
-      */
-      
-      // Réponse temporaire
-      res.json({
-        success: true,
-        data: {
-          id: 'temp-conversation-id',
-          trajetId,
-          participants: [userId],
-          messages: [],
-          messagesNonLus: 0
-        }
-      });
-      
-    } catch (error) {
-      console.error('Erreur récupération conversation trajet:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur serveur'
-      });
-    }
-  }
-);
-
-// Routes CRUD principales
-
-/**
- * @route   POST /api/conversations
- * @desc    Créer une nouvelle conversation
- * @access  Privé (utilisateurs authentifiés)
- */
-router.post(
-  '/create',
-  rateLimitMiddleware.createConversation,
-  conversationValidation.create,
-  conversationController.creerConversation || conversationController.default.creerConversation
-);
-
-/**
- * @route   GET /api/conversations
- * @desc    Obtenir toutes les conversations de l'utilisateur
- * @access  Privé (utilisateurs authentifiés)
- * @query   page, limit, includeArchived
- */
-router.get('/',
-  conversationValidation.pagination,
-  conversationController.obtenirConversationsUtilisateur
+  readRateLimit,
+  auth,
+  validateTrajetId,
+  obtenirConversationParTrajet
 );
 
 /**
  * @route   GET /api/conversations/:id
  * @desc    Obtenir les détails d'une conversation
- * @access  Privé (participants uniquement)
+ * @access  Private
+ * @query   { includeMessages?, messageLimit? }
  */
 router.get('/:id',
-  conversationValidation.mongoId,
-  conversationController.obtenirDetailsConversation
+  readRateLimit,
+  auth,
+  validateConversationId,
+  validateConversationDetails,
+  obtenirDetailsConversation
 );
 
 /**
- * @route   PUT /api/conversations/:id/archiver
- * @desc    Archiver une conversation
- * @access  Privé (participants uniquement)
+ * @route   PATCH /api/conversations/:id/archiver
+ * @desc    Archiver ou désarchiver une conversation
+ * @access  Private
+ * @body    { archiver? }
  */
-router.put('/:id/archiver',
-  rateLimitMiddleware.updateConversation,
-  conversationValidation.mongoId,
-  conversationController.archiverConversation
+router.patch('/:id/archiver',
+  auth,
+  validateConversationId,
+  validateArchive,
+  archiverConversation
 );
 
 /**
- * @route   PUT /api/conversations/:id/participants
+ * @route   PATCH /api/conversations/:id/activite
+ * @desc    Mettre à jour la dernière activité d'une conversation
+ * @access  Private
+ */
+router.patch('/:id/activite',
+  auth,
+  validateConversationId,
+  mettreAJourActivite
+);
+
+/**
+ * @route   PATCH /api/conversations/:id/lire
+ * @desc    Marquer tous les messages d'une conversation comme lus
+ * @access  Private
+ */
+router.patch('/:id/lire',
+  auth,
+  validateConversationId,
+  marquerCommeLu
+);
+
+/**
+ * @route   POST /api/conversations/:id/participants
  * @desc    Ajouter un participant à la conversation
- * @access  Privé (conducteur ou admin)
+ * @access  Private
+ * @body    { utilisateurId }
  */
-router.put('/:id/participants',
-  rateLimitMiddleware.updateConversation,
-  [...conversationValidation.mongoId, ...conversationValidation.participant],
-  conversationController.ajouterParticipant
+router.post('/:id/participants',
+  sensitiveActionsLimit,
+  auth,
+  validateConversationId,
+  validateAddParticipant,
+  ajouterParticipant
 );
 
 /**
  * @route   DELETE /api/conversations/:id/participants/:utilisateurId
  * @desc    Retirer un participant de la conversation
- * @access  Privé (conducteur, admin ou l'utilisateur lui-même)
+ * @access  Private
  */
 router.delete('/:id/participants/:utilisateurId',
-  rateLimitMiddleware.updateConversation,
-  [
-    param('id').isMongoId().withMessage('ID de conversation invalide'),
-    param('utilisateurId').isMongoId().withMessage('ID utilisateur invalide')
-  ],
-  conversationController.retirerParticipant
-);
-
-/**
- * @route   PUT /api/conversations/:id/lire
- * @desc    Marquer les messages de la conversation comme lus
- * @access  Privé (participants uniquement)
- */
-router.put('/:id/lire',
-  rateLimitMiddleware.readConversation,
-  conversationValidation.mongoId,
-  conversationController.marquerCommeLu
+  sensitiveActionsLimit,
+  auth,
+  validateConversationId,
+  validateRemoveParticipant,
+  retirerParticipant
 );
 
 /**
  * @route   DELETE /api/conversations/:id
  * @desc    Supprimer une conversation
- * @access  Privé (conducteur uniquement)
+ * @access  Private
  */
 router.delete('/:id',
-  rateLimitMiddleware.deleteConversation,
-  conversationValidation.mongoId,
-  conversationController.supprimerConversation
+  sensitiveActionsLimit,
+  auth,
+  validateConversationId,
+  supprimerConversation
 );
 
-// Middleware de gestion d'erreurs pour les routes de conversations
-router.use((error, req, res, next) => {
-  console.error('Erreur dans les routes conversations:', error);
-  
-  if (error.name === 'ValidationError') {
+// =====================================================
+// ROUTES D'INFORMATIONS ET DE DEBUG
+// =====================================================
+
+/**
+ * @route   GET /api/conversations/info/stats
+ * @desc    Obtenir les statistiques des conversations de l'utilisateur
+ * @access  Private
+ */
+router.get('/info/stats',
+  readRateLimit,
+  auth,
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const Conversation = require('../models/Conversation');
+
+      // Statistiques rapides
+      const stats = await Conversation.aggregate([
+        { $match: { participants: userId } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            archivees: {
+              $sum: { $cond: [{ $eq: ['$estArchivee', true] }, 1, 0] }
+            },
+            actives: {
+              $sum: { $cond: [{ $eq: ['$estArchivee', false] }, 1, 0] }
+            },
+            totalMessagesNonLus: {
+              $sum: { $ifNull: [`$nombreMessagesNonLus.${userId}`, 0] }
+            }
+          }
+        }
+      ]);
+
+      const result = stats[0] || {
+        total: 0,
+        archivees: 0,
+        actives: 0,
+        totalMessagesNonLus: 0
+      };
+
+      // Statistiques par type
+      const typeStats = await Conversation.aggregate([
+        { $match: { participants: userId } },
+        {
+          $group: {
+            _id: '$type',
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      result.parType = typeStats.reduce((acc, item) => {
+        acc[item._id] = item.count;
+        return acc;
+      }, {});
+
+      res.json({
+        success: true,
+        data: result
+      });
+
+    } catch (error) {
+      console.error('Erreur récupération stats:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur serveur lors de la récupération des statistiques'
+      });
+    }
+  }
+);
+
+// =====================================================
+// MIDDLEWARE DE GESTION D'ERREURS SPÉCIALISÉ
+// =====================================================
+
+// Gestionnaire d'erreurs spécifique aux conversations
+router.use((err, req, res, next) => {
+  console.error('Erreur dans les routes conversations:', err);
+
+  // Erreurs de validation Mongoose spécifiques aux conversations
+  if (err.name === 'ValidationError' && err.errors) {
+    const conversationErrors = Object.keys(err.errors).filter(key => 
+      ['trajetId', 'participants', 'titre', 'type'].includes(key)
+    );
+    
+    if (conversationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation des données de conversation',
+        code: 'CONVERSATION_VALIDATION_ERROR',
+        errors: conversationErrors.map(key => ({
+          field: key,
+          message: err.errors[key].message
+        }))
+      });
+    }
+  }
+
+  // Erreurs de référence (trajet non trouvé, etc.)
+  if (err.name === 'CastError' && err.path === 'trajetId') {
     return res.status(400).json({
       success: false,
-      message: 'Données de conversation invalides',
-      errors: Object.values(error.errors).map(err => err.message)
+      message: 'ID de trajet invalide',
+      code: 'INVALID_TRAJET_ID'
     });
   }
-  
-  if (error.name === 'CastError') {
-    return res.status(400).json({
-      success: false,
-      message: 'Format d\'ID invalide'
-    });
-  }
-  
-  res.status(500).json({
-    success: false,
-    message: 'Erreur serveur interne'
-  });
+
+  // Passer l'erreur au gestionnaire global
+  next(err);
 });
 
-export default router;
+// =====================================================
+// EXPORT
+// =====================================================
+
+module.exports = router;
+
+// =====================================================
+// DOCUMENTATION DES RÉPONSES
+// =====================================================
+
+/*
+EXEMPLES DE RÉPONSES :
+
+1. POST /api/conversations
+{
+  "success": true,
+  "message": "Conversation créée avec succès",
+  "data": {
+    "_id": "60f1b2c3d4e5f6a7b8c9d0e1",
+    "trajetId": {
+      "_id": "60f1b2c3d4e5f6a7b8c9d0e0",
+      "pointDepart": { "ville": "Abidjan" },
+      "pointArrivee": { "ville": "Yamoussoukro" }
+    },
+    "participants": [...],
+    "titre": "Conversation pour trajet ABC123",
+    "type": "trajet",
+    "derniereActivite": "2024-08-09T10:30:00.000Z"
+  }
+}
+
+2. GET /api/conversations
+{
+  "success": true,
+  "data": {
+    "conversations": [...],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 25,
+      "pages": 3
+    }
+  }
+}
+
+3. GET /api/conversations/:id
+{
+  "success": true,
+  "data": {
+    "_id": "60f1b2c3d4e5f6a7b8c9d0e1",
+    "participants": [...],
+    "messages": [...],
+    "messagesNonLus": 3,
+    "nombreParticipants": 4
+  }
+}
+*/

@@ -19,7 +19,7 @@ let auth = {};
 try {
   // Essayer d'abord middlewares/auth, puis middleware/auth
   try {
-    auth = require('../middlewares/auth');
+    auth = require('../middlewares/authMiddleware');
   } catch {
     auth = require('../middleware/auth');
   }

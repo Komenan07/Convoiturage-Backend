@@ -13,7 +13,7 @@ try {
 // Import sécurisé des middlewares de validation
 let validation = {};
 try {
-  validation = require('../middleware/validation');
+  validation = require('../utils/validators');
 } catch (error) {
   console.warn('⚠️ Middleware de validation non trouvé');
 }
@@ -28,7 +28,7 @@ const {
 // Import sécurisé des middlewares d'authentification
 let auth = {};
 try {
-  auth = require('../middleware/auth');
+  auth = require('../middleware/authMiddleware');
 } catch (error) {
   console.warn('⚠️ Middleware d\'authentification non trouvé');
 }
