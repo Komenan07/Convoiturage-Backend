@@ -31,12 +31,23 @@ let upload = {
 };
 
 try {
-  const middleware = require('../middleware');
+  const middleware = require('../middlewares/authMiddleware');
   if (middleware.auth) auth = middleware.auth;
   if (middleware.upload) upload = middleware.upload;
   console.log('✅ Middlewares auth et upload chargés avec succès');
 } catch (error) {
   console.warn('⚠️ Middlewares non trouvés, utilisation des middlewares par défaut');
+  console.warn('   Erreur:', error.message);
+}
+
+// Import sécurisé du middleware d'upload des véhicules
+let uploadVehicule = upload;
+try {
+  const { uploadPhotoVehicule } = require('../uploads/vehicules');
+  uploadVehicule = uploadPhotoVehicule;
+  console.log('✅ Middleware upload véhicule chargé avec succès');
+} catch (error) {
+  console.warn('⚠️ Middleware upload véhicule non trouvé, utilisation du fallback');
   console.warn('   Erreur:', error.message);
 }
 
@@ -86,7 +97,7 @@ router.use(loggerVehicules);
 // Ajouter un nouveau véhicule avec photo
 router.post('/', 
   auth, 
-  upload.single('photoVehicule'), 
+  uploadVehicule, 
   vehiculeController.creerVehicule || creerControleurParDefaut('creerVehicule', 'Création de véhicule non implémentée')
 );
 
@@ -132,7 +143,7 @@ router.get('/:vehiculeId/validite-documents',
 router.put('/:vehiculeId', 
   auth, 
   validerIdMongoDB,
-  upload.single('photoVehicule'), 
+  uploadVehicule, 
   vehiculeController.modifierVehicule || creerControleurParDefaut('modifierVehicule')
 );
 
@@ -147,7 +158,7 @@ router.put('/:vehiculeId/assurance',
 router.put('/:vehiculeId/visite-technique', 
   auth, 
   validerIdMongoDB,
-  upload.single('certificat'), 
+  uploadVehicule, 
   vehiculeController.renouvelerVisiteTechnique || vehiculeController.renouvellerVisiteTechnique || creerControleurParDefaut('renouvelerVisiteTechnique')
 );
 
@@ -191,7 +202,7 @@ if (process.env.NODE_ENV !== 'production') {
       controlleur_charge: !!vehiculeController.creerVehicule,
       middlewares_charges: {
         auth: typeof auth === 'function',
-        upload: typeof upload.single === 'function'
+        upload: typeof uploadVehicule.single === 'function'
       }
     });
   });

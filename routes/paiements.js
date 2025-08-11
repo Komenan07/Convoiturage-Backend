@@ -21,7 +21,7 @@ try {
   try {
     auth = require('../middlewares/authMiddleware');
   } catch {
-    auth = require('../middleware/auth');
+    auth = require('../middlewares/auth');
   }
 } catch (error) {
   console.warn('⚠️ Middleware d\'authentification non trouvé (testé middlewares/auth et middleware/auth)');
@@ -57,7 +57,7 @@ try {
   console.warn('⚠️ Middleware rateLimiter non trouvé (testé middlewares/rateLimiter et middleware/rateLimiter)');
 }
 
-const { rateLimiter } = rateLimiterModule;
+const { rateLimiters, basicRateLimiter } = rateLimiterModule;
 
 // === FONCTIONS HELPER SÉCURISÉES ===
 
@@ -88,10 +88,14 @@ const middlewareAuthorize = (roles = []) => {
 };
 
 const middlewareRateLimit = (type) => {
-  if (!rateLimiter || !rateLimiter[type]) {
-    return creerMiddlewareParDefaut(`rateLimiter.${type}`);
-  }
-  return rateLimiter[type];
+  const map = {
+    payment: rateLimiters?.paiement?.initiate,
+    standard: basicRateLimiter?.standard,
+    callback: rateLimiters?.paiement?.webhook,
+    reporting: basicRateLimiter?.standard
+  };
+  const limiter = map[type];
+  return limiter || creerMiddlewareParDefaut(`rateLimit.${type}`);
 };
 
 const middlewareValidation = (validateur, nom) => {

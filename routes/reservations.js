@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Reservation = require('../models/Reservation');
 const Trajet = require('../models/Trajet');
-const Utilisateur = require('../models/Utilisateur');
-const auth = require('../middleware/authMiddleware');
+//const Utilisateur = require('../models/Utilisateur');
+const { protect } = require('../middlewares/authMiddleware');
 const { body, param, query, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 
@@ -61,7 +61,7 @@ const checkReservationAccess = async (req, res, next) => {
  * @access  Private
  */
 router.post('/', 
-  auth,
+  protect,
   [
     body('trajetId')
       .isMongoId()
@@ -210,7 +210,7 @@ router.post('/',
  * @access  Private
  */
 router.get('/',
-  auth,
+  protect,
   [
     query('statut')
       .optional()
@@ -314,7 +314,7 @@ router.get('/',
  * @access  Private
  */
 router.get('/:id',
-  auth,
+  protect,
   [
     param('id')
       .isMongoId()
@@ -360,7 +360,7 @@ router.get('/:id',
  * @access  Private
  */
 router.put('/:id/confirmer',
-  auth,
+  protect,
   [
     param('id')
       .isMongoId()
@@ -418,7 +418,7 @@ router.put('/:id/confirmer',
  * @access  Private
  */
 router.put('/:id/refuser',
-  auth,
+  protect,
   [
     param('id')
       .isMongoId()
@@ -487,7 +487,7 @@ router.put('/:id/refuser',
  * @access  Private
  */
 router.put('/:id/annuler',
-  auth,
+  protect,
   [
     param('id')
       .isMongoId()
@@ -565,7 +565,7 @@ router.put('/:id/annuler',
  * @access  Private
  */
 router.put('/:id/modifier-points',
-  auth,
+  protect,
   [
     param('id')
       .isMongoId()
@@ -649,7 +649,7 @@ router.put('/:id/modifier-points',
  * @access  Private
  */
 router.put('/:id/statut-paiement',
-  auth,
+  protect,
   [
     param('id')
       .isMongoId()
@@ -714,7 +714,7 @@ router.put('/:id/statut-paiement',
  * @access  Private
  */
 router.put('/:id/position',
-  auth,
+  protect,
   [
     param('id')
       .isMongoId()
@@ -775,7 +775,7 @@ router.put('/:id/position',
  * @access  Private
  */
 router.get('/trajet/:trajetId',
-  auth,
+  protect,
   [
     param('trajetId')
       .isMongoId()
@@ -826,7 +826,7 @@ router.get('/trajet/:trajetId',
  * @access  Private
  */
 router.put('/:id/terminer',
-  auth,
+  protect,
   [
     param('id')
       .isMongoId()
@@ -880,7 +880,7 @@ router.put('/:id/terminer',
  * @access  Private
  */
 router.get('/statistiques',
-  auth,
+  protect,
   async (req, res) => {
     try {
       const userId = new mongoose.Types.ObjectId(req.user.id);
@@ -938,3 +938,4 @@ router.get('/statistiques',
 );
 
 module.exports = router;
+

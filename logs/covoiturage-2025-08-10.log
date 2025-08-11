@@ -1,0 +1,5933 @@
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route authentification non chargée: Cannot find module '../utils/validation'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\routes\\authRoute.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route utilisateurs non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\utilisateurRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route authentification non chargée: Cannot find module '../utils/validation'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\routes\\authRoute.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route utilisateurs non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\utilisateurRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:28:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: rateLimiter is not a function',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route utilisateurs non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\utilisateurRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: rateLimiter is not a function',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route utilisateurs non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\utilisateurRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Unexpected end of input',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route utilisateurs non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\utilisateurRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Unexpected end of input',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route utilisateurs non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\utilisateurRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:30:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: rateLimiter is not a function',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route utilisateurs non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\utilisateurRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: rateLimiter is not a function',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route utilisateurs non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\utilisateurRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module 'C:\\Projet perso\\Convoiturage-Backend2\\routes\\vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:31:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: rateLimiter is not a function',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route utilisateurs non chargée: Cannot find module './routes/utilisateurRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: rateLimiter is not a function',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route utilisateurs non chargée: Cannot find module './routes/utilisateurRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:32:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: rateLimiter is not a function',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route utilisateurs non chargée: Cannot find module './routes/utilisateurRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: rateLimiter is not a function',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: rateLimiter is not a function',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:34:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: rateLimiter is not a function',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:35:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:49:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:49:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:49:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 02:55:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:33:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 03:34:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 03:34:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route authentification non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 03:34:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Route utilisateurs non chargée: Route.post() requires a callback function but got a [object Undefined]',
+  timestamp: '2025-08-10 03:35:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route trajets non chargée: Cannot find module './routes/trajetsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:35:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route reservations non chargée: Cannot find module './routes/reservationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:35:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route messages non chargée: Cannot find module './routes/messagesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:35:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route evaluations non chargée: Cannot find module './routes/evaluationsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:35:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route événements non chargée: Cannot find module './routes/evenementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:35:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route alertes urgence non chargée: Cannot find module './routes/alertesUrgenceRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:35:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route signalements non chargée: Cannot find module './routes/signalementRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:35:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route paiements non chargée: Cannot find module './routes/paiementsRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:35:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route admin non chargée: Cannot find module './routes/adminRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:35:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Route véhicules non chargée: Cannot find module './routes/vehiculesRoute'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend2\\server.js',
+  timestamp: '2025-08-10 03:35:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:42:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:42:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:42:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:42:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:42:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:42:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:42:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:42:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:42:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:42:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:43:09'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:43:09'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:43:09'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:43:09'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:43:10'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:44:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:44:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:44:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:44:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:44:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:44:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:44:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:44:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:44:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:44:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:48:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:48:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:48:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:48:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:48:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:56:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:56:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:56:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:56:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:56:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:56:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:56:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:56:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:56:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:56:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:58:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:58:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:58:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:58:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 03:58:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:02:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:02:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:02:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:02:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:02:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:02:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:02:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:02:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:02:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:02:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:03:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:03:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:03:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:03:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:03:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:08:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:08:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:08:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:08:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:08:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:08:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:08:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:08:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:09:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:09:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:09:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:09:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:09:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:09:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:09:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:09:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:09:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:09:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:11:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:11:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:11:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:11:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:11:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:11:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:11:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:11:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:11:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:11:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:32'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:13:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:15:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:15:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:15:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:15:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:15:57'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:15:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:15:57'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:15:57'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:15:57'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:15:57'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:16:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:16:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:16:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:16:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:16:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:16'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:16'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:17:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:18:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:18:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:18:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:18:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:18:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:18:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:18:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:18:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:06'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:06'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:06'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:06'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:06'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:06'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:06'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:07'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:19:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:22:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:22:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:22:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:22:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:22:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:22:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:22:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:22:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:22:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:22:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:23:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:23:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:23:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:23:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:23:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:23:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:23:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:23:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:23:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:23:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:26:46'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:26:46'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:26:46'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:26:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:26:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:26:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:26:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:26:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:26:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:26:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:30:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:30:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:30:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:30:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:30:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:30:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:30:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:30:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:31:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:31:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:31:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:31:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:36:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:36:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:36:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:36:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:38:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:38:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:38:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:38:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:38:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:38:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:38:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:38:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:39:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:39:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:39:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:39:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:39:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:39:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:39:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:39:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:39:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:39:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:40:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:42:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:42:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:42:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:42:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:42:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:42:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:42:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:42:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:42:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:42:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:43:32'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:44:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:44:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:44:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:44:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:44:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:44:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:44:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:44:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:44:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:44:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:47:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:47:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:47:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:47:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:47:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:47:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:47:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:47:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:47:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:47:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:57:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:57:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:57:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:57:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:57:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:57:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:57:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "JWT_SECRET manquant dans les variables d'environnement",
+  timestamp: '2025-08-10 04:57:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur initialisation service email: nodemailer.createTransporter is not a function',
+  stack: 'TypeError: nodemailer.createTransporter is not a function\n' +
+    '    at EmailService.initializeTransporter (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:17:37)\n' +
+    '    at new EmailService (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:8:10)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\utils\\emailService.js:321:22)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)',
+  timestamp: '2025-08-10 06:13:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean.kouame@email.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 18:52:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur inscription: Operation `utilisateurs.findOne()` buffering timed out after 10000ms',
+  stack: 'MongooseError: Operation `utilisateurs.findOne()` buffering timed out after 10000ms\n' +
+    '    at Timeout.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\node_modules\\mongoose\\lib\\drivers\\node-mongodb-native\\collection.js:185:23)\n' +
+    '    at listOnTimeout (node:internal/timers:588:17)\n' +
+    '    at process.processTimers (node:internal/timers:523:7)',
+  timestamp: '2025-08-10 18:52:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean.kouame@email.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 19:02:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-10 19:02:36'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-10 19:02:36'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean.kouame@email.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 19:10:36'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-10 19:10:46'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-10 19:10:46'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean.kouame@email.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 19:10:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-10 19:11:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-10 19:11:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean.kouame@email.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 19:25:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-10 19:26:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-10 19:26:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'john.doe@example.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 19:32:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-10 19:32:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-10 19:32:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'john.doe@example.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 19:32:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-10 19:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-10 19:33:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'marie.konan@example.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-10 19:36:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur connexion: Operation `utilisateurs.findOne()` buffering timed out after 10000ms',
+  stack: 'MongooseError: Operation `utilisateurs.findOne()` buffering timed out after 10000ms\n' +
+    '    at Timeout.<anonymous> (C:\\Projet perso\\Convoiturage-Backend2\\node_modules\\mongoose\\lib\\drivers\\node-mongodb-native\\collection.js:185:23)\n' +
+    '    at listOnTimeout (node:internal/timers:588:17)\n' +
+    '    at process.processTimers (node:internal/timers:523:7)',
+  timestamp: '2025-08-10 19:36:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'john.doe@example.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 19:51:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-10 19:51:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-10 19:51:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'john.doe@example.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 19:54:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-10 19:54:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-10 19:54:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'john.doe@example.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 20:02:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-10 20:02:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-10 20:02:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'john.doe@example.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 20:02:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-10 20:03:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-10 20:03:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'john.doe@example.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-10 20:03:40'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-10 20:03:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-10 20:03:50'
+}

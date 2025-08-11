@@ -55,6 +55,8 @@ const authentificationRequise = async (req, res, next) => {
       role: utilisateur.role,
       conversations: utilisateur.conversations.map(c => c._id.toString())
     };
+    // Alias de compatibilité avec certains contrôleurs
+    req.user = { id: req.utilisateur.id, role: req.utilisateur.role };
 
     next();
   } catch (error) {

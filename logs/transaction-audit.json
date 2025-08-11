@@ -1,0 +1,30 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 90
+    },
+    "auditLog": "C:\\Projet perso\\Convoiturage-Backend2\\logs\\transaction-audit.json",
+    "files": [
+        {
+            "date": 1754754788834,
+            "name": "C:\\Projet perso\\Convoiturage-Backend2\\logs\\transaction-2025-08-09.log",
+            "hash": "d27569b341eaaab51ac133af0744f278405e7c87cdd0111168a04726e625bf52"
+        },
+        {
+            "date": 1754784657283,
+            "name": "C:\\Projet perso\\Convoiturage-Backend2\\logs\\transaction-2025-08-10.log",
+            "hash": "712a969a8d7d0db6e1d7fd16626a8d9d4d40b9ec50071dda04b6f6149536ca7b"
+        },
+        {
+            "date": 1754786980048,
+            "name": "C:\\Projet perso\\convoiturage-backend2\\logs\\transaction-2025-08-10.log",
+            "hash": "d10ec09ad91fe14ad0e28b1e9317be7371403b1da933b63f1f4cd8f83ae148ee"
+        },
+        {
+            "date": 1754871669590,
+            "name": "C:\\Projet perso\\Convoiturage-Backend2\\logs\\transaction-2025-08-11.log",
+            "hash": "1d37b47fc2be2173b8ed9a3a3ddf902d430956b5f885f341b13c6940b030d2ce"
+        }
+    ],
+    "hashType": "sha256"
+}

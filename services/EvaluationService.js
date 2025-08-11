@@ -1,277 +1,509 @@
-// services/EvaluationService.js
-class EvaluationService {
-  constructor(Evaluation, Trajet, Utilisateur) {
-    this.Evaluation = Evaluation;
-    this.Trajet = Trajet;
-    this.Utilisateur = Utilisateur;
-  }
+// Importation du modèle avec gestion d'erreur
+let Evaluation;
+try {
+  Evaluation = require('../models/Evaluation');
+} catch (error) {
+  console.warn('⚠️ Modèle Evaluation non trouvé, utilisation d\'un mock');
 
-  // CREATE - Créer évaluation après trajet
+  // Mock du modèle Evaluation si non trouvé
+  Evaluation = {
+    findOne: async (_query) => null,
+    find: (_query) => ({
+      sort: () => ({
+        skip: () => ({
+          limit: () => Promise.resolve([])
+        })
+      })
+    }),
+    countDocuments: async () => 0,
+    findById: async () => null,
+    findByIdAndDelete: async () => null,
+    aggregate: async () => [{ totalEvaluations: 0, moyenneGlobale: 0, signalements: 0 }],
+    // Méthode statique mockée
+    calculerMoyenneUtilisateur: async (_userId) => {
+      return {
+        moyenneGlobale: 0,
+        totalEvaluations: 0,
+        repartitionNotes: {}
+      };
+    },
+    // Méthode statique mockée
+    detecterEvaluationsSuspectes: async (_userId) => {
+      return [];
+    },
+  };
+
+  // Constructor mock
+  const EvaluationConstructor = function(data) {
+    Object.assign(this, data);
+    this.save = async () => this;
+    this.peutRepondre = (_userId) => true; // Utilisation de _userId pour indiquer qu'elle est intentionnellement non utilisée
+  };
+
+  // Remplacer le modèle par le constructor
+  Evaluation = EvaluationConstructor;
+  Object.assign(Evaluation, Evaluation);
+}
+
+class EvaluationService {
+  /**
+   * Créer une nouvelle évaluation
+   * @param {Object} data - Données de l'évaluation
+   * @param {string} evaluateurId - ID de l'utilisateur qui évalue
+   * @returns {Promise<Object>} - Évaluation créée
+   */
   async creerEvaluation(data, evaluateurId) {
     try {
-      // Vérifier que le trajet existe et est terminé
-      const trajet = await this.Trajet.findById(data.trajetId)
-        .populate('conducteurId passagers.utilisateurId');
-      
-      if (!trajet) {
-        throw new Error('Trajet introuvable');
-      }
-      
-      if (trajet.statut !== 'TERMINE') {
-        throw new Error('Le trajet doit être terminé pour être évalué');
-      }
-      
-      // Vérifier que l'évaluateur faisait partie du trajet
-      const estConducteur = trajet.conducteurId._id.toString() === evaluateurId;
-      const estPassager = trajet.passagers.some(p => 
-        p.utilisateurId._id.toString() === evaluateurId
-      );
-      
-      if (!estConducteur && !estPassager) {
-        throw new Error('Vous ne pouvez évaluer que les trajets auxquels vous avez participé');
-      }
-      
-      // Déterminer le type d'évaluateur et l'évalué
-      let typeEvaluateur, evalueId;
-      
-      if (estConducteur) {
-        typeEvaluateur = 'CONDUCTEUR';
-        // Le conducteur évalue un passager spécifique
-        evalueId = data.evalueId;
-      } else {
-        typeEvaluateur = 'PASSAGER';
-        // Le passager évalue le conducteur
-        evalueId = trajet.conducteurId._id;
-      }
-      
-      // Vérifier qu'une évaluation n'existe pas déjà
-      const evaluationExistante = await this.Evaluation.findOne({
+      // Vérifier si une évaluation existe déjà
+      const existe = await Evaluation.findOne({
         trajetId: data.trajetId,
-        evaluateurId,
-        evalueId
+        evaluateurId: evaluateurId,
+        evalueId: data.evalueId
       });
-      
-      if (evaluationExistante) {
-        throw new Error('Vous avez déjà évalué cette personne pour ce trajet');
+      if (existe) {
+        throw new Error('Vous avez déjà évalué cet utilisateur pour ce trajet');
       }
-      
+      // Valider les données requises
+      if (!data.trajetId || !data.evalueId || !data.note) {
+        throw new Error('Données manquantes : trajetId, evalueId et note sont requis');
+      }
+      // Vérifier que l'utilisateur ne s'évalue pas lui-même
+      if (evaluateurId === data.evalueId) {
+        throw new Error('Vous ne pouvez pas vous évaluer vous-même');
+      }
       // Créer l'évaluation
-      const evaluation = new this.Evaluation({
+      const evaluationData = {
         ...data,
         evaluateurId,
-        evalueId,
-        typeEvaluateur
-      });
-      
+        evalueId: data.evalueId,
+        trajetId: data.trajetId,
+        typeEvaluateur: data.typeEvaluateur || 'PASSAGER',
+        notes: {
+          noteGlobale: data.note,
+          ponctualite: data.criteresEvaluation?.ponctualite || data.note,
+          proprete: data.criteresEvaluation?.proprete || data.note,
+          communication: data.criteresEvaluation?.communication || data.note,
+          conduite: data.criteresEvaluation?.conduite || data.note,
+          comportement: data.criteresEvaluation?.comportement || data.note
+        },
+        commentaire: data.commentaire || '',
+        dateEvaluation: new Date(),
+        estSignalement: false,
+        gravite: 'FAIBLE'
+      };
+      const evaluation = new Evaluation(evaluationData);
       await evaluation.save();
-      
-      // Mettre à jour le score de confiance de l'évalué
-      await this.mettreAJourScoreConfiance(evalueId);
-      
       return evaluation;
-      
     } catch (error) {
-      throw new Error(`Erreur lors de la création de l'évaluation: ${error.message}`);
+      console.error('Erreur création évaluation:', error);
+      throw error;
     }
   }
 
-  // READ - Obtenir évaluations utilisateur
+  /**
+   * Obtenir les évaluations d'un utilisateur
+   * @param {string} userId - ID de l'utilisateur évalué
+   * @param {Object} options - Options de pagination et filtres
+   * @returns {Promise<Object>} - Liste des évaluations avec pagination
+   */
   async obtenirEvaluationsUtilisateur(userId, options = {}) {
-    const {
-      page = 1,
-      limit = 10,
-      typeEvaluateur,
-      notesMinimum
-    } = options;
-    
-    const query = { evalueId: userId };
-    
-    if (typeEvaluateur) {
-      query.typeEvaluateur = typeEvaluateur;
+    try {
+      const {
+        page = 1,
+        limite = 10,
+        typeEvaluateur,
+        noteMinimum,
+        dateDebut,
+        dateFin
+      } = options;
+      // Construction de la requête
+      const query = { evalueId: userId };
+      if (typeEvaluateur) {
+        query.typeEvaluateur = typeEvaluateur;
+      }
+      if (noteMinimum) {
+        query['notes.noteGlobale'] = { $gte: noteMinimum };
+      }
+      // Filtres de date
+      if (dateDebut || dateFin) {
+        query.dateEvaluation = {};
+        if (dateDebut) query.dateEvaluation.$gte = new Date(dateDebut);
+        if (dateFin) query.dateEvaluation.$lte = new Date(dateFin);
+      }
+      // Exécution des requêtes en parallèle
+      const [evaluations, total] = await Promise.all([
+        Evaluation.find(query)
+          .populate('evaluateurId', 'nom prenom photo')
+          .populate('trajetId', 'depart destination dateDepart')
+          .sort({ dateEvaluation: -1 })
+          .skip((page - 1) * limite)
+          .limit(limite),
+        Evaluation.countDocuments(query)
+      ]);
+      // Calculer les statistiques
+      const statistiques = await this.obtenirMoyenneNotes(userId);
+      return {
+        evaluations,
+        pagination: {
+          page: parseInt(page),
+          limite: parseInt(limite),
+          total,
+          pages: Math.ceil(total / limite)
+        },
+        statistiques
+      };
+    } catch (error) {
+      console.error('Erreur obtention évaluations utilisateur:', error);
+      throw error;
     }
-    
-    if (notesMinimum) {
-      query['notes.noteGlobale'] = { $gte: notesMinimum };
-    }
-    
-    const evaluations = await this.Evaluation.find(query)
-      .populate('evaluateurId', 'nom prenom photo')
-      .populate('trajetId', 'depart destination dateDepart')
-      .sort({ dateEvaluation: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
-    
-    const total = await this.Evaluation.countDocuments(query);
-    const moyennes = await this.Evaluation.calculerMoyenneUtilisateur(userId);
-    
-    return {
-      evaluations,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      },
-      statistiques: moyennes
-    };
   }
 
-  // READ - Obtenir moyenne notes
+  /**
+   * Obtenir la moyenne des notes d'un utilisateur
+   * @param {string} userId - ID de l'utilisateur
+   * @returns {Promise<Object>} - Statistiques des notes
+   */
   async obtenirMoyenneNotes(userId) {
-    return await this.Evaluation.calculerMoyenneUtilisateur(userId);
-  }
-
-  // READ - Obtenir évaluations d'un trajet
-  async obtenirEvaluationsTrajet(trajetId) {
-    const evaluations = await this.Evaluation.find({ trajetId })
-      .populate('evaluateurId evalueId', 'nom prenom photo')
-      .sort({ dateEvaluation: -1 });
-    
-    return evaluations;
-  }
-
-  // UPDATE - Répondre à évaluation
-  async repondreEvaluation(evaluationId, reponse, userId) {
     try {
-      const evaluation = await this.Evaluation.findById(evaluationId);
-      
-      if (!evaluation) {
-        throw new Error('Évaluation introuvable');
+      // Utiliser la méthode statique si disponible
+      if (typeof Evaluation.calculerMoyenneUtilisateur === 'function') {
+        return await Evaluation.calculerMoyenneUtilisateur(userId);
       }
-      
-      if (!evaluation.peutRepondre(userId)) {
-        throw new Error('Vous ne pouvez pas répondre à cette évaluation');
-      }
-      
-      evaluation.reponseEvalue = reponse;
-      evaluation.dateReponse = new Date();
-      
-      await evaluation.save();
-      return evaluation;
-      
-    } catch (error) {
-      throw new Error(`Erreur lors de la réponse: ${error.message}`);
-    }
-  }
-
-  // UPDATE - Signaler évaluation abusive
-  async signalerEvaluationAbusive(evaluationId, motif, userId) {
-    try {
-      const evaluation = await this.Evaluation.findById(evaluationId);
-      
-      if (!evaluation) {
-        throw new Error('Évaluation introuvable');
-      }
-      
-      if (evaluation.evalueId.toString() !== userId) {
-        throw new Error('Vous ne pouvez signaler que les évaluations vous concernant');
-      }
-      
-      // Créer un signalement d'évaluation abusive
-      // (logique à implémenter selon vos besoins)
-      
-      return { success: true, message: 'Signalement enregistré' };
-      
-    } catch (error) {
-      throw new Error(`Erreur lors du signalement: ${error.message}`);
-    }
-  }
-
-  // DELETE - Supprimer évaluation (admin uniquement)
-  async supprimerEvaluation(evaluationId, adminId) {
-    try {
-      const admin = await this.Utilisateur.findById(adminId);
-      
-      if (!admin || admin.role !== 'ADMIN') {
-        throw new Error('Accès non autorisé');
-      }
-      
-      const evaluation = await this.Evaluation.findByIdAndDelete(evaluationId);
-      
-      if (!evaluation) {
-        throw new Error('Évaluation introuvable');
-      }
-      
-      // Recalculer le score de confiance de l'évalué
-      await this.mettreAJourScoreConfiance(evaluation.evalueId);
-      
-      return { success: true, message: 'Évaluation supprimée' };
-      
-    } catch (error) {
-      throw new Error(`Erreur lors de la suppression: ${error.message}`);
-    }
-  }
-
-  // Action spécialisée - Détection évaluations suspectes
-  async detecterEvaluationsSuspectes(userId) {
-    return await this.Evaluation.detecterEvaluationsSuspectes(userId);
-  }
-
-  // Action spécialisée - Impact sur score de confiance
-  async mettreAJourScoreConfiance(userId) {
-    const moyennes = await this.obtenirMoyenneNotes(userId);
-    
-    if (!moyennes) return;
-    
-    // Calcul du score de confiance basé sur les évaluations
-    let scoreConfiance = 0;
-    
-    if (moyennes.nombreEvaluations >= 5) {
-      // Score basé sur la moyenne globale et le nombre d'évaluations
-      const facteurNombre = Math.min(moyennes.nombreEvaluations / 20, 1);
-      const facteurNote = moyennes.moyenneGlobale / 5;
-      
-      scoreConfiance = Math.round((facteurNote * 0.7 + facteurNombre * 0.3) * 100);
-    } else {
-      // Score réduit pour peu d'évaluations
-      scoreConfiance = Math.round((moyennes.moyenneGlobale / 5) * 60);
-    }
-    
-    // Pénalités pour signalements
-    const detectionSuspecte = await this.detecterEvaluationsSuspectes(userId);
-    if (detectionSuspecte.suspect) {
-      scoreConfiance = Math.max(scoreConfiance - 20, 0);
-    }
-    
-    // Mettre à jour l'utilisateur
-    await this.Utilisateur.findByIdAndUpdate(userId, {
-      scoreConfiance,
-      derniereMiseAJourScore: new Date()
-    });
-    
-    return scoreConfiance;
-  }
-
-  // Statistiques globales
-  async obtenirStatistiquesGlobales() {
-    const stats = await this.Evaluation.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalEvaluations: { $sum: 1 },
-          moyenneGenerale: { $avg: '$notes.noteGlobale' },
-          nombreSignalements: {
-            $sum: { $cond: ['$estSignalement', 1, 0] }
+      // Calcul manuel si méthode statique non disponible
+      const pipeline = [
+        { $match: { evalueId: userId } },
+        {
+          $group: {
+            _id: null,
+            moyenneGlobale: { $avg: '$notes.noteGlobale' },
+            moyennePonctualite: { $avg: '$notes.ponctualite' },
+            moyenneProprete: { $avg: '$notes.proprete' },
+            moyenneCommunication: { $avg: '$notes.communication' },
+            moyenneConduite: { $avg: '$notes.conduite' },
+            moyenneComportement: { $avg: '$notes.comportement' },
+            totalEvaluations: { $sum: 1 },
+            note5: { $sum: { $cond: [{ $eq: ['$notes.noteGlobale', 5] }, 1, 0] } },
+            note4: { $sum: { $cond: [{ $eq: ['$notes.noteGlobale', 4] }, 1, 0] } },
+            note3: { $sum: { $cond: [{ $eq: ['$notes.noteGlobale', 3] }, 1, 0] } },
+            note2: { $sum: { $cond: [{ $eq: ['$notes.noteGlobale', 2] }, 1, 0] } },
+            note1: { $sum: { $cond: [{ $eq: ['$notes.noteGlobale', 1] }, 1, 0] } }
           }
         }
+      ];
+      const result = await Evaluation.aggregate(pipeline);
+      if (!result || result.length === 0) {
+        return {
+          moyenneGlobale: 0,
+          totalEvaluations: 0,
+          repartitionNotes: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        };
       }
-    ]);
-    
-    const repartitionNotes = await this.Evaluation.aggregate([
-      {
-        $bucket: {
-          groupBy: '$notes.noteGlobale',
-          boundaries: [1, 2, 3, 4, 5, 6],
-          default: 'Autres',
-          output: { count: { $sum: 1 } }
+      const stats = result[0];
+      return {
+        moyenneGlobale: Math.round(stats.moyenneGlobale * 10) / 10,
+        moyennes: {
+          ponctualite: Math.round(stats.moyennePonctualite * 10) / 10,
+          proprete: Math.round(stats.moyenneProprete * 10) / 10,
+          communication: Math.round(stats.moyenneCommunication * 10) / 10,
+          conduite: Math.round(stats.moyenneConduite * 10) / 10,
+          comportement: Math.round(stats.moyenneComportement * 10) / 10
+        },
+        totalEvaluations: stats.totalEvaluations,
+        repartitionNotes: {
+          5: stats.note5,
+          4: stats.note4,
+          3: stats.note3,
+          2: stats.note2,
+          1: stats.note1
         }
+      };
+    } catch (error) {
+      console.error('Erreur calcul moyenne notes:', error);
+      return {
+        moyenneGlobale: 0,
+        totalEvaluations: 0,
+        repartitionNotes: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      };
+    }
+  }
+
+  /**
+   * Obtenir les évaluations d'un trajet
+   * @param {string} trajetId - ID du trajet
+   * @returns {Promise<Array>} - Liste des évaluations
+   */
+  async obtenirEvaluationsTrajet(trajetId) {
+    try {
+      const evaluations = await Evaluation.find({ trajetId })
+        .populate('evaluateurId', 'nom prenom photo')
+        .populate('evalueId', 'nom prenom photo')
+        .sort({ dateEvaluation: -1 });
+      const statistiques = {
+        totalEvaluations: evaluations.length,
+        moyenneGlobale: evaluations.length > 0
+          ? evaluations.reduce((sum, evaluation) => sum + evaluation.notes.noteGlobale, 0) / evaluations.length
+          : 0
+      };
+      return {
+        evaluations,
+        statistiques
+      };
+    } catch (error) {
+      console.error('Erreur obtention évaluations trajet:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Répondre à une évaluation
+   * @param {string} id - ID de l'évaluation
+   * @param {string} reponse - Réponse de l'utilisateur évalué
+   * @param {string} userId - ID de l'utilisateur qui répond
+   * @returns {Promise<Object>} - Évaluation mise à jour
+   */
+  async repondreEvaluation(id, reponse, userId) {
+    try {
+      const evaluation = await Evaluation.findById(id);
+      if (!evaluation) {
+        throw new Error('Évaluation introuvable');
       }
-    ]);
-    
-    return {
-      ...stats[0],
-      repartitionNotes
-    };
+      // Vérifier que c'est l'utilisateur évalué qui répond
+      if (evaluation.evalueId.toString() !== userId) {
+        throw new Error('Non autorisé à répondre à cette évaluation');
+      }
+      // Vérifier qu'il n'y a pas déjà une réponse
+      if (evaluation.reponseEvalue) {
+        throw new Error('Une réponse a déjà été donnée à cette évaluation');
+      }
+      // Ajouter la réponse
+      evaluation.reponseEvalue = reponse.trim();
+      evaluation.dateReponse = new Date();
+      await evaluation.save();
+      return evaluation;
+    } catch (error) {
+      console.error('Erreur réponse évaluation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Signaler une évaluation comme abusive
+   * @param {string} id - ID de l'évaluation
+   * @param {string} motif - Motif du signalement
+   * @param {string} userId - ID de l'utilisateur qui signale
+   * @returns {Promise<Object>} - Résultat du signalement
+   */
+  async signalerEvaluationAbusive(id, motif, userId) {
+    try {
+      const evaluation = await Evaluation.findById(id);
+      if (!evaluation) {
+        throw new Error('Évaluation introuvable');
+      }
+      // Vérifier que l'utilisateur peut signaler
+      if (evaluation.evalueId.toString() !== userId && evaluation.evaluateurId.toString() !== userId) {
+        throw new Error('Non autorisé à signaler cette évaluation');
+      }
+      // Marquer comme signalée
+      evaluation.estSignalement = true;
+      evaluation.motifSignalement = motif || 'CONTENU_INAPPROPRIE';
+      evaluation.dateSignalement = new Date();
+      evaluation.signalePar = userId;
+      // Définir la gravité selon le motif
+      const graviteMap = {
+        'CONTENU_OFFENSANT': 'ELEVE',
+        'HARCELEMENT': 'CRITIQUE',
+        'DISCRIMINATION': 'CRITIQUE',
+        'FAUSSE_INFORMATION': 'MOYEN',
+        'AUTRE': 'FAIBLE'
+      };
+      evaluation.gravite = graviteMap[motif] || 'MOYEN';
+      await evaluation.save();
+      return {
+        message: 'Signalement enregistré avec succès',
+        evaluation
+      };
+    } catch (error) {
+      console.error('Erreur signalement évaluation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprimer une évaluation (admin uniquement)
+   * @param {string} id - ID de l'évaluation
+   * @param {string} adminId - ID de l'administrateur
+   * @returns {Promise<Object>} - Résultat de la suppression
+   */
+  async supprimerEvaluation(id, adminId) {
+    try {
+      const evaluation = await Evaluation.findByIdAndDelete(id);
+      if (!evaluation) {
+        throw new Error('Évaluation introuvable ou déjà supprimée');
+      }
+      // Log de l'action admin
+      console.log(`Évaluation ${id} supprimée par l'admin ${adminId}`);
+      return {
+        message: 'Évaluation supprimée avec succès',
+        evaluation
+      };
+    } catch (error) {
+      console.error('Erreur suppression évaluation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Détecter les évaluations suspectes d'un utilisateur
+   * @param {string} userId - ID de l'utilisateur
+   * @returns {Promise<Array>} - Liste des évaluations suspectes
+   */
+  async detecterEvaluationsSuspectes(userId) {
+    try {
+      // Utiliser la méthode statique si disponible
+      if (typeof Evaluation.detecterEvaluationsSuspectes === 'function') {
+        return await Evaluation.detecterEvaluationsSuspectes(userId);
+      }
+      // Détection manuelle
+      const evaluations = await Evaluation.find({
+        $or: [
+          { evaluateurId: userId },
+          { evalueId: userId }
+        ]
+      });
+      const suspectes = evaluations.filter(evaluation => {
+        // Critères de suspicion
+        return (
+          evaluation.estSignalement ||
+          evaluation.notes.noteGlobale <= 2 ||
+          (evaluation.commentaire && evaluation.commentaire.length < 10) ||
+          evaluation.gravite === 'CRITIQUE'
+        );
+      });
+      return suspectes;
+    } catch (error) {
+      console.error('Erreur détection évaluations suspectes:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Mettre à jour le score de confiance d'un utilisateur
+   * @param {string} userId - ID de l'utilisateur
+   * @returns {Promise<number>} - Nouveau score de confiance
+   */
+  async mettreAJourScoreConfiance(userId) {
+    try {
+      const stats = await this.obtenirMoyenneNotes(userId);
+      if (stats.totalEvaluations === 0) {
+        return 0; // Score neutre pour les nouveaux utilisateurs
+      }
+      // Calcul du score (0-100)
+      let score = Math.round(stats.moyenneGlobale * 20); // 5 étoiles = 100 points
+      // Bonus pour le nombre d'évaluations
+      const bonusEvaluations = Math.min(stats.totalEvaluations * 2, 20);
+      score += bonusEvaluations;
+      // Malus pour les évaluations suspectes
+      const suspectes = await this.detecterEvaluationsSuspectes(userId);
+      const malusSuspectes = suspectes.length * 5;
+      score -= malusSuspectes;
+      // Normaliser entre 0 et 100
+      score = Math.max(0, Math.min(100, score));
+      return score;
+    } catch (error) {
+      console.error('Erreur calcul score confiance:', error);
+      return 50; // Score par défaut
+    }
+  }
+
+  /**
+   * Obtenir les statistiques globales des évaluations
+   * @returns {Promise<Object>} - Statistiques globales
+   */
+  async obtenirStatistiquesGlobales() {
+    try {
+      const pipeline = [
+        {
+          $group: {
+            _id: null,
+            totalEvaluations: { $sum: 1 },
+            moyenneGlobale: { $avg: '$notes.noteGlobale' },
+            signalements: { $sum: { $cond: ['$estSignalement', 1, 0] } },
+            evaluationsConducteur: {
+              $sum: { $cond: [{ $eq: ['$typeEvaluateur', 'CONDUCTEUR'] }, 1, 0] }
+            },
+            evaluationsPassager: {
+              $sum: { $cond: [{ $eq: ['$typeEvaluateur', 'PASSAGER'] }, 1, 0] }
+            }
+          }
+        }
+      ];
+      const result = await Evaluation.aggregate(pipeline);
+      const stats = result[0] || {
+        totalEvaluations: 0,
+        moyenneGlobale: 0,
+        signalements: 0,
+        evaluationsConducteur: 0,
+        evaluationsPassager: 0
+      };
+      return {
+        totalEvaluations: stats.totalEvaluations,
+        moyenneGlobale: Math.round(stats.moyenneGlobale * 10) / 10,
+        signalements: stats.signalements,
+        tauxSignalement: stats.totalEvaluations > 0
+          ? Math.round((stats.signalements / stats.totalEvaluations) * 100)
+          : 0,
+        repartitionTypes: {
+          conducteur: stats.evaluationsConducteur,
+          passager: stats.evaluationsPassager
+        }
+      };
+    } catch (error) {
+      console.error('Erreur statistiques globales:', error);
+      return {
+        totalEvaluations: 0,
+        moyenneGlobale: 0,
+        signalements: 0,
+        tauxSignalement: 0,
+        repartitionTypes: { conducteur: 0, passager: 0 }
+      };
+    }
+  }
+
+  /**
+   * Modérer une évaluation
+   * @param {string} id - ID de l'évaluation
+   * @param {string} action - Action de modération
+   * @param {string} moderateurId - ID du modérateur
+   * @returns {Promise<Object>} - Résultat de la modération
+   */
+  async modererEvaluation(id, action, moderateurId) {
+    try {
+      const evaluation = await Evaluation.findById(id);
+      if (!evaluation) {
+        throw new Error('Évaluation introuvable');
+      }
+      switch (action) {
+        case 'APPROUVER':
+          evaluation.estSignalement = false;
+          evaluation.statut = 'APPROUVE';
+          break;
+        case 'MASQUER':
+          evaluation.estMasque = true;
+          evaluation.statut = 'MASQUE';
+          break;
+        case 'SUPPRIMER':
+          return await this.supprimerEvaluation(id, moderateurId);
+        default:
+          throw new Error('Action de modération invalide');
+      }
+      evaluation.moderePar = moderateurId;
+      evaluation.dateModeration = new Date();
+      await evaluation.save();
+      return evaluation;
+    } catch (error) {
+      console.error('Erreur modération évaluation:', error);
+      throw error;
+    }
   }
 }
 

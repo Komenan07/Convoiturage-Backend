@@ -62,9 +62,10 @@ const utilisateurSchema = new mongoose.Schema({
   
   dateNaissance: {
     type: Date,
-    required: [true, 'La date de naissance est requise'],
+    required: false, // Rendre optionnel pour l'inscription
     validate: {
       validator: function(date) {
+        if (!date) return true; // Permettre l'absence de date
         const age = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24 * 365);
         return age >= 18 && age <= 80;
       },
@@ -74,7 +75,7 @@ const utilisateurSchema = new mongoose.Schema({
   
   sexe: {
     type: String,
-    required: [true, 'Le sexe est requis'],
+    required: false, // Rendre optionnel pour l'inscription
     enum: {
       values: ['M', 'F'],
       message: 'Le sexe doit être M (Masculin) ou F (Féminin)'
@@ -144,12 +145,12 @@ const utilisateurSchema = new mongoose.Schema({
   adresse: {
     commune: {
       type: String,
-      required: [true, 'La commune est requise'],
+      required: false, // Rendre optionnel pour l'inscription
       trim: true
     },
     quartier: {
       type: String,
-      required: [true, 'Le quartier est requis'],
+      required: false, // Rendre optionnel pour l'inscription
       trim: true
     },
     ville: {
@@ -166,8 +167,11 @@ const utilisateurSchema = new mongoose.Schema({
       },
       coordinates: {
         type: [Number], // [longitude, latitude]
+        required: false, // Rendre optionnel
+        default: undefined, // Pas de valeur par défaut
         validate: {
           validator: function(coords) {
+            if (!coords || coords.length === 0) return true; // Permettre l'absence de coordonnées
             return coords.length === 2 && 
                    coords[0] >= -180 && coords[0] <= 180 && // longitude
                    coords[1] >= -90 && coords[1] <= 90;     // latitude
@@ -332,8 +336,8 @@ const utilisateurSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Index géospatial pour les coordonnées
-utilisateurSchema.index({ 'adresse.coordonnees': '2dsphere' });
+// Index géospatial pour les coordonnées (seulement si présentes)
+utilisateurSchema.index({ 'adresse.coordonnees': '2dsphere' }, { sparse: true });
 
 // Index composé pour les recherches fréquentes
 utilisateurSchema.index({ email: 1, statutCompte: 1 });
@@ -529,6 +533,11 @@ utilisateurSchema.statics.statistiquesGlobales = async function() {
   
   return stats[0] || {};
 };
+
+// Création des index pour améliorer les performances
+utilisateurSchema.index({ email: 1 });
+utilisateurSchema.index({ telephone: 1 });
+utilisateurSchema.index({ email: 1, telephone: 1 });
 
 // Export du modèle
 module.exports = mongoose.model('Utilisateur', utilisateurSchema);

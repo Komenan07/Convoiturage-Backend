@@ -10,7 +10,7 @@ const {
   validerPosition,
   validerModelePredefini,
   validerSignalement
-} = require('../middleware/messageMiddleware');
+} = require('../middlewares/messageMiddleware');
 
 // ===========================================
 // ROUTES CREATE - Création de messages
@@ -157,7 +157,7 @@ router.post('/websocket/quitter',
 // ===========================================
 
 // Middleware de gestion d'erreurs pour les routes de messages
-router.use((err, req, res, next) => {
+router.use((err, req, res, _next) => {
   console.error('Erreur route message:', err);
   
   // Erreur de validation

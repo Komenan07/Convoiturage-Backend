@@ -254,6 +254,27 @@ ReservationSchema.post('save', async function(doc) {
   }
 });
 
+// Tâche utilitaire: envoyer les notifications prévues arrivées à échéance
+ReservationSchema.statics.executerNotificationsPrevues = async function(limite = 100) {
+  const maintenant = new Date();
+  const reservations = await this.find({
+    'notificationsPrevues.envoye': false,
+    'notificationsPrevues.heureEnvoi': { $lte: maintenant }
+  }).limit(limite);
+
+  for (const reservation of reservations) {
+    for (const notif of reservation.notificationsPrevues) {
+      if (!notif.envoye && notif.heureEnvoi <= maintenant) {
+        // TODO: intégrer un envoi via notificationService/emailService selon notif.type
+        console.log(`Notification prévue envoyée (${notif.type}) pour réservation ${reservation._id}`);
+        notif.envoye = true;
+      }
+    }
+    await reservation.save();
+  }
+  return true;
+};
+
 // Méthodes d'instance
 
 // Calculer la distance entre prise en charge et dépose

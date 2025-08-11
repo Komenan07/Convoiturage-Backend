@@ -1,56 +1,62 @@
-// debug-env.js
-require('dotenv').config();
-
-console.log('=== DIAGNOSTIC DES VARIABLES D\'ENVIRONNEMENT ===\n');
-
-// 1. Vérification du chargement de dotenv
-console.log('1. Status dotenv:');
-console.log('   - dotenv chargé:', typeof require === 'function' ? '✅' : '❌');
-
-// 2. Vérification du fichier .env
+// debug-env.js - À placer à la racine du projet
 const fs = require('fs');
 const path = require('path');
-const envPath = path.join(__dirname, '.env');
 
-console.log('\n2. Fichier .env:');
-console.log('   - Chemin:', envPath);
-console.log('   - Existe:', fs.existsSync(envPath) ? '✅' : '❌');
+console.log('=== DÉBOGAGE COMPLET VARIABLES D\'ENVIRONNEMENT ===\n');
+
+// 1. Vérifier l'existence du fichier .env
+const envPath = path.join(__dirname, '.env');
+console.log('1. Chemin du fichier .env:', envPath);
+console.log('2. Fichier .env existe:', fs.existsSync(envPath));
 
 if (fs.existsSync(envPath)) {
-    const envContent = fs.readFileSync(envPath, 'utf8');
-    console.log('   - Taille:', envContent.length, 'caractères');
-    
-    // Chercher les lignes contenant MONGO
-    const mongoLines = envContent.split('\n').filter(line => 
-        line.includes('MONGO') && !line.trim().startsWith('#')
-    );
-    console.log('   - Lignes MONGO trouvées:', mongoLines.length);
-    mongoLines.forEach((line, index) => {
-        console.log(`     ${index + 1}: ${line.trim()}`);
-    });
+  console.log('3. Contenu du fichier .env (premières lignes):');
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  const lines = envContent.split('\n').slice(0, 10);
+  lines.forEach((line, index) => {
+    if (line.startsWith('MONGODB_URI')) {
+      console.log(`   Ligne ${index + 1}: ${line}`);
+    }
+  });
 }
 
-// 3. Variables d'environnement actuelles
-console.log('\n3. Variables d\'environnement:');
-console.log('   - MONGODB_URI:', process.env.MONGODB_URI || 'NON DÉFINIE');
-console.log('   - MONGO_URI:', process.env.MONGO_URI || 'NON DÉFINIE');
+// 4. Charger dotenv
+console.log('\n4. Chargement de dotenv...');
+try {
+  const result = require('dotenv').config();
+  if (result.error) {
+    console.log('❌ Erreur dotenv:', result.error.message);
+  } else {
+    console.log('✅ Dotenv chargé avec succès');
+  }
+} catch (error) {
+  console.log('❌ Erreur lors du chargement de dotenv:', error.message);
+}
 
-// 4. Toutes les variables qui contiennent "MONGO" ou "DB"
-const allEnvVars = Object.keys(process.env).filter(key => 
-    key.toUpperCase().includes('MONGO') || key.toUpperCase().includes('DB')
-);
-console.log('   - Variables liées à MongoDB:', allEnvVars);
+// 5. Vérifier les variables
+console.log('\n5. Variables d\'environnement:');
+console.log('MONGODB_URI:', process.env.MONGODB_URI ? '✅ Définie' : '❌ Undefined');
+console.log('PORT:', process.env.PORT ? '✅ Définie' : '❌ Undefined');
+console.log('NODE_ENV:', process.env.NODE_ENV ? '✅ Définie' : '❌ Undefined');
 
-// 5. Test manuel de connexion avec différentes variables
-console.log('\n4. Test de valeurs:');
-const possibleVars = ['MONGODB_URI', 'MONGO_URI', 'DATABASE_URL', 'DB_URI'];
-possibleVars.forEach(varName => {
-    const value = process.env[varName];
-    if (value) {
-        console.log(`   - ${varName}: ${value.substring(0, 50)}...`);
-    } else {
-        console.log(`   - ${varName}: NON DÉFINIE`);
-    }
-});
-
-console.log('\n=== FIN DU DIAGNOSTIC ===');
+// 6. Test de connexion MongoDB si la variable existe
+if (process.env.MONGODB_URI) {
+  console.log('\n6. Test de connexion MongoDB...');
+  const mongoose = require('mongoose');
+  
+  mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 10000,
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => {
+    console.log('✅ Connexion MongoDB réussie!');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.log('❌ Erreur de connexion MongoDB:', error.message);
+    process.exit(1);
+  });
+} else {
+  console.log('\n6. ❌ Impossible de tester la connexion, MONGODB_URI non définie');
+}

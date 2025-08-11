@@ -15,7 +15,7 @@ let validation = {};
 try {
   validation = require('../utils/validators');
 } catch (error) {
-  console.warn('⚠️ Middleware de validation non trouvé');
+  console.warn('⚠️ Middlewares de validation non trouvé');
 }
 
 const { 
@@ -28,7 +28,7 @@ const {
 // Import sécurisé des middlewares d'authentification
 let auth = {};
 try {
-  auth = require('../middleware/authMiddleware');
+  auth = require('../middlewares/authMiddleware');
 } catch (error) {
   console.warn('⚠️ Middleware d\'authentification non trouvé');
 }
@@ -38,12 +38,31 @@ const { authentifierUtilisateur, autoriserRoles } = auth;
 // Import sécurisé du rate limiter
 let rateLimiter = {};
 try {
-  rateLimiter = require('../middleware/rateLimiter');
+  rateLimiter = require('../middlewares/rateLimiter');
 } catch (error) {
   console.warn('⚠️ Middleware rateLimiter non trouvé');
 }
 
-const { limiterTaux } = rateLimiter;
+// Construire un shim limiterTaux à partir des rate limiters existants
+let limiterTaux = null;
+try {
+  const { rateLimiters, basicRateLimiter } = rateLimiter;
+  limiterTaux = (type, _options = {}) => {
+    const map = {
+      lecture: basicRateLimiter?.standard,
+      recherche: basicRateLimiter?.standard,
+      creation_urgence: rateLimiters?.alerteUrgence?.create,
+      admin: basicRateLimiter?.strict,
+      export: basicRateLimiter?.standard,
+      modification: basicRateLimiter?.strict,
+      action: basicRateLimiter?.strict,
+      suppression: basicRateLimiter?.strict
+    };
+    return map[type] || ((_req, _res, next) => next());
+  };
+} catch (_e) {
+  limiterTaux = null;
+}
 
 const router = express.Router();
 
@@ -52,7 +71,7 @@ const router = express.Router();
 // Fonction helper pour créer des middlewares par défaut
 const creerMiddlewareParDefaut = (nom) => {
   return (req, res, next) => {
-    console.warn(`⚠️ Middleware ${nom} non disponible, passage à l'étape suivante`);
+    console.warn(`⚠️ Middlewares ${nom} non disponible, passage à l'étape suivante`);
     next();
   };
 };

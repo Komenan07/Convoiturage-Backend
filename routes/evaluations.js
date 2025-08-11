@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const EvaluationService = require('../services/evaluationService');
 const EvaluationController = require('../controllers/evaluationController');
-const { protect, isAdmin } = require('../middleware/authMiddleware');
+const { protect, isAdmin } = require('../middlewares/authMiddleware');
 
 const controller = new EvaluationController(new EvaluationService());
 

@@ -1,7 +1,9 @@
-const Message = require('../models/Message');
+const { Message } = require('../models/Message');
 const Conversation = require('../models/Conversation');
 const Utilisateur = require('../models/Utilisateur');
 const Signalement = require('../models/Signalement');
+const presenceService = require('../services/presenceService');
+const notificationService = require('../services/notificationService');
 
 // ===============================
 // CONTRÔLEURS POUR LES MESSAGES
@@ -39,15 +41,46 @@ const envoyerMessageTexte = async (req, res) => {
 
     await message.save();
 
-    // Mettre à jour la conversation
-    await Conversation.findByIdAndUpdate(conversationId, {
-      derniereActivite: new Date(),
-      $inc: { nombreMessagesNonLus: 1 }
-    });
+    // Mettre à jour la conversation: dernier message + non lus pour destinataire
+    const inc = {};
+    if (destinataireId) {
+      inc[`nombreMessagesNonLus.${destinataireId}`] = 1;
+    }
+    await Conversation.updateOne(
+      { _id: conversationId },
+      {
+        $set: {
+          derniereActivite: new Date(),
+          'statistiques.dernierMessagePar': userId,
+          'statistiques.dernierMessageContenu': (contenu || '').slice(0, 100)
+        },
+        ...(Object.keys(inc).length ? { $inc: inc } : {})
+      }
+    );
 
     // Populer le message avec les détails de l'expéditeur
     const populatedMessage = await Message.findById(message._id)
       .populate('expediteurId', 'nom prenom photoProfil');
+
+    // Broadcast temps réel
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`conversation:${conversationId}`).emit('message:new', { message: populatedMessage });
+      }
+      // Email offline
+      const offline = destinataireId && !presenceService.isOnline(destinataireId.toString());
+      if (offline) {
+        const destUser = await Utilisateur.findById(destinataireId).select('email nom prenom');
+        if (destUser?.email) {
+          await notificationService.sendEmail(
+            destUser.email,
+            'Nouveau message reçu',
+            `${req.user.nom} ${req.user.prenom}: ${(contenu || '').slice(0, 120)}`
+          );
+        }
+      }
+    } catch (_e) {}
 
     res.status(201).json({
       succes: true,
@@ -95,13 +128,43 @@ const envoyerPosition = async (req, res) => {
 
     await message.save();
 
-    await Conversation.findByIdAndUpdate(conversationId, {
-      derniereActivite: new Date(),
-      $inc: { nombreMessagesNonLus: 1 }
-    });
+    const inc2 = {};
+    if (destinataireId) {
+      inc2[`nombreMessagesNonLus.${destinataireId}`] = 1;
+    }
+    await Conversation.updateOne(
+      { _id: conversationId },
+      {
+        $set: {
+          derniereActivite: new Date(),
+          'statistiques.dernierMessagePar': userId,
+          'statistiques.dernierMessageContenu': (contenu || 'Position partagée').slice(0, 100)
+        },
+        ...(Object.keys(inc2).length ? { $inc: inc2 } : {})
+      }
+    );
 
     const populatedMessage = await Message.findById(message._id)
       .populate('expediteurId', 'nom prenom photoProfil');
+
+    // Broadcast temps réel
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`conversation:${conversationId}`).emit('message:new', { message: populatedMessage });
+      }
+      const offline = destinataireId && !presenceService.isOnline(destinataireId.toString());
+      if (offline) {
+        const destUser = await Utilisateur.findById(destinataireId).select('email nom prenom');
+        if (destUser?.email) {
+          await notificationService.sendEmail(
+            destUser.email,
+            'Nouvelle position reçue',
+            `${req.user.nom} ${req.user.prenom}: ${(contenu || 'Position partagée').slice(0, 120)}`
+          );
+        }
+      }
+    } catch (_e) {}
 
     res.status(201).json({
       succes: true,
@@ -165,13 +228,43 @@ const utiliserModelePredefini = async (req, res) => {
 
     await message.save();
 
-    await Conversation.findByIdAndUpdate(conversationId, {
-      derniereActivite: new Date(),
-      $inc: { nombreMessagesNonLus: 1 }
-    });
+    const inc3 = {};
+    if (destinataireId) {
+      inc3[`nombreMessagesNonLus.${destinataireId}`] = 1;
+    }
+    await Conversation.updateOne(
+      { _id: conversationId },
+      {
+        $set: {
+          derniereActivite: new Date(),
+          'statistiques.dernierMessagePar': userId,
+          'statistiques.dernierMessageContenu': (contenu || '').slice(0, 100)
+        },
+        ...(Object.keys(inc3).length ? { $inc: inc3 } : {})
+      }
+    );
 
     const populatedMessage = await Message.findById(message._id)
       .populate('expediteurId', 'nom prenom photoProfil');
+
+    // Broadcast temps réel
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`conversation:${conversationId}`).emit('message:new', { message: populatedMessage });
+      }
+      const offline = destinataireId && !presenceService.isOnline(destinataireId.toString());
+      if (offline) {
+        const destUser = await Utilisateur.findById(destinataireId).select('email nom prenom');
+        if (destUser?.email) {
+          await notificationService.sendEmail(
+            destUser.email,
+            'Nouveau message',
+            `${req.user.nom} ${req.user.prenom}: ${(contenu || '').slice(0, 120)}`
+          );
+        }
+      }
+    } catch (_e) {}
 
     res.status(201).json({
       succes: true,
@@ -509,10 +602,16 @@ const marquerConversationCommeLue = async (req, res) => {
       dateLecture: new Date()
     });
 
-    // Réinitialiser le compteur de messages non lus
-    await Conversation.findByIdAndUpdate(conversationId, {
-      nombreMessagesNonLus: 0
-    });
+    // Réinitialiser le compteur de messages non lus pour cet utilisateur
+    await Conversation.updateOne(
+      { _id: conversationId },
+      { $set: { [`nombreMessagesNonLus.${userId}`]: 0 } }
+    );
+
+    try {
+      const io = req.app.get('io');
+      if (io) io.to(`conversation:${conversationId}`).emit('conversation:read:update', { conversationId, userId });
+    } catch (_e) {}
 
     res.json({
       succes: true,

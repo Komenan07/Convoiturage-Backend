@@ -1,39 +1,24 @@
+const mongoose = require('mongoose');
+const env = require('./env');
+const logger = require('../utils/logger');
+
 const connectDB = async () => {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    console.error("❌ MONGODB_URI n'est pas défini !");
+  try {
+    const conn = await mongoose.connect(env.mongoUri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 30000, // 30 secondes pour la sélection du serveur
+      socketTimeoutMS: 45000, // 45 secondes pour les opérations socket
+      connectTimeoutMS: 30000, // 30 secondes pour la connexion
+      maxPoolSize: 10, // Taille maximale du pool de connexions
+      minPoolSize: 1, // Taille minimale du pool de connexions
+      maxIdleTimeMS: 30000, // Temps maximum d'inactivité
+    });
+    logger.info(`MongoDB connecté: ${conn.connection.host}`);
+  } catch (err) {
+    logger.error(`Erreur de connexion MongoDB: ${err.message}`);
     process.exit(1);
   }
-
-  const options = {
-    serverSelectionTimeoutMS: 60000, // 60 secondes
-    socketTimeoutMS: 60000,
-    connectTimeoutMS: 60000,
-    bufferMaxEntries: 0,
-    maxPoolSize: 5,
-    minPoolSize: 1,
-    family: 4, // Force IPv4
-    // Retry logic
-    retryWrites: true,
-    retryReads: true
-  };
-
-  let retries = 3;
-  while (retries > 0) {
-    try {
-      console.log(`🔄 Tentative de connexion MongoDB Atlas (${4-retries}/3)...`);
-      await mongoose.connect(uri, options);
-      console.log("✅ MongoDB Atlas connecté avec succès");
-      return;
-    } catch (error) {
-      retries--;
-      console.error(`❌ Tentative échouée: ${error.message}`);
-      if (retries === 0) {
-        console.error("❌ Toutes les tentatives ont échoué");
-        process.exit(1);
-      }
-      // Attendre 5 secondes avant de retry
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    }
-  }
 };
+
+module.exports = connectDB;

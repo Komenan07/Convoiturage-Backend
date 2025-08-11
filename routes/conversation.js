@@ -1,4 +1,4 @@
-// routes/conversation.js
+// routes/conversations.js (noter le 's' à la fin)
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const {
@@ -13,19 +13,33 @@ const {
   supprimerConversation,
   obtenirConversationParTrajet
 } = require('../controllers/conversationController');
+// Nettoyage: supprimer logs de debug intrusifs
+
 
 // Middleware d'authentification
-const { auth } = require('../middleware/authMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
 
-// Middleware de rate limiting spécialisé
-const { rateLimiter } = require('../middleware/rateLimiter.middleware');
+// Middleware de rate limiting - avec fallback si non configuré
+let createRateLimit, readRateLimit, sensitiveActionsLimit;
+
+try {
+  const { basicRateLimiter } = require('../middlewares/rateLimiter');
+  createRateLimit = basicRateLimiter?.strict || ((req, res, next) => next());
+  readRateLimit = basicRateLimiter?.standard || ((req, res, next) => next());
+  sensitiveActionsLimit = basicRateLimiter?.strict || ((req, res, next) => next());
+} catch (error) {
+  console.warn('Rate limiter non configuré, utilisation de middlewares par défaut');
+  const defaultMiddleware = (req, res, next) => next();
+  createRateLimit = defaultMiddleware;
+  readRateLimit = defaultMiddleware;
+  sensitiveActionsLimit = defaultMiddleware;
+}
 
 const router = express.Router();
 
 // =====================================================
 // VALIDATEURS DE DONNÉES
 // =====================================================
-
 // Validateur pour la création de conversation
 const validateCreateConversation = [
   body('trajetId')
@@ -124,34 +138,15 @@ const validateConversationDetails = [
 ];
 
 // =====================================================
-// MIDDLEWARE DE RATE LIMITING SPÉCIALISÉ
-// =====================================================
-
-// Rate limiting pour la création (plus restrictif)
-const createRateLimit = rateLimiter.strict || rateLimiter;
-
-// Rate limiting standard pour la lecture
-const readRateLimit = rateLimiter.standard || rateLimiter;
-
-// Rate limiting pour les actions sensibles
-const sensitiveActionsLimit = rateLimiter.strict || rateLimiter;
-
-// =====================================================
 // ROUTES PRINCIPALES
 // =====================================================
-
 /**
  * @route   POST /api/conversations
  * @desc    Créer une nouvelle conversation
  * @access  Private
  * @body    { trajetId, participants?, titre?, type? }
  */
-router.post('/',
-  createRateLimit,
-  auth,
-  validateCreateConversation,
-  creerConversation
-);
+router.post('/', createRateLimit, protect, validateCreateConversation, creerConversation);
 
 /**
  * @route   GET /api/conversations
@@ -159,24 +154,14 @@ router.post('/',
  * @access  Private
  * @query   { page?, limit?, includeArchived?, type? }
  */
-router.get('/',
-  readRateLimit,
-  auth,
-  validatePagination,
-  obtenirConversationsUtilisateur
-);
+router.get('/', readRateLimit, protect, validatePagination, obtenirConversationsUtilisateur);
 
 /**
  * @route   GET /api/conversations/trajet/:trajetId
  * @desc    Obtenir la conversation d'un trajet spécifique
  * @access  Private
  */
-router.get('/trajet/:trajetId',
-  readRateLimit,
-  auth,
-  validateTrajetId,
-  obtenirConversationParTrajet
-);
+router.get('/trajet/:trajetId', readRateLimit, protect, validateTrajetId, obtenirConversationParTrajet);
 
 /**
  * @route   GET /api/conversations/:id
@@ -184,13 +169,7 @@ router.get('/trajet/:trajetId',
  * @access  Private
  * @query   { includeMessages?, messageLimit? }
  */
-router.get('/:id',
-  readRateLimit,
-  auth,
-  validateConversationId,
-  validateConversationDetails,
-  obtenirDetailsConversation
-);
+router.get('/:id', readRateLimit, protect, validateConversationId, validateConversationDetails, obtenirDetailsConversation);
 
 /**
  * @route   PATCH /api/conversations/:id/archiver
@@ -198,34 +177,21 @@ router.get('/:id',
  * @access  Private
  * @body    { archiver? }
  */
-router.patch('/:id/archiver',
-  auth,
-  validateConversationId,
-  validateArchive,
-  archiverConversation
-);
+router.patch('/:id/archiver', protect, validateConversationId, validateArchive, archiverConversation);
 
 /**
  * @route   PATCH /api/conversations/:id/activite
  * @desc    Mettre à jour la dernière activité d'une conversation
  * @access  Private
  */
-router.patch('/:id/activite',
-  auth,
-  validateConversationId,
-  mettreAJourActivite
-);
+router.patch('/:id/activite', protect, validateConversationId, mettreAJourActivite);
 
 /**
  * @route   PATCH /api/conversations/:id/lire
  * @desc    Marquer tous les messages d'une conversation comme lus
  * @access  Private
  */
-router.patch('/:id/lire',
-  auth,
-  validateConversationId,
-  marquerCommeLu
-);
+router.patch('/:id/lire', protect, validateConversationId, marquerCommeLu);
 
 /**
  * @route   POST /api/conversations/:id/participants
@@ -233,128 +199,104 @@ router.patch('/:id/lire',
  * @access  Private
  * @body    { utilisateurId }
  */
-router.post('/:id/participants',
-  sensitiveActionsLimit,
-  auth,
-  validateConversationId,
-  validateAddParticipant,
-  ajouterParticipant
-);
+router.post('/:id/participants', sensitiveActionsLimit, protect, validateConversationId, validateAddParticipant, ajouterParticipant);
 
 /**
  * @route   DELETE /api/conversations/:id/participants/:utilisateurId
  * @desc    Retirer un participant de la conversation
  * @access  Private
  */
-router.delete('/:id/participants/:utilisateurId',
-  sensitiveActionsLimit,
-  auth,
-  validateConversationId,
-  validateRemoveParticipant,
-  retirerParticipant
-);
+router.delete('/:id/participants/:utilisateurId', sensitiveActionsLimit, protect, validateConversationId, validateRemoveParticipant, retirerParticipant);
 
 /**
  * @route   DELETE /api/conversations/:id
  * @desc    Supprimer une conversation
  * @access  Private
  */
-router.delete('/:id',
-  sensitiveActionsLimit,
-  auth,
-  validateConversationId,
-  supprimerConversation
-);
+router.delete('/:id', sensitiveActionsLimit, protect, validateConversationId, supprimerConversation);
 
 // =====================================================
 // ROUTES D'INFORMATIONS ET DE DEBUG
 // =====================================================
-
 /**
  * @route   GET /api/conversations/info/stats
  * @desc    Obtenir les statistiques des conversations de l'utilisateur
  * @access  Private
  */
-router.get('/info/stats',
-  readRateLimit,
-  auth,
-  async (req, res) => {
-    try {
-      const userId = req.user.id;
-      const Conversation = require('../models/Conversation');
-
-      // Statistiques rapides
-      const stats = await Conversation.aggregate([
-        { $match: { participants: userId } },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: 1 },
-            archivees: {
-              $sum: { $cond: [{ $eq: ['$estArchivee', true] }, 1, 0] }
-            },
-            actives: {
-              $sum: { $cond: [{ $eq: ['$estArchivee', false] }, 1, 0] }
-            },
-            totalMessagesNonLus: {
-              $sum: { $ifNull: [`$nombreMessagesNonLus.${userId}`, 0] }
-            }
+router.get('/info/stats', readRateLimit, protect, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const Conversation = require('../models/Conversation');
+    
+    // Statistiques rapides
+    const stats = await Conversation.aggregate([
+      { $match: { participants: userId } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          archivees: {
+            $sum: { $cond: [{ $eq: ['$estArchivee', true] }, 1, 0] }
+          },
+          actives: {
+            $sum: { $cond: [{ $eq: ['$estArchivee', false] }, 1, 0] }
+          },
+          totalMessagesNonLus: {
+            $sum: { $ifNull: [`$nombreMessagesNonLus.${userId}`, 0] }
           }
         }
-      ]);
-
-      const result = stats[0] || {
-        total: 0,
-        archivees: 0,
-        actives: 0,
-        totalMessagesNonLus: 0
-      };
-
-      // Statistiques par type
-      const typeStats = await Conversation.aggregate([
-        { $match: { participants: userId } },
-        {
-          $group: {
-            _id: '$type',
-            count: { $sum: 1 }
-          }
+      }
+    ]);
+    
+    const result = stats[0] || {
+      total: 0,
+      archivees: 0,
+      actives: 0,
+      totalMessagesNonLus: 0
+    };
+    
+    // Statistiques par type
+    const typeStats = await Conversation.aggregate([
+      { $match: { participants: userId } },
+      {
+        $group: {
+          _id: '$type',
+          count: { $sum: 1 }
         }
-      ]);
-
-      result.parType = typeStats.reduce((acc, item) => {
-        acc[item._id] = item.count;
-        return acc;
-      }, {});
-
-      res.json({
-        success: true,
-        data: result
-      });
-
-    } catch (error) {
-      console.error('Erreur récupération stats:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur serveur lors de la récupération des statistiques'
-      });
-    }
+      }
+    ]);
+    
+    result.parType = typeStats.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
+    
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Erreur récupération stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération des statistiques'
+    });
   }
-);
+});
 
 // =====================================================
 // MIDDLEWARE DE GESTION D'ERREURS SPÉCIALISÉ
 // =====================================================
-
 // Gestionnaire d'erreurs spécifique aux conversations
 router.use((err, req, res, next) => {
   console.error('Erreur dans les routes conversations:', err);
-
+  
   // Erreurs de validation Mongoose spécifiques aux conversations
   if (err.name === 'ValidationError' && err.errors) {
-    const conversationErrors = Object.keys(err.errors).filter(key => 
+    const conversationErrors = Object.keys(err.errors).filter(key =>
       ['trajetId', 'participants', 'titre', 'type'].includes(key)
     );
-    
+
     if (conversationErrors.length > 0) {
       return res.status(400).json({
         success: false,
@@ -367,7 +309,7 @@ router.use((err, req, res, next) => {
       });
     }
   }
-
+  
   // Erreurs de référence (trajet non trouvé, etc.)
   if (err.name === 'CastError' && err.path === 'trajetId') {
     return res.status(400).json({
@@ -376,7 +318,7 @@ router.use((err, req, res, next) => {
       code: 'INVALID_TRAJET_ID'
     });
   }
-
+  
   // Passer l'erreur au gestionnaire global
   next(err);
 });
@@ -384,57 +326,4 @@ router.use((err, req, res, next) => {
 // =====================================================
 // EXPORT
 // =====================================================
-
 module.exports = router;
-
-// =====================================================
-// DOCUMENTATION DES RÉPONSES
-// =====================================================
-
-/*
-EXEMPLES DE RÉPONSES :
-
-1. POST /api/conversations
-{
-  "success": true,
-  "message": "Conversation créée avec succès",
-  "data": {
-    "_id": "60f1b2c3d4e5f6a7b8c9d0e1",
-    "trajetId": {
-      "_id": "60f1b2c3d4e5f6a7b8c9d0e0",
-      "pointDepart": { "ville": "Abidjan" },
-      "pointArrivee": { "ville": "Yamoussoukro" }
-    },
-    "participants": [...],
-    "titre": "Conversation pour trajet ABC123",
-    "type": "trajet",
-    "derniereActivite": "2024-08-09T10:30:00.000Z"
-  }
-}
-
-2. GET /api/conversations
-{
-  "success": true,
-  "data": {
-    "conversations": [...],
-    "pagination": {
-      "page": 1,
-      "limit": 10,
-      "total": 25,
-      "pages": 3
-    }
-  }
-}
-
-3. GET /api/conversations/:id
-{
-  "success": true,
-  "data": {
-    "_id": "60f1b2c3d4e5f6a7b8c9d0e1",
-    "participants": [...],
-    "messages": [...],
-    "messagesNonLus": 3,
-    "nombreParticipants": 4
-  }
-}
-*/

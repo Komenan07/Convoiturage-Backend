@@ -1,221 +1,572 @@
 // controllers/alerteUrgenceController.js
-const alerteUrgenceService = require('../services/alerteUrgenceService');
-const { AppError, asyncHandler, sendResponse } = require('../utils/helpers');
+const AlerteUrgence = require('../models/AlerteUrgence');
+const logger = require('../utils/logger');
+
+// =============== MÉTHODES CRUD STANDARD ===============
 
 /**
- * Déclencher une nouvelle alerte d'urgence
- * POST /api/alertes-urgence
+ * @desc    Créer une nouvelle alerte d'urgence
+ * @route   POST /api/alertes-urgence
+ * @access  Privé (utilisateur authentifié)
  */
-const declencherAlerte = asyncHandler(async (req, res) => {
-  const utilisateurId = req.user.id;
-  
-  // Validation renforcée
-  if (req.body.declencheurId && req.body.declencheurId !== utilisateurId) {
-    throw new AppError('Action non autorisée : vous ne pouvez déclencher une alerte que pour votre compte', 403);
-  }
+const creerAlerteUrgence = async (req, res) => {
+  try {
+    logger.info('Création alerte urgence', { userId: req.user.userId });
 
-  // Ajout de la position automatique si manquante
-  const payload = {
+    const alerteData = {
     ...req.body,
-    position: req.body.position || req.user.position
-  };
-
-  const alerte = await alerteUrgenceService.declencherAlerte(payload, utilisateurId);
-  
-  // Log structuré
-  console.log({
-    event: 'ALERTE_DECLENCHEE',
-    userId: utilisateurId,
-    alerteId: alerte._id,
-    niveau: alerte.niveauGravite,
-    type: alerte.typeAlerte,
-    position: alerte.position
-  });
-  
-  sendResponse(res, 201, {
-    success: true,
-    message: 'Alerte d\'urgence déclenchée avec succès',
-    data: alerte,
-    urgence: {
-      numero: alerte.numeroUrgence,
-      priorite: alerte.priorite,
-      contactsNotifies: alerte.contactsAlertes.length
-    }
-  });
-});
-
-/**
- * Obtenir toutes les alertes avec filtres
- * GET /api/alertes-urgence
- */
-const obtenirAlertes = asyncHandler(async (req, res) => {
-  // Validation des paramètres
-  const { page, limite } = validerPagination(req.query.page, req.query.limite);
-  
-  const filtres = construireFiltres(req.query);
-  const options = {
-    page,
-    limite,
-    tri: construireTri(req.query.tri || 'priorite_desc')
-  };
-
-  const resultat = await alerteUrgenceService.rechercherAlertes(filtres, options);
-  
-  sendResponse(res, 200, {
-    success: true,
-    message: 'Alertes récupérées avec succès',
-    data: resultat.alertes,
-    pagination: resultat.pagination
-  });
-});
-
-/**
- * Obtenir une alerte par ID
- * GET /api/alertes-urgence/:id
- */
-const obtenirAlerte = asyncHandler(async (req, res) => {
-  const alerte = await alerteUrgenceService.obtenirAlerte(req.params.id);
-  
-  // Audit d'accès
-  console.log({
-    event: 'CONSULTATION_ALERTE',
-    alerteId: alerte._id,
-    userId: req.user?.id,
-    niveau: alerte.niveauGravite
-  });
-  
-  sendResponse(res, 200, {
-    success: true,
-    message: 'Alerte récupérée avec succès',
-    data: alerte
-  });
-});
-
-/**
- * Mettre à jour le statut d'une alerte
- * [Correction ajoutée] - Validation étendue
- */
-const mettreAJourStatut = asyncHandler(async (req, res) => {
-  const { statutAlerte } = req.body;
-  const utilisateurId = req.user.id;
-  
-  if (!statutAlerte) {
-    throw new AppError('Le statut est requis', 400);
-  }
-
-  // Vérification des permissions
-  const alerte = await alerteUrgenceService.obtenirAlerte(req.params.id);
-  if (!req.user.estAdmin && alerte.declencheurId.toString() !== utilisateurId) {
-    throw new AppError('Vous n\'avez pas les droits pour modifier cette alerte', 403);
-  }
-
-  const updated = await alerteUrgenceService.mettreAJourStatut(
-    req.params.id,
-    statutAlerte,
-    utilisateurId,
-    req.body
-  );
-  
-  sendResponse(res, 200, {
-    success: true,
-    message: `Statut mis à jour : ${statutAlerte}`,
-    data: updated
-  });
-});
-
-/**
- * Export des alertes - Correction majeure
- */
-const exporterAlertes = asyncHandler(async (req, res) => {
-  const { format = 'json', ...queryParams } = req.query;
-  const filtres = construireFiltres(queryParams);
-
-  // Limitation des exports
-  const maxLimit = format === 'csv' ? 5000 : 10000;
-  const options = { limite: maxLimit, peupler: false };
-
-  const resultat = await alerteUrgenceService.rechercherAlertes(filtres, options);
-  
-  if (format === 'csv') {
-    // Implémentation CSV basique
-    let csv = 'ID,Numero,Type,Statut,CreatedAt\n';
-    resultat.alertes.forEach(a => {
-      csv += `${a._id},${a.numeroUrgence},${a.typeAlerte},${a.statutAlerte},${a.createdAt}\n`;
-    });
-    
-    res.header('Content-Type', 'text/csv');
-    res.attachment('alertes-urgence.csv');
-    return res.send(csv);
-  } 
-  
-  // Format JSON
-  res.header('Content-Type', 'application/json');
-  res.attachment('alertes-urgence.json');
-  res.send(JSON.stringify({
-    exportedAt: new Date(),
-    count: resultat.alertes.length,
-    data: resultat.alertes
-  }));
-});
-
-// === FONCTIONS UTILITAIRES AMÉLIORÉES ===
-
-/**
- * Construction des filtres optimisée
- */
-const construireFiltres = (query) => {
-  const filtres = {};
-  const arrayFields = ['statutAlerte', 'typeAlerte', 'niveauGravite'];
-  
-  arrayFields.forEach(field => {
-    if (query[field]) filtres[field] = query[field].split(',');
-  });
-
-  // Filtres simples
-  const simpleFields = ['ville', 'declencheurId', 'estCritique'];
-  simpleFields.forEach(field => {
-    if (query[field]) filtres[field] = query[field];
-  });
-
-  // Dates
-  if (query.dateDebut || query.dateFin) {
-    filtres.createdAt = {
-      ...(query.dateDebut && { $gte: new Date(query.dateDebut) }),
-      ...(query.dateFin && { $lte: new Date(query.dateFin) })
+      declencheurId: req.user.userId,
+      dateDeclaration: new Date(),
+      statut: 'ACTIVE'
     };
+
+    const nouvelleAlerte = new AlerteUrgence(alerteData);
+    await nouvelleAlerte.save();
+
+    logger.info('Alerte urgence créée', { alerteId: nouvelleAlerte._id, userId: req.user.userId });
+
+    res.status(201).json({
+      success: true,
+      message: 'Alerte d\'urgence créée avec succès',
+      alerte: nouvelleAlerte
+    });
+
+  } catch (error) {
+    logger.error('Erreur création alerte urgence:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la création de l\'alerte d\'urgence',
+      error: error.message
+    });
   }
-
-  return filtres;
 };
 
 /**
- * Validation pagination robuste
+ * @desc    Obtenir toutes les alertes d'urgence de l'utilisateur
+ * @route   GET /api/alertes-urgence
+ * @access  Privé (utilisateur authentifié)
  */
-const validerPagination = (page, limite) => {
-  const pageNum = parseInt(page) || 1;
-  const limiteNum = Math.min(parseInt(limite) || 20, 100);
+const obtenirAlertesUrgence = async (req, res) => {
+  try {
+    logger.info('Récupération alertes urgence', { userId: req.user.userId });
 
-  if (pageNum < 1) throw new AppError('Numéro de page invalide', 400);
-  if (limiteNum < 1) throw new AppError('Limite invalide', 400);
+    const alertes = await AlerteUrgence.find({ declencheurId: req.user.userId })
+      .sort({ dateDeclaration: -1 });
 
-  return { page: pageNum, limite: limiteNum };
+    res.json({
+    success: true,
+      count: alertes.length,
+      alertes
+    });
+
+  } catch (error) {
+    logger.error('Erreur récupération alertes urgence:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération des alertes d\'urgence',
+      error: error.message
+    });
+  }
 };
 
 /**
- * Construit un objet de tri pour MongoDB
- * @param {string} triString - Chaîne de tri (ex: "priorite_desc")
- * @returns {Object} Objet de tri MongoDB
+ * @desc    Obtenir une alerte d'urgence spécifique par ID
+ * @route   GET /api/alertes-urgence/:alerteId
+ * @access  Privé (utilisateur authentifié)
  */
-const construireTri = (triString) => {
-  const [champ, ordre] = triString.split('_');
-  return { [champ]: ordre === 'desc' ? -1 : 1 };
+const obtenirAlerteUrgence = async (req, res) => {
+  try {
+    const { alerteId } = req.params;
+    logger.info('Récupération alerte urgence', { alerteId, userId: req.user.userId });
+
+    const alerte = await AlerteUrgence.findOne({
+      _id: alerteId,
+      declencheurId: req.user.userId
+    });
+
+    if (!alerte) {
+      return res.status(404).json({
+        success: false,
+        message: 'Alerte d\'urgence non trouvée'
+      });
+    }
+
+    res.json({
+      success: true,
+      alerte
+    });
+
+  } catch (error) {
+    logger.error('Erreur récupération alerte urgence:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération de l\'alerte d\'urgence',
+      error: error.message
+    });
+  }
 };
 
-// EXPORT UNIQUEMENT DES FONCTIONS IMPLÉMENTÉES
+/**
+ * @desc    Mettre à jour une alerte d'urgence
+ * @route   PUT /api/alertes-urgence/:alerteId
+ * @access  Privé (utilisateur authentifié)
+ */
+const mettreAJourAlerteUrgence = async (req, res) => {
+  try {
+    const { alerteId } = req.params;
+    logger.info('Mise à jour alerte urgence', { alerteId, userId: req.user.userId });
+
+    const alerte = await AlerteUrgence.findOne({
+      _id: alerteId,
+      declencheurId: req.user.userId
+    });
+
+    if (!alerte) {
+      return res.status(404).json({
+        success: false,
+        message: 'Alerte d\'urgence non trouvée'
+      });
+    }
+
+    // Mettre à jour les champs autorisés
+    const champsAutorises = ['description', 'position', 'contactsAlertes', 'personnesPresentes'];
+    champsAutorises.forEach(champ => {
+      if (req.body[champ] !== undefined) {
+        alerte[champ] = req.body[champ];
+      }
+    });
+
+    alerte.dateModification = new Date();
+    await alerte.save();
+
+    logger.info('Alerte urgence mise à jour', { alerteId, userId: req.user.userId });
+
+    res.json({
+    success: true,
+      message: 'Alerte d\'urgence mise à jour avec succès',
+      alerte
+    });
+
+  } catch (error) {
+    logger.error('Erreur mise à jour alerte urgence:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la mise à jour de l\'alerte d\'urgence',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Supprimer une alerte d'urgence
+ * @route   DELETE /api/alertes-urgence/:alerteId
+ * @access  Privé (utilisateur authentifié)
+ */
+const supprimerAlerteUrgence = async (req, res) => {
+  try {
+    const { alerteId } = req.params;
+    logger.info('Suppression alerte urgence', { alerteId, userId: req.user.userId });
+
+    const alerte = await AlerteUrgence.findOne({
+      _id: alerteId,
+      declencheurId: req.user.userId
+    });
+
+    if (!alerte) {
+      return res.status(404).json({
+        success: false,
+        message: 'Alerte d\'urgence non trouvée'
+      });
+    }
+
+    await AlerteUrgence.findByIdAndDelete(alerteId);
+
+    logger.info('Alerte urgence supprimée', { alerteId, userId: req.user.userId });
+
+    res.json({
+    success: true,
+      message: 'Alerte d\'urgence supprimée avec succès'
+    });
+
+  } catch (error) {
+    logger.error('Erreur suppression alerte urgence:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la suppression de l\'alerte d\'urgence',
+      error: error.message
+    });
+  }
+};
+
+// =============== MÉTHODES SPÉCIFIQUES ===============
+
+/**
+ * @desc    Mettre à jour le statut d'une alerte d'urgence
+ * @route   PUT /api/alertes-urgence/:alerteId/statut
+ * @access  Privé (utilisateur authentifié)
+ */
+const mettreAJourStatutAlerte = async (req, res) => {
+  try {
+    const { alerteId } = req.params;
+    const { nouveauStatut, raison } = req.body;
+    
+    logger.info('Mise à jour statut alerte urgence', { 
+      alerteId, 
+      userId: req.user.userId, 
+      nouveauStatut 
+    });
+
+    const alerte = await AlerteUrgence.findOne({
+      _id: alerteId,
+      declencheurId: req.user.userId
+    });
+
+    if (!alerte) {
+      return res.status(404).json({
+        success: false,
+        message: 'Alerte d\'urgence non trouvée'
+      });
+    }
+
+    // Vérifier que le statut est valide
+    const statutsValides = ['ACTIVE', 'RESOLUE', 'ANNULEE', 'EN_COURS'];
+    if (!statutsValides.includes(nouveauStatut)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Statut invalide',
+        statutsValides
+      });
+    }
+
+    alerte.statut = nouveauStatut;
+    alerte.dateModification = new Date();
+    
+    if (nouveauStatut === 'RESOLUE') {
+      alerte.dateResolution = new Date();
+    }
+
+    // Ajouter à l'historique des statuts
+    alerte.historiqueStatuts.push({
+      ancienStatut: alerte.statut,
+      nouveauStatut,
+      raison: raison || 'Modification par l\'utilisateur',
+      dateModification: new Date(),
+      utilisateurId: req.user.userId
+    });
+
+    await alerte.save();
+
+    logger.info('Statut alerte urgence mis à jour', { 
+      alerteId, 
+      userId: req.user.userId, 
+      nouveauStatut 
+    });
+
+    res.json({
+    success: true,
+      message: 'Statut de l\'alerte d\'urgence mis à jour avec succès',
+      alerte
+    });
+
+  } catch (error) {
+    logger.error('Erreur mise à jour statut alerte urgence:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la mise à jour du statut',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Ajouter un contact à une alerte d'urgence
+ * @route   POST /api/alertes-urgence/:alerteId/contacts
+ * @access  Privé (utilisateur authentifié)
+ */
+const ajouterContactAlerte = async (req, res) => {
+  try {
+    const { alerteId } = req.params;
+    const { nom, telephone, relation } = req.body;
+    
+    logger.info('Ajout contact alerte urgence', { alerteId, userId: req.user.userId });
+
+    const alerte = await AlerteUrgence.findOne({
+      _id: alerteId,
+      declencheurId: req.user.userId
+    });
+
+    if (!alerte) {
+      return res.status(404).json({
+        success: false,
+        message: 'Alerte d\'urgence non trouvée'
+      });
+    }
+
+    const nouveauContact = {
+      nom,
+      telephone,
+      relation,
+      dateNotification: new Date(),
+      statutNotification: 'ENVOYE'
+    };
+
+    alerte.contactsAlertes.push(nouveauContact);
+    await alerte.save();
+
+    logger.info('Contact ajouté à l\'alerte urgence', { alerteId, userId: req.user.userId });
+
+    res.json({
+      success: true,
+      message: 'Contact ajouté avec succès',
+      contact: nouveauContact
+    });
+
+  } catch (error) {
+    logger.error('Erreur ajout contact alerte urgence:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de l\'ajout du contact',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Ajouter une personne présente à une alerte d'urgence
+ * @route   POST /api/alertes-urgence/:alerteId/personnes
+ * @access  Privé (utilisateur authentifié)
+ */
+const ajouterPersonnePresente = async (req, res) => {
+  try {
+    const { alerteId } = req.params;
+    const { nom, telephone } = req.body;
+    
+    logger.info('Ajout personne présente alerte urgence', { alerteId, userId: req.user.userId });
+
+    const alerte = await AlerteUrgence.findOne({
+      _id: alerteId,
+      declencheurId: req.user.userId
+    });
+
+    if (!alerte) {
+      return res.status(404).json({
+        success: false,
+        message: 'Alerte d\'urgence non trouvée'
+      });
+    }
+
+    const nouvellePersonne = {
+      nom,
+      telephone
+    };
+
+    alerte.personnesPresentes.push(nouvellePersonne);
+    await alerte.save();
+
+    logger.info('Personne présente ajoutée à l\'alerte urgence', { alerteId, userId: req.user.userId });
+
+    res.json({
+      success: true,
+      message: 'Personne présente ajoutée avec succès',
+      personne: nouvellePersonne
+    });
+
+  } catch (error) {
+    logger.error('Erreur ajout personne présente alerte urgence:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de l\'ajout de la personne présente',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Rechercher des alertes d'urgence par proximité géographique
+ * @route   GET /api/alertes-urgence/proximite
+ * @access  Privé (utilisateur authentifié)
+ */
+const rechercherParProximite = async (req, res) => {
+  try {
+    const { longitude, latitude, rayon = 10 } = req.query; // rayon en km par défaut
+    logger.info('Recherche alertes urgence par proximité', { userId: req.user.userId });
+
+    if (!longitude || !latitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Coordonnées GPS requises (longitude, latitude)'
+      });
+    }
+
+    const alertes = await AlerteUrgence.find({
+      statut: 'ACTIVE',
+      'position.coordinates': {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(longitude), parseFloat(latitude)]
+          },
+          $maxDistance: rayon * 1000 // Convertir en mètres
+        }
+      }
+    }).limit(20);
+
+    res.json({
+      success: true,
+      count: alertes.length,
+      rayonKm: rayon,
+      centre: { longitude, latitude },
+      alertes
+    });
+
+  } catch (error) {
+    logger.error('Erreur recherche par proximité:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la recherche par proximité',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Obtenir les statistiques des alertes d'urgence
+ * @route   GET /api/alertes-urgence/statistiques
+ * @access  Privé (utilisateur authentifié)
+ */
+const obtenirStatistiques = async (req, res) => {
+  try {
+    logger.info('Récupération statistiques alertes urgence', { userId: req.user.userId });
+
+    const stats = await AlerteUrgence.aggregate([
+      { $match: { declencheurId: req.user.userId } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          actives: { $sum: { $cond: [{ $eq: ['$statut', 'ACTIVE'] }, 1, 0] } },
+          resolues: { $sum: { $cond: [{ $eq: ['$statut', 'RESOLUE'] }, 1, 0] } },
+          annulees: { $sum: { $cond: [{ $eq: ['$statut', 'ANNULEE'] }, 1, 0] } },
+          enCours: { $sum: { $cond: [{ $eq: ['$statut', 'EN_COURS'] }, 1, 0] } }
+        }
+      }
+    ]);
+
+    const statistiques = stats[0] || {
+      total: 0,
+      actives: 0,
+      resolues: 0,
+      annulees: 0,
+      enCours: 0
+    };
+
+    res.json({
+      success: true,
+      statistiques
+    });
+
+  } catch (error) {
+    logger.error('Erreur récupération statistiques:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération des statistiques',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Obtenir les alertes d'urgence à venir (planifiées)
+ * @route   GET /api/alertes-urgence/avenir
+ * @access  Privé (utilisateur authentifié)
+ */
+const obtenirAlertesAVenir = async (req, res) => {
+  try {
+    logger.info('Récupération alertes urgence à venir', { userId: req.user.userId });
+
+    const maintenant = new Date();
+    const alertesAVenir = await AlerteUrgence.find({
+      declencheurId: req.user.userId,
+      dateDeclaration: { $gt: maintenant },
+      statut: { $in: ['PLANIFIEE', 'ACTIVE'] }
+    }).sort({ dateDeclaration: 1 });
+
+    res.json({
+      success: true,
+      count: alertesAVenir.length,
+      alertes: alertesAVenir
+    });
+
+  } catch (error) {
+    logger.error('Erreur récupération alertes à venir:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération des alertes à venir',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Exporter les alertes d'urgence
+ * @route   GET /api/alertes-urgence/export
+ * @access  Privé (utilisateur authentifié)
+ */
+const exporterAlertes = async (req, res) => {
+  try {
+    const { format = 'json' } = req.query;
+    logger.info('Export alertes urgence', { userId: req.user.userId, format });
+
+    const alertes = await AlerteUrgence.find({ declencheurId: req.user.userId })
+      .sort({ dateDeclaration: -1 });
+
+    if (format === 'csv') {
+      // Logique d'export CSV (simplifiée)
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="alertes-urgence.csv"');
+      
+      const csvHeader = 'ID,Date,Statut,Description,Position\n';
+      const csvData = alertes.map(alerte => 
+        `${alerte._id},${alerte.dateDeclaration},${alerte.statut},${alerte.description},"${alerte.position?.coordinates?.join(',')}"`
+      ).join('\n');
+      
+      res.send(csvHeader + csvData);
+    } else {
+      // Export JSON par défaut
+      res.json({
+        success: true,
+        count: alertes.length,
+        format: 'json',
+        alertes
+      });
+    }
+
+  } catch (error) {
+    logger.error('Erreur export alertes urgence:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de l\'export des alertes',
+      error: error.message
+    });
+  }
+};
+
+// =============== EXPORTS ===============
+
 module.exports = {
-  declencherAlerte,
-  obtenirAlertes,
-  obtenirAlerte,
-  mettreAJourStatut,
+  // Méthodes CRUD standard
+  creerAlerteUrgence,
+  obtenirAlertesUrgence,
+  obtenirAlerteUrgence,
+  mettreAJourAlerteUrgence,
+  supprimerAlerteUrgence,
+  
+  // Méthodes spécifiques
+  mettreAJourStatutAlerte,
+  ajouterContactAlerte,
+  ajouterPersonnePresente,
+  rechercherParProximite,
+  obtenirStatistiques,
+  obtenirAlertesAVenir,
   exporterAlertes
 };

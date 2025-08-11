@@ -299,6 +299,19 @@ const trajetSchema = new mongoose.Schema({
       return this.typeTrajet === 'RECURRENT';
     }
   },
+  
+  // Gestion des récurrences
+  trajetRecurrentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Trajet',
+    required: function() {
+      return this.estInstanceRecurrente === true;
+    }
+  },
+  estInstanceRecurrente: {
+    type: Boolean,
+    default: false
+  },
 
   // Véhicule utilisé
   vehiculeUtilise: {
@@ -348,6 +361,11 @@ trajetSchema.index({ conducteurId: 1, dateDepart: 1 });
 trajetSchema.index({ dateDepart: 1, statutTrajet: 1 });
 trajetSchema.index({ typeTrajet: 1, dateDepart: 1 });
 
+// Index pour les trajets récurrents
+trajetSchema.index({ trajetRecurrentId: 1, dateDepart: 1 });
+trajetSchema.index({ estInstanceRecurrente: 1, dateDepart: 1 });
+trajetSchema.index({ 'recurrence.dateFinRecurrence': 1 });
+
 // Middleware pre-save pour validation croisée
 trajetSchema.pre('save', function(next) {
   // Validation des préférences de genre (ne peut pas accepter les deux exclusivement)
@@ -386,12 +404,67 @@ trajetSchema.methods.calculerTarifTotal = function(nombrePassagers = 1) {
   return this.prixParPassager * nombrePassagers;
 };
 
+// Méthodes pour les trajets récurrents
+trajetSchema.methods.estTrajetRecurrent = function() {
+  return this.typeTrajet === 'RECURRENT';
+};
+
+trajetSchema.methods.estInstanceRecurrente = function() {
+  return this.estInstanceRecurrente === true;
+};
+
+trajetSchema.methods.obtenirTrajetParent = async function() {
+  if (this.trajetRecurrentId) {
+    return await this.constructor.findById(this.trajetRecurrentId);
+  }
+  return null;
+};
+
+trajetSchema.methods.obtenirInstances = async function(dateDebut = null, dateFin = null) {
+  if (this.typeTrajet === 'RECURRENT') {
+    return await this.constructor.findInstancesRecurrentes(this._id, dateDebut, dateFin);
+  }
+  return [];
+};
+
 // Méthodes statiques
 trajetSchema.statics.findTrajetsDisponibles = function(dateDebut, dateFin) {
   return this.find({
     dateDepart: { $gte: dateDebut, $lte: dateFin },
     statutTrajet: 'PROGRAMME',
     nombrePlacesDisponibles: { $gt: 0 }
+  });
+};
+
+// Méthodes pour les trajets récurrents
+trajetSchema.statics.findTrajetsRecurrents = function(conducteurId = null) {
+  const query = { typeTrajet: 'RECURRENT' };
+  if (conducteurId) {
+    query.conducteurId = conducteurId;
+  }
+  return this.find(query);
+};
+
+trajetSchema.statics.findInstancesRecurrentes = function(trajetRecurrentId, dateDebut = null, dateFin = null) {
+  const query = { 
+    trajetRecurrentId: trajetRecurrentId,
+    estInstanceRecurrente: true
+  };
+  
+  if (dateDebut || dateFin) {
+    query.dateDepart = {};
+    if (dateDebut) query.dateDepart.$gte = dateDebut;
+    if (dateFin) query.dateDepart.$lte = dateFin;
+  }
+  
+  return this.find(query).sort({ dateDepart: 1 });
+};
+
+trajetSchema.statics.findTrajetsRecurrentsActifs = function() {
+  const maintenant = new Date();
+  return this.find({
+    typeTrajet: 'RECURRENT',
+    'recurrence.dateFinRecurrence': { $gt: maintenant }
   });
 };
 
@@ -430,3 +503,43 @@ trajetSchema.virtual('tauxOccupation').get(function() {
 });
 
 module.exports = mongoose.model('Trajet', trajetSchema);
+// Mettre à jour les statistiques du conducteur quand un trajet est terminé
+trajetSchema.pre('save', async function(next) {
+  try {
+    // Si le statut ne change pas, ne rien faire
+    if (!this.isModified('statutTrajet')) return next();
+
+    // Détecter transition vers TERMINE
+    if (this.statutTrajet === 'TERMINE') {
+      const Utilisateur = mongoose.model('Utilisateur');
+
+      // Récupérer l'utilisateur conducteur
+      const conducteur = await Utilisateur.findById(this.conducteurId);
+      if (!conducteur) return next();
+
+      // Initialiser champs si absents
+      if (typeof conducteur.nombreTrajetsEffectues !== 'number') {
+        conducteur.nombreTrajetsEffectues = 0;
+      }
+      if (typeof conducteur.scoreConfiance !== 'number') {
+        conducteur.scoreConfiance = 3.0; // base neutre
+      }
+
+      // Incrémenter le nombre de trajets effectués
+      conducteur.nombreTrajetsEffectues += 1;
+
+      // Ajustement simple du score de confiance (borne [1,5])
+      const bonus = 0.02; // petit bonus par trajet terminé
+      conducteur.scoreConfiance = Math.min(5, Math.max(1, (conducteur.scoreConfiance + bonus)));
+
+      // Enregistrer une dernière date d'activité
+      conducteur.derniereActivite = new Date();
+
+      await conducteur.save();
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+});

@@ -1,20 +1,16 @@
 // controllers/conversationController.js - Version CommonJS
-//const { validationResult } = require('express-validator');
-import { validationResult } from 'express-validator';
+const { validationResult } = require('express-validator');
+const Conversation = require('../models/Conversation');
+const Message = require('../models/Message');
 
 // DEBUG: S'assurer que le module se charge correctement
 console.log('Chargement du conversationController (CommonJS)...');
 
-// Vérification de la validation
-if (!validationResult) {
-  console.error('ERREUR: express-validator non trouvé!');
-}
+// =====================================================
+// CREATE - CRÉER UNE CONVERSATION
+// =====================================================
 
-// Placeholder pour vos modèles - décommentez quand vous les aurez
-// const Conversation = require('../models/Conversation');
-// const Trajet = require('../models/Trajet');
-
-export const creerConversation = async (req, res) => {
+const creerConversation = async (req, res) => {
   console.log('Appel de creerConversation');
   try {
     const errors = validationResult(req);
@@ -36,38 +32,43 @@ export const creerConversation = async (req, res) => {
       });
     }
 
-    // TODO: Implémenter la logique de création avec vos modèles
-    /*
-    const conversation = new Conversation({
-      trajetId,
-      participants: participants || [userId],
-      titre,
-      type: type || 'trajet',
-      createdBy: userId,
-      dateCreation: new Date(),
-      estArchivee: false,
-      nombreMessagesNonLus: new Map()
-    });
-    
-    const savedConversation = await conversation.save();
-    */
+    // Vérifier si une conversation existe déjà pour ce trajet
+    const conversationExistante = await Conversation.findByTrajet(trajetId);
+    if (conversationExistante) {
+      return res.status(409).json({
+        success: false,
+        message: 'Une conversation existe déjà pour ce trajet',
+        data: conversationExistante
+      });
+    }
 
-    // Réponse temporaire pour les tests
-    const mockConversation = {
-      id: `mock-${Date.now()}`,
+    // Créer la nouvelle conversation
+    const conversation = new Conversation({
       trajetId,
       participants: participants || [userId],
       titre: titre || `Conversation pour trajet ${trajetId}`,
       type: type || 'trajet',
-      createdBy: userId,
-      dateCreation: new Date(),
+      derniereActivite: new Date(),
       estArchivee: false
-    };
+    });
+
+    // Initialiser les messages non lus pour tous les participants
+    conversation.participants.forEach(participantId => {
+      conversation.nombreMessagesNonLus.set(participantId.toString(), 0);
+    });
+
+    const savedConversation = await conversation.save();
+    
+    // Populate pour la réponse
+    const populatedConversation = await Conversation.findById(savedConversation._id)
+      .populate('trajetId', 'pointDepart pointArrivee dateDepart')
+      .populate('participants', 'nom prenom email avatar')
+      .populate('statistiques.dernierMessagePar', 'nom prenom');
 
     res.status(201).json({
       success: true,
       message: 'Conversation créée avec succès',
-      data: mockConversation
+      data: populatedConversation
     });
 
   } catch (error) {
@@ -78,6 +79,10 @@ export const creerConversation = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// READ - OBTENIR LES CONVERSATIONS D'UN UTILISATEUR
+// =====================================================
 
 const obtenirConversationsUtilisateur = async (req, res) => {
   try {
@@ -90,7 +95,7 @@ const obtenirConversationsUtilisateur = async (req, res) => {
       });
     }
 
-    const { page = 1, limit = 10, includeArchived = false } = req.query;
+    const { page = 1, limit = 10, includeArchived = false, type } = req.query;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -100,36 +105,42 @@ const obtenirConversationsUtilisateur = async (req, res) => {
       });
     }
 
-    // TODO: Implémenter avec vos modèles
-    /*
-    const query = { participants: userId };
-    if (!includeArchived) {
-      query.estArchivee = { $ne: true };
+    // Construire le query
+    const query = {
+      participants: userId,
+      estArchivee: includeArchived === 'true' ? { $in: [true, false] } : false
+    };
+
+    if (type) {
+      query.type = type;
     }
 
     const conversations = await Conversation.find(query)
-      .populate('participants', 'nom email')
-      .populate('dernierMessage')
-      .sort({ dateModification: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .populate('trajetId', 'pointDepart pointArrivee dateDepart nombrePlaces prixParPlace statut')
+      .populate('participants', 'nom prenom email avatar')
+      .populate('statistiques.dernierMessagePar', 'nom prenom')
+      .sort({ derniereActivite: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
 
     const total = await Conversation.countDocuments(query);
-    */
 
-    // Données de test
-    const mockConversations = [];
-    const total = 0;
+    // Ajouter les informations de messages non lus pour l'utilisateur
+    const conversationsAvecNonLus = conversations.map(conv => {
+      const convObj = conv.toObject();
+      convObj.messagesNonLus = conv.nombreMessagesNonLus.get(userId.toString()) || 0;
+      return convObj;
+    });
 
     res.json({
       success: true,
       data: {
-        conversations: mockConversations,
+        conversations: conversationsAvecNonLus,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
           total,
-          pages: Math.ceil(total / limit) || 0
+          pages: Math.ceil(total / parseInt(limit)) || 0
         }
       }
     });
@@ -142,6 +153,10 @@ const obtenirConversationsUtilisateur = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// READ - OBTENIR LES DÉTAILS D'UNE CONVERSATION
+// =====================================================
 
 const obtenirDetailsConversation = async (req, res) => {
   try {
@@ -164,11 +179,10 @@ const obtenirDetailsConversation = async (req, res) => {
       });
     }
 
-    // TODO: Vérifier l'accès et récupérer la conversation
-    /*
     const conversation = await Conversation.findById(id)
-      .populate('participants', 'nom email')
-      .populate('messages');
+      .populate('trajetId')
+      .populate('participants', 'nom prenom email avatar telephone')
+      .populate('statistiques.dernierMessagePar', 'nom prenom');
 
     if (!conversation) {
       return res.status(404).json({
@@ -184,21 +198,26 @@ const obtenirDetailsConversation = async (req, res) => {
         message: 'Accès non autorisé à cette conversation'
       });
     }
-    */
 
-    // Données de test
-    const mockConversation = {
-      id,
-      participants: [{ _id: userId, nom: 'Utilisateur Test' }],
-      messages: [],
-      messagesNonLus: 0,
-      dateCreation: new Date(),
-      estArchivee: false
-    };
+    // Récupérer les messages récents (optionnel)
+    const { includeMessages = true, messageLimit = 50 } = req.query;
+    let messages = [];
+    
+    if (includeMessages === 'true') {
+      messages = await Message.find({ conversationId: id })
+        .populate('expediteur', 'nom prenom avatar')
+        .sort({ createdAt: -1 })
+        .limit(parseInt(messageLimit));
+      messages.reverse(); // Pour avoir l'ordre chronologique
+    }
+
+    const convObj = conversation.toObject();
+    convObj.messagesNonLus = conversation.nombreMessagesNonLus.get(userId.toString()) || 0;
+    convObj.messages = messages;
 
     res.json({
       success: true,
-      data: mockConversation
+      data: convObj
     });
 
   } catch (error) {
@@ -209,6 +228,10 @@ const obtenirDetailsConversation = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// UPDATE - ARCHIVER UNE CONVERSATION
+// =====================================================
 
 const archiverConversation = async (req, res) => {
   try {
@@ -222,6 +245,7 @@ const archiverConversation = async (req, res) => {
     }
 
     const { id } = req.params;
+    const { archiver = true } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -231,10 +255,29 @@ const archiverConversation = async (req, res) => {
       });
     }
 
-    // TODO: Archiver la conversation
+    const conversation = await Conversation.findById(id);
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation non trouvée'
+      });
+    }
+
+    // Vérifier que l'utilisateur est participant
+    if (!conversation.participants.includes(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès non autorisé à cette conversation'
+      });
+    }
+
+    conversation.estArchivee = archiver;
+    await conversation.save();
+
     res.json({
       success: true,
-      message: 'Conversation archivée avec succès'
+      message: archiver ? 'Conversation archivée avec succès' : 'Conversation désarchivée avec succès',
+      data: { estArchivee: conversation.estArchivee }
     });
 
   } catch (error) {
@@ -245,6 +288,59 @@ const archiverConversation = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// UPDATE - METTRE À JOUR LA DERNIÈRE ACTIVITÉ
+// =====================================================
+
+const mettreAJourActivite = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié'
+      });
+    }
+
+    const conversation = await Conversation.findById(id);
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation non trouvée'
+      });
+    }
+
+    if (!conversation.participants.includes(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès non autorisé à cette conversation'
+      });
+    }
+
+    conversation.derniereActivite = new Date();
+    await conversation.save();
+
+    res.json({
+      success: true,
+      message: 'Activité mise à jour',
+      data: { derniereActivite: conversation.derniereActivite }
+    });
+
+  } catch (error) {
+    console.error('Erreur mise à jour activité:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la mise à jour'
+    });
+  }
+};
+
+// =====================================================
+// GESTION DES PARTICIPANTS
+// =====================================================
 
 const ajouterParticipant = async (req, res) => {
   try {
@@ -268,10 +364,33 @@ const ajouterParticipant = async (req, res) => {
       });
     }
 
-    // TODO: Ajouter le participant
+    const conversation = await Conversation.findById(id);
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation non trouvée'
+      });
+    }
+
+    // Vérifier les permissions (seuls les participants actuels peuvent ajouter)
+    if (!conversation.participants.includes(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Vous n\'avez pas l\'autorisation d\'ajouter des participants'
+      });
+    }
+
+    // Ajouter le participant
+    conversation.ajouterParticipant(utilisateurId);
+    await conversation.save();
+
+    const updatedConversation = await Conversation.findById(id)
+      .populate('participants', 'nom prenom email avatar');
+
     res.json({
       success: true,
-      message: 'Participant ajouté avec succès'
+      message: 'Participant ajouté avec succès',
+      data: updatedConversation
     });
 
   } catch (error) {
@@ -304,10 +423,33 @@ const retirerParticipant = async (req, res) => {
       });
     }
 
-    // TODO: Retirer le participant
+    const conversation = await Conversation.findById(id);
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation non trouvée'
+      });
+    }
+
+    // Vérifier les permissions (participant peut se retirer lui-même)
+    if (!conversation.participants.includes(userId) || 
+        (utilisateurId !== userId && !conversation.participants.includes(userId))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès non autorisé'
+      });
+    }
+
+    conversation.retirerParticipant(utilisateurId);
+    await conversation.save();
+
+    const updatedConversation = await Conversation.findById(id)
+      .populate('participants', 'nom prenom email avatar');
+
     res.json({
       success: true,
-      message: 'Participant retiré avec succès'
+      message: 'Participant retiré avec succès',
+      data: updatedConversation
     });
 
   } catch (error) {
@@ -318,6 +460,10 @@ const retirerParticipant = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// GESTION DES MESSAGES NON LUS
+// =====================================================
 
 const marquerCommeLu = async (req, res) => {
   try {
@@ -340,10 +486,30 @@ const marquerCommeLu = async (req, res) => {
       });
     }
 
-    // TODO: Marquer les messages comme lus
+    const conversation = await Conversation.findById(id);
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation non trouvée'
+      });
+    }
+
+    if (!conversation.participants.includes(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès non autorisé à cette conversation'
+      });
+    }
+
+    conversation.marquerCommeLu(userId);
+    await conversation.save();
+
     res.json({
       success: true,
-      message: 'Messages marqués comme lus'
+      message: 'Messages marqués comme lus',
+      data: { 
+        messagesNonLus: conversation.nombreMessagesNonLus.get(userId.toString()) || 0 
+      }
     });
 
   } catch (error) {
@@ -354,6 +520,10 @@ const marquerCommeLu = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// DELETE - SUPPRIMER UNE CONVERSATION
+// =====================================================
 
 const supprimerConversation = async (req, res) => {
   try {
@@ -376,7 +546,25 @@ const supprimerConversation = async (req, res) => {
       });
     }
 
-    // TODO: Supprimer la conversation (vérifier les droits d'abord)
+    const conversation = await Conversation.findById(id);
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation non trouvée'
+      });
+    }
+
+    // Seuls les participants peuvent supprimer (ou implémenter une logique admin)
+    if (!conversation.participants.includes(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Vous n\'avez pas l\'autorisation de supprimer cette conversation'
+      });
+    }
+
+    // Supprimer la conversation (les messages seront supprimés via le middleware pre)
+    await conversation.deleteOne();
+
     res.json({
       success: true,
       message: 'Conversation supprimée avec succès'
@@ -391,26 +579,69 @@ const supprimerConversation = async (req, res) => {
   }
 };
 
-// S'assurer que toutes les fonctions sont définies avant l'export
-console.log('Définition des exports...');
-const exports = {
+// =====================================================
+// FONCTIONS UTILITAIRES
+// =====================================================
+
+const obtenirConversationParTrajet = async (req, res) => {
+  try {
+    const { trajetId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié'
+      });
+    }
+
+    const conversation = await Conversation.findByTrajet(trajetId)
+      .populate('participants', 'nom prenom email avatar');
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Aucune conversation trouvée pour ce trajet'
+      });
+    }
+
+    // Vérifier l'accès
+    if (!conversation.participants.some(p => p._id.toString() === userId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès non autorisé à cette conversation'
+      });
+    }
+
+    const convObj = conversation.toObject();
+    convObj.messagesNonLus = conversation.nombreMessagesNonLus.get(userId.toString()) || 0;
+
+    res.json({
+      success: true,
+      data: convObj
+    });
+
+  } catch (error) {
+    console.error('Erreur récupération conversation par trajet:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération'
+    });
+  }
+};
+
+// Export des fonctions
+module.exports = {
   creerConversation,
   obtenirConversationsUtilisateur,
   obtenirDetailsConversation,
   archiverConversation,
+  mettreAJourActivite,
   ajouterParticipant,
   retirerParticipant,
   marquerCommeLu,
-  supprimerConversation
+  supprimerConversation,
+  obtenirConversationParTrajet
 };
 
-// Vérifier que toutes les fonctions sont présentes
-Object.keys(exports).forEach(funcName => {
-  if (typeof exports[funcName] !== 'function') {
-    console.error(`ERREUR: ${funcName} n'est pas une fonction!`);
-  } else {
-    console.log(`✓ ${funcName} définie correctement`);
-  }
-});
-
-//module.exports = exports;
+console.log('✓ Tous les exports définis correctement');

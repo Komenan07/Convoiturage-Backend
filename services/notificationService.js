@@ -1,5 +1,19 @@
 // const Notification = require('../models/Notification'); // À décommenter quand le modèle sera créé
 const Utilisateur = require('../models/Utilisateur');
+const { emailService } = require('./emailService');
+
+// Optionnel: intégration SMS (Twilio) si variables d'environnement présentes
+let twilioClient = null;
+try {
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    twilioClient = require('twilio')(
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
+    );
+  }
+} catch (e) {
+  // pas critique en dev
+}
 
 const notificationService = {
   /**
@@ -68,6 +82,43 @@ const notificationService = {
       return notifications;
     } catch (error) {
       console.error('Erreur notification nouveau message:', error);
+    }
+  },
+
+  /**
+   * Envoyer un SMS (Twilio si configuré, sinon simulation/log)
+   */
+  sendSMS: async (numero, message) => {
+    try {
+      if (!numero || !message) throw new Error('Numéro ou message manquant');
+      if (twilioClient && process.env.TWILIO_FROM) {
+        const result = await twilioClient.messages.create({
+          to: numero,
+          from: process.env.TWILIO_FROM,
+          body: message
+        });
+        console.log('✓ SMS envoyé via Twilio:', { sid: result.sid, to: numero });
+        return { success: true, provider: 'twilio', sid: result.sid };
+      }
+      // Simulation
+      console.log(`(SIMULATION) SMS -> ${numero}: ${message}`);
+      return { success: true, provider: 'simulated' };
+    } catch (error) {
+      console.error('Erreur envoi SMS:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Envoyer un email via le service d'emails interne
+   */
+  sendEmail: async (to, subject, text) => {
+    try {
+      const res = await emailService.sendEmail(to, subject, text);
+      return res;
+    } catch (error) {
+      console.error('Erreur envoi email:', error);
+      return { success: false, error: error.message };
     }
   },
 

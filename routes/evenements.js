@@ -1,6 +1,3 @@
-// ========================================
-// ROUTES ÉVÉNEMENTS (/api/evenements)
-// ========================================
 const express = require('express');
 const router = express.Router();
 
@@ -15,16 +12,98 @@ try {
   };
 }
 
-// Import du contrôleur
-const evenementController = require('../controllers/evenementController');
+// Import sécurisé du contrôleur
+let evenementController;
+try {
+  evenementController = require('../controllers/evenementController');
+} catch (error) {
+  console.warn('⚠️ Contrôleur evenementController non trouvé, utilisation des méthodes par défaut');
+  evenementController = {
+    obtenirStatistiques: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    obtenirEvenementsAVenir: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    rechercherParProximite: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    exporterEvenements: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    obtenirEvenements: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    rechercheAvancee: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    obtenirEvenement: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    obtenirGroupesCovoiturage: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    creerEvenement: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    mettreAJourEvenement: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    changerStatut: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    supprimerEvenement: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    ajouterGroupeCovoiturage: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    supprimerGroupeCovoiturage: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    rejoindreGroupe: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+    quitterGroupe: asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: 'Non implémenté' });
+    }),
+  };
+}
 
-// Import sécurisé des middlewares
+// Vérifier que toutes les méthodes sont définies
+const requiredMethods = [
+  'obtenirStatistiques', 'obtenirEvenementsAVenir', 'rechercherParProximite',
+  'exporterEvenements', 'obtenirEvenements', 'rechercheAvancee', 'obtenirEvenement',
+  'obtenirGroupesCovoiturage', 'creerEvenement', 'mettreAJourEvenement',
+  'changerStatut', 'supprimerEvenement', 'ajouterGroupeCovoiturage',
+  'supprimerGroupeCovoiturage', 'rejoindreGroupe', 'quitterGroupe'
+];
+
+requiredMethods.forEach(method => {
+  if (!evenementController[method]) {
+    console.warn(`⚠️ Méthode ${method} manquante dans le contrôleur, création d'une méthode par défaut`);
+    evenementController[method] = asyncHandler(async (req, res) => {
+      res.status(501).json({ success: false, message: `Méthode ${method} non implémentée` });
+    });
+  }
+});
+
+// Middleware d'authentification par défaut
 let auth = (req, res, next) => {
   console.warn('⚠️ Middleware auth non disponible, accès autorisé');
   req.user = { id: 'user_test_' + Date.now(), role: 'user' };
   next();
 };
 
+// Essayer d'importer le vrai middleware d'authentification
+try {
+  const { protect } = require('../middlewares/authMiddleware');
+  auth = protect;
+} catch (error) {
+  console.warn('⚠️ Middleware protect non trouvé, utilisation du middleware par défaut');
+}
+
+// Middleware d'upload par défaut
 let upload = {
   single: (fieldName) => (req, res, next) => {
     console.warn(`⚠️ Middleware upload.single('${fieldName}') non disponible`);
@@ -33,22 +112,11 @@ let upload = {
   }
 };
 
-try {
-  const middleware = require('../middleware');
-  if (middleware.auth) auth = middleware.auth;
-  if (middleware.upload) upload = middleware.upload;
-  console.log('✅ Middlewares événements chargés avec succès');
-} catch (error) {
-  console.warn('⚠️ Middlewares non trouvés, utilisation des middlewares par défaut');
-}
-
-// =============== MIDDLEWARES DE VALIDATION ===============
-
 // Validation des IDs MongoDB
 const validerIdEvenement = (req, res, next) => {
   const { id, evenementId } = req.params;
   const idToValidate = id || evenementId;
-  
+
   if (idToValidate && (idToValidate.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(idToValidate))) {
     return res.status(400).json({
       success: false,
@@ -81,28 +149,28 @@ const loggerEvenements = (req, res, next) => {
 // Validation des paramètres de proximité
 const validerProximite = (req, res, next) => {
   const { longitude, latitude, rayon } = req.query;
-  
+
   if (longitude && (isNaN(longitude) || longitude < -180 || longitude > 180)) {
     return res.status(400).json({
       success: false,
       message: 'Longitude invalide (doit être entre -180 et 180)'
     });
   }
-  
+
   if (latitude && (isNaN(latitude) || latitude < -90 || latitude > 90)) {
     return res.status(400).json({
       success: false,
       message: 'Latitude invalide (doit être entre -90 et 90)'
     });
   }
-  
+
   if (rayon && (isNaN(rayon) || rayon < 0 || rayon > 1000)) {
     return res.status(400).json({
       success: false,
       message: 'Rayon invalide (doit être entre 0 et 1000 km)'
     });
   }
-  
+
   next();
 };
 
@@ -110,18 +178,14 @@ const validerProximite = (req, res, next) => {
 router.use(loggerEvenements);
 
 // =============== ROUTES PUBLIQUES ===============
-
-// Obtenir les statistiques des événements (route spécifique en premier)
+// Obtenir les statistiques des événements
 router.get('/statistiques', evenementController.obtenirStatistiques);
 
 // Obtenir les événements à venir
 router.get('/avenir', evenementController.obtenirEvenementsAVenir);
 
 // Rechercher des événements par proximité géographique
-router.get('/proximite', 
-  validerProximite,
-  evenementController.rechercherParProximite
-);
+router.get('/proximite', validerProximite, evenementController.rechercherParProximite);
 
 // Exporter des événements
 router.get('/export', evenementController.exporterEvenements);
@@ -133,83 +197,38 @@ router.get('/', evenementController.obtenirEvenements);
 router.post('/recherche-avancee', evenementController.rechercheAvancee);
 
 // Obtenir un événement spécifique par ID
-router.get('/:id', 
-  validerIdEvenement,
-  evenementController.obtenirEvenement
-);
+router.get('/:id', validerIdEvenement, evenementController.obtenirEvenement);
 
 // Obtenir les groupes de covoiturage d'un événement
-router.get('/:id/groupes-covoiturage', 
-  validerIdEvenement,
-  evenementController.obtenirGroupesCovoiturage
-);
+router.get('/:id/groupes-covoiturage', validerIdEvenement, evenementController.obtenirGroupesCovoiturage);
 
 // =============== ROUTES PROTÉGÉES (AUTHENTIFICATION REQUISE) ===============
-
 // Créer un nouvel événement
-router.post('/', 
-  auth,
-  upload.single('imageEvenement'), // Optionnel pour l'image de l'événement
-  evenementController.creerEvenement
-);
+router.post('/', auth, upload.single('imageEvenement'), evenementController.creerEvenement);
 
 // Mettre à jour un événement
-router.put('/:id', 
-  auth,
-  validerIdEvenement,
-  upload.single('imageEvenement'),
-  evenementController.mettreAJourEvenement
-);
+router.put('/:id', auth, validerIdEvenement, upload.single('imageEvenement'), evenementController.mettreAJourEvenement);
 
 // Changer le statut d'un événement
-router.patch('/:id/statut', 
-  auth,
-  validerIdEvenement,
-  evenementController.changerStatut
-);
+router.patch('/:id/statut', auth, validerIdEvenement, evenementController.changerStatut);
 
 // Supprimer un événement
-router.delete('/:id', 
-  auth,
-  validerIdEvenement,
-  evenementController.supprimerEvenement
-);
+router.delete('/:id', auth, validerIdEvenement, evenementController.supprimerEvenement);
 
 // =============== ROUTES GROUPES DE COVOITURAGE ===============
-
 // Ajouter un groupe de covoiturage à un événement
-router.post('/:id/groupes-covoiturage', 
-  auth,
-  validerIdEvenement,
-  evenementController.ajouterGroupeCovoiturage
-);
+router.post('/:id/groupes-covoiturage', auth, validerIdEvenement, evenementController.ajouterGroupeCovoiturage);
 
 // Supprimer un groupe de covoiturage
-router.delete('/:id/groupes-covoiturage/:groupeId', 
-  auth,
-  validerIdEvenement,
-  validerIdGroupe,
-  evenementController.supprimerGroupeCovoiturage
-);
+router.delete('/:id/groupes-covoiturage/:groupeId', auth, validerIdEvenement, validerIdGroupe, evenementController.supprimerGroupeCovoiturage);
 
 // Rejoindre un groupe de covoiturage
-router.post('/:id/groupes-covoiturage/:groupeId/rejoindre', 
-  auth,
-  validerIdEvenement,
-  validerIdGroupe,
-  evenementController.rejoindrGroupe
-);
+router.post('/:id/groupes-covoiturage/:groupeId/rejoindre', auth, validerIdEvenement, validerIdGroupe, evenementController.rejoindreGroupe);
 
 // Quitter un groupe de covoiturage
-router.delete('/:id/groupes-covoiturage/:groupeId/quitter', 
-  auth,
-  validerIdEvenement,
-  validerIdGroupe,
-  evenementController.quitterGroupe
-);
+router.delete('/:id/groupes-covoiturage/:groupeId/quitter', auth, validerIdEvenement, validerIdGroupe, evenementController.quitterGroupe);
 
 // =============== ROUTES DE TEST (DÉVELOPPEMENT) ===============
-
 if (process.env.NODE_ENV !== 'production') {
   // Route de test pour vérifier la structure
   router.get('/test/structure', (req, res) => {
@@ -265,7 +284,6 @@ if (process.env.NODE_ENV !== 'production') {
       organisateur: req.user.id,
       tags: ['test', 'demo', 'covoiturage']
     };
-
     res.json({
       success: true,
       message: 'Événement de test créé (simulation)',
@@ -286,7 +304,7 @@ if (process.env.NODE_ENV !== 'production') {
       latitude: 5.3599517,
       longitude: -3.9615917
     };
-    
+
     res.json({
       success: true,
       message: 'Test de proximité - Coordonnées d\'Abidjan',
@@ -298,7 +316,6 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // =============== GESTION D'ERREURS ===============
-
 // Middleware de gestion d'erreurs spécifique aux événements
 router.use((error, req, res, _next) => {
   console.error(`💥 [EVENEMENTS] Erreur ${req.method} ${req.originalUrl}:`, {
@@ -309,7 +326,7 @@ router.use((error, req, res, _next) => {
     query: req.query,
     timestamp: new Date().toISOString()
   });
-  
+
   // Erreurs spécifiques aux événements
   if (error.name === 'ValidationError') {
     return res.status(400).json({
@@ -318,7 +335,7 @@ router.use((error, req, res, _next) => {
       details: error.message
     });
   }
-  
+
   if (error.name === 'CastError') {
     return res.status(400).json({
       success: false,
@@ -340,14 +357,14 @@ router.use((error, req, res, _next) => {
       message: 'Vous n\'êtes pas autorisé à effectuer cette action'
     });
   }
-  
+
   // Erreur générale
   res.status(500).json({
     success: false,
     message: 'Erreur lors du traitement de l\'événement',
-    ...(process.env.NODE_ENV === 'development' && { 
+    ...(process.env.NODE_ENV === 'development' && {
       error: error.message,
-      stack: error.stack 
+      stack: error.stack
     })
   });
 });

@@ -9,7 +9,7 @@ const router = express.Router();
 // Import sécurisé des middlewares
 let auth = {};
 try {
-  auth = require('../middleware/authMiddleware');
+  auth = require('../middlewares/authMiddleware');
 } catch (error) {
   console.warn('⚠️ Middleware auth non trouvé, utilisation des méthodes par défaut');
 }
@@ -19,12 +19,12 @@ const { authenticate, authorize, logSensitiveAction } = auth;
 // Import sécurisé du rate limiter
 let rateLimiterModule = {};
 try {
-  rateLimiterModule = require('../middleware/rateLimiter');
+    rateLimiterModule = require('../middlewares/rateLimiter');
 } catch (error) {
   console.warn('⚠️ Middleware rateLimiter non trouvé');
 }
 
-const { rateLimiter } = rateLimiterModule;
+const { rateLimiters, basicRateLimiter } = rateLimiterModule;
 
 // Import sécurisé du contrôleur admin
 let adminController = {};
@@ -80,10 +80,14 @@ const middlewareLogSensitiveAction = (action) => {
 };
 
 const middlewareRateLimit = (type) => {
-  if (!rateLimiter || !rateLimiter[type]) {
-    return creerMiddlewareParDefaut(`rateLimiter.${type}`);
-  }
-  return rateLimiter[type];
+  // Support des types utilisés dans ce fichier
+  const map = {
+    auth: basicRateLimiter?.auth,
+    standard: basicRateLimiter?.standard,
+    reporting: basicRateLimiter?.standard
+  };
+  const limiter = map[type];
+  return limiter || creerMiddlewareParDefaut(`rateLimit.${type}`);
 };
 
 // =====================================================

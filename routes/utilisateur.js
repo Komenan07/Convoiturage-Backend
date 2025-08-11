@@ -1,286 +1,166 @@
 const express = require('express');
 const router = express.Router();
-
-// Importation des contrôleurs
+const { uploadSingle } = require('../uploads/photos');
+const { uploadDocument } = require('../uploads/documents');
 const {
   creerUtilisateur,
   obtenirProfilComplet,
   obtenirProfilPublic,
-  rechercherUtilisateurs,
   mettreAJourProfil,
   changerMotDePasse,
   uploadPhotoProfil,
   uploadDocumentIdentite,
   obtenirStatistiques,
   mettreAJourCoordonnees,
+  rechercherUtilisateurs,
   supprimerCompte,
   obtenirTousLesUtilisateurs,
+
   obtenirStatistiquesGlobales
+
 } = require('../controllers/utilisateurController');
 
-// Importation des middlewares
-const { protect, authorize } = require('../middleware/authMiddleware');
-const { validateRequest } = require('../utils/validators');
+const { protect, roleMiddleware } = require('../middlewares/authMiddleware');
 
 // Validation schemas
-const { body, param, query } = require('express-validator');
+const { body, param, query, validationResult } = require('express-validator');
 
-// Schémas de validation
+// Middleware pour vérifier les erreurs de validation
+const validateRequest = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Erreur de validation',
+      errors: errors.array()
+    });
+  }
+  next();
+};
+
+// Schéma de validation pour la création d'utilisateur
 const validateUserCreation = [
-  body('email')
-    .isEmail()
-    .withMessage('Email invalide')
-    .normalizeEmail(),
-  body('telephone')
-    .matches(/^(\+225)?[0-9]{8,10}$/)
-    .withMessage('Numéro de téléphone invalide'),
-  body('motDePasse')
-    .isLength({ min: 8 })
-    .withMessage('Le mot de passe doit contenir au moins 8 caractères')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre'),
-  body('nom')
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Le nom doit contenir entre 2 et 50 caractères')
-    .trim(),
-  body('prenom')
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Le prénom doit contenir entre 2 et 50 caractères')
-    .trim(),
-  body('dateNaissance')
-    .isISO8601()
-    .withMessage('Date de naissance invalide'),
-  body('sexe')
-    .isIn(['M', 'F'])
-    .withMessage('Le sexe doit être M ou F'),
-  body('adresse.commune')
-    .notEmpty()
-    .withMessage('La commune est requise')
-    .trim(),
-  body('adresse.quartier')
-    .notEmpty()
-    .withMessage('Le quartier est requis')
-    .trim(),
-  body('adresse.ville')
-    .optional()
-    .trim(),
+  body('email').isEmail().withMessage('Email invalide').normalizeEmail(),
+  body('telephone').matches(/^(\+225)?[0-9]{8,10}$/).withMessage('Numéro de téléphone invalide'),
+  body('motDePasse').isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractères')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre'),
+  body('nom').isLength({ min: 2, max: 50 }).withMessage('Le nom doit contenir entre 2 et 50 caractères').trim(),
+  body('prenom').isLength({ min: 2, max: 50 }).withMessage('Le prénom doit contenir entre 2 et 50 caractères').trim(),
+  body('dateNaissance').isISO8601().withMessage('Date de naissance invalide'),
+  body('sexe').isIn(['M', 'F']).withMessage('Le sexe doit être M ou F'),
+  body('adresse.commune').notEmpty().withMessage('La commune est requise').trim(),
+  body('adresse.quartier').notEmpty().withMessage('Le quartier est requis').trim(),
+  body('adresse.ville').optional().trim(),
   validateRequest
 ];
 
+// Schéma de validation pour la mise à jour du profil
 const validateProfileUpdate = [
-  body('nom')
-    .optional()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Le nom doit contenir entre 2 et 50 caractères')
-    .trim(),
-  body('prenom')
-    .optional()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Le prénom doit contenir entre 2 et 50 caractères')
-    .trim(),
-  body('telephone')
-    .optional()
-    .matches(/^(\+225)?[0-9]{8,10}$/)
-    .withMessage('Numéro de téléphone invalide'),
-  body('adresse.commune')
-    .optional()
-    .notEmpty()
-    .withMessage('La commune ne peut être vide')
-    .trim(),
-  body('adresse.quartier')
-    .optional()
-    .notEmpty()
-    .withMessage('Le quartier ne peut être vide')
-    .trim(),
-  body('preferences.conversation')
-    .optional()
-    .isIn(['BAVARD', 'CALME', 'NEUTRE'])
-    .withMessage('Préférence de conversation invalide'),
-  body('preferences.languePreferee')
-    .optional()
-    .isIn(['FR', 'ANG'])
-    .withMessage('Langue préférée invalide'),
+  body('nom').optional().isLength({ min: 2, max: 50 }).withMessage('Le nom doit contenir entre 2 et 50 caractères').trim(),
+  body('prenom').optional().isLength({ min: 2, max: 50 }).withMessage('Le prénom doit contenir entre 2 et 50 caractères').trim(),
+  body('telephone').optional().matches(/^(\+225)?[0-9]{8,10}$/).withMessage('Numéro de téléphone invalide'),
+  body('adresse.commune').optional().notEmpty().withMessage('La commune ne peut être vide').trim(),
+  body('adresse.quartier').optional().notEmpty().withMessage('Le quartier ne peut être vide').trim(),
+  body('preferences.conversation').optional().isIn(['BAVARD', 'CALME', 'NEUTRE']).withMessage('Préférence de conversation invalide'),
+  body('preferences.languePreferee').optional().isIn(['FR', 'ANG']).withMessage('Langue préférée invalide'),
   validateRequest
 ];
 
+// Schéma de validation pour le changement de mot de passe
 const validatePasswordChange = [
-  body('ancienMotDePasse')
-    .notEmpty()
-    .withMessage('L\'ancien mot de passe est requis'),
-  body('nouveauMotDePasse')
-    .isLength({ min: 8 })
-    .withMessage('Le nouveau mot de passe doit contenir au moins 8 caractères')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Le nouveau mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre'),
+  body('ancienMotDePasse').notEmpty().withMessage('L\'ancien mot de passe est requis'),
+  body('nouveauMotDePasse').isLength({ min: 8 }).withMessage('Le nouveau mot de passe doit contenir au moins 8 caractères')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Le nouveau mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre'),
   validateRequest
 ];
 
+// Schéma de validation pour l'upload de document
 const validateDocumentUpload = [
-  body('type')
-    .isIn(['CNI', 'PASSEPORT'])
-    .withMessage('Type de document invalide'),
-  body('numero')
-    .notEmpty()
-    .withMessage('Le numéro du document est requis'),
+  body('type').isIn(['CNI', 'PASSEPORT']).withMessage('Type de document invalide'),
+  body('numero').notEmpty().withMessage('Le numéro du document est requis'),
   validateRequest
 ];
 
+// Schéma de validation pour les coordonnées
 const validateCoordinates = [
-  body('longitude')
-    .isFloat({ min: -180, max: 180 })
-    .withMessage('Longitude invalide'),
-  body('latitude')
-    .isFloat({ min: -90, max: 90 })
-    .withMessage('Latitude invalide'),
+  body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Longitude invalide'),
+  body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Latitude invalide'),
   validateRequest
 ];
 
+// Schéma de validation pour la recherche
 const validateSearch = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Le numéro de page doit être un entier positif'),
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('La limite doit être entre 1 et 100'),
-  query('scoreMin')
-    .optional()
-    .isInt({ min: 0, max: 100 })
-    .withMessage('Le score minimum doit être entre 0 et 100'),
-  query('longitude')
-    .optional()
-    .isFloat({ min: -180, max: 180 })
-    .withMessage('Longitude invalide'),
-  query('latitude')
-    .optional()
-    .isFloat({ min: -90, max: 90 })
-    .withMessage('Latitude invalide'),
-  query('rayon')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Le rayon doit être entre 1 et 100 km'),
+  query('page').optional().isInt({ min: 1 }).withMessage('Le numéro de page doit être un entier positif'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('La limite doit être entre 1 et 100'),
+  query('scoreMin').optional().isFloat({ min: 0, max: 5 }).withMessage('Le score minimum doit être entre 0 et 5'),
+  query('longitude').optional().isFloat({ min: -180, max: 180 }).withMessage('Longitude invalide'),
+  query('latitude').optional().isFloat({ min: -90, max: 90 }).withMessage('Latitude invalide'),
+  query('rayon').optional().isInt({ min: 1, max: 100 }).withMessage('Le rayon doit être entre 1 et 100 km'),
   validateRequest
 ];
 
+// Schéma de validation pour l'ID utilisateur
 const validateUserId = [
-  param('id')
-    .isMongoId()
-    .withMessage('ID utilisateur invalide'),
+  param('id').isMongoId().withMessage('ID utilisateur invalide'),
   validateRequest
 ];
 
+// Schéma de validation pour la suppression de compte
 const validateAccountDeletion = [
-  body('motDePasse')
-    .notEmpty()
-    .withMessage('Le mot de passe est requis pour supprimer le compte'),
+  body('motDePasse').notEmpty().withMessage('Le mot de passe est requis pour supprimer le compte'),
   validateRequest
 ];
 
-// Routes publiques
+// Schéma de validation pour les filtres admin
+const validateAdminFilters = [
+  query('page').optional().isInt({ min: 1 }).withMessage('Le numéro de page doit être un entier positif'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('La limite doit être entre 1 et 100'),
+  query('statut').optional().isIn(['ACTIF', 'SUSPENDU', 'DESACTIVE']).withMessage('Statut invalide'),
+  query('verification').optional().isIn(['verifie', 'non_verifie']).withMessage('Filtre de vérification invalide'),
+  query('search').optional().isString().withMessage('Le terme de recherche doit être une chaîne'),
+  validateRequest
+];
 
-// Créer un utilisateur (peut être utilisé en cas de création directe, sinon utiliser auth/inscription)
-router.post(
-  '/',
-  validateUserCreation,
-  creerUtilisateur
-);
+// ===== ROUTES PUBLIQUES =====
+// POST /api/utilisateurs - Créer un nouvel utilisateur (inscription)
+router.post('/', validateUserCreation, creerUtilisateur);
 
-// Obtenir le profil public d'un utilisateur
-router.get(
-  '/:id/public',
-  validateUserId,
-  obtenirProfilPublic
-);
+// GET /api/utilisateurs/:id/public - Obtenir le profil public d'un utilisateur
+router.get('/:id/public', validateUserId, obtenirProfilPublic);
 
-// Routes protégées (utilisateur connecté)
+// GET /api/utilisateurs/rechercher - Rechercher des utilisateurs
+router.get('/rechercher', validateSearch, rechercherUtilisateurs);
 
-// Obtenir son profil complet
-router.get(
-  '/profil',
-  protect,
-  obtenirProfilComplet
-);
+// ===== ROUTES PROTÉGÉES (UTILISATEUR CONNECTÉ) =====
+// GET /api/utilisateurs/profil - Obtenir son profil complet
+router.get('/profil', protect, obtenirProfilComplet);
 
-// Mettre à jour son profil
-router.put(
-  '/profil',
-  protect,
-  validateProfileUpdate,
-  mettreAJourProfil
-);
+// PUT /api/utilisateurs/profil - Mettre à jour son profil
+router.put('/profil', protect, validateProfileUpdate, mettreAJourProfil);
 
-// Changer son mot de passe
-router.put(
-  '/mot-de-passe',
-  protect,
-  validatePasswordChange,
-  changerMotDePasse
-);
+// PUT /api/utilisateurs/mot-de-passe - Changer son mot de passe
+router.put('/mot-de-passe', protect, validatePasswordChange, changerMotDePasse);
 
-// Upload photo de profil
-router.put(
-  '/photo-profil',
-  protect,
-  uploadPhotoProfil
-);
+// POST /api/utilisateurs/photo-profil - Upload photo de profil
+router.post('/photo-profil', protect, uploadSingle, uploadPhotoProfil);
 
-// Upload document d'identité
-router.put(
-  '/document-identite',
-  protect,
-  validateDocumentUpload,
-  uploadDocumentIdentite
-);
+// POST /api/utilisateurs/document-identite - Upload document d'identité
+router.post('/document-identite', protect, uploadDocument, validateDocumentUpload, uploadDocumentIdentite);
 
-// Obtenir ses statistiques
-router.get(
-  '/statistiques',
-  protect,
-  obtenirStatistiques
-);
+// GET /api/utilisateurs/statistiques - Obtenir ses propres statistiques
+router.get('/statistiques', protect, obtenirStatistiques);
 
-// Mettre à jour ses coordonnées GPS
-router.put(
-  '/coordonnees',
-  protect,
-  validateCoordinates,
-  mettreAJourCoordonnees
-);
+// PUT /api/utilisateurs/coordonnees - Mettre à jour ses coordonnées GPS
+router.put('/coordonnees', protect, validateCoordinates, mettreAJourCoordonnees);
 
-// Rechercher des utilisateurs
-router.get(
-  '/rechercher',
-  protect,
-  validateSearch,
-  rechercherUtilisateurs
-);
+// DELETE /api/utilisateurs/compte - Supprimer son compte
+router.delete('/compte', protect, validateAccountDeletion, supprimerCompte);
 
-// Supprimer son compte
-router.delete(
-  '/compte',
-  protect,
-  validateAccountDeletion,
-  supprimerCompte
-);
+// ===== ROUTES ADMINISTRATEUR =====
+// GET /api/utilisateurs/admin/tous - Obtenir tous les utilisateurs (admin)
+router.get('/admin/tous', protect, roleMiddleware(['admin', 'superadmin']), validateAdminFilters, obtenirTousLesUtilisateurs);
 
-// Routes administrateur
-
-// Obtenir tous les utilisateurs (Admin)
-router.get(
-  '/',
-  protect,
-  authorize('admin', 'superadmin'),
-  validateSearch,
-  obtenirTousLesUtilisateurs
-);
-
-// Obtenir les statistiques globales (Admin)
-router.get(
-  '/statistiques/globales',
-  protect,
-  authorize('admin', 'superadmin'),
-  obtenirStatistiquesGlobales
-);
+// GET /api/utilisateurs/admin/statistiques-globales - Statistiques globales (admin)
+router.get('/admin/statistiques-globales', protect, roleMiddleware(['admin', 'superadmin']), obtenirStatistiquesGlobales);
 
 module.exports = router;
