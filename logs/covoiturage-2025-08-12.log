@@ -30,3 +30,11 @@
   message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
   timestamp: '2025-08-12 00:50:44'
 }
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 00:53:22'
+}
