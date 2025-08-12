@@ -409,7 +409,7 @@ trajetSchema.methods.estTrajetRecurrent = function() {
   return this.typeTrajet === 'RECURRENT';
 };
 
-trajetSchema.methods.estInstanceRecurrente = function() {
+trajetSchema.methods.estInstanceRecurrenteMethod = function() {
   return this.estInstanceRecurrente === true;
 };
 
