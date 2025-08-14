@@ -1,9 +1,10 @@
 // =====================================================
-// ROUTES DE PAIEMENT - Version corrigée
+// ROUTES DE PAIEMENT 
 // =====================================================
 
 const express = require('express');
 const router = express.Router();
+const AppError = require('../utils/AppError');
 
 // Import sécurisé du contrôleur avec gestion d'erreur
 let PaiementController;
@@ -235,7 +236,7 @@ router.get('/stats/dashboard',
   middlewareAuth,
   middlewareAuthorize(['ADMIN']),
   middlewareRateLimit('standard'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const { dateDebut, dateFin } = req.query;
       
@@ -270,11 +271,7 @@ router.get('/stats/dashboard',
       });
     } catch (error) {
       console.error('Erreur stats dashboard:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération des statistiques',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { originalError: error.message }));
     }
   }
 );
@@ -389,7 +386,7 @@ router.use((err, req, res, next) => {
     });
   }
   
-  next(err);
+  return next(err);
 });
 
 module.exports = router;

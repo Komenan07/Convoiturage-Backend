@@ -1,0 +1,12 @@
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'account_disabled',
+  userId: new ObjectId("689dc0f219ece7fef2ff6c15"),
+  statut: undefined,
+  ip: '::1',
+  endpoint: 'GET /api/auth/me',
+  level: 'warn',
+  message: 'Accès refusé - Compte désactivé',
+  timestamp: '2025-08-14 11:01:02'
+}

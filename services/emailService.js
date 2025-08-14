@@ -18,7 +18,7 @@ class EmailService {
    * @param {string} html - Contenu HTML (optionnel)
    * @returns {Promise<object>} Résultat de l'envoi
    */
-  async sendEmail(to, subject, text, html = null) {
+  async sendEmail(to, subject, text) {
     try {
       // Validation des paramètres
       if (!to || !subject || !text) {

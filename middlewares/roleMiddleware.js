@@ -291,11 +291,7 @@ const requireOwnershipOrAdmin = (resourceModel, ownerField = 'userId') => {
       req.resource = resource;
       next();
     } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-        code: CODES_ERREUR.INTERNAL_ERROR
-      });
+      return next(AppError.serverError('Erreur serveur lors de la vérification des permissions', { originalError: error.message }));
     }
   };
 };
@@ -338,11 +334,7 @@ const requireConducteur = async (req, res, next) => {
     req.trajet = trajet;
     next();
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-      code: CODES_ERREUR.INTERNAL_ERROR
-    });
+    return next(AppError.serverError('Erreur serveur lors de la vérification du conducteur', { originalError: error.message }));
   }
 };
 
@@ -384,11 +376,7 @@ const requirePassager = async (req, res, next) => {
     req.reservation = reservation;
     next();
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-      code: CODES_ERREUR.INTERNAL_ERROR
-    });
+    return next(AppError.serverError('Erreur serveur lors de la vérification du passager', { originalError: error.message }));
   }
 };
 
@@ -445,11 +433,7 @@ const requireParticipant = async (req, res, next) => {
     
     next();
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-      code: CODES_ERREUR.INTERNAL_ERROR
-    });
+    return next(AppError.serverError('Erreur serveur lors de la vérification du participant', { originalError: error.message }));
   }
 };
 
@@ -477,11 +461,7 @@ const requireVerifiedUser = async (req, res, next) => {
 
     next();
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-      code: CODES_ERREUR.INTERNAL_ERROR
-    });
+    return next(AppError.serverError('Erreur serveur lors de la vérification de l\'utilisateur', { originalError: error.message }));
   }
 };
 
@@ -528,11 +508,7 @@ const requireVehicule = async (req, res, next) => {
     req.vehicule = vehicule;
     next();
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-      code: CODES_ERREUR.INTERNAL_ERROR
-    });
+    return next(AppError.serverError('Erreur serveur lors de la vérification du véhicule', { originalError: error.message }));
   }
 };
 

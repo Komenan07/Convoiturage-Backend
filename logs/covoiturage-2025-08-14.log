@@ -1,0 +1,216 @@
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 08:00:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 08:03:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 08:04:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 08:05:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 08:51:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 08:55:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 09:21:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 09:21:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-14 09:30:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-14 09:30:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689dacad1561f047f59ca0dd"),
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-14 09:30:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689dacad1561f047f59ca0dd"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-14 09:30:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'yaoemmanuel685@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-14 09:34:09'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-14 09:34:10'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-14 09:34:10'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 09:36:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '990a6d3439...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-14 10:53:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '990a6d3439...',
+  level: 'warn',
+  message: 'Confirmation email - Token invalide ou expiré',
+  timestamp: '2025-08-14 10:53:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-14 10:56:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-14 10:56:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689dc0f219ece7fef2ff6c15"),
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-14 10:56:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689dc0f219ece7fef2ff6c15"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-14 10:56:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '9e3ea86e5a...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-14 10:58:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689dc0f219ece7fef2ff6c15"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-14 10:58:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-14 10:58:58'
+}

@@ -78,8 +78,8 @@ app.use((error, req, res, next) => {
   console.error('🛑 Erreur globale:', error.message);
   res.status(500).json({
     success: false,
-    message: 'Erreur serveur',
-    error: error.message
+      message: 'Erreur serveur',
+      error: error.message
   });
 });
 

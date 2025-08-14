@@ -1,4 +1,4 @@
-//const mongoose = require('mongoose');
+const AppError = require('../utils/AppError');
 
 class EvenementController {
   constructor(evenementService) {
@@ -90,11 +90,7 @@ class EvenementController {
         }
       });
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération des événements',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération des événements', { originalError: error.message }));
     }
   }
 
@@ -119,11 +115,7 @@ class EvenementController {
         data: evenement
       });
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération de l\'événement',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération de l\'événement', { originalError: error.message }));
     }
   }
 
@@ -156,11 +148,7 @@ class EvenementController {
         data: evenements.evenements
       });
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération des événements à venir',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération des événements à venir', { originalError: error.message }));
     }
   }
 
@@ -195,11 +183,7 @@ class EvenementController {
         }
       });
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la recherche par proximité',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la recherche par proximité', { originalError: error.message }));
     }
   }
 
@@ -258,11 +242,7 @@ class EvenementController {
         criteres_utilises: criteres
       });
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la recherche avancée',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la recherche avancée', { originalError: error.message }));
     }
   }
 
@@ -289,11 +269,7 @@ class EvenementController {
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de l\'export des événements',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de l\'export des événements', { originalError: error.message }));
     }
   }
 
@@ -313,11 +289,7 @@ class EvenementController {
         ville: ville || 'toutes'
       });
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération des statistiques',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { originalError: error.message }));
     }
   }
 
@@ -357,11 +329,7 @@ class EvenementController {
         data: evenement
       });
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        message: 'Erreur lors de la création de l\'événement',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la création de l\'événement', { originalError: error.message }));
     }
   }
 
@@ -404,11 +372,7 @@ class EvenementController {
         data: evenementMAJ
       });
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        message: 'Erreur lors de la mise à jour de l\'événement',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la mise à jour de l\'événement', { originalError: error.message }));
     }
   }
 
@@ -438,11 +402,7 @@ class EvenementController {
         data: evenement
       });
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        message: 'Erreur lors du changement de statut',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors du changement de statut', { originalError: error.message }));
     }
   }
 
@@ -462,11 +422,7 @@ class EvenementController {
         data: resultat
       });
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        message: 'Erreur lors de la suppression de l\'événement',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la suppression de l\'événement', { originalError: error.message }));
     }
   }
 
@@ -486,11 +442,7 @@ class EvenementController {
         data: groupes
       });
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération des groupes de covoiturage',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération des groupes de covoiturage', { originalError: error.message }));
     }
   }
 
@@ -513,11 +465,7 @@ class EvenementController {
         data: groupe
       });
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        message: 'Erreur lors de l\'ajout du groupe de covoiturage',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de l\'ajout du groupe de covoiturage', { originalError: error.message }));
     }
   }
 
@@ -537,11 +485,7 @@ class EvenementController {
         data: resultat
       });
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        message: 'Erreur lors de la suppression du groupe de covoiturage',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la suppression du groupe de covoiturage', { originalError: error.message }));
     }
   }
 
@@ -561,11 +505,7 @@ class EvenementController {
         data: groupe
       });
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        message: 'Erreur lors de l\'adhésion au groupe',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de l\'adhésion au groupe', { originalError: error.message }));
     }
   }
 
@@ -585,11 +525,7 @@ class EvenementController {
         data: groupe
       });
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        message: 'Erreur lors de la sortie du groupe',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la sortie du groupe', { originalError: error.message }));
     }
   }
 }

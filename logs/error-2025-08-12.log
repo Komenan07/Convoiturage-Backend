@@ -1,0 +1,374 @@
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 09:49:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-12 09:49:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 11:59:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 12:00:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 12:00:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 12:21:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-12 12:21:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur connexion: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at utilisateurSchema.methods.verifierMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\models\\Utilisateur.js:396:23)\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:153:32)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-12 16:44:18'
+}
+{
+  error: ReferenceError: next is not defined
+      at connexion (C:\Projet perso\Convoiturage-Backend\controllers\authController.js:207:5),
+  level: 'error',
+  message: 'unhandledRejection: next is not defined\n' +
+    'ReferenceError: next is not defined\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:207:5)',
+  stack: 'ReferenceError: next is not defined\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:207:5)',
+  rejection: true,
+  date: 'Tue Aug 12 2025 16:44:18 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 3956,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 105017344,
+      heapTotal: 50778112,
+      heapUsed: 48058288,
+      external: 40378370,
+      arrayBuffers: 37918539
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 33423.687 },
+  trace: [
+    {
+      column: 5,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js',
+      function: 'connexion',
+      line: 207,
+      method: null,
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-12 16:44:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur connexion: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at utilisateurSchema.methods.verifierMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\models\\Utilisateur.js:396:23)\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:153:32)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-12 16:49:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur connexion: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at utilisateurSchema.methods.verifierMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\models\\Utilisateur.js:396:23)\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:153:32)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-12 16:52:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur connexion: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at utilisateurSchema.methods.verifierMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\models\\Utilisateur.js:396:23)\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:153:32)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-12 16:54:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur connexion: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at utilisateurSchema.methods.verifierMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\models\\Utilisateur.js:396:23)\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:153:32)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-12 16:54:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 17:27:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-12 17:27:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 17:28:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-12 17:28:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 17:28:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-12 17:28:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  errors: {
+    'preferences.conversation': ValidatorError: Préférence de conversation invalide
+        at validate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1365:13)
+        at SchemaType.doValidate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1349:7)
+        at C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\document.js:3004:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:85:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Préférence de conversation invalide',
+        type: 'enum',
+        enumValues: [ 'BAVARD', 'CALME', 'NEUTRE' ],
+        path: 'preferences.conversation',
+        fullPath: undefined,
+        value: 'PROFESSIONNELLE'
+      },
+      kind: 'enum',
+      path: 'preferences.conversation',
+      value: 'PROFESSIONNELLE',
+      reason: undefined,
+      [Symbol(mongoose:validatorError)]: true
+    }
+  },
+  _message: 'Utilisateur validation failed',
+  level: 'error',
+  message: 'Erreur création utilisateur: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide',
+  stack: 'ValidationError: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide\n' +
+    '    at Document.invalidate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3219:32)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3012:17\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\schematype.js:1368:9\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)',
+  timestamp: '2025-08-12 18:42:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  errors: {
+    'preferences.conversation': ValidatorError: Préférence de conversation invalide
+        at validate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1365:13)
+        at SchemaType.doValidate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1349:7)
+        at C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\document.js:3004:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:85:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Préférence de conversation invalide',
+        type: 'enum',
+        enumValues: [ 'BAVARD', 'CALME', 'NEUTRE' ],
+        path: 'preferences.conversation',
+        fullPath: undefined,
+        value: 'SILENCIEUX'
+      },
+      kind: 'enum',
+      path: 'preferences.conversation',
+      value: 'SILENCIEUX',
+      reason: undefined,
+      [Symbol(mongoose:validatorError)]: true
+    }
+  },
+  _message: 'Utilisateur validation failed',
+  level: 'error',
+  message: 'Erreur création utilisateur: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide',
+  stack: 'ValidationError: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide\n' +
+    '    at Document.invalidate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3219:32)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3012:17\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\schematype.js:1368:9\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)',
+  timestamp: '2025-08-12 18:45:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  errors: {
+    'preferences.conversation': ValidatorError: Préférence de conversation invalide
+        at validate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1365:13)
+        at SchemaType.doValidate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1349:7)
+        at C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\document.js:3004:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:85:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Préférence de conversation invalide',
+        type: 'enum',
+        enumValues: [ 'BAVARD', 'CALME', 'NEUTRE' ],
+        path: 'preferences.conversation',
+        fullPath: undefined,
+        value: 'SILENCIEUX'
+      },
+      kind: 'enum',
+      path: 'preferences.conversation',
+      value: 'SILENCIEUX',
+      reason: undefined,
+      [Symbol(mongoose:validatorError)]: true
+    }
+  },
+  _message: 'Utilisateur validation failed',
+  level: 'error',
+  message: 'Erreur création utilisateur: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide',
+  stack: 'ValidationError: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide\n' +
+    '    at Document.invalidate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3219:32)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3012:17\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\schematype.js:1368:9\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)',
+  timestamp: '2025-08-12 18:45:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  errors: {
+    'preferences.conversation': ValidatorError: Préférence de conversation invalide
+        at validate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1365:13)
+        at SchemaType.doValidate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1349:7)
+        at C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\document.js:3004:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:85:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Préférence de conversation invalide',
+        type: 'enum',
+        enumValues: [ 'BAVARD', 'CALME', 'NEUTRE' ],
+        path: 'preferences.conversation',
+        fullPath: undefined,
+        value: 'PROFESSIONNELLE'
+      },
+      kind: 'enum',
+      path: 'preferences.conversation',
+      value: 'PROFESSIONNELLE',
+      reason: undefined,
+      [Symbol(mongoose:validatorError)]: true
+    }
+  },
+  _message: 'Utilisateur validation failed',
+  level: 'error',
+  message: 'Erreur création utilisateur: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide',
+  stack: 'ValidationError: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide\n' +
+    '    at Document.invalidate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3219:32)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3012:17\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\schematype.js:1368:9\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)',
+  timestamp: '2025-08-12 18:46:17'
+}

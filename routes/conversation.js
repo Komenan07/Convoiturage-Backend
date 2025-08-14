@@ -1,6 +1,8 @@
 // routes/conversations.js (noter le 's' à la fin)
 const express = require('express');
+const AppError = require('../utils/AppError');
 const { body, param, query } = require('express-validator');
+
 const {
   creerConversation,
   obtenirConversationsUtilisateur,
@@ -223,7 +225,7 @@ router.delete('/:id', sensitiveActionsLimit, protect, validateConversationId, su
  * @desc    Obtenir les statistiques des conversations de l'utilisateur
  * @access  Private
  */
-router.get('/info/stats', readRateLimit, protect, async (req, res) => {
+router.get('/info/stats', readRateLimit, protect, async (req, res, next ) => {
   try {
     const userId = req.user.id;
     const Conversation = require('../models/Conversation');
@@ -277,10 +279,7 @@ router.get('/info/stats', readRateLimit, protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur récupération stats:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération des statistiques'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { originalError: error.message }));
   }
 });
 

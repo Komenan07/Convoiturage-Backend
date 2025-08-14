@@ -402,3 +402,220 @@
   version: '1.0.0',
   timestamp: '2025-08-09 17:46:54'
 }
+{
+  error: ReferenceError: next is not defined
+      at inscription (C:\Projet perso\Convoiturage-Backend\controllers\authController.js:95:7)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5),
+  level: 'error',
+  message: 'unhandledRejection: next is not defined\n' +
+    'ReferenceError: next is not defined\n' +
+    '    at inscription (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:95:7)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: 'ReferenceError: next is not defined\n' +
+    '    at inscription (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:95:7)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  rejection: true,
+  date: 'Tue Aug 12 2025 11:59:26 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 10148,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 91811840,
+      heapTotal: 47108096,
+      heapUsed: 43787856,
+      external: 39151284,
+      arrayBuffers: 36691453
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 16332.093 },
+  trace: [
+    {
+      column: 7,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js',
+      function: 'inscription',
+      line: 95,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-12 11:59:26'
+}
+{
+  error: ReferenceError: next is not defined
+      at inscription (C:\Projet perso\Convoiturage-Backend\controllers\authController.js:95:7)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5),
+  level: 'error',
+  message: 'unhandledRejection: next is not defined\n' +
+    'ReferenceError: next is not defined\n' +
+    '    at inscription (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:95:7)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: 'ReferenceError: next is not defined\n' +
+    '    at inscription (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:95:7)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  rejection: true,
+  date: 'Tue Aug 12 2025 12:00:01 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 16436,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 91615232,
+      heapTotal: 50253824,
+      heapUsed: 43396736,
+      external: 39089549,
+      arrayBuffers: 36629718
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 16366.953 },
+  trace: [
+    {
+      column: 7,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js',
+      function: 'inscription',
+      line: 95,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-12 12:00:01'
+}
+{
+  error: ReferenceError: next is not defined
+      at inscription (C:\Projet perso\Convoiturage-Backend\controllers\authController.js:95:7)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5),
+  level: 'error',
+  message: 'unhandledRejection: next is not defined\n' +
+    'ReferenceError: next is not defined\n' +
+    '    at inscription (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:95:7)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: 'ReferenceError: next is not defined\n' +
+    '    at inscription (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:95:7)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  rejection: true,
+  date: 'Tue Aug 12 2025 12:00:58 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 9576,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 91000832,
+      heapTotal: 47108096,
+      heapUsed: 43659328,
+      external: 39103275,
+      arrayBuffers: 36643444
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 16424.046 },
+  trace: [
+    {
+      column: 7,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js',
+      function: 'inscription',
+      line: 95,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-12 12:00:58'
+}
+{
+  error: ReferenceError: next is not defined
+      at connexion (C:\Projet perso\Convoiturage-Backend\controllers\authController.js:207:5),
+  level: 'error',
+  message: 'unhandledRejection: next is not defined\n' +
+    'ReferenceError: next is not defined\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:207:5)',
+  stack: 'ReferenceError: next is not defined\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:207:5)',
+  rejection: true,
+  date: 'Tue Aug 12 2025 16:44:18 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 3956,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 105017344,
+      heapTotal: 50778112,
+      heapUsed: 48058288,
+      external: 40378370,
+      arrayBuffers: 37918539
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 33423.687 },
+  trace: [
+    {
+      column: 5,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js',
+      function: 'connexion',
+      line: 207,
+      method: null,
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-12 16:44:18'
+}

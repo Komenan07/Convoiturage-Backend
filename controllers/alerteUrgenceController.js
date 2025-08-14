@@ -1,6 +1,7 @@
 // controllers/alerteUrgenceController.js
 const AlerteUrgence = require('../models/AlerteUrgence');
 const logger = require('../utils/logger');
+const AppError = require('../utils/AppError');
 
 // =============== MÉTHODES CRUD STANDARD ===============
 
@@ -9,7 +10,7 @@ const logger = require('../utils/logger');
  * @route   POST /api/alertes-urgence
  * @access  Privé (utilisateur authentifié)
  */
-const creerAlerteUrgence = async (req, res) => {
+const creerAlerteUrgence = async (req, res, next) => {
   try {
     logger.info('Création alerte urgence', { userId: req.user.userId });
 
@@ -33,11 +34,7 @@ const creerAlerteUrgence = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur création alerte urgence:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la création de l\'alerte d\'urgence',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la création de l\'alerte urgence', { originalError: error.message }));
   }
 };
 
@@ -46,7 +43,7 @@ const creerAlerteUrgence = async (req, res) => {
  * @route   GET /api/alertes-urgence
  * @access  Privé (utilisateur authentifié)
  */
-const obtenirAlertesUrgence = async (req, res) => {
+const obtenirAlertesUrgence = async (req, res, next) => {
   try {
     logger.info('Récupération alertes urgence', { userId: req.user.userId });
 
@@ -61,11 +58,7 @@ const obtenirAlertesUrgence = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur récupération alertes urgence:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération des alertes d\'urgence',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des alertes urgence', { originalError: error.message }));
   }
 };
 
@@ -74,7 +67,7 @@ const obtenirAlertesUrgence = async (req, res) => {
  * @route   GET /api/alertes-urgence/:alerteId
  * @access  Privé (utilisateur authentifié)
  */
-const obtenirAlerteUrgence = async (req, res) => {
+const obtenirAlerteUrgence = async (req, res, next) => {
   try {
     const { alerteId } = req.params;
     logger.info('Récupération alerte urgence', { alerteId, userId: req.user.userId });
@@ -98,11 +91,7 @@ const obtenirAlerteUrgence = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur récupération alerte urgence:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération de l\'alerte d\'urgence',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération de l\'alerte urgence', { originalError: error.message }));
   }
 };
 
@@ -111,7 +100,7 @@ const obtenirAlerteUrgence = async (req, res) => {
  * @route   PUT /api/alertes-urgence/:alerteId
  * @access  Privé (utilisateur authentifié)
  */
-const mettreAJourAlerteUrgence = async (req, res) => {
+const mettreAJourAlerteUrgence = async (req, res, next) => {
   try {
     const { alerteId } = req.params;
     logger.info('Mise à jour alerte urgence', { alerteId, userId: req.user.userId });
@@ -149,11 +138,7 @@ const mettreAJourAlerteUrgence = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur mise à jour alerte urgence:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la mise à jour de l\'alerte d\'urgence',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la mise à jour de l\'alerte urgence', { originalError: error.message }));
   }
 };
 
@@ -162,7 +147,7 @@ const mettreAJourAlerteUrgence = async (req, res) => {
  * @route   DELETE /api/alertes-urgence/:alerteId
  * @access  Privé (utilisateur authentifié)
  */
-const supprimerAlerteUrgence = async (req, res) => {
+const supprimerAlerteUrgence = async (req, res, next) => {
   try {
     const { alerteId } = req.params;
     logger.info('Suppression alerte urgence', { alerteId, userId: req.user.userId });
@@ -190,11 +175,7 @@ const supprimerAlerteUrgence = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur suppression alerte urgence:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la suppression de l\'alerte d\'urgence',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la suppression de l\'alerte urgence', { originalError: error.message }));
   }
 };
 
@@ -205,7 +186,7 @@ const supprimerAlerteUrgence = async (req, res) => {
  * @route   PUT /api/alertes-urgence/:alerteId/statut
  * @access  Privé (utilisateur authentifié)
  */
-const mettreAJourStatutAlerte = async (req, res) => {
+const mettreAJourStatutAlerte = async (req, res, next) => {
   try {
     const { alerteId } = req.params;
     const { nouveauStatut, raison } = req.body;
@@ -270,11 +251,7 @@ const mettreAJourStatutAlerte = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur mise à jour statut alerte urgence:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la mise à jour du statut',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la mise à jour du statut', { originalError: error.message }));
   }
 };
 
@@ -283,7 +260,7 @@ const mettreAJourStatutAlerte = async (req, res) => {
  * @route   POST /api/alertes-urgence/:alerteId/contacts
  * @access  Privé (utilisateur authentifié)
  */
-const ajouterContactAlerte = async (req, res) => {
+const ajouterContactAlerte = async (req, res, next) => {
   try {
     const { alerteId } = req.params;
     const { nom, telephone, relation } = req.body;
@@ -323,11 +300,7 @@ const ajouterContactAlerte = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur ajout contact alerte urgence:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de l\'ajout du contact',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de l\'ajout du contact', { originalError: error.message }));
   }
 };
 
@@ -336,7 +309,7 @@ const ajouterContactAlerte = async (req, res) => {
  * @route   POST /api/alertes-urgence/:alerteId/personnes
  * @access  Privé (utilisateur authentifié)
  */
-const ajouterPersonnePresente = async (req, res) => {
+const ajouterPersonnePresente = async (req, res, next) => {
   try {
     const { alerteId } = req.params;
     const { nom, telephone } = req.body;
@@ -373,11 +346,7 @@ const ajouterPersonnePresente = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur ajout personne présente alerte urgence:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de l\'ajout de la personne présente',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de l\'ajout de la personne présente', { originalError: error.message }));
   }
 };
 
@@ -386,7 +355,7 @@ const ajouterPersonnePresente = async (req, res) => {
  * @route   GET /api/alertes-urgence/proximite
  * @access  Privé (utilisateur authentifié)
  */
-const rechercherParProximite = async (req, res) => {
+const rechercherParProximite = async (req, res, next) => {
   try {
     const { longitude, latitude, rayon = 10 } = req.query; // rayon en km par défaut
     logger.info('Recherche alertes urgence par proximité', { userId: req.user.userId });
@@ -421,11 +390,7 @@ const rechercherParProximite = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur recherche par proximité:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la recherche par proximité',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la recherche par proximité', { originalError: error.message }));
   }
 };
 
@@ -434,7 +399,7 @@ const rechercherParProximite = async (req, res) => {
  * @route   GET /api/alertes-urgence/statistiques
  * @access  Privé (utilisateur authentifié)
  */
-const obtenirStatistiques = async (req, res) => {
+const obtenirStatistiques = async (req, res, next) => {
   try {
     logger.info('Récupération statistiques alertes urgence', { userId: req.user.userId });
 
@@ -467,11 +432,7 @@ const obtenirStatistiques = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur récupération statistiques:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération des statistiques',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { originalError: error.message }));
   }
 };
 
@@ -480,7 +441,7 @@ const obtenirStatistiques = async (req, res) => {
  * @route   GET /api/alertes-urgence/avenir
  * @access  Privé (utilisateur authentifié)
  */
-const obtenirAlertesAVenir = async (req, res) => {
+const obtenirAlertesAVenir = async (req, res, next) => {
   try {
     logger.info('Récupération alertes urgence à venir', { userId: req.user.userId });
 
@@ -499,11 +460,7 @@ const obtenirAlertesAVenir = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur récupération alertes à venir:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération des alertes à venir',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des alertes à venir', { originalError: error.message }));
   }
 };
 
@@ -512,7 +469,7 @@ const obtenirAlertesAVenir = async (req, res) => {
  * @route   GET /api/alertes-urgence/export
  * @access  Privé (utilisateur authentifié)
  */
-const exporterAlertes = async (req, res) => {
+const exporterAlertes = async (req, res, next) => {
   try {
     const { format = 'json' } = req.query;
     logger.info('Export alertes urgence', { userId: req.user.userId, format });
@@ -543,11 +500,7 @@ const exporterAlertes = async (req, res) => {
 
   } catch (error) {
     logger.error('Erreur export alertes urgence:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de l\'export des alertes',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de l\'export des alertes', { originalError: error.message }));
   }
 };
 

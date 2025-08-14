@@ -2,6 +2,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { validationResult } = require('express-validator');
+const AppError = require('../utils/AppError');
 
 // Models
 const Signalement = require('../models/Signalement');
@@ -148,7 +149,7 @@ const appliquerActionsDisciplinaires = async (userId, actions) => {
 
 // Contrôleurs principaux
 
-const creerSignalement = async (req, res) => {
+const creerSignalement = async (req, res, next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
@@ -224,11 +225,7 @@ const creerSignalement = async (req, res) => {
       } catch (error) {
         nettoyerFichiersTemp(req.files);
         console.error('Erreur upload preuves:', error);
-        return res.status(500).json({
-          success: false,
-          message: 'Erreur lors du téléchargement des preuves',
-          code: 'UPLOAD_ERROR'
-        });
+        return next(AppError.serverError('Erreur serveur lors du téléchargement des preuves', { originalError: error.message }));
       }
     }
 
@@ -269,15 +266,11 @@ const creerSignalement = async (req, res) => {
   } catch (error) {
     nettoyerFichiersTemp(req.files);
     console.error('Erreur création signalement:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur interne du serveur',
-      code: 'INTERNAL_ERROR'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la création du signalement', { originalError: error.message }));
   }
 };
 
-const uploaderPreuves = async (req, res) => {
+const uploaderPreuves = async (req, res, next) => {
   try {
     const { signalementId } = req.body;
 
@@ -344,15 +337,11 @@ const uploaderPreuves = async (req, res) => {
   } catch (error) {
     nettoyerFichiersTemp(req.files);
     console.error('Erreur upload preuves:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de l\'upload des preuves',
-      code: 'UPLOAD_ERROR'
-    });
+    return next(AppError.serverError('Erreur serveur lors de l\'upload des preuves', { originalError: error.message }));
   }
 };
 
-const obtenirQueueModeration = async (req, res) => {
+const obtenirQueueModeration = async (req, res, next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
@@ -427,15 +416,11 @@ const obtenirQueueModeration = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur queue modération:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération de la queue',
-      code: 'INTERNAL_ERROR'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération de la queue', { originalError: error.message }));
   }
 };
 
-const obtenirHistoriqueSignalements = async (req, res) => {
+const obtenirHistoriqueSignalements = async (req, res, next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
@@ -497,15 +482,11 @@ const obtenirHistoriqueSignalements = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur historique signalements:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération de l\'historique',
-      code: 'INTERNAL_ERROR'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération de l\'historique', { originalError: error.message }));
   }
 };
 
-const obtenirSignalement = async (req, res) => {
+const obtenirSignalement = async (req, res, next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
@@ -542,15 +523,11 @@ const obtenirSignalement = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur récupération signalement:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération du signalement',
-      code: 'INTERNAL_ERROR'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération du signalement', { originalError: error.message }));
   }
 };
 
-const traiterSignalement = async (req, res) => {
+const traiterSignalement = async (req, res, next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
@@ -600,11 +577,7 @@ const traiterSignalement = async (req, res) => {
         );
 
         if (!succes) {
-          return res.status(500).json({
-            success: false,
-            message: 'Erreur lors de l\'application des sanctions',
-            code: 'SANCTION_ERROR'
-          });
+          return next(AppError.serverError('Erreur serveur lors de l\'application des sanctions', { originalError: 'Échec de l\'application des sanctions' }));
         }
       }
     } else {
@@ -643,15 +616,11 @@ const traiterSignalement = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur traitement signalement:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors du traitement du signalement',
-      code: 'INTERNAL_ERROR'
-    });
+    return next(AppError.serverError('Erreur serveur lors du traitement du signalement', { originalError: error.message }));
   }
 };
 
-const assignerModerateur = async (req, res) => {
+const assignerModerateur = async (req, res, next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
@@ -716,15 +685,11 @@ const assignerModerateur = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur assignation modérateur:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de l\'assignation',
-      code: 'INTERNAL_ERROR'
-    });
+    return next(AppError.serverError('Erreur serveur lors de l\'assignation', { originalError: error.message }));
   }
 };
 
-const classerSignalement = async (req, res) => {
+const classerSignalement = async (req, res, next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
@@ -785,15 +750,11 @@ const classerSignalement = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur classement signalement:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors du classement',
-      code: 'INTERNAL_ERROR'
-    });
+    return next(AppError.serverError('Erreur serveur lors du classement', { originalError: error.message }));
   }
 };
 
-const rechercherSignalements = async (req, res) => {
+const rechercherSignalements = async (req, res, next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
@@ -896,15 +857,11 @@ const rechercherSignalements = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur recherche signalements:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la recherche',
-      code: 'INTERNAL_ERROR'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la recherche', { originalError: error.message }));
   }
 };
 
-const obtenirStatistiquesModeration = async (req, res) => {
+const obtenirStatistiquesModeration = async (req, res, next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
@@ -1095,15 +1052,11 @@ const obtenirStatistiquesModeration = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur statistiques modération:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors du calcul des statistiques',
-      code: 'INTERNAL_ERROR'
-    });
+    return next(AppError.serverError('Erreur serveur lors du calcul des statistiques', { originalError: error.message }));
   }
 };
 
-const obtenirMetriquesTempsReel = async (req, res) => {
+const obtenirMetriquesTempsReel = async (req, res, next) => {
   try {
     const hier = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
@@ -1211,11 +1164,7 @@ const obtenirMetriquesTempsReel = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur métriques temps réel:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la récupération des métriques',
-      code: 'INTERNAL_ERROR'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des métriques', { originalError: error.message }));
   }
 };
 

@@ -317,7 +317,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 // =============== GESTION D'ERREURS ===============
 // Middleware de gestion d'erreurs spécifique aux événements
-router.use((error, req, res, _next) => {
+router.use((error, req, res, next) => {
   console.error(`💥 [EVENEMENTS] Erreur ${req.method} ${req.originalUrl}:`, {
     message: error.message,
     stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
@@ -359,14 +359,7 @@ router.use((error, req, res, _next) => {
   }
 
   // Erreur générale
-  res.status(500).json({
-    success: false,
-    message: 'Erreur lors du traitement de l\'événement',
-    ...(process.env.NODE_ENV === 'development' && {
-      error: error.message,
-      stack: error.stack
-    })
-  });
+  return next(error);
 });
 
 module.exports = router;

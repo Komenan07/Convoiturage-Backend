@@ -1,9 +1,11 @@
 const Utilisateur = require('../models/Utilisateur');
 const bcrypt = require('bcryptjs');
 const validator = require('validator');
+const AppError = require('../utils/AppError');
+const { logger } = require('../utils/logger');
 
 // =============== CREATE ===============
-const creerUtilisateur = async (req, res) => {
+const creerUtilisateur = async (req, res, next) => {
   try {
     const {
       email,
@@ -18,16 +20,34 @@ const creerUtilisateur = async (req, res) => {
       contactsUrgence
     } = req.body;
 
+    // Validation des champs requis
+    if (!nom || !prenom || !email || !motDePasse) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Les champs nom, prénom, email et mot de passe sont requis' 
+      });
+    }
+
     if (!validator.isEmail(email || '')) {
       return res.status(400).json({ success: false, message: 'Email invalide' });
     }
-    if (!validator.isMobilePhone(telephone || '', 'any', { strictMode: false })) {
+    
+    if (telephone && !validator.isMobilePhone(telephone || '', 'any', { strictMode: false })) {
       return res.status(400).json({ success: false, message: 'Numéro de téléphone invalide' });
     }
 
-    const utilisateurExistant = await Utilisateur.findOne({ $or: [{ email }, { telephone }] });
+    const utilisateurExistant = await Utilisateur.findOne({ 
+      $or: [
+        { email }, 
+        ...(telephone ? [{ telephone }] : [])
+      ] 
+    });
+    
     if (utilisateurExistant) {
-      return res.status(400).json({ success: false, message: 'Un utilisateur avec cet email ou ce téléphone existe déjà' });
+      return res.status(409).json({ 
+        success: false, 
+        message: 'Un utilisateur avec cet email ou ce téléphone existe déjà' 
+      });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -43,25 +63,66 @@ const creerUtilisateur = async (req, res) => {
       sexe,
       adresse,
       preferences,
-      contactsUrgence
+      contactsUrgence,
+      role: 'utilisateur',
+      statutCompte: 'ACTIF'
     });
 
     await nouvelUtilisateur.save();
 
     const utilisateurSansMotDePasse = nouvelUtilisateur.toObject();
     delete utilisateurSansMotDePasse.motDePasse;
+    delete utilisateurSansMotDePasse.tokenResetMotDePasse;
 
-    res.status(201).json({ success: true, message: 'Utilisateur créé avec succès', data: utilisateurSansMotDePasse });
+    logger.info('Nouvel utilisateur créé', { userId: nouvelUtilisateur._id, email });
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Utilisateur créé avec succès', 
+      data: utilisateurSansMotDePasse 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Erreur serveur lors de la création de l'utilisateur", error: error.message });
+    logger.error('Erreur création utilisateur:', error);
+    
+    // Gestion des erreurs de duplication MongoDB
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Un utilisateur avec cet email ou ce téléphone existe déjà'
+      });
+    }
+    
+    // Gestion des erreurs de validation
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation',
+        details: messages
+      });
+    }
+    
+    return next(AppError.serverError("Erreur serveur lors de la création de l'utilisateur", { 
+      originalError: error.message 
+    }));
   }
 };
 
 // =============== READ ===============
-const obtenirProfilComplet = async (req, res) => {
+const obtenirProfilComplet = async (req, res, next) => {
   try {
-    const utilisateur = await Utilisateur.findById(req.user.id)
-      .select('-motDePasse -tokenResetMotDePasse')
+    // Vérifier si on a un utilisateur ID (soit depuis req.user.userId soit depuis req.params.id)
+    const userId = req.user?.userId || req.params?.id;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ID utilisateur manquant' 
+      });
+    }
+
+    const utilisateur = await Utilisateur.findById(userId)
+      .select('-motDePasse -tokenResetMotDePasse -expirationTokenReset')
       .populate('vehicules', 'marque modele couleur')
       .populate('documentIdentite.verificateurId', 'nom prenom');
 
@@ -71,11 +132,14 @@ const obtenirProfilComplet = async (req, res) => {
 
     res.status(200).json({ success: true, data: utilisateur });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur serveur lors de la récupération du profil', error: error.message });
+    logger.error('Erreur récupération profil:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération du profil', { 
+      originalError: error.message 
+    }));
   }
 };
 
-const obtenirProfilPublic = async (req, res) => {
+const obtenirProfilPublic = async (req, res, next) => {
   try {
     const utilisateur = await Utilisateur.findById(req.params.id)
       .select('nom prenom photoProfil noteMoyenne nombreTrajets preferences.conversation preferences.languePreferee estVerifie dateInscription')
@@ -87,42 +151,100 @@ const obtenirProfilPublic = async (req, res) => {
 
     res.status(200).json({ success: true, data: utilisateur });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur serveur lors de la récupération du profil public', error: error.message });
+    logger.error('Erreur récupération profil public:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération du profil public', { 
+      originalError: error.message 
+    }));
   }
 };
 
 // =============== UPDATE ===============
-const mettreAJourProfil = async (req, res) => {
+const mettreAJourProfil = async (req, res, next) => {
   try {
-    const { nom, prenom, telephone, adresse, preferences } = req.body;
+    // Vérifier si on a un utilisateur ID (soit depuis req.user.userId soit depuis req.params.id)
+    const userId = req.user?.userId || req.params?.id;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ID utilisateur manquant' 
+      });
+    }
+
+    const { nom, prenom, telephone, dateNaissance, sexe, adresse, preferences } = req.body;
     const updates = {};
+    
     if (nom !== undefined) updates.nom = nom;
     if (prenom !== undefined) updates.prenom = prenom;
-    if (telephone !== undefined) updates.telephone = telephone;
+    if (telephone !== undefined) {
+      // Vérifier l'unicité du téléphone si modifié
+      if (telephone) {
+        const existingUser = await Utilisateur.findOne({ 
+          telephone, 
+          _id: { $ne: userId } 
+        });
+        if (existingUser) {
+          return res.status(409).json({
+            success: false,
+            message: 'Ce numéro de téléphone est déjà utilisé'
+          });
+        }
+      }
+      updates.telephone = telephone;
+    }
+    if (dateNaissance !== undefined) updates.dateNaissance = dateNaissance ? new Date(dateNaissance) : null;
+    if (sexe !== undefined) updates.sexe = sexe;
     if (adresse !== undefined) updates.adresse = adresse;
     if (preferences !== undefined) updates.preferences = preferences;
 
     const utilisateur = await Utilisateur.findByIdAndUpdate(
-      req.user.id,
+      userId,
       { $set: updates },
       { new: true, runValidators: true }
-    ).select('-motDePasse -tokenResetMotDePasse');
+    ).select('-motDePasse -tokenResetMotDePasse -expirationTokenReset');
 
     if (!utilisateur) {
       return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
     }
 
-    res.status(200).json({ success: true, message: 'Profil mis à jour avec succès', data: utilisateur });
+    logger.info('Profil mis à jour', { userId });
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Profil mis à jour avec succès', 
+      data: utilisateur 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur serveur lors de la mise à jour du profil', error: error.message });
+    logger.error('Erreur mise à jour profil:', error);
+    
+    // Gestion des erreurs de validation
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation',
+        details: messages
+      });
+    }
+    
+    return next(AppError.serverError('Erreur serveur lors de la mise à jour du profil', { 
+      originalError: error.message 
+    }));
   }
 };
 
-const changerMotDePasse = async (req, res) => {
+const changerMotDePasse = async (req, res, next) => {
   try {
     const { ancienMotDePasse, nouveauMotDePasse } = req.body;
 
-    const utilisateur = await Utilisateur.findById(req.user.id);
+    if (!req.user?.userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ID utilisateur manquant' 
+      });
+    }
+
+    const utilisateur = await Utilisateur.findById(req.user.userId);
     if (!utilisateur) {
       return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
     }
@@ -137,30 +259,46 @@ const changerMotDePasse = async (req, res) => {
     utilisateur.motDePasse = hashedPassword;
     await utilisateur.save();
 
+    logger.info('Mot de passe modifié', { userId: req.user.userId });
+
     res.status(200).json({ success: true, message: 'Mot de passe modifié avec succès' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur serveur lors du changement de mot de passe', error: error.message });
+    logger.error('Erreur changement mot de passe:', error);
+    return next(AppError.serverError("Erreur serveur lors du changement de mot de passe", { 
+      originalError: error.message 
+    }));
   }
 };
 
 // =============== UPLOADS ===============
-const uploadPhotoProfil = async (req, res) => {
+const uploadPhotoProfil = async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Aucun fichier uploadé' });
     }
 
+    if (!req.user?.userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ID utilisateur manquant' 
+      });
+    }
+
     // Récupérer l'utilisateur actuel pour supprimer l'ancienne photo
-    const utilisateurActuel = await Utilisateur.findById(req.user.id);
+    const utilisateurActuel = await Utilisateur.findById(req.user.userId);
     if (!utilisateurActuel) {
       return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
     }
 
     // Supprimer l'ancienne photo si elle existe
     if (utilisateurActuel.photoProfil) {
-      const { deleteFile } = require('../uploads/photos');
-      const oldFilename = utilisateurActuel.photoProfil.split('/').pop();
-      deleteFile(oldFilename);
+      try {
+        const { deleteFile } = require('../uploads/photos');
+        const oldFilename = utilisateurActuel.photoProfil.split('/').pop();
+        deleteFile(oldFilename);
+      } catch (deleteError) {
+        logger.warn('Erreur suppression ancienne photo:', deleteError);
+      }
     }
 
     // Générer l'URL publique de la nouvelle photo
@@ -169,10 +307,10 @@ const uploadPhotoProfil = async (req, res) => {
 
     // Mettre à jour l'utilisateur avec la nouvelle URL
     const utilisateur = await Utilisateur.findByIdAndUpdate(
-      req.user.id,
+      req.user.userId,
       { photoProfil: photoUrl },
       { new: true }
-    ).select('-motDePasse -tokenResetMotDePasse');
+    ).select('-motDePasse -tokenResetMotDePasse -expirationTokenReset');
 
     res.status(200).json({ 
       success: true, 
@@ -183,29 +321,43 @@ const uploadPhotoProfil = async (req, res) => {
       } 
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Erreur serveur lors de l'upload de la photo", error: error.message });
+    logger.error('Erreur upload photo:', error);
+    return next(AppError.serverError("Erreur serveur lors de l'upload de la photo", { 
+      originalError: error.message 
+    }));
   }
 };
 
-const uploadDocumentIdentite = async (req, res) => {
+const uploadDocumentIdentite = async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Aucun fichier uploadé' });
     }
 
+    if (!req.user?.userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ID utilisateur manquant' 
+      });
+    }
+
     const { type, numero } = req.body;
     
     // Récupérer l'utilisateur actuel pour supprimer l'ancien document
-    const utilisateurActuel = await Utilisateur.findById(req.user.id);
+    const utilisateurActuel = await Utilisateur.findById(req.user.userId);
     if (!utilisateurActuel) {
       return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
     }
 
     // Supprimer l'ancien document si il existe
     if (utilisateurActuel.documentIdentite && utilisateurActuel.documentIdentite.photoDocument) {
-      const { deleteFile } = require('../uploads/documents');
-      const oldFilename = utilisateurActuel.documentIdentite.photoDocument.split('/').pop();
-      deleteFile(oldFilename);
+      try {
+        const { deleteFile } = require('../uploads/documents');
+        const oldFilename = utilisateurActuel.documentIdentite.photoDocument.split('/').pop();
+        deleteFile(oldFilename);
+      } catch (deleteError) {
+        logger.warn('Erreur suppression ancien document:', deleteError);
+      }
     }
 
     // Générer l'URL publique du nouveau document
@@ -223,7 +375,7 @@ const uploadDocumentIdentite = async (req, res) => {
     };
 
     const utilisateur = await Utilisateur.findByIdAndUpdate(
-      req.user.id,
+      req.user.userId,
       {
         $set: {
           documentIdentite: documentData,
@@ -231,7 +383,7 @@ const uploadDocumentIdentite = async (req, res) => {
         }
       },
       { new: true }
-    ).select('-motDePasse -tokenResetMotDePasse');
+    ).select('-motDePasse -tokenResetMotDePasse -expirationTokenReset');
 
     res.status(200).json({ 
       success: true, 
@@ -242,14 +394,24 @@ const uploadDocumentIdentite = async (req, res) => {
       } 
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Erreur serveur lors de l'upload du document", error: error.message });
+    logger.error('Erreur upload document:', error);
+    return next(AppError.serverError("Erreur serveur lors de l'upload du document", { 
+      originalError: error.message 
+    }));
   }
 };
 
 // =============== STATS ===============
-const obtenirStatistiques = async (req, res) => {
+const obtenirStatistiques = async (req, res, next) => {
   try {
-    const utilisateur = await Utilisateur.findById(req.user.id)
+    if (!req.user?.userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ID utilisateur manquant' 
+      });
+    }
+
+    const utilisateur = await Utilisateur.findById(req.user.userId)
       .select('noteMoyenne nombreTrajets nombreVoyages nombreReservations dateInscription');
 
     if (!utilisateur) {
@@ -258,16 +420,26 @@ const obtenirStatistiques = async (req, res) => {
 
     res.status(200).json({ success: true, data: utilisateur });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur serveur lors de la récupération des statistiques', error: error.message });
+    logger.error('Erreur récupération statistiques:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { 
+      originalError: error.message 
+    }));
   }
 };
 
-const mettreAJourCoordonnees = async (req, res) => {
+const mettreAJourCoordonnees = async (req, res, next) => {
   try {
     const { longitude, latitude } = req.body;
 
+    if (!req.user?.userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ID utilisateur manquant' 
+      });
+    }
+
     const utilisateur = await Utilisateur.findByIdAndUpdate(
-      req.user.id,
+      req.user.userId,
       {
         $set: {
           coordonnees: { longitude, latitude },
@@ -275,23 +447,36 @@ const mettreAJourCoordonnees = async (req, res) => {
         }
       },
       { new: true }
-    ).select('-motDePasse -tokenResetMotDePasse');
+    ).select('-motDePasse -tokenResetMotDePasse -expirationTokenReset');
 
-    res.status(200).json({ success: true, message: 'Coordonnées mises à jour avec succès', data: { coordonnees: utilisateur.coordonnees } });
+    if (!utilisateur) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Coordonnées mises à jour avec succès', 
+      data: { coordonnees: utilisateur.coordonnees } 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur serveur lors de la mise à jour des coordonnées', error: error.message });
+    logger.error('Erreur mise à jour coordonnées:', error);
+    return next(AppError.serverError("Erreur serveur lors de la mise à jour des coordonnées", { 
+      originalError: error.message 
+    }));
   }
 };
 
 // =============== SEARCH ===============
-const rechercherUtilisateurs = async (req, res) => {
+const rechercherUtilisateurs = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, scoreMin, longitude, latitude, rayon = 10, search } = req.query;
 
-    const query = {};
+    const query = { statutCompte: 'ACTIF' }; // Exclure les comptes désactivés
+    
     if (scoreMin) {
       query.noteMoyenne = { $gte: parseFloat(scoreMin) };
     }
+    
     if (longitude && latitude) {
       query.coordonnees = {
         $near: {
@@ -303,11 +488,11 @@ const rechercherUtilisateurs = async (req, res) => {
         }
       };
     }
+    
     if (search) {
       query.$or = [
         { nom: new RegExp(search, 'i') },
-        { prenom: new RegExp(search, 'i') },
-        { email: new RegExp(search, 'i') }
+        { prenom: new RegExp(search, 'i') }
       ];
     }
 
@@ -319,35 +504,86 @@ const rechercherUtilisateurs = async (req, res) => {
     };
 
     const result = await Utilisateur.paginate(query, options);
-    res.status(200).json({ success: true, data: result.docs, pagination: { page: result.page, limit: result.limit, total: result.totalDocs, pages: result.totalPages } });
+    
+    res.status(200).json({ 
+      success: true, 
+      data: result.docs, 
+      pagination: { 
+        page: result.page, 
+        limit: result.limit, 
+        total: result.totalDocs, 
+        pages: result.totalPages 
+      } 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Erreur serveur lors de la recherche d'utilisateurs", error: error.message });
+    logger.error('Erreur recherche utilisateurs:', error);
+    return next(AppError.serverError("Erreur serveur lors de la recherche d'utilisateurs", { 
+      originalError: error.message 
+    }));
   }
 };
 
 // =============== DELETE ===============
-const supprimerCompte = async (req, res) => {
+const supprimerCompte = async (req, res, next) => {
   try {
-    const { motDePasse } = req.body;
-    const utilisateur = await Utilisateur.findById(req.user.id);
-    if (!utilisateur) {
-      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    // Pour la suppression par l'utilisateur lui-même
+    if (req.user?.userId && !req.params.id) {
+      const { motDePasse } = req.body;
+      
+      if (!motDePasse) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mot de passe requis pour supprimer le compte'
+        });
+      }
+
+      const utilisateur = await Utilisateur.findById(req.user.userId);
+      if (!utilisateur) {
+        return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      }
+
+      const isPasswordValid = await bcrypt.compare(motDePasse, utilisateur.motDePasse);
+      if (!isPasswordValid) {
+        return res.status(400).json({ success: false, message: 'Mot de passe incorrect' });
+      }
+
+      await Utilisateur.findByIdAndDelete(req.user.userId);
+      logger.info('Compte supprimé par l\'utilisateur', { userId: req.user.userId });
+      
+      return res.status(200).json({ success: true, message: 'Compte supprimé avec succès' });
+    }
+    
+    // Pour la suppression par un admin
+    if (req.params.id) {
+      const utilisateur = await Utilisateur.findById(req.params.id);
+      if (!utilisateur) {
+        return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      }
+
+      await Utilisateur.findByIdAndDelete(req.params.id);
+      logger.info('Compte supprimé par admin', { 
+        userId: req.params.id, 
+        adminId: req.user.userId 
+      });
+      
+      return res.status(200).json({ success: true, message: 'Utilisateur supprimé avec succès' });
     }
 
-    const isPasswordValid = await bcrypt.compare(motDePasse, utilisateur.motDePasse);
-    if (!isPasswordValid) {
-      return res.status(400).json({ success: false, message: 'Mot de passe incorrect' });
-    }
+    return res.status(400).json({
+      success: false,
+      message: 'ID utilisateur manquant'
+    });
 
-    await Utilisateur.findByIdAndDelete(req.user.id);
-    res.status(200).json({ success: true, message: 'Compte supprimé avec succès' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur serveur lors de la suppression du compte', error: error.message });
+    logger.error('Erreur suppression compte:', error);
+    return next(AppError.serverError('Erreur serveur lors de la suppression du compte', { 
+      originalError: error.message 
+    }));
   }
 };
 
 // =============== ADMIN ===============
-const obtenirTousLesUtilisateurs = async (req, res) => {
+const obtenirTousLesUtilisateurs = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, statut, verification, search } = req.query;
 
@@ -367,35 +603,82 @@ const obtenirTousLesUtilisateurs = async (req, res) => {
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
-      select: '-motDePasse -tokenResetMotDePasse',
+      select: '-motDePasse -tokenResetMotDePasse -expirationTokenReset',
       sort: { dateInscription: -1 },
       populate: { path: 'documentIdentite.verificateurId', select: 'nom prenom' }
     };
 
     const result = await Utilisateur.paginate(query, options);
-    res.status(200).json({ success: true, data: result.docs, pagination: { page: result.page, limit: result.limit, total: result.totalDocs, pages: result.totalPages } });
+    
+    res.status(200).json({ 
+      success: true, 
+      data: result.docs, 
+      pagination: { 
+        page: result.page, 
+        limit: result.limit, 
+        total: result.totalDocs, 
+        pages: result.totalPages 
+      } 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur serveur lors de la récupération des utilisateurs', error: error.message });
+    logger.error('Erreur récupération utilisateurs:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération des utilisateurs', { 
+      originalError: error.message 
+    }));
   }
 };
 
-const obtenirStatistiquesGlobales = async (req, res) => {
+const obtenirStatistiquesGlobales = async (req, res, next) => {
   try {
-    const statistiques = await Utilisateur.statistiquesGlobales();
+    // Statistiques de base si la méthode existe dans le modèle
+    let statistiques = {};
+    if (typeof Utilisateur.statistiquesGlobales === 'function') {
+      statistiques = await Utilisateur.statistiquesGlobales();
+    } else {
+      // Calcul manuel des statistiques
+      const totalUtilisateurs = await Utilisateur.countDocuments();
+      const utilisateursActifs = await Utilisateur.countDocuments({ statutCompte: 'ACTIF' });
+      const utilisateursVerifies = await Utilisateur.countDocuments({ estVerifie: true });
+      
+      statistiques = {
+        totalUtilisateurs,
+        utilisateursActifs,
+        utilisateursVerifies,
+        tauxVerification: totalUtilisateurs > 0 ? (utilisateursVerifies / totalUtilisateurs * 100).toFixed(2) : 0
+      };
+    }
 
     const statsParStatut = await Utilisateur.aggregate([
       { $group: { _id: '$statutCompte', count: { $sum: 1 } } }
     ]);
 
     const statsParMois = await Utilisateur.aggregate([
-      { $group: { _id: { year: { $year: '$dateInscription' }, month: { $month: '$dateInscription' } }, count: { $sum: 1 } } },
+      { 
+        $group: { 
+          _id: { 
+            year: { $year: '$dateInscription' }, 
+            month: { $month: '$dateInscription' } 
+          }, 
+          count: { $sum: 1 } 
+        } 
+      },
       { $sort: { '_id.year': -1, '_id.month': -1 } },
       { $limit: 12 }
     ]);
 
-    res.status(200).json({ success: true, data: { ...statistiques, repartitionStatuts: statsParStatut, inscriptionsParMois: statsParMois } });
+    res.status(200).json({ 
+      success: true, 
+      data: { 
+        ...statistiques, 
+        repartitionStatuts: statsParStatut, 
+        inscriptionsParMois: statsParMois 
+      } 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur serveur lors de la récupération des statistiques globales', error: error.message });
+    logger.error('Erreur récupération statistiques globales:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques globales', { 
+      originalError: error.message 
+    }));
   }
 };
 
@@ -414,5 +697,3 @@ module.exports = {
   obtenirTousLesUtilisateurs,
   obtenirStatistiquesGlobales
 };
-
-

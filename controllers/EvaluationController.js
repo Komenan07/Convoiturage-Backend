@@ -1,3 +1,7 @@
+const AppError = require('../utils/AppError');
+
+const logger = console; 
+
 class evaluationController {
   constructor(evaluationService) {
     this.evaluationService = evaluationService;
@@ -21,7 +25,7 @@ class evaluationController {
     });
   }
 
-  async creerEvaluation(req, res) {
+  async creerEvaluation(req, res, next) {
     try {
       const {
         trajetId, 
@@ -80,15 +84,12 @@ class evaluationController {
         data: evaluation 
       });
     } catch (error) {
-      const statusCode = error.statusCode || 400;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message 
-      });
+      logger.error('Erreur création évaluation:', error);
+      return next(AppError.serverError('Erreur serveur lors de la création de l\'évaluation', { originalError: error.message }));
     }
   }
 
-  async obtenirEvaluationsUtilisateur(req, res) {
+  async obtenirEvaluationsUtilisateur(req, res, next) {
     try {
       const { userId } = req.params;
       const { page = 1, limit = 10, typeEvaluateur, notesMinimum } = req.query;
@@ -105,43 +106,34 @@ class evaluationController {
 
       res.json({ success: true, data: result });
     } catch (error) {
-      const statusCode = error.statusCode || 500;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message 
-      });
+      logger.error('Erreur récupération évaluations:', error);
+      return next(AppError.serverError('Erreur serveur lors de la récupération des évaluations', { originalError: error.message }));
     }
   }
 
-  async obtenirMoyenneUtilisateur(req, res) {
+  async obtenirMoyenneUtilisateur(req, res, next) {
     try {
       const { userId } = req.params;
       const moyenne = await this.evaluationService.obtenirMoyenneNotes(userId);
       res.json({ success: true, data: moyenne });
     } catch (error) {
-      const statusCode = error.statusCode || 500;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message 
-      });
+      logger.error('Erreur récupération moyenne utilisateur:', error);
+      return next(AppError.serverError('Erreur serveur lors de la récupération de la moyenne', { originalError: error.message }));
     }
   }
 
-  async obtenirEvaluationsTrajet(req, res) {
+  async obtenirEvaluationsTrajet(req, res, next) {
     try {
       const { trajetId } = req.params;
       const evaluations = await this.evaluationService.obtenirEvaluationsTrajet(trajetId);
       res.json({ success: true, data: evaluations });
     } catch (error) {
-      const statusCode = error.statusCode || 500;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message 
-      });
+      logger.error('Erreur récupération évaluation:', error);
+      return next(AppError.serverError('Erreur serveur lors de la récupération de l\'évaluation', { originalError: error.message }));
     }
   }
 
-  async repondreEvaluation(req, res) {
+  async repondreEvaluation(req, res, next) {
     try {
       const { id } = req.params;
       const { reponse } = req.body;
@@ -166,15 +158,12 @@ class evaluationController {
         data: evaluation 
       });
     } catch (error) {
-      const statusCode = error.statusCode || 400;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message 
-      });
+      logger.error('Erreur réponse évaluation:', error);
+      return next(AppError.serverError('Erreur serveur lors de l\'ajout de la réponse', { originalError: error.message }));
     }
   }
 
-  async signalerEvaluationAbusive(req, res) {
+  async signalerEvaluationAbusive(req, res, next) {
     try {
       const { id } = req.params;
       const { motif } = req.body;
@@ -195,15 +184,12 @@ class evaluationController {
       
       res.json({ success: true, data: result });
     } catch (error) {
-      const statusCode = error.statusCode || 400;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message 
-      });
+      logger.error('Erreur signalement évaluation:', error);
+      return next(AppError.serverError('Erreur serveur lors du signalement', { originalError: error.message }));
     }
   }
 
-  async supprimerEvaluation(req, res) {
+  async supprimerEvaluation(req, res, next) {
     try {
       const { id } = req.params;
       const adminId = req.user.id;
@@ -211,42 +197,33 @@ class evaluationController {
       const result = await this.evaluationService.supprimerEvaluation(id, adminId);
       res.json({ success: true, data: result });
     } catch (error) {
-      const statusCode = error.statusCode || 403;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message 
-      });
+      logger.error('Erreur suppression évaluation:', error);
+      return next(AppError.serverError('Erreur serveur lors de la suppression de l\'évaluation', { originalError: error.message }));
     }
   }
 
-  async detecterEvaluationsSuspectes(req, res) {
+  async detecterEvaluationsSuspectes(req, res, next) {
     try {
       const { userId } = req.params;
       const detection = await this.evaluationService.detecterEvaluationsSuspectes(userId);
       res.json({ success: true, data: detection });
     } catch (error) {
-      const statusCode = error.statusCode || 500;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message 
-      });
+      logger.error('Erreur détection évaluations suspectes:', error);
+      return next(AppError.serverError('Erreur serveur lors de la détection', { originalError: error.message }));
     }
   }
 
-  async obtenirStatistiquesGlobales(req, res) {
+  async obtenirStatistiquesGlobales(req, res, next) {
     try {
       const stats = await this.evaluationService.obtenirStatistiquesGlobales();
       res.json({ success: true, data: stats });
     } catch (error) {
-      const statusCode = error.statusCode || 500;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message 
-      });
+      logger.error('Erreur récupération statistiques globales:', error);
+      return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { originalError: error.message }));
     }
   }
 
-  async recalculerScoreConfiance(req, res) {
+  async recalculerScoreConfiance(req, res, next) {
     try {
       const { userId } = req.params;
       const score = await this.evaluationService.mettreAJourScoreConfiance(userId);
@@ -256,11 +233,8 @@ class evaluationController {
         data: { scoreConfiance: score } 
       });
     } catch (error) {
-      const statusCode = error.statusCode || 500;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message 
-      });
+      logger.error('Erreur recalcul score confiance:', error);
+      return next(AppError.serverError('Erreur serveur lors du recalcul du score', { originalError: error.message }));
     }
   }
 }

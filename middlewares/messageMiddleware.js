@@ -4,6 +4,8 @@ const rateLimit = require('express-rate-limit');
 const { body, param, query, validationResult } = require('express-validator');
 const { Message } = require('../models/Message');
 const Utilisateur = require('../models/Utilisateur');
+const AppError = require('../utils/AppError');
+const { securityLogger } = require('../utils/logger');
 const Conversation = require('../models/Conversation');
 
 // ===========================================
@@ -16,11 +18,7 @@ const authentificationRequise = async (req, res, next) => {
                   req.cookies?.authToken;
 
     if (!token) {
-      return res.status(401).json({
-        succes: false,
-        erreur: 'Token d\'authentification requis',
-        code: 'AUTH_TOKEN_MISSING'
-      });
+      return next(AppError.tokenMissing());
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -31,19 +29,18 @@ const authentificationRequise = async (req, res, next) => {
       .populate('conversations', '_id nom');
 
     if (!utilisateur) {
-      return res.status(401).json({
-        succes: false,
-        erreur: 'Utilisateur non trouvé',
-        code: 'USER_NOT_FOUND'
-      });
+      return next(AppError.userNotFound({ tokenUserId: decoded.id }));
     }
 
     if (!utilisateur.estActif) {
-      return res.status(403).json({
-        succes: false,
-        erreur: 'Compte désactivé',
-        code: 'ACCOUNT_DISABLED'
+      securityLogger.warn('Accès conversation refusé - Compte désactivé', {
+        event: 'account_disabled',
+        userId: utilisateur._id,
+        statut: 'INACTIF',
+        ip: req.ip,
+        endpoint: `${req.method} ${req.originalUrl}`
       });
+      return next(AppError.accountDisabled({ userId: utilisateur._id, statut: 'INACTIF' }));
     }
 
     // Ajouter l'utilisateur à la requête
@@ -60,29 +57,13 @@ const authentificationRequise = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Erreur authentification:', error);
-    
     if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        succes: false,
-        erreur: 'Token invalide',
-        code: 'INVALID_TOKEN'
-      });
+      return next(AppError.invalidToken());
     }
-    
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        succes: false,
-        erreur: 'Token expiré',
-        code: 'TOKEN_EXPIRED'
-      });
+      return next(AppError.tokenExpired());
     }
-
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur d\'authentification',
-      code: 'AUTH_ERROR'
-    });
+    return next(AppError.serverError("Erreur d'authentification", { originalError: error.message }));
   }
 };
 
@@ -113,11 +94,7 @@ const verifierAccesConversation = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Erreur vérification accès conversation:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur de vérification d\'accès',
-      code: 'ACCESS_CHECK_ERROR'
-    });
+    return next(AppError.serverError('Erreur de vérification d\'accès', { originalError: error.message }));
   }
 };
 
@@ -368,11 +345,7 @@ const verifierProprietaireMessage = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Erreur vérification propriétaire:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur de vérification',
-      code: 'OWNERSHIP_CHECK_ERROR'
-    });
+    return next(AppError.serverError('Erreur de vérification', { originalError: error.message }));
   }
 };
 
@@ -406,11 +379,7 @@ const verifierStatutUtilisateur = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Erreur vérification statut utilisateur:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur de vérification du statut',
-      code: 'STATUS_CHECK_ERROR'
-    });
+    return next(AppError.serverError('Erreur de vérification du statut', { originalError: error.message }));
   }
 };
 

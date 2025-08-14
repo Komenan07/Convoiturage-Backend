@@ -2,12 +2,13 @@ const mongoose = require('mongoose');
 const Reservation = require('../models/Reservation');
 const Trajet = require('../models/Trajet');
 //const PaiementService = require('../services/paiementService');
+const AppError = require('../utils/AppError');
 
 class ReservationController {
   /**
    * Créer une réservation
    */
-  static async creerReservation(req, res) {
+  static async creerReservation(req, res, next) {
     try {
       const {
         trajetId,
@@ -81,14 +82,14 @@ class ReservationController {
       });
     } catch (error) {
       console.error('Erreur lors de la création de la réservation:', error);
-      res.status(500).json({ error: 'Erreur serveur lors de la création de la réservation' });
+      return next(AppError.serverError('Erreur serveur lors de la création de la réservation', { originalError: error.message }));
     }
   }
 
   /**
    * Lister les réservations
    */
-  static async obtenirReservations(req, res) {
+  static async obtenirReservations(req, res, next) {
     try {
       const { page = 1, limit = 10, statut, userId } = req.query;
       const skip = (page - 1) * limit;
@@ -117,14 +118,14 @@ class ReservationController {
       });
     } catch (error) {
       console.error('Erreur lors de la récupération des réservations:', error);
-      res.status(500).json({ error: 'Erreur serveur lors de la récupération des réservations' });
+      return next(AppError.serverError('Erreur serveur lors de la récupération des réservations', { originalError: error.message }));
     }
   }
 
   /**
    * Obtenir une réservation par ID
    */
-  static async obtenirReservationParId(req, res) {
+  static async obtenirReservationParId(req, res, next) {
     try {
       const { id } = req.params;
       if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -145,14 +146,14 @@ class ReservationController {
       });
     } catch (error) {
       console.error('Erreur lors de la récupération de la réservation:', error);
-      res.status(500).json({ error: 'Erreur serveur lors de la récupération de la réservation' });
+      return next(AppError.serverError('Erreur serveur lors de la récupération de la réservation', { originalError: error.message }));
     }
   }
 
   /**
    * Confirmer une réservation
    */
-  static async confirmerReservation(req, res) {
+  static async confirmerReservation(req, res, next) {
     try {
       const { id } = req.params;
       const reservation = await Reservation.findById(id);
@@ -175,14 +176,14 @@ class ReservationController {
       });
     } catch (error) {
       console.error('Erreur lors de la confirmation de la réservation:', error);
-      res.status(500).json({ error: 'Erreur serveur lors de la confirmation de la réservation' });
+      return next(AppError.serverError('Erreur serveur lors de la confirmation de la réservation', { originalError: error.message }));
     }
   }
 
   /**
    * Annuler une réservation
    */
-  static async annulerReservation(req, res) {
+  static async annulerReservation(req, res, next) {
     try {
       const { id } = req.params;
       const { motifAnnulation } = req.body;
@@ -237,14 +238,14 @@ class ReservationController {
       });
     } catch (error) {
       console.error('Erreur lors de l\'annulation de la réservation:', error);
-      res.status(500).json({ error: 'Erreur serveur lors de l\'annulation de la réservation' });
+      return next(AppError.serverError('Erreur serveur lors de l\'annulation de la réservation', { originalError: error.message }));
     }
   }
 
   /**
    * Mettre à jour le statut de paiement
    */
-  static async mettreAJourStatutPaiement(req, res) {
+  static async mettreAJourStatutPaiement(req, res, next) {
     try {
       const { id } = req.params;
       const { statutPaiement, referencePaiement, methodePaiement } = req.body;
@@ -266,14 +267,14 @@ class ReservationController {
       });
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut de paiement:', error);
-      res.status(500).json({ error: 'Erreur serveur lors de la mise à jour du paiement' });
+      return next(AppError.serverError('Erreur serveur lors de la mise à jour du paiement', { originalError: error.message }));
     }
   }
 
   /**
    * Mettre à jour la position en temps réel
    */
-  static async mettreAJourPosition(req, res) {
+  static async mettreAJourPosition(req, res, next) {
     try {
       const { id } = req.params;
       const { latitude, longitude } = req.body;
@@ -304,14 +305,14 @@ class ReservationController {
       });
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la position:', error);
-      res.status(500).json({ error: 'Erreur serveur lors de la mise à jour de la position' });
+      return next(AppError.serverError('Erreur serveur lors de la mise à jour de la position', { originalError: error.message }));
     }
   }
 
   /**
    * Obtenir les statistiques des réservations
    */
-  static async obtenirStatistiques(req, res) {
+  static async obtenirStatistiques(req, res, next) {
     try {
       const { userId, periode } = req.query;
       let dateDebut;
@@ -368,7 +369,7 @@ class ReservationController {
       });
     } catch (error) {
       console.error('Erreur lors de la récupération des statistiques:', error);
-      res.status(500).json({ error: 'Erreur serveur lors de la récupération des statistiques' });
+      return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { originalError: error.message }));
     }
   }
 }

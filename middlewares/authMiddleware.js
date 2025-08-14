@@ -1,6 +1,8 @@
 // middlewares/authMiddleware.js
 const jwt = require('jsonwebtoken');
 const User = require('../models/Utilisateur');
+const AppError = require('../utils/AppError');
+const { securityLogger } = require('../utils/logger');
 
 /**
  * Middleware d'authentification principal
@@ -61,20 +63,19 @@ const authMiddleware = async (req, res, next) => {
     // 4. Vérifier l'utilisateur dans la base de données
     const user = await User.findById(decoded.userId).select('-password -refreshToken');
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Utilisateur non trouvé. Token invalide.',
-        code: 'USER_NOT_FOUND'
-      });
+      return next(AppError.userNotFound({ tokenUserId: decoded.userId }));
     }
 
     // 5. Vérifier le statut du compte
     if (user.statut !== 'actif') {
-      return res.status(403).json({
-        success: false,
-        message: 'Compte désactivé. Contactez le support.',
-        code: 'ACCOUNT_DISABLED'
+      securityLogger.warn('Accès refusé - Compte désactivé', {
+        event: 'account_disabled',
+        userId: user._id,
+        statut: user.statut,
+        ip: req.ip,
+        endpoint: `${req.method} ${req.originalUrl}`
       });
+      return next(AppError.accountDisabled({ userId: user._id, statut: user.statut }));
     }
 
     // 6. Ajouter les informations utilisateur à la requête
@@ -93,12 +94,7 @@ const authMiddleware = async (req, res, next) => {
     next();
 
   } catch (error) {
-    console.error('Erreur dans authMiddleware:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de l\'authentification',
-      code: 'SERVER_ERROR'
-    });
+    return next(AppError.serverError("Erreur serveur lors de l'authentification", { originalError: error.message }));
   }
 };
 
@@ -121,10 +117,7 @@ const adminMiddleware = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Erreur dans adminMiddleware:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la vérification des droits admin'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la vérification des droits admin', { originalError: error.message }));
   }
 };
 
@@ -148,10 +141,7 @@ const roleMiddleware = (rolesAutorises) => {
       });
     } catch (error) {
       console.error('Erreur dans roleMiddleware:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur serveur lors de la vérification des rôles'
-      });
+      return next(AppError.serverError('Erreur serveur lors de la vérification des rôles', { originalError: error.message }));
     }
   };
 };
@@ -211,7 +201,7 @@ const optionalAuthMiddleware = async (req, res, next) => {
     // En cas d'erreur, continuer sans authentification
     req.user = null;
     req.userProfile = null;
-    next();
+    return next(AppError.serverError('Erreur serveur lors de l\'authentification optionnelle', { originalError: error.message }));
   }
 };
 
@@ -235,10 +225,7 @@ const ownershipMiddleware = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Erreur dans ownershipMiddleware:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la vérification des droits'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la vérification des droits', { originalError: error.message }));
   }
 };
 

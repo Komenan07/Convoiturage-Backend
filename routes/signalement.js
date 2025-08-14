@@ -7,6 +7,7 @@ const multer = require('multer');
 const signalementController = require('../controllers/signalementController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
+const AppError = require('../utils/AppError');
 
 // Middleware Multer pour gérer les fichiers
 const upload = multer({
@@ -167,48 +168,48 @@ router.get('/:id', authMiddleware.requireAuth, param('id').isMongoId().withMessa
 router.patch('/:id/traiter', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN', 'MODERATEUR']), validateTraiterSignalement, signalementController.traiterSignalement);
 router.patch('/:id/assigner', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN']), validateAssignerModerateur, signalementController.assignerModerateur);
 router.patch('/:id/classer', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN', 'MODERATEUR']), validateClasserSignalement, signalementController.classerSignalement);
-router.get('/utilisateur/:userId', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN']), param('userId').isMongoId().withMessage('ID utilisateur invalide'), async (req, res) => {
+router.get('/utilisateur/:userId', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN']), param('userId').isMongoId().withMessage('ID utilisateur invalide'), async (req, res, next) => {
   try {
     const signalements = await signalementController.obtenirSignalementsUtilisateur(req.params.userId);
     res.json({ success: true, data: { signalements } });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur lors de la récupération des signalements', code: 'INTERNAL_ERROR' });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des signalements', { originalError: error.message }));
   }
 });
-router.get('/utilisateur/:userId/en-cours', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN', 'MODERATEUR']), param('userId').isMongoId().withMessage('ID utilisateur invalide'), async (req, res) => {
+router.get('/utilisateur/:userId/en-cours', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN', 'MODERATEUR']), param('userId').isMongoId().withMessage('ID utilisateur invalide'), async (req, res, next) => {
   try {
     const aSignalementsEnCours = await signalementController.verifierSignalementsEnCours(req.params.userId);
     res.json({ success: true, data: { aSignalementsEnCours } });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur lors de la vérification', code: 'INTERNAL_ERROR' });
+    return next(AppError.serverError('Erreur serveur lors de la vérification', { originalError: error.message }));
   }
 });
-router.delete('/maintenance/nettoyer-expires', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN']), async (req, res) => {
+router.delete('/maintenance/nettoyer-expires', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN']), async (req, res, next) => {
   try {
     const nombreSupprimes = await signalementController.nettoyerSignalementsExpires();
     res.json({ success: true, message: 'Nettoyage effectué avec succès', data: { nombreSupprimes } });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur lors du nettoyage', code: 'INTERNAL_ERROR' });
+    return next(AppError.serverError('Erreur serveur lors du nettoyage', { originalError: error.message }));
   }
 });
-router.post('/maintenance/escalader', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN']), async (req, res) => {
+router.post('/maintenance/escalader', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN']), async (req, res, next) => {
   try {
     const nombreEscalades = await signalementController.escaladerSignalementsUrgents();
     res.json({ success: true, message: 'Escalade effectuée avec succès', data: { nombreEscalades } });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur lors de l\'escalade', code: 'INTERNAL_ERROR' });
+    return next(AppError.serverError('Erreur serveur lors de l\'escalade', { originalError: error.message }));
   }
 });
-router.get('/export', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN']), validateQueryParams, query('format').optional().isIn(['json', 'csv']).withMessage('Format invalide'), async (req, res) => {
+router.get('/export', authMiddleware.requireAuth, roleMiddleware.requireRole(['ADMIN']), validateQueryParams, query('format').optional().isIn(['json', 'csv']).withMessage('Format invalide'), async (req, res, next) => {
   try {
     res.json({ success: true, message: 'Fonctionnalité d\'export en cours de développement', data: {} });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Erreur lors de l\'export', code: 'INTERNAL_ERROR' });
+    return next(AppError.serverError('Erreur serveur lors de l\'export', { originalError: error.message }));
   }
 });
 
 // Middleware de gestion d'erreurs spécifique
-router.use((error, req, res, _next) => {
+router.use((error, req, res, next) => {
   console.error('Erreur dans les routes signalements:', error);
 
   if (error instanceof multer.MulterError) {
@@ -225,7 +226,7 @@ router.use((error, req, res, _next) => {
     return res.status(400).json({ success: false, message: 'Type de fichier non autorisé. Formats acceptés: JPEG, PNG, GIF, PDF, MP4, MOV', code: 'INVALID_FILE_TYPE' });
   }
 
-  res.status(500).json({ success: false, message: 'Erreur interne du serveur', code: 'INTERNAL_ERROR' });
+  return next(error);
 });
 
 module.exports = router;

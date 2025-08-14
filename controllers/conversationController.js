@@ -2,6 +2,7 @@
 const { validationResult } = require('express-validator');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
+const AppError = require('../utils/AppError');
 
 // DEBUG: S'assurer que le module se charge correctement
 console.log('Chargement du conversationController (CommonJS)...');
@@ -10,7 +11,7 @@ console.log('Chargement du conversationController (CommonJS)...');
 // CREATE - CRÉER UNE CONVERSATION
 // =====================================================
 
-const creerConversation = async (req, res) => {
+const creerConversation = async (req, res, next) => {
   console.log('Appel de creerConversation');
   try {
     const errors = validationResult(req);
@@ -62,8 +63,7 @@ const creerConversation = async (req, res) => {
     // Populate pour la réponse
     const populatedConversation = await Conversation.findById(savedConversation._id)
       .populate('trajetId', 'pointDepart pointArrivee dateDepart')
-      .populate('participants', 'nom prenom email avatar')
-      .populate('statistiques.dernierMessagePar', 'nom prenom');
+      .populate('participants', 'nom prenom');
 
     res.status(201).json({
       success: true,
@@ -73,10 +73,7 @@ const creerConversation = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur création conversation:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la création de la conversation'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la création de la conversation', { originalError: error.message }));
   }
 };
 
@@ -84,7 +81,7 @@ const creerConversation = async (req, res) => {
 // READ - OBTENIR LES CONVERSATIONS D'UN UTILISATEUR
 // =====================================================
 
-const obtenirConversationsUtilisateur = async (req, res) => {
+const obtenirConversationsUtilisateur = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -147,10 +144,7 @@ const obtenirConversationsUtilisateur = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur récupération conversations:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération des conversations'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des conversations', { originalError: error.message }));
   }
 };
 
@@ -158,7 +152,7 @@ const obtenirConversationsUtilisateur = async (req, res) => {
 // READ - OBTENIR LES DÉTAILS D'UNE CONVERSATION
 // =====================================================
 
-const obtenirDetailsConversation = async (req, res) => {
+const obtenirDetailsConversation = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -222,10 +216,7 @@ const obtenirDetailsConversation = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur détails conversation:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération des détails'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des détails', { originalError: error.message }));
   }
 };
 
@@ -233,7 +224,7 @@ const obtenirDetailsConversation = async (req, res) => {
 // UPDATE - ARCHIVER UNE CONVERSATION
 // =====================================================
 
-const archiverConversation = async (req, res) => {
+const archiverConversation = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -282,10 +273,7 @@ const archiverConversation = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur archivage conversation:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de l\'archivage'
-    });
+    return next(AppError.serverError('Erreur serveur lors de l\'archivage', { originalError: error.message }));
   }
 };
 
@@ -293,7 +281,7 @@ const archiverConversation = async (req, res) => {
 // UPDATE - METTRE À JOUR LA DERNIÈRE ACTIVITÉ
 // =====================================================
 
-const mettreAJourActivite = async (req, res) => {
+const mettreAJourActivite = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -331,10 +319,7 @@ const mettreAJourActivite = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur mise à jour activité:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la mise à jour'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la mise à jour', { originalError: error.message }));
   }
 };
 
@@ -342,7 +327,7 @@ const mettreAJourActivite = async (req, res) => {
 // GESTION DES PARTICIPANTS
 // =====================================================
 
-const ajouterParticipant = async (req, res) => {
+const ajouterParticipant = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -395,14 +380,11 @@ const ajouterParticipant = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur ajout participant:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de l\'ajout du participant'
-    });
+    return next(AppError.serverError('Erreur serveur lors de l\'ajout du participant', { originalError: error.message }));
   }
 };
 
-const retirerParticipant = async (req, res) => {
+const retirerParticipant = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -454,10 +436,7 @@ const retirerParticipant = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur retrait participant:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors du retrait du participant'
-    });
+    return next(AppError.serverError('Erreur serveur lors du retrait du participant', { originalError: error.message }));
   }
 };
 
@@ -465,7 +444,7 @@ const retirerParticipant = async (req, res) => {
 // GESTION DES MESSAGES NON LUS
 // =====================================================
 
-const marquerCommeLu = async (req, res) => {
+const marquerCommeLu = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -514,10 +493,7 @@ const marquerCommeLu = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur marquage lecture:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors du marquage'
-    });
+    return next(AppError.serverError('Erreur serveur lors du marquage', { originalError: error.message }));
   }
 };
 
@@ -525,7 +501,7 @@ const marquerCommeLu = async (req, res) => {
 // DELETE - SUPPRIMER UNE CONVERSATION
 // =====================================================
 
-const supprimerConversation = async (req, res) => {
+const supprimerConversation = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -572,10 +548,7 @@ const supprimerConversation = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur suppression conversation:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la suppression'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la suppression', { originalError: error.message }));
   }
 };
 
@@ -583,7 +556,7 @@ const supprimerConversation = async (req, res) => {
 // FONCTIONS UTILITAIRES
 // =====================================================
 
-const obtenirConversationParTrajet = async (req, res) => {
+const obtenirConversationParTrajet = async (req, res, next) => {
   try {
     const { trajetId } = req.params;
     const userId = req.user?.id;
@@ -623,10 +596,7 @@ const obtenirConversationParTrajet = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur récupération conversation par trajet:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération', { originalError: error.message }));
   }
 };
 

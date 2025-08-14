@@ -1,0 +1,16 @@
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-14 09:34:10'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-14 09:34:10'
+}

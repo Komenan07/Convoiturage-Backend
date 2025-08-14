@@ -12,17 +12,19 @@ const {
   motDePasseOublie,
   reinitialiserMotDePasse,
   demandeReinitialisationMotDePasse,
-  confirmerReinitialisationMotDePasse
+  confirmerReinitialisationMotDePasse,
+  confirmerEmail, 
+  renvoyerConfirmationEmail 
 } = require('../controllers/authController');
-
 // Import du middleware d'authentification
 const { authMiddleware } = require('../middlewares/authMiddleware');
+const AppError = require('../utils/AppError');
 
 // =============== ROUTES PUBLIQUES ===============
 
 /**
  * @route   POST /api/auth/inscription
- * @desc    Inscription d'un nouvel utilisateur
+ * @desc    Inscription d'un nouvel utilisateur avec envoi d'email de confirmation
  * @access  Public
  */
 router.post('/inscription', inscription);
@@ -90,6 +92,27 @@ router.get('/reset-password/:token', confirmerReinitialisationMotDePasse);
  */
 router.post('/reset-password/:token', reinitialiserMotDePasse);
 
+/**
+ * @route   GET /api/auth/confirm-email/:token
+ * @desc    Confirmer l'email de l'utilisateur via un token
+ * @access  Public
+ */
+router.get('/confirm-email/:token', confirmerEmail);
+
+/**
+ * @route   GET /api/auth/confirm-email
+ * @desc    Confirmer l'email via query param (?token=...)
+ * @access  Public
+ */
+router.get('/confirm-email', confirmerEmail);
+
+/**
+ * @route   POST /api/auth/resend-confirmation
+ * @desc    Renvoyer l'email de confirmation
+ * @access  Public
+ */
+router.post('/resend-confirmation', renvoyerConfirmationEmail);
+
 // =============== ROUTES PROTÉGÉES ===============
 
 /**
@@ -146,6 +169,13 @@ router.get('/health', (req, res) => {
     success: true,
     message: 'Service d\'authentification opérationnel',
     timestamp: new Date().toISOString(),
+    version: '2.0.0',
+    features: {
+      emailConfirmation: true,
+      passwordReset: true,
+      refreshToken: true,
+      adminAccess: true
+    },
     routes: {
       publiques: [
         'POST /inscription',
@@ -157,7 +187,10 @@ router.get('/health', (req, res) => {
         'POST /forgot-password',
         'POST /mot-de-passe-oublie',
         'GET /reset-password/:token',
-        'POST /reset-password/:token'
+        'POST /reset-password/:token',
+        'GET /confirm-email/:token',
+        'GET /confirm-email',
+        'POST /resend-confirmation'
       ],
       protegees: [
         'POST /deconnexion',
@@ -166,6 +199,10 @@ router.get('/health', (req, res) => {
         'GET /me',
         'GET /profil',
         'GET /user'
+      ],
+      test: [
+        'GET /health',
+        'GET /test'
       ]
     }
   });
@@ -180,55 +217,106 @@ router.get('/test', (req, res) => {
   res.json({
     success: true,
     message: 'Route d\'authentification accessible',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+/**
+ * @route   GET /api/auth/status
+ * @desc    Statut détaillé du système d'authentification
+ * @access  Public
+ */
+router.get('/status', (req, res) => {
+  const requiredEnvVars = [
+    'JWT_SECRET',
+    'JWT_REFRESH_SECRET',
+    'EMAIL_HOST',
+    'EMAIL_PORT',
+    'EMAIL_USER',
+    'EMAIL_PASS'
+  ];
+  
+  const envStatus = requiredEnvVars.reduce((acc, varName) => {
+    acc[varName] = process.env[varName] ? 'Configuré' : 'Manquant';
+    return acc;
+  }, {});
+  
+  res.json({
+    success: true,
+    message: 'Statut du système d\'authentification',
+    timestamp: new Date().toISOString(),
+    configuration: {
+      environment: process.env.NODE_ENV || 'development',
+      frontendUrl: process.env.FRONTEND_URL || 'Non configuré',
+      variables: envStatus
+    },
+    services: {
+      database: 'Opérationnel', // Vous pourriez ajouter une vérification réelle
+      email: process.env.EMAIL_HOST ? 'Configuré' : 'Non configuré',
+      jwt: process.env.JWT_SECRET ? 'Configuré' : 'Non configuré'
+    }
   });
 });
 
 // =============== GESTION D'ERREURS ===============
 
-// Middleware de gestion d'erreurs pour les routes d'authentification
-router.use((error, req, res, _next) => {
-  console.error('Erreur dans les routes d\'authentification:', {
-    error: error.message,
+/**
+ * Middleware d'erreurs spécifique au router d'authentification
+ * Respecte la structure AppError unifié ou propage l'erreur
+ */
+router.use((error, req, res, next) => {
+  // Log de l'erreur pour le débogage
+  console.error('Erreur dans le router auth:', {
+    message: error.message,
     stack: error.stack,
-    url: req.originalUrl,
+    url: req.url,
     method: req.method,
     timestamp: new Date().toISOString()
   });
 
-  // Erreurs JWT spécifiques
+  // Respecter notre AppError unifié
+  if (error instanceof AppError || (error && typeof error.status === 'number' && typeof error.code === 'string')) {
+    return res.status(error.status).json({
+      success: false,
+      code: error.code,
+      message: error.message,
+      ...(error.context ? { context: error.context } : {}),
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Gestion spécifique des erreurs JWT
   if (error.name === 'JsonWebTokenError') {
     return res.status(401).json({
       success: false,
-      message: 'Token invalide'
+      code: 'INVALID_TOKEN',
+      message: 'Token invalide',
+      timestamp: new Date().toISOString()
     });
   }
 
   if (error.name === 'TokenExpiredError') {
     return res.status(401).json({
       success: false,
-      message: 'Token expiré'
+      code: 'TOKEN_EXPIRED',
+      message: 'Token expiré',
+      timestamp: new Date().toISOString()
     });
   }
 
-  // Erreurs de validation
-  if (error.name === 'ValidationError') {
+  // Gestion des erreurs de validation Express
+  if (error.type === 'entity.parse.failed') {
     return res.status(400).json({
       success: false,
-      message: 'Données de requête invalides',
-      details: error.message
+      code: 'INVALID_JSON',
+      message: 'Format JSON invalide',
+      timestamp: new Date().toISOString()
     });
   }
 
-  // Erreur générique
-  res.status(500).json({
-    success: false,
-    message: 'Erreur interne du serveur d\'authentification',
-    ...(process.env.NODE_ENV === 'development' && {
-      error: error.message,
-      stack: error.stack
-    })
-  });
+  // Pour toutes les autres erreurs, laisser le handler global décider
+  return next(error);
 });
 
 module.exports = router;

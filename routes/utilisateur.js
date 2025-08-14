@@ -15,9 +15,7 @@ const {
   rechercherUtilisateurs,
   supprimerCompte,
   obtenirTousLesUtilisateurs,
-
   obtenirStatistiquesGlobales
-
 } = require('../controllers/utilisateurController');
 
 const { protect, roleMiddleware } = require('../middlewares/authMiddleware');
@@ -46,10 +44,10 @@ const validateUserCreation = [
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre'),
   body('nom').isLength({ min: 2, max: 50 }).withMessage('Le nom doit contenir entre 2 et 50 caractères').trim(),
   body('prenom').isLength({ min: 2, max: 50 }).withMessage('Le prénom doit contenir entre 2 et 50 caractères').trim(),
-  body('dateNaissance').isISO8601().withMessage('Date de naissance invalide'),
-  body('sexe').isIn(['M', 'F']).withMessage('Le sexe doit être M ou F'),
-  body('adresse.commune').notEmpty().withMessage('La commune est requise').trim(),
-  body('adresse.quartier').notEmpty().withMessage('Le quartier est requis').trim(),
+  body('dateNaissance').optional().isISO8601().withMessage('Date de naissance invalide'),
+  body('sexe').optional().isIn(['M', 'F']).withMessage('Le sexe doit être M ou F'),
+  body('adresse.commune').optional().notEmpty().withMessage('La commune ne peut être vide').trim(),
+  body('adresse.quartier').optional().notEmpty().withMessage('Le quartier ne peut être vide').trim(),
   body('adresse.ville').optional().trim(),
   validateRequest
 ];
@@ -59,8 +57,11 @@ const validateProfileUpdate = [
   body('nom').optional().isLength({ min: 2, max: 50 }).withMessage('Le nom doit contenir entre 2 et 50 caractères').trim(),
   body('prenom').optional().isLength({ min: 2, max: 50 }).withMessage('Le prénom doit contenir entre 2 et 50 caractères').trim(),
   body('telephone').optional().matches(/^(\+225)?[0-9]{8,10}$/).withMessage('Numéro de téléphone invalide'),
+  body('dateNaissance').optional().isISO8601().withMessage('Date de naissance invalide'),
+  body('sexe').optional().isIn(['M', 'F']).withMessage('Le sexe doit être M ou F'),
   body('adresse.commune').optional().notEmpty().withMessage('La commune ne peut être vide').trim(),
   body('adresse.quartier').optional().notEmpty().withMessage('Le quartier ne peut être vide').trim(),
+  body('adresse.ville').optional().trim(),
   body('preferences.conversation').optional().isIn(['BAVARD', 'CALME', 'NEUTRE']).withMessage('Préférence de conversation invalide'),
   body('preferences.languePreferee').optional().isIn(['FR', 'ANG']).withMessage('Langue préférée invalide'),
   validateRequest
@@ -138,6 +139,9 @@ router.get('/profil', protect, obtenirProfilComplet);
 // PUT /api/utilisateurs/profil - Mettre à jour son profil
 router.put('/profil', protect, validateProfileUpdate, mettreAJourProfil);
 
+// POST /api/utilisateurs/profil - Créer/Mettre à jour son profil (alternative)
+router.post('/profil', protect, validateProfileUpdate, mettreAJourProfil);
+
 // PUT /api/utilisateurs/mot-de-passe - Changer son mot de passe
 router.put('/mot-de-passe', protect, validatePasswordChange, changerMotDePasse);
 
@@ -162,5 +166,16 @@ router.get('/admin/tous', protect, roleMiddleware(['admin', 'superadmin']), vali
 
 // GET /api/utilisateurs/admin/statistiques-globales - Statistiques globales (admin)
 router.get('/admin/statistiques-globales', protect, roleMiddleware(['admin', 'superadmin']), obtenirStatistiquesGlobales);
+
+// ===== ROUTES DE GESTION UTILISATEUR =====
+// Routes pour les actions sur des utilisateurs spécifiques (admin uniquement)
+// GET /api/utilisateurs/:id - Obtenir les détails d'un utilisateur spécifique
+router.get('/:id', protect, roleMiddleware(['admin', 'superadmin']), validateUserId, obtenirProfilComplet);
+
+// PUT /api/utilisateurs/:id - Modifier un utilisateur spécifique (admin)
+router.put('/:id', protect, roleMiddleware(['admin', 'superadmin']), validateUserId, validateProfileUpdate, mettreAJourProfil);
+
+// DELETE /api/utilisateurs/:id - Supprimer un utilisateur (admin)
+router.delete('/:id', protect, roleMiddleware(['admin', 'superadmin']), validateUserId, supprimerCompte);
 
 module.exports = router;

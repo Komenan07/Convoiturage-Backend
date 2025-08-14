@@ -310,7 +310,7 @@ router.use((error, req, res, next) => {
     });
   }
   
-  next(error);
+  return next(error);
 });
 
 module.exports = router;

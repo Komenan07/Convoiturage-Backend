@@ -24,7 +24,7 @@ try {
   console.warn('⚠️ Middleware rateLimiter non trouvé');
 }
 
-const { rateLimiters, basicRateLimiter } = rateLimiterModule;
+const { basicRateLimiter } = rateLimiterModule;
 
 // Import sécurisé du contrôleur admin
 let adminController = {};
@@ -569,7 +569,7 @@ router.use((err, req, res, next) => {
     });
   }
 
-  next(err);
+  return next(err);
 });
 
 module.exports = router;

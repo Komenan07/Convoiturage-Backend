@@ -5,6 +5,7 @@
 const Paiement = require('../models/Paiement');
 const mongoose = require('mongoose');
 const crypto = require('crypto');
+const AppError = require('../utils/AppError');
 
 class PaiementController {
 
@@ -153,13 +154,7 @@ class PaiementController {
 
     } catch (error) {
       console.error('Erreur initiation paiement:', error);
-      
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de l\'initiation du paiement',
-        code: 'PAYMENT_INITIATION_ERROR',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors de l\'initiation du paiement', { originalError: error.message }));
     }
   }
 
@@ -201,13 +196,7 @@ class PaiementController {
 
     } catch (error) {
       console.error('Erreur récupération historique:', error);
-      
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération de l\'historique',
-        code: 'HISTORY_RETRIEVAL_ERROR',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération de l\'historique', { originalError: error.message }));
     }
   }
 
@@ -261,13 +250,7 @@ class PaiementController {
 
     } catch (error) {
       console.error('Erreur récupération détails paiement:', error);
-      
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération du paiement',
-        code: 'PAYMENT_DETAILS_ERROR',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération du paiement', { originalError: error.message }));
     }
   }
 
@@ -338,13 +321,7 @@ class PaiementController {
 
     } catch (error) {
       console.error('Erreur mise à jour statut:', error);
-      
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la mise à jour du statut',
-        code: 'STATUS_UPDATE_ERROR',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors de la mise à jour du statut', { originalError: error.message }));
     }
   }
 
@@ -462,13 +439,7 @@ class PaiementController {
 
     } catch (error) {
       console.error('Erreur traitement remboursement:', error);
-      
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors du traitement du remboursement',
-        code: 'REFUND_PROCESSING_ERROR',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors du traitement du remboursement', { originalError: error.message }));
     }
   }
 
@@ -526,13 +497,7 @@ class PaiementController {
 
     } catch (error) {
       console.error('Erreur annulation transaction:', error);
-      
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de l\'annulation de la transaction',
-        code: 'CANCELLATION_ERROR',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors de l\'annulation de la transaction', { originalError: error.message }));
     }
   }
 
@@ -623,13 +588,7 @@ class PaiementController {
 
     } catch (error) {
       console.error('Erreur traitement callback:', error);
-      
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors du traitement du callback',
-        code: 'CALLBACK_PROCESSING_ERROR',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors du traitement du callback', { originalError: error.message }));
     }
   }
 
@@ -720,13 +679,7 @@ class PaiementController {
 
     } catch (error) {
       console.error('Erreur génération reçu:', error);
-      
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la génération du reçu',
-        code: 'RECEIPT_GENERATION_ERROR',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors de la génération du reçu', { originalError: error.message }));
     }
   }
 
@@ -775,13 +728,7 @@ class PaiementController {
 
     } catch (error) {
       console.error('Erreur calcul commission:', error);
-      
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors du calcul de commission',
-        code: 'COMMISSION_CALCULATION_ERROR',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors du calcul de commission', { originalError: error.message }));
     }
   }
 
@@ -861,13 +808,7 @@ class PaiementController {
 
     } catch (error) {
       console.error('Erreur rapprochement comptable:', error);
-      
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors du rapprochement comptable',
-        code: 'RECONCILIATION_ERROR',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors du rapprochement comptable', { originalError: error.message }));
     }
   }
 

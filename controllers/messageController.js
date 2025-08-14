@@ -4,13 +4,14 @@ const Utilisateur = require('../models/Utilisateur');
 const Signalement = require('../models/Signalement');
 const presenceService = require('../services/presenceService');
 const notificationService = require('../services/notificationService');
+const AppError = require('../utils/AppError');
 
 // ===============================
 // CONTRÔLEURS POUR LES MESSAGES
 // ===============================
 
 // Envoyer un message texte
-const envoyerMessageTexte = async (req, res) => {
+const envoyerMessageTexte = async (req, res, next) => {
   try {
     const {
       conversationId,
@@ -90,15 +91,12 @@ const envoyerMessageTexte = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur envoi message texte:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur lors de l\'envoi du message'
-    });
+    return next(AppError.serverError('Erreur serveur lors de l\'envoi du message', { originalError: error.message }));
   }
 };
 
 // Envoyer position GPS
-const envoyerPosition = async (req, res) => {
+const envoyerPosition = async (req, res, next) => {
   try {
     const {
       conversationId,
@@ -174,15 +172,12 @@ const envoyerPosition = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur envoi position:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur lors de l\'envoi de la position'
-    });
+    return next(AppError.serverError('Erreur serveur lors de l\'envoi de la position', { originalError: error.message }));
   }
 };
 
 // Utiliser modèle prédéfini
-const utiliserModelePredefini = async (req, res) => {
+const utiliserModelePredefini = async (req, res, next) => {
   try {
     const {
       conversationId,
@@ -274,15 +269,12 @@ const utiliserModelePredefini = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur envoi modèle prédéfini:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur'
-    });
+    return next(AppError.serverError('Erreur serveur lors de l\'envoi du modèle prédéfini', { originalError: error.message }));
   }
 };
 
 // Obtenir messages d'une conversation
-const obtenirMessagesConversation = async (req, res) => {
+const obtenirMessagesConversation = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
     const page = parseInt(req.query.page) || 1;
@@ -324,15 +316,12 @@ const obtenirMessagesConversation = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur récupération messages conversation:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des messages de conversation', { originalError: error.message }));
   }
 };
 
 // Rechercher dans les messages
-const rechercherMessages = async (req, res) => {
+const rechercherMessages = async (req, res, next) => {
   try {
     const { q, conversationId, dateDebut, dateFin } = req.query;
     const userId = req.user.id;
@@ -390,15 +379,12 @@ const rechercherMessages = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur recherche messages:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur lors de la recherche'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la recherche de messages', { originalError: error.message }));
   }
 };
 
 // Obtenir messages non lus
-const obtenirMessagesNonLus = async (req, res) => {
+const obtenirMessagesNonLus = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -426,15 +412,12 @@ const obtenirMessagesNonLus = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur récupération messages non lus:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des messages non lus', { originalError: error.message }));
   }
 };
 
 // Obtenir statistiques utilisateur
-const obtenirStatistiques = async (req, res) => {
+const obtenirStatistiques = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -491,15 +474,12 @@ const obtenirStatistiques = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur récupération statistiques:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { originalError: error.message }));
   }
 };
 
 // Rechercher messages par proximité géographique
-const rechercherMessagesProximite = async (req, res) => {
+const rechercherMessagesProximite = async (req, res, next) => {
   try {
     const { longitude, latitude, rayon = 5000 } = req.query; // rayon en mètres
     const userId = req.user.id;
@@ -537,15 +517,12 @@ const rechercherMessagesProximite = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur recherche proximité:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur lors de la recherche géospatiale'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la recherche géospatiale', { originalError: error.message }));
   }
 };
 
 // Marquer message comme lu
-const marquerCommeLu = async (req, res) => {
+const marquerCommeLu = async (req, res, next) => {
   try {
     const { messageId } = req.params;
     const userId = req.user.id;
@@ -579,15 +556,12 @@ const marquerCommeLu = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur marquage lecture:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur'
-    });
+    return next(AppError.serverError('Erreur serveur lors du marquage de lecture', { originalError: error.message }));
   }
 };
 
 // Marquer toute une conversation comme lue
-const marquerConversationCommeLue = async (req, res) => {
+const marquerConversationCommeLue = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
     const userId = req.user.id;
@@ -620,15 +594,12 @@ const marquerConversationCommeLue = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur marquage conversation lue:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur'
-    });
+    return next(AppError.serverError('Erreur serveur lors du marquage de conversation lue', { originalError: error.message }));
   }
 };
 
 // Signaler un message
-const signalerMessage = async (req, res) => {
+const signalerMessage = async (req, res, next) => {
   try {
     const { messageId } = req.params;
     const { motif, typeSignalement = 'CONTENU', description } = req.body;
@@ -691,15 +662,12 @@ const signalerMessage = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur signalement message:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur lors du signalement'
-    });
+    return next(AppError.serverError('Erreur serveur lors du signalement du message', { originalError: error.message }));
   }
 };
 
 // Supprimer un message
-const supprimerMessage = async (req, res) => {
+const supprimerMessage = async (req, res, next) => {
   try {
     const { messageId } = req.params;
     const userId = req.user.id;
@@ -730,10 +698,7 @@ const supprimerMessage = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur suppression message:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur lors de la suppression'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la suppression du message', { originalError: error.message }));
   }
 };
 
@@ -742,7 +707,7 @@ const supprimerMessage = async (req, res) => {
 // ===============================
 
 // Obtenir messages signalés (admin)
-const obtenirMessagesSignales = async (req, res) => {
+const obtenirMessagesSignales = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -770,15 +735,12 @@ const obtenirMessagesSignales = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur récupération messages signalés:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des messages signalés', { originalError: error.message }));
   }
 };
 
 // Modérer un message (admin)
-const modererMessage = async (req, res) => {
+const modererMessage = async (req, res, next) => {
   try {
     const { messageId } = req.params;
     const { action, commentaire } = req.body; // action: 'APPROVE' | 'DELETE' | 'WARN'
@@ -820,10 +782,7 @@ const modererMessage = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur modération message:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la modération du message', { originalError: error.message }));
   }
 };
 
@@ -832,7 +791,7 @@ const modererMessage = async (req, res) => {
 // ===============================
 
 // Rejoindre une salle WebSocket
-const rejoindreSalleWebSocket = async (req, res) => {
+const rejoindreSalleWebSocket = async (req, res, next) => {
   try {
     const { conversationId } = req.body;
     const userId = req.user.id;
@@ -857,15 +816,12 @@ const rejoindreSalleWebSocket = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur rejoindre salle WebSocket:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la rejoindre salle WebSocket', { originalError: error.message }));
   }
 };
 
 // Quitter une salle WebSocket
-const quitterSalleWebSocket = async (req, res) => {
+const quitterSalleWebSocket = async (req, res, next) => {
   try {
     const { conversationId } = req.body;
     const userId = req.user.id;
@@ -880,10 +836,7 @@ const quitterSalleWebSocket = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur quitter salle WebSocket:', error);
-    res.status(500).json({
-      succes: false,
-      erreur: 'Erreur serveur'
-    });
+    return next(AppError.serverError('Erreur serveur lors de la quitter salle WebSocket', { originalError: error.message }));
   }
 };
 

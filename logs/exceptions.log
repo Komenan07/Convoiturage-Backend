@@ -28324,3 +28324,428 @@
   version: '1.0.0',
   timestamp: '2025-08-11 20:38:16'
 }
+{
+  error: Error: listen EADDRINUSE: address already in use ::1:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at GetAddrInfoReqWrap.callback (node:net:2205:7)
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '::1',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use ::1:3000\n' +
+    'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  stack: 'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  exception: true,
+  date: 'Tue Aug 12 2025 10:27:21 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 9572,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 114593792,
+      heapTotal: 74108928,
+      heapUsed: 43064304,
+      external: 38986839,
+      arrayBuffers: 36527008
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 10807.484 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: 'GetAddrInfoReqWrap.callback',
+      line: 2205,
+      method: 'callback',
+      native: false
+    },
+    {
+      column: 8,
+      file: 'node:dns',
+      function: 'GetAddrInfoReqWrap.onlookupall [as oncomplete]',
+      line: 134,
+      method: 'onlookupall [as oncomplete]',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-12 10:27:21'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use ::1:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at GetAddrInfoReqWrap.callback (node:net:2205:7)
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '::1',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use ::1:3000\n' +
+    'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  stack: 'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  exception: true,
+  date: 'Tue Aug 12 2025 11:00:15 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 17368,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 115433472,
+      heapTotal: 74371072,
+      heapUsed: 53318816,
+      external: 39042263,
+      arrayBuffers: 36552647
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 12780.843 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: 'GetAddrInfoReqWrap.callback',
+      line: 2205,
+      method: 'callback',
+      native: false
+    },
+    {
+      column: 8,
+      file: 'node:dns',
+      function: 'GetAddrInfoReqWrap.onlookupall [as oncomplete]',
+      line: 134,
+      method: 'onlookupall [as oncomplete]',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-12 11:00:15'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use ::1:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at GetAddrInfoReqWrap.callback (node:net:2205:7)
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '::1',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use ::1:3000\n' +
+    'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  stack: 'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  exception: true,
+  date: 'Wed Aug 13 2025 12:28:28 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 17120,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 114393088,
+      heapTotal: 74108928,
+      heapUsed: 45980800,
+      external: 39020644,
+      arrayBuffers: 36543793
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 13509.078 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: 'GetAddrInfoReqWrap.callback',
+      line: 2205,
+      method: 'callback',
+      native: false
+    },
+    {
+      column: 8,
+      file: 'node:dns',
+      function: 'GetAddrInfoReqWrap.onlookupall [as oncomplete]',
+      line: 134,
+      method: 'onlookupall [as oncomplete]',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-13 12:28:28'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use ::1:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at GetAddrInfoReqWrap.callback (node:net:2205:7)
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '::1',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use ::1:3000\n' +
+    'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  stack: 'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  exception: true,
+  date: 'Thu Aug 14 2025 08:55:03 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 15760,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 113827840,
+      heapTotal: 74371072,
+      heapUsed: 45647136,
+      external: 38994443,
+      arrayBuffers: 36534612
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 2771.968 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: 'GetAddrInfoReqWrap.callback',
+      line: 2205,
+      method: 'callback',
+      native: false
+    },
+    {
+      column: 8,
+      file: 'node:dns',
+      function: 'GetAddrInfoReqWrap.onlookupall [as oncomplete]',
+      line: 134,
+      method: 'onlookupall [as oncomplete]',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-14 08:55:03'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use ::1:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at GetAddrInfoReqWrap.callback (node:net:2205:7)
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '::1',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use ::1:3000\n' +
+    'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  stack: 'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  exception: true,
+  date: 'Thu Aug 14 2025 09:21:00 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 14676,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 114176000,
+      heapTotal: 74108928,
+      heapUsed: 45938368,
+      external: 39014453,
+      arrayBuffers: 36541857
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 4329.296 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: 'GetAddrInfoReqWrap.callback',
+      line: 2205,
+      method: 'callback',
+      native: false
+    },
+    {
+      column: 8,
+      file: 'node:dns',
+      function: 'GetAddrInfoReqWrap.onlookupall [as oncomplete]',
+      line: 134,
+      method: 'onlookupall [as oncomplete]',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-14 09:21:00'
+}

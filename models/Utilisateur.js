@@ -306,14 +306,36 @@ const utilisateurSchema = new mongoose.Schema({
     default: false
   },
 
-  // Champs additionnels pour la gestion
-  tokenResetMotDePasse: String,
-  expirationTokenReset: Date,
+  // Confirmation d'email (NOUVEAUX CHAMPS)
+  tokenConfirmationEmail: {
+    type: String,
+    select: false // N'inclus pas ce champ par défaut dans les requêtes
+  },
+  expirationTokenConfirmation: {
+    type: Date,
+    select: false
+  },
+  emailConfirmeLe: {
+    type: Date,
+    default: null
+  },
+
+  // Champs pour reset password
+  tokenResetMotDePasse: {
+    type: String,
+    select: false
+  },
+  expirationTokenReset: {
+    type: Date,
+    select: false
+  },
+  
   tentativesConnexionEchouees: {
     type: Number,
     default: 0
   },
-  compteBloqueTempJusqu: Date,
+  compteBloqueLe: Date,
+  derniereTentativeConnexion: Date,
   
   // Historique des modifications importantes
   historiqueStatuts: [{
@@ -328,7 +350,14 @@ const utilisateurSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Administrateur'
     }
-  }]
+  }],
+
+  // Champ role ajouté
+  role: {
+    type: String,
+    enum: ['utilisateur', 'admin'],
+    default: 'utilisateur'
+  }
 
 }, {
   timestamps: true, // Ajoute createdAt et updatedAt automatiquement
@@ -391,51 +420,89 @@ utilisateurSchema.pre('save', function(next) {
   next();
 });
 
-// Méthodes d'instance
+// Méthode pour vérifier si un utilisateur peut se connecter (MISE À JOUR)
+utilisateurSchema.methods.peutSeConnecter = function() {
+  const maintenant = new Date();
+  
+  // Vérifier le statut du compte
+  switch (this.statutCompte) {
+    case 'BLOQUE':
+      return {
+        autorise: false,
+        raison: 'Compte bloqué définitivement'
+      };
+    
+    case 'SUSPENDU':
+      return {
+        autorise: false,
+        raison: 'Compte suspendu'
+      };
+    
+    case 'EN_ATTENTE_VERIFICATION':
+      return {
+        autorise: false,
+        raison: 'Email non confirmé',
+        action: 'CONFIRMER_EMAIL'
+      };
+    
+    case 'ACTIF':
+      // Vérifier si le compte est temporairement bloqué
+      if (this.compteBloqueLe && this.tentativesConnexionEchouees >= 5) {
+        const tempsEcoule = maintenant - this.compteBloqueLe;
+        const dureeBloquage = 15 * 60 * 1000; // 15 minutes
+        
+        if (tempsEcoule < dureeBloquage) {
+          const tempsRestant = dureeBloquage - tempsEcoule;
+          return {
+            autorise: false,
+            raison: 'Compte temporairement bloqué',
+            deblocageA: new Date(this.compteBloqueLe.getTime() + dureeBloquage),
+            tempsRestantMs: tempsRestant
+          };
+        } else {
+          // Le temps de blocage est écoulé, réinitialiser
+          this.tentativesConnexionEchouees = 0;
+          this.compteBloqueLe = null;
+          this.derniereTentativeConnexion = null;
+        }
+      }
+      
+      return { autorise: true };
+    
+    default:
+      return {
+        autorise: false,
+        raison: 'Statut de compte invalide'
+      };
+  }
+};
+
+// Méthode pour vérifier le mot de passe
 utilisateurSchema.methods.verifierMotDePasse = async function(motDePasseCandidat) {
+  if (!this.motDePasse) {
+    throw new Error('Mot de passe non défini pour cet utilisateur');
+  }
   return await bcrypt.compare(motDePasseCandidat, this.motDePasse);
 };
 
-utilisateurSchema.methods.peutSeConnecter = function() {
-  if (this.compteBloqueTempJusqu && this.compteBloqueTempJusqu > Date.now()) {
-    return {
-      autorise: false,
-      raison: 'Compte temporairement bloqué',
-      deblocageA: this.compteBloqueTempJusqu
-    };
-  }
-  
-  if (this.statutCompte === 'BLOQUE') {
-    return {
-      autorise: false,
-      raison: 'Compte définitivement bloqué'
-    };
-  }
-  
-  if (this.statutCompte === 'SUSPENDU') {
-    return {
-      autorise: false,
-      raison: 'Compte suspendu'
-    };
-  }
-  
-  return { autorise: true };
-};
-
-utilisateurSchema.methods.mettreAJourDerniereConnexion = function() {
-  this.derniereConnexion = new Date();
-  this.tentativesConnexionEchouees = 0;
-  return this.save({ validateBeforeSave: false });
-};
-
+// Méthode pour incrémenter les tentatives échouées
 utilisateurSchema.methods.incrementerTentativesEchouees = async function() {
+  const maintenant = new Date();
   this.tentativesConnexionEchouees += 1;
+  this.derniereTentativeConnexion = maintenant;
   
   // Bloquer temporairement après 5 tentatives
   if (this.tentativesConnexionEchouees >= 5) {
-    this.compteBloqueTempJusqu = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    this.compteBloqueLe = maintenant;
   }
   
+  await this.save();
+};
+
+// Méthode pour mettre à jour la dernière connexion
+utilisateurSchema.methods.mettreAJourDerniereConnexion = async function() {
+  this.derniereConnexion = new Date();
+  this.tentativesConnexionEchouees = 0;
   return this.save({ validateBeforeSave: false });
 };
 
@@ -480,7 +547,7 @@ utilisateurSchema.methods.getSignedJwtToken = function() {
   );
 };
 
-// Méthode pour générer un token de réinitialisation
+// Méthode pour générer un token de réinitialisation du mot de passe
 utilisateurSchema.methods.getResetPasswordToken = function() {
   // Générer le token
   const resetToken = crypto.randomBytes(20).toString('hex');
@@ -495,6 +562,37 @@ utilisateurSchema.methods.getResetPasswordToken = function() {
   this.expirationTokenReset = Date.now() + 10 * 60 * 1000;
   
   return resetToken;
+};
+
+// Méthode pour générer un token de confirmation d'email (NOUVELLE)
+utilisateurSchema.methods.getEmailConfirmationToken = function() {
+  // Générer le token
+  const confirmationToken = crypto.randomBytes(32).toString('hex');
+  
+  // Hash du token et sauvegarde dans la DB
+  this.tokenConfirmationEmail = crypto
+    .createHash('sha256')
+    .update(confirmationToken)
+    .digest('hex');
+    
+  // Définir l'expiration (24 heures)
+  this.expirationTokenConfirmation = Date.now() + 24 * 60 * 60 * 1000;
+  
+  return confirmationToken;
+};
+
+// Méthode pour confirmer l'email (NOUVELLE)
+utilisateurSchema.methods.confirmerEmail = function() {
+  this.emailConfirmeLe = new Date();
+  this.tokenConfirmationEmail = undefined;
+  this.expirationTokenConfirmation = undefined;
+  
+  // Si le statut est EN_ATTENTE_VERIFICATION, passer à ACTIF
+  if (this.statutCompte === 'EN_ATTENTE_VERIFICATION') {
+    this.statutCompte = 'ACTIF';
+  }
+  
+  return this.save();
 };
 
 // Méthodes statiques
@@ -533,11 +631,6 @@ utilisateurSchema.statics.statistiquesGlobales = async function() {
   
   return stats[0] || {};
 };
-
-// Création des index pour améliorer les performances
-utilisateurSchema.index({ email: 1 });
-utilisateurSchema.index({ telephone: 1 });
-utilisateurSchema.index({ email: 1, telephone: 1 });
 
 // Export du modèle
 module.exports = mongoose.model('Utilisateur', utilisateurSchema);

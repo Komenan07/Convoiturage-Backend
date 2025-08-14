@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const connectDB = require('./config/db');
+const { errorHandler } = require('./middlewares/errorHandler');
 //const socketIo = require('socket.io');
 
 
@@ -142,15 +143,8 @@ app.use('*', (req, res) => {
   });
 });
 
-// Middleware de gestion d'erreurs globales
-app.use((error, req, res, _next) => {
-  console.error('💥 Erreur serveur:', error.message);
-  res.status(500).json({
-    success: false,
-    message: 'Erreur interne du serveur',
-    ...(process.env.NODE_ENV === 'development' && { error: error.message })
-  });
-});
+// Middleware de gestion d'erreurs globales (unifié)
+app.use(errorHandler);
 
 // Démarrage du serveur
 const PORT = process.env.PORT || 3000;

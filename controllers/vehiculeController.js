@@ -1,5 +1,6 @@
 const Vehicule = require('../models/Vehicule');
 const logger = require('../utils/logger');
+const AppError = require('../utils/AppError');
 
 // =============== MÉTHODES CRUD STANDARD ===============
 
@@ -8,7 +9,7 @@ const logger = require('../utils/logger');
  * @route POST /api/vehicules
  * @access Privé (utilisateur authentifié)
  */
-const creerVehicule = async (req, res) => {
+const creerVehicule = async (req, res, next) => {
   try {
     logger.info('Tentative de création de véhicule', { userId: req.user.userId });
     const vehiculeData = {
@@ -40,11 +41,7 @@ const creerVehicule = async (req, res) => {
       });
     }
 
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la création du véhicule',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la création du véhicule', { originalError: error.message }));
   }
 };
 
@@ -53,7 +50,7 @@ const creerVehicule = async (req, res) => {
  * @route GET /api/vehicules/mes-vehicules
  * @access Privé (utilisateur authentifié)
  */
-const obtenirMesVehicules = async (req, res) => {
+const obtenirMesVehicules = async (req, res, next) => {
   try {
     logger.info('Récupération des véhicules', { userId: req.user.userId });
     const vehicules = await Vehicule.find({ proprietaireId: req.user.userId })
@@ -66,11 +63,7 @@ const obtenirMesVehicules = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur récupération véhicules:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération des véhicules',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des véhicules', { originalError: error.message }));
   }
 };
 
@@ -79,7 +72,7 @@ const obtenirMesVehicules = async (req, res) => {
  * @route GET /api/vehicules/:vehiculeId
  * @access Privé (utilisateur authentifié)
  */
-const obtenirVehicule = async (req, res) => {
+const obtenirVehicule = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
     logger.info('Récupération véhicule', { vehiculeId, userId: req.user.userId });
@@ -101,11 +94,7 @@ const obtenirVehicule = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur récupération véhicule:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération du véhicule',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération du véhicule', { originalError: error.message }));
   }
 };
 
@@ -114,7 +103,7 @@ const obtenirVehicule = async (req, res) => {
  * @route PUT /api/vehicules/:vehiculeId
  * @access Privé (utilisateur authentifié)
  */
-const modifierVehicule = async (req, res) => {
+const modifierVehicule = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
     logger.info('Mise à jour véhicule', { vehiculeId, userId: req.user.userId });
@@ -153,11 +142,7 @@ const modifierVehicule = async (req, res) => {
       });
     }
 
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la mise à jour du véhicule',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la mise à jour du véhicule', { originalError: error.message }));
   }
 };
 
@@ -166,7 +151,7 @@ const modifierVehicule = async (req, res) => {
  * @route DELETE /api/vehicules/:vehiculeId
  * @access Privé (utilisateur authentifié)
  */
-const supprimerVehicule = async (req, res) => {
+const supprimerVehicule = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
     logger.info('Suppression véhicule', { vehiculeId, userId: req.user.userId });
@@ -204,11 +189,7 @@ const supprimerVehicule = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur suppression véhicule:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la suppression du véhicule',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la suppression du véhicule', { originalError: error.message }));
   }
 };
 
@@ -219,7 +200,7 @@ const supprimerVehicule = async (req, res) => {
  * @route PATCH /api/vehicules/:vehiculeId/principal
  * @access Privé (utilisateur authentifié)
  */
-const definirVehiculePrincipal = async (req, res) => {
+const definirVehiculePrincipal = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
     logger.info('Définition véhicule principal', { vehiculeId, userId: req.user.userId });
@@ -251,11 +232,7 @@ const definirVehiculePrincipal = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur définition véhicule principal:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la définition du véhicule principal',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la définition du véhicule principal', { originalError: error.message }));
   }
 };
 
@@ -264,7 +241,7 @@ const definirVehiculePrincipal = async (req, res) => {
  * @route GET /api/vehicules/principal
  * @access Privé (utilisateur authentifié)
  */
-const obtenirVehiculePrincipal = async (req, res) => {
+const obtenirVehiculePrincipal = async (req, res, next) => {
   try {
     logger.info('Récupération véhicule principal', { userId: req.user.userId });
     const vehiculePrincipal = await Vehicule.findOne({
@@ -285,11 +262,7 @@ const obtenirVehiculePrincipal = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur récupération véhicule principal:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération du véhicule principal',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération du véhicule principal', { originalError: error.message }));
   }
 };
 
@@ -298,7 +271,7 @@ const obtenirVehiculePrincipal = async (req, res) => {
  * @route PUT /api/vehicules/:vehiculeId/photo
  * @access Privé (utilisateur authentifié)
  */
-const mettreAJourPhotoVehicule = async (req, res) => {
+const mettreAJourPhotoVehicule = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
     const { photoUrl } = req.body;
@@ -327,11 +300,7 @@ const mettreAJourPhotoVehicule = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur mise à jour photo véhicule:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la mise à jour de la photo',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la mise à jour de la photo', { originalError: error.message }));
   }
 };
 
@@ -340,7 +309,7 @@ const mettreAJourPhotoVehicule = async (req, res) => {
  * @route GET /api/vehicules/:vehiculeId/validite-documents
  * @access Privé (utilisateur authentifié)
  */
-const verifierValiditeDocuments = async (req, res) => {
+const verifierValiditeDocuments = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
     logger.info('Vérification expiration documents', { vehiculeId, userId: req.user.userId });
@@ -383,11 +352,7 @@ const verifierValiditeDocuments = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur vérification expiration documents:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la vérification des documents',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la vérification des documents', { originalError: error.message }));
   }
 };
 
@@ -396,7 +361,7 @@ const verifierValiditeDocuments = async (req, res) => {
  * @route GET /api/vehicules/recherche
  * @access Privé (utilisateur authentifié)
  */
-const rechercherVehicules = async (req, res) => {
+const rechercherVehicules = async (req, res, next) => {
   try {
     const { marque, modele, couleur, statut } = req.query;
     logger.info('Recherche véhicules', { userId: req.user.userId, criteres: req.query });
@@ -417,11 +382,7 @@ const rechercherVehicules = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur recherche véhicules:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la recherche des véhicules',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la recherche des véhicules', { originalError: error.message }));
   }
 };
 
@@ -432,7 +393,7 @@ const rechercherVehicules = async (req, res) => {
  * @route GET /api/vehicules/mes-vehicules/documents-expires
  * @access Privé (utilisateur authentifié)
  */
-const obtenirDocumentsExpires = async (req, res) => {
+const obtenirDocumentsExpires = async (req, res, next) => {
   try {
     logger.info('Récupération documents expirés', { userId: req.user.userId });
     const maintenant = new Date();
@@ -474,11 +435,7 @@ const obtenirDocumentsExpires = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur récupération documents expirés:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération des documents expirés',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des documents expirés', { originalError: error.message }));
   }
 };
 
@@ -487,7 +444,7 @@ const obtenirDocumentsExpires = async (req, res) => {
  * @route GET /api/vehicules/statistiques
  * @access Privé (utilisateur authentifié)
  */
-const obtenirStatistiques = async (req, res) => {
+const obtenirStatistiques = async (req, res, next) => {
   try {
     logger.info('Récupération statistiques véhicules', { userId: req.user.userId });
     const stats = await Vehicule.aggregate([
@@ -520,11 +477,7 @@ const obtenirStatistiques = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur récupération statistiques:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors de la récupération des statistiques',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { originalError: error.message }));
   }
 };
 
@@ -533,7 +486,7 @@ const obtenirStatistiques = async (req, res) => {
  * @route PUT /api/vehicules/:vehiculeId/assurance
  * @access Privé (utilisateur authentifié)
  */
-const renouvelerAssurance = async (req, res) => {
+const renouvelerAssurance = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
     const { numeroPolice, dateExpiration, compagnie } = req.body;
@@ -566,11 +519,7 @@ const renouvelerAssurance = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur renouvellement assurance:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors du renouvellement de l\'assurance',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors du renouvellement de l\'assurance', { originalError: error.message }));
   }
 };
 
@@ -579,7 +528,7 @@ const renouvelerAssurance = async (req, res) => {
  * @route PUT /api/vehicules/:vehiculeId/visite-technique
  * @access Privé (utilisateur authentifié)
  */
-const renouvelerVisiteTechnique = async (req, res) => {
+const renouvelerVisiteTechnique = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
     const { dateExpiration, certificatUrl } = req.body;
@@ -611,11 +560,7 @@ const renouvelerVisiteTechnique = async (req, res) => {
     });
   } catch (error) {
     logger.error('Erreur renouvellement visite technique:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur lors du renouvellement de la visite technique',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors du renouvellement de la visite technique', { originalError: error.message }));
   }
 };
 

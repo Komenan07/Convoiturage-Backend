@@ -6,6 +6,9 @@ const Trajet = require('../models/Trajet');
 const { protect } = require('../middlewares/authMiddleware');
 const { body, param, query, validationResult } = require('express-validator');
 const mongoose = require('mongoose');
+const AppError = require('../utils/AppError');
+const notificationService = require('../services/notificationService');
+const emailService = require('../services/emailService');
 
 // Middleware de validation des erreurs
 const handleValidationErrors = (req, res, next) => {
@@ -20,10 +23,24 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Middleware pour vérifier que l'utilisateur peut accéder à la réservation
-const checkReservationAccess = async (req, res, next) => {
+/**
+ * Middleware pour vérifier les accès aux réservations
+ */
+const verifierAccesReservation = async (req, res, next) => {
   try {
-    const reservation = await Reservation.findById(req.params.id).populate('trajetId');
+    const { reservationId } = req.params;
+    
+    if (!reservationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de réservation requis'
+      });
+    }
+
+    const reservation = await Reservation.findById(reservationId)
+      .populate('trajetId', 'conducteurId passagers')
+      .populate('passagerId', 'nom prenom');
+
     if (!reservation) {
       return res.status(404).json({
         success: false,
@@ -31,8 +48,10 @@ const checkReservationAccess = async (req, res, next) => {
       });
     }
 
-    // Vérifier que l'utilisateur est le passager ou le conducteur
-    const isPassager = reservation.passagerId.toString() === req.user.id;
+    // Vérifier si l'utilisateur est le passager
+    const isPassager = reservation.passagerId._id.toString() === req.user.id;
+    
+    // Vérifier si l'utilisateur est le conducteur
     const isConducteur = reservation.trajetId.conducteurId.toString() === req.user.id;
 
     if (!isPassager && !isConducteur) {
@@ -47,11 +66,7 @@ const checkReservationAccess = async (req, res, next) => {
     req.isConducteur = isConducteur;
     next();
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la vérification des accès',
-      error: error.message
-    });
+    return next(AppError.serverError('Erreur serveur lors de la vérification des accès', { originalError: error.message }));
   }
 };
 
@@ -105,7 +120,7 @@ router.post('/',
       .withMessage('Méthode de paiement invalide')
   ],
   handleValidationErrors,
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const { trajetId, nombrePlacesReservees } = req.body;
 
@@ -144,47 +159,36 @@ router.post('/',
         });
       }
 
-      // Vérifier qu'il n'y a pas déjà une réservation pour ce trajet
-      const reservationExistante = await Reservation.findOne({
-        trajetId,
-        passagerId: req.user.id,
-        statutReservation: { $nin: ['ANNULEE', 'REFUSEE'] }
-      });
-
-      if (reservationExistante) {
-        return res.status(400).json({
-          success: false,
-          message: 'Vous avez déjà une réservation active pour ce trajet'
-        });
-      }
-
-      // Calculer le montant total
-      const montantTotal = trajet.prixParPassager * nombrePlacesReservees;
-
       // Créer la réservation
       const nouvelleReservation = new Reservation({
-        ...req.body,
+        trajetId,
         passagerId: req.user.id,
-        montantTotal,
-        statutReservation: trajet.validationAutomatique ? 'CONFIRMEE' : 'EN_ATTENTE'
+        nombrePlacesReservees,
+        pointPriseEnCharge: req.body.pointPriseEnCharge,
+        pointDepose: req.body.pointDepose,
+        bagages: req.body.bagages || { quantite: 0, poids: 0 },
+        methodePaiement: req.body.methodePaiement || 'ESPECES',
+        statutReservation: 'EN_ATTENTE',
+        dateReservation: new Date()
       });
 
       await nouvelleReservation.save();
 
       // Mettre à jour le nombre de places disponibles du trajet
-      trajet.nombrePlacesDisponibles -= nombrePlacesReservees;
-      await trajet.save();
+      await Trajet.findByIdAndUpdate(trajetId, {
+        $inc: { nombrePlacesDisponibles: -nombrePlacesReservees }
+      });
 
-      // Populate pour la réponse
+      // Notifier le conducteur
+      await Promise.all([
+        notificationService.notifierNouvelleReservation(nouvelleReservation),
+        emailService.envoyerEmailReservation(nouvelleReservation)
+      ]);
+
+      // Populer les données pour la réponse
       await nouvelleReservation.populate([
-        {
-          path: 'trajetId',
-          select: 'pointDepart pointArrivee dateDepart heureDepart prixParPassager',
-          populate: {
-            path: 'conducteurId',
-            select: 'nom prenom photoProfil noteGenerale'
-          }
-        }
+        { path: 'trajetId', select: 'pointDepart pointArrivee dateDepart conducteurId' },
+        { path: 'passagerId', select: 'nom prenom photoProfil' }
       ]);
 
       res.status(201).json({
@@ -195,11 +199,7 @@ router.post('/',
 
     } catch (error) {
       console.error('Erreur lors de la création de la réservation:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la création de la réservation',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur serveur lors de la création de la réservation', { originalError: error.message }));
     }
   }
 );
@@ -234,7 +234,7 @@ router.get('/',
       .withMessage('Format de date invalide pour dateFin')
   ],
   handleValidationErrors,
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const { statut, page = 1, limite = 20, dateDebut, dateFin } = req.query;
       const skip = (page - 1) * limite;
@@ -299,11 +299,7 @@ router.get('/',
 
     } catch (error) {
       console.error('Erreur lors de la récupération des réservations:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération des réservations',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur lors de la récupération des réservations', { originalError: error.message }));
     }
   }
 );
@@ -321,8 +317,8 @@ router.get('/:id',
       .withMessage('ID de réservation invalide')
   ],
   handleValidationErrors,
-  checkReservationAccess,
-  async (req, res) => {
+  verifierAccesReservation,
+  async (req, res, next) => {
     try {
       await req.reservation.populate([
         {
@@ -345,11 +341,7 @@ router.get('/:id',
 
     } catch (error) {
       console.error('Erreur lors de la récupération de la réservation:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération de la réservation',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur lors de la récupération de la réservation', { originalError: error.message }));
     }
   }
 );
@@ -367,8 +359,8 @@ router.put('/:id/confirmer',
       .withMessage('ID de réservation invalide')
   ],
   handleValidationErrors,
-  checkReservationAccess,
-  async (req, res) => {
+  verifierAccesReservation,
+  async (req, res, next) => {
     try {
       // Seul le conducteur peut confirmer
       if (!req.isConducteur) {
@@ -403,11 +395,7 @@ router.put('/:id/confirmer',
 
     } catch (error) {
       console.error('Erreur lors de la confirmation:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la confirmation de la réservation',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur lors de la confirmation de la réservation', { originalError: error.message }));
     }
   }
 );
@@ -429,8 +417,8 @@ router.put('/:id/refuser',
       .withMessage('Un motif de refus détaillé est requis (10-500 caractères)')
   ],
   handleValidationErrors,
-  checkReservationAccess,
-  async (req, res) => {
+  verifierAccesReservation,
+  async (req, res, next) => {
     try {
       const { motifRefus } = req.body;
 
@@ -472,11 +460,7 @@ router.put('/:id/refuser',
 
     } catch (error) {
       console.error('Erreur lors du refus:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors du refus de la réservation',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur lors du refus de la réservation', { originalError: error.message }));
     }
   }
 );
@@ -499,8 +483,8 @@ router.put('/:id/annuler',
       .withMessage('Le motif d\'annulation ne peut pas dépasser 500 caractères')
   ],
   handleValidationErrors,
-  checkReservationAccess,
-  async (req, res) => {
+  verifierAccesReservation,
+  async (req, res, next) => {
     try {
       const { motifAnnulation } = req.body;
 
@@ -550,11 +534,7 @@ router.put('/:id/annuler',
 
     } catch (error) {
       console.error('Erreur lors de l\'annulation:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de l\'annulation de la réservation',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur lors de l\'annulation de la réservation', { originalError: error.message }));
     }
   }
 );
@@ -580,8 +560,8 @@ router.put('/:id/modifier-points',
       .withMessage('Point de dépose invalide')
   ],
   handleValidationErrors,
-  checkReservationAccess,
-  async (req, res) => {
+  verifierAccesReservation,
+  async (req, res, next) => {
     try {
       const { pointPriseEnCharge, pointDepose } = req.body;
 
@@ -634,11 +614,7 @@ router.put('/:id/modifier-points',
 
     } catch (error) {
       console.error('Erreur lors de la modification:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la modification des points',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur lors de la modification des points', { originalError: error.message }));
     }
   }
 );
@@ -668,8 +644,8 @@ router.put('/:id/statut-paiement',
       .withMessage('Méthode de paiement invalide')
   ],
   handleValidationErrors,
-  checkReservationAccess,
-  async (req, res) => {
+  verifierAccesReservation,
+  async (req, res, next) => {
     try {
       const { statutPaiement, referencePaiement, methodePaiement } = req.body;
 
@@ -699,11 +675,7 @@ router.put('/:id/statut-paiement',
 
     } catch (error) {
       console.error('Erreur lors de la mise à jour du paiement:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la mise à jour du statut de paiement',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur lors de la mise à jour du statut de paiement', { originalError: error.message }));
     }
   }
 );
@@ -727,8 +699,8 @@ router.put('/:id/position',
       .withMessage('Les coordonnées doivent être des nombres')
   ],
   handleValidationErrors,
-  checkReservationAccess,
-  async (req, res) => {
+  verifierAccesReservation,
+  async (req, res, next) => {
     try {
       const { coordinates } = req.body;
 
@@ -760,11 +732,7 @@ router.put('/:id/position',
 
     } catch (error) {
       console.error('Erreur lors de la mise à jour de position:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la mise à jour de la position',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur lors de la mise à jour de la position', { originalError: error.message }));
     }
   }
 );
@@ -782,7 +750,7 @@ router.get('/trajet/:trajetId',
       .withMessage('ID de trajet invalide')
   ],
   handleValidationErrors,
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const { trajetId } = req.params;
 
@@ -811,11 +779,7 @@ router.get('/trajet/:trajetId',
 
     } catch (error) {
       console.error('Erreur lors de la récupération des réservations du trajet:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération des réservations',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur lors de la récupération des réservations', { originalError: error.message }));
     }
   }
 );
@@ -833,8 +797,8 @@ router.put('/:id/terminer',
       .withMessage('ID de réservation invalide')
   ],
   handleValidationErrors,
-  checkReservationAccess,
-  async (req, res) => {
+  verifierAccesReservation,
+  async (req, res, next) => {
     try {
       // Seul le conducteur peut marquer comme terminé
       if (!req.isConducteur) {
@@ -865,11 +829,7 @@ router.put('/:id/terminer',
 
     } catch (error) {
       console.error('Erreur lors de la finalisation:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la finalisation de la réservation',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur lors de la finalisation de la réservation', { originalError: error.message }));
     }
   }
 );
@@ -881,7 +841,7 @@ router.put('/:id/terminer',
  */
 router.get('/statistiques',
   protect,
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const userId = new mongoose.Types.ObjectId(req.user.id);
 
@@ -928,11 +888,7 @@ router.get('/statistiques',
 
     } catch (error) {
       console.error('Erreur lors du calcul des statistiques:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors du calcul des statistiques',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
+      return next(AppError.serverError('Erreur lors du calcul des statistiques', { originalError: error.message }));
     }
   }
 );

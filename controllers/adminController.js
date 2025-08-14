@@ -1,10 +1,11 @@
 // =====================================================
-// CONTRÔLEUR ADMINISTRATEUR
+// CONTRÔLEUR ADMINISTRATEUR - Version corrigée
 // =====================================================
 
 const Administrateur = require('../models/Administrateur');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
+const AppError = require('../utils/AppError');
 
 /**
  * Utilitaire pour générer un token JWT
@@ -17,37 +18,6 @@ const genererToken = (adminId) => {
   );
 };
 
-/**
- * Gestionnaire d'erreurs
- */
-const gererErreur = (res, erreur, message = 'Erreur serveur') => {
-  console.error('Erreur Admin Controller:', erreur);
-  
-  if (erreur.name === 'ValidationError') {
-    const erreurs = Object.values(erreur.errors).map(err => err.message);
-    return res.status(400).json({
-      success: false,
-      message: 'Erreur de validation',
-      code: 'VALIDATION_ERROR',
-      data: { erreurs }
-    });
-  }
-
-  if (erreur.code === 11000) {
-    return res.status(400).json({
-      success: false,
-      message: 'Email déjà utilisé',
-      code: 'DUPLICATE_EMAIL'
-    });
-  }
-
-  res.status(500).json({
-    success: false,
-    message,
-    code: 'SERVER_ERROR'
-  });
-};
-
 // =====================================================
 // AUTHENTIFICATION
 // =====================================================
@@ -57,7 +27,7 @@ const gererErreur = (res, erreur, message = 'Erreur serveur') => {
  * @route   POST /api/admin/auth/login
  * @access  Public
  */
-const connexionAdmin = async (req, res) => {
+const connexionAdmin = async (req, res, next) => {
   try {
     // Validation des erreurs
     const erreurs = validationResult(req);
@@ -127,7 +97,7 @@ const connexionAdmin = async (req, res) => {
     });
 
   } catch (erreur) {
-    gererErreur(res, erreur, 'Erreur lors de la connexion');
+    return next(AppError.serverError('Erreur serveur lors de la connexion', { originalError: erreur.message }));
   }
 };
 
@@ -136,8 +106,17 @@ const connexionAdmin = async (req, res) => {
  * @route   GET /api/admin/auth/profil
  * @access  Private (Admin)
  */
-const obtenirProfil = async (req, res) => {
+const obtenirProfil = async (req, res, next) => {
   try {
+    // Vérification simple de l'authentification
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
     const admin = await Administrateur.findById(req.user.id)
       .populate('createdBy modifiedBy', 'nom prenom email');
 
@@ -155,7 +134,7 @@ const obtenirProfil = async (req, res) => {
     });
 
   } catch (erreur) {
-    gererErreur(res, erreur);
+    return next(AppError.serverError('Erreur serveur lors de la récupération du profil', { originalError: erreur.message }));
   }
 };
 
@@ -168,8 +147,17 @@ const obtenirProfil = async (req, res) => {
  * @route   POST /api/admin/admins
  * @access  Private (Super Admin)
  */
-const creerAdmin = async (req, res) => {
+const creerAdmin = async (req, res, next) => {
   try {
+    // Vérification simple de l'authentification
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
     // Validation des erreurs
     const erreurs = validationResult(req);
     if (!erreurs.isEmpty()) {
@@ -200,7 +188,7 @@ const creerAdmin = async (req, res) => {
     });
 
   } catch (erreur) {
-    gererErreur(res, erreur, 'Erreur lors de la création de l\'administrateur');
+    return next(AppError.serverError('Erreur serveur lors de la création de l\'administrateur', { originalError: erreur.message }));
   }
 };
 
@@ -209,8 +197,17 @@ const creerAdmin = async (req, res) => {
  * @route   GET /api/admin/admins
  * @access  Private (Admin avec permission GESTION_UTILISATEURS)
  */
-const listerAdmins = async (req, res) => {
+const listerAdmins = async (req, res, next) => {
   try {
+    // Vérification simple de l'authentification
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
     const {
       page = 1,
       limit = 10,
@@ -248,7 +245,7 @@ const listerAdmins = async (req, res) => {
     });
 
   } catch (erreur) {
-    gererErreur(res, erreur);
+    return next(AppError.serverError('Erreur serveur lors de la récupération de la liste des administrateurs', { originalError: erreur.message }));
   }
 };
 
@@ -257,8 +254,17 @@ const listerAdmins = async (req, res) => {
  * @route   GET /api/admin/admins/:id
  * @access  Private (Admin avec permission GESTION_UTILISATEURS)
  */
-const obtenirAdminParId = async (req, res) => {
+const obtenirAdminParId = async (req, res, next) => {
   try {
+    // Vérification simple de l'authentification
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
     const admin = await Administrateur.findById(req.params.id)
       .populate('createdBy modifiedBy', 'nom prenom email');
 
@@ -276,7 +282,7 @@ const obtenirAdminParId = async (req, res) => {
     });
 
   } catch (erreur) {
-    gererErreur(res, erreur);
+    return next(AppError.serverError('Erreur serveur lors de la récupération de l\'administrateur', { originalError: erreur.message }));
   }
 };
 
@@ -285,8 +291,17 @@ const obtenirAdminParId = async (req, res) => {
  * @route   PUT /api/admin/admins/:id
  * @access  Private (Super Admin)
  */
-const modifierAdmin = async (req, res) => {
+const modifierAdmin = async (req, res, next) => {
   try {
+    // Vérification simple de l'authentification
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
     // Validation des erreurs
     const erreurs = validationResult(req);
     if (!erreurs.isEmpty()) {
@@ -341,7 +356,7 @@ const modifierAdmin = async (req, res) => {
     });
 
   } catch (erreur) {
-    gererErreur(res, erreur, 'Erreur lors de la modification');
+    return next(AppError.serverError('Erreur serveur lors de la modification de l\'administrateur', { originalError: erreur.message }));
   }
 };
 
@@ -350,8 +365,17 @@ const modifierAdmin = async (req, res) => {
  * @route   PATCH /api/admin/admins/:id/statut
  * @access  Private (Super Admin)
  */
-const changerStatutAdmin = async (req, res) => {
+const changerStatutAdmin = async (req, res, next) => {
   try {
+    // Vérification simple de l'authentification
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
     const { statutCompte } = req.body;
 
     if (!['ACTIF', 'SUSPENDU'].includes(statutCompte)) {
@@ -390,7 +414,7 @@ const changerStatutAdmin = async (req, res) => {
     });
 
   } catch (erreur) {
-    gererErreur(res, erreur, 'Erreur lors du changement de statut');
+    return next(AppError.serverError('Erreur serveur lors du changement de statut', { originalError: erreur.message }));
   }
 };
 
@@ -399,8 +423,17 @@ const changerStatutAdmin = async (req, res) => {
  * @route   DELETE /api/admin/admins/:id
  * @access  Private (Super Admin)
  */
-const desactiverAdmin = async (req, res) => {
+const desactiverAdmin = async (req, res, next) => {
   try {
+    // Vérification simple de l'authentification
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
     const admin = await Administrateur.findById(req.params.id);
 
     if (!admin) {
@@ -429,7 +462,7 @@ const desactiverAdmin = async (req, res) => {
     });
 
   } catch (erreur) {
-    gererErreur(res, erreur, 'Erreur lors de la désactivation');
+    return next(AppError.serverError('Erreur serveur lors de la désactivation', { originalError: erreur.message }));
   }
 };
 
@@ -442,8 +475,17 @@ const desactiverAdmin = async (req, res) => {
  * @route   GET /api/admin/dashboard
  * @access  Private (Admin avec permission ANALYTICS)
  */
-const obtenirDashboard = async (req, res) => {
+const obtenirDashboard = async (req, res, next) => {
   try {
+    // Vérification simple de l'authentification
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
     // Statistiques des administrateurs
     const statsAdmins = await Administrateur.obtenirStatistiques();
 
@@ -475,7 +517,7 @@ const obtenirDashboard = async (req, res) => {
     });
 
   } catch (erreur) {
-    gererErreur(res, erreur, 'Erreur lors de la récupération du dashboard');
+    return next(AppError.serverError('Erreur serveur lors de la récupération du dashboard', { originalError: erreur.message }));
   }
 };
 
@@ -484,8 +526,17 @@ const obtenirDashboard = async (req, res) => {
  * @route   GET /api/admin/statistiques
  * @access  Private (Admin avec permission ANALYTICS)
  */
-const obtenirStatistiques = async (req, res) => {
+const obtenirStatistiques = async (req, res, next) => {
   try {
+    // Vérification simple de l'authentification
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
     const { periode = '30' } = req.query;
     const joursArriere = parseInt(periode);
     const dateDebut = new Date(Date.now() - joursArriere * 24 * 60 * 60 * 1000);
@@ -555,7 +606,7 @@ const obtenirStatistiques = async (req, res) => {
     });
 
   } catch (erreur) {
-    gererErreur(res, erreur, 'Erreur lors de la récupération des statistiques');
+    return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { originalError: erreur.message }));
   }
 };
 

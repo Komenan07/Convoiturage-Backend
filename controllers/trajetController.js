@@ -1,5 +1,6 @@
 const Trajet = require('../models/Trajet');
 const { validationResult } = require('express-validator');
+const AppError = require('../utils/AppError');
 
 class TrajetController {
   
@@ -8,7 +9,7 @@ class TrajetController {
   /**
    * Créer un trajet ponctuel
    */
-  async creerTrajetPonctuel(req, res) {
+  async creerTrajetPonctuel(req, res, next) {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -56,18 +57,14 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la création du trajet',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la création du trajet', { originalError: error.message }));
     }
   }
 
   /**
    * Créer un trajet récurrent
    */
-  async creerTrajetRecurrent(req, res) {
+  async creerTrajetRecurrent(req, res, next) {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -122,11 +119,7 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la création du trajet récurrent',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la création du trajet récurrent', { originalError: error.message }));
     }
   }
 
@@ -135,7 +128,7 @@ class TrajetController {
   /**
    * Rechercher trajets disponibles (géospatial)
    */
-  async rechercherTrajetsDisponibles(req, res) {
+  async rechercherTrajetsDisponibles(req, res, next) {
     try {
       const {
         longitude,
@@ -189,18 +182,14 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la recherche de trajets',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération des trajets', { originalError: error.message }));
     }
   }
 
   /**
    * Obtenir détails complets d'un trajet
    */
-  async obtenirDetailsTrajet(req, res) {
+  async obtenirDetailsTrajet(req, res, next) {
     try {
       const { id } = req.params;
 
@@ -221,18 +210,14 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération du trajet',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération du trajet', { originalError: error.message }));
     }
   }
 
   /**
    * Obtenir tous les trajets d'un conducteur
    */
-  async obtenirTrajetsConducteur(req, res) {
+  async obtenirTrajetsConducteur(req, res, next) {
     try {
       const { conducteurId } = req.params;
       const { statut, type, page = 1, limit = 10 } = req.query;
@@ -269,18 +254,14 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération des trajets du conducteur',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération des trajets du conducteur', { originalError: error.message }));
     }
   }
 
   /**
    * Obtenir l'historique des trajets (pour un utilisateur connecté)
    */
-  async obtenirHistoriqueTrajets(req, res) {
+  async obtenirHistoriqueTrajets(req, res, next) {
     try {
       const { type = 'tous', page = 1, limit = 10 } = req.query;
       const userId = req.user.id;
@@ -326,18 +307,14 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération de l\'historique',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la récupération de l\'historique', { originalError: error.message }));
     }
   }
 
   /**
    * Filtrer les trajets avec critères avancés
    */
-  async filtrerTrajets(req, res) {
+  async filtrerTrajets(req, res, next) {
     try {
       const {
         dateDepart,
@@ -426,11 +403,7 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors du filtrage des trajets',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors du filtrage des trajets', { originalError: error.message }));
     }
   }
 
@@ -439,7 +412,7 @@ class TrajetController {
   /**
    * Modifier les détails d'un trajet
    */
-  async modifierDetailsTrajet(req, res) {
+  async modifierDetailsTrajet(req, res, next) {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -498,18 +471,14 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la modification du trajet',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la mise à jour du trajet', { originalError: error.message }));
     }
   }
 
   /**
    * Changer le nombre de places disponibles
    */
-  async changerNombrePlaces(req, res) {
+  async changerNombrePlaces(req, res, next) {
     try {
       const { id } = req.params;
       const { nombrePlacesDisponibles } = req.body;
@@ -550,18 +519,14 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la modification du nombre de places',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la modification du nombre de places', { originalError: error.message }));
     }
   }
 
   /**
    * Modifier les préférences du trajet
    */
-  async modifierPreferences(req, res) {
+  async modifierPreferences(req, res, next) {
     try {
       const { id } = req.params;
       const nouvellesPreferences = req.body;
@@ -599,18 +564,14 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la modification des préférences',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la modification des préférences', { originalError: error.message }));
     }
   }
 
   /**
    * Mettre à jour le statut du trajet
    */
-  async mettreAJourStatut(req, res) {
+  async mettreAJourStatut(req, res, next) {
     try {
       const { id } = req.params;
       const { statutTrajet } = req.body;
@@ -655,11 +616,7 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la mise à jour du statut',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la mise à jour du statut', { originalError: error.message }));
     }
   }
 
@@ -668,7 +625,7 @@ class TrajetController {
   /**
    * Annuler un trajet (avec notifications)
    */
-  async annulerTrajet(req, res) {
+  async annulerTrajet(req, res, next) {
     try {
       const { id } = req.params;
       const { motifAnnulation } = req.body;
@@ -716,18 +673,14 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de l\'annulation du trajet',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de l\'annulation du trajet', { originalError: error.message }));
     }
   }
 
   /**
    * Supprimer un trajet récurrent
    */
-  async supprimerTrajetRecurrent(req, res) {
+  async supprimerTrajetRecurrent(req, res, next) {
     try {
       const { id } = req.params;
 
@@ -781,11 +734,7 @@ class TrajetController {
       });
 
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la suppression du trajet',
-        error: error.message
-      });
+      return next(AppError.serverError('Erreur serveur lors de la suppression du trajet', { originalError: error.message }));
     }
   }
 

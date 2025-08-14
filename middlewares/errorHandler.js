@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 const winston = require('winston');
+const AppErrorNew = require('../utils/AppError');
+const NEW_CODES = require('../utils/errorCodes');
+const { logger: mainLogger } = require('../utils/logger');
 
 /**
  * Configuration du logger pour les erreurs
@@ -626,7 +629,30 @@ const errorHandler = (err, req, res, next) => {
         timestamp: new Date().toISOString()
     };
 
-    // Gestion des différents types d'erreurs
+    // Si l'erreur provient de la nouvelle classe utilitaire, normaliser immédiatement
+    if (err instanceof AppErrorNew || (err && typeof err.status === 'number' && typeof err.code === 'string')) {
+        const status = err.status || 500;
+        const code = err.code || NEW_CODES.SERVER_ERROR;
+        // Logging centralisé
+        const level = status >= 500 ? 'error' : 'warn';
+        mainLogger[level]('Erreur traitée (AppError utilitaire)', {
+            code,
+            status,
+            message: err.message,
+            context: err.context,
+            ...errorContext
+        });
+        const payload = {
+            success: false,
+            message: err.message,
+            code,
+            timestamp: err.timestamp || new Date().toISOString(),
+            ...(err.context ? { context: err.context } : {})
+        };
+        return res.status(status).json(payload);
+    }
+
+    // Gestion des différents types d'erreurs (héritage ancien système)
     if (err.name === 'ValidationError' || err.name === 'CastError' || err.code === 11000) {
         error = handleMongooseError(err);
     } else if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
@@ -647,7 +673,7 @@ const errorHandler = (err, req, res, next) => {
 
     // Log selon la gravité
     if (!error.isOperational || error.statusCode >= 500) {
-        errorLogger.error('Erreur système', {
+        mainLogger.error('Erreur système', {
             error: {
                 message: error.message,
                 stack: error.stack,
@@ -657,7 +683,7 @@ const errorHandler = (err, req, res, next) => {
             context: errorContext
         });
     } else {
-        errorLogger.warn('Erreur opérationnelle', {
+        mainLogger.warn('Erreur opérationnelle', {
             error: {
                 message: error.message,
                 statusCode: error.statusCode,
@@ -670,12 +696,10 @@ const errorHandler = (err, req, res, next) => {
     // Réponse selon l'environnement
     const response = {
         success: false,
-        error: {
-            code: error.errorCode || ERROR_CODES.SYSTEM_DATABASE_ERROR,
-            message: error.message,
-            timestamp: error.timestamp || new Date().toISOString(),
-            ...(error.additionalData && { data: error.additionalData })
-        }
+        message: error.message,
+        code: error.errorCode || ERROR_CODES.SYSTEM_DATABASE_ERROR,
+        timestamp: error.timestamp || new Date().toISOString(),
+        ...(error.additionalData ? { context: error.additionalData } : {})
     };
 
     // En développement, inclure la stack trace

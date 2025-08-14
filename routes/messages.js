@@ -157,7 +157,7 @@ router.post('/websocket/quitter',
 // ===========================================
 
 // Middleware de gestion d'erreurs pour les routes de messages
-router.use((err, req, res, _next) => {
+router.use((err, req, res, next) => {
   console.error('Erreur route message:', err);
   
   // Erreur de validation
@@ -189,11 +189,7 @@ router.use((err, req, res, _next) => {
   }
   
   // Erreur générique
-  res.status(500).json({
-    succes: false,
-    erreur: 'Erreur interne du serveur',
-    details: process.env.NODE_ENV === 'development' ? err.message : 'Une erreur est survenue'
-  });
+  return next(err);
 });
 
 // Route non trouvée
