@@ -713,17 +713,37 @@ const rafraichirToken = async (req, res, next) => {
 // Mot de passe oublié
 const motDePasseOublie = async (req, res, next) => {
   try {
+    // ===== DEBUG : Afficher les informations de la requête =====
+    console.log('=== DEBUG MOT DE PASSE OUBLIE ===');
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Content-Type:', req.get('Content-Type'));
+    console.log('Body (raw):', req.body);
+    console.log('Body type:', typeof req.body);
+    console.log('Body keys:', Object.keys(req.body));
+    console.log('==============================');
+
     const { email } = req.body;
-    
+
+    // ===== DEBUG : Vérification de l'email =====
+    console.log('Email reçu:', email);
+    console.log('Type de email:', typeof email);
+
     if (!email) {
       return res.status(400).json({
         success: false,
-        message: 'Email requis'
+        message: 'Email requis',
+        debug: {
+          receivedBody: req.body,
+          emailValue: email,
+          emailType: typeof email,
+          contentType: req.get('Content-Type'),
+          headers: req.headers
+        }
       });
     }
-    
+
     logger.info('Demande mot de passe oublié', { email });
-    
+
     const user = await User.findOne({ email });
     if (!user) {
       // Ne pas révéler que l'email n'existe pas pour des raisons de sécurité
@@ -743,37 +763,57 @@ const motDePasseOublie = async (req, res, next) => {
     // Envoyer l'email
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     try {
-      await sendEmail({
-        to: user.email,
-        subject: 'Réinitialisation de votre mot de passe',
-        html: `
-          <p>Bonjour ${user.prenom},</p>
-          <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous :</p>
-          <p><a href="${resetUrl}">Réinitialiser mon mot de passe</a></p>
-          <p>Ce lien expirera dans 1 heure.</p>
-          <p>Si vous n'avez pas demandé cette réinitialisation, ignorez ce message.</p>
-        `
-      });
+    await sendEmail({
+    to: user.email,
+    subject: 'Réinitialisation de votre mot de passe',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #ddd; border-radius: 10px; overflow: hidden;">
+        <!-- En-tête violet -->
+        <div style="background-color: #4B0082; color: white; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Covoiturage App</h2>
+        </div>
 
-      logger.info('Email réinitialisation envoyé', { userId: user._id });
-    } catch (emailError) {
-      logger.error('Erreur envoi email réinitialisation:', emailError);
-      // Nettoyer le token en cas d'erreur d'envoi
-      user.tokenResetMotDePasse = undefined;
-      user.expirationTokenReset = undefined;
-      await user.save();
-      
-      return res.status(500).json({
-        success: false,
-        message: 'Erreur lors de l\'envoi de l\'email'
-      });
-    }
+        <!-- Contenu -->
+        <div style="padding: 20px; background-color: #f9f9f9;">
+          <h3 style="color: #4B0082;">Bonjour ${user.prenom},</h3>
+          <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le bouton ci-dessous pour procéder à la réinitialisation :</p>
+
+          <!-- Bouton vert -->
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${resetUrl}"
+               style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+              Réinitialiser mon mot de passe
+            </a>
+          </div>
+
+          <p>Ce lien expirera dans <strong>1 heure</strong>.</p>
+          <p style="color: #666; font-size: 14px;">Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email en toute sécurité.</p>
+        </div>
+
+        <!-- Pied de page -->
+        <div style="background-color: #4B0082; color: white; padding: 10px; text-align: center; font-size: 12px;">
+          <p style="margin: 0;">© 2025 Covoiturage App. Tous droits réservés.</p>
+        </div>
+      </div>
+    `
+  });
+  logger.info('Email réinitialisation envoyé', { userId: user._id });
+} catch (emailError) {
+  logger.error('Erreur envoi email réinitialisation:', emailError);
+  user.tokenResetMotDePasse = undefined;
+  user.expirationTokenReset = undefined;
+  await user.save();
+  return res.status(500).json({
+    success: false,
+    message: 'Erreur lors de l\'envoi de l\'email'
+  });
+}
 
     res.json({
       success: true,
       message: 'Un lien de réinitialisation a été envoyé à votre email'
     });
-    
+
   } catch (error) {
     logger.error('Erreur mot de passe oublié:', error);
     return next(AppError.serverError('Erreur serveur lors de la demande de réinitialisation', { originalError: error.message }));

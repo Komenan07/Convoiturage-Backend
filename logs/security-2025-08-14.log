@@ -10,3 +10,138 @@
   message: 'Accès refusé - Compte désactivé',
   timestamp: '2025-08-14 11:01:02'
 }
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'login_blocked',
+  userId: new ObjectId("689dacad1561f047f59ca0dd"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  deblocageA: undefined,
+  ip: '::1',
+  level: 'warn',
+  message: 'Connexion refusée - Compte non autorisé',
+  timestamp: '2025-08-14 12:03:28'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'account_disabled',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  statut: undefined,
+  ip: '::1',
+  endpoint: 'GET /api/auth/me',
+  level: 'warn',
+  message: 'Accès refusé - Compte désactivé',
+  timestamp: '2025-08-14 15:48:19'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'account_disabled',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  statut: undefined,
+  ip: '::1',
+  endpoint: 'GET /api/auth/me',
+  level: 'warn',
+  message: 'Accès refusé - Compte désactivé',
+  timestamp: '2025-08-14 15:53:57'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'account_disabled',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  statut: undefined,
+  ip: '::1',
+  endpoint: 'GET /api/auth/me',
+  level: 'warn',
+  message: 'Accès refusé - Compte désactivé',
+  timestamp: '2025-08-14 15:54:00'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'account_disabled',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  statut: undefined,
+  ip: '::1',
+  endpoint: 'GET /api/auth/me',
+  level: 'warn',
+  message: 'Accès refusé - Compte désactivé',
+  timestamp: '2025-08-14 15:54:48'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'account_disabled',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  statut: undefined,
+  ip: '::1',
+  endpoint: 'GET /api/auth/me',
+  level: 'warn',
+  message: 'Accès refusé - Compte désactivé',
+  timestamp: '2025-08-14 15:54:51'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'account_disabled',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  statut: undefined,
+  ip: '::1',
+  endpoint: 'GET /api/auth/me',
+  level: 'warn',
+  message: 'Accès refusé - Compte désactivé',
+  timestamp: '2025-08-14 16:47:07'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'account_disabled',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  statut: undefined,
+  ip: '::1',
+  endpoint: 'GET /api/auth/me',
+  level: 'warn',
+  message: 'Accès refusé - Compte désactivé',
+  timestamp: '2025-08-14 16:58:35'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'account_disabled',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  statut: undefined,
+  ip: '::1',
+  endpoint: 'GET /api/auth/me',
+  level: 'warn',
+  message: 'Accès refusé - Compte désactivé',
+  timestamp: '2025-08-14 16:58:38'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'login_blocked',
+  userId: new ObjectId("689e1f57ffa710b7ddd63836"),
+  statut: 'ACTIF',
+  raison: 'Compte temporairement bloqué',
+  deblocageA: 2025-08-14T18:01:42.886Z,
+  ip: '::1',
+  level: 'warn',
+  message: 'Connexion refusée - Compte non autorisé',
+  timestamp: '2025-08-14 17:48:28'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'login_blocked',
+  userId: new ObjectId("689e1f57ffa710b7ddd63836"),
+  statut: 'ACTIF',
+  raison: 'Compte temporairement bloqué',
+  deblocageA: 2025-08-14T18:01:42.886Z,
+  ip: '::1',
+  level: 'warn',
+  message: 'Connexion refusée - Compte non autorisé',
+  timestamp: '2025-08-14 17:51:50'
+}

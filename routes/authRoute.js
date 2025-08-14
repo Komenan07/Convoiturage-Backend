@@ -1,6 +1,8 @@
 // routes/authRoute.js
 const express = require('express');
 const router = express.Router();
+
+// =============== IMPORTS ===============
 const {
   inscription,
   connexion,
@@ -16,11 +18,11 @@ const {
   confirmerEmail, 
   renvoyerConfirmationEmail 
 } = require('../controllers/authController');
-// Import du middleware d'authentification
+
 const { authMiddleware } = require('../middlewares/authMiddleware');
 const AppError = require('../utils/AppError');
 
-// =============== ROUTES PUBLIQUES ===============
+// =============== ROUTES PUBLIQUES - INSCRIPTION ===============
 
 /**
  * @route   POST /api/auth/inscription
@@ -29,53 +31,44 @@ const AppError = require('../utils/AppError');
  */
 router.post('/inscription', inscription);
 
+// =============== ROUTES PUBLIQUES - CONNEXION ===============
+
 /**
  * @route   POST /api/auth/connexion
- * @desc    Connexion utilisateur
+ * @route   POST /api/auth/login (alias)
+ * @desc    Connexion utilisateur standard
  * @access  Public
  */
 router.post('/connexion', connexion);
-
-/**
- * @route   POST /api/auth/login
- * @desc    Alias pour connexion
- * @access  Public
- */
 router.post('/login', connexion);
 
 /**
  * @route   POST /api/auth/admin/connexion
+ * @route   POST /api/auth/admin/login (alias)
  * @desc    Connexion administrateur
  * @access  Public
  */
 router.post('/admin/connexion', connexionAdmin);
-
-/**
- * @route   POST /api/auth/admin/login
- * @desc    Alias pour connexion admin
- * @access  Public
- */
 router.post('/admin/login', connexionAdmin);
+
+// =============== ROUTES PUBLIQUES - GESTION DES TOKENS ===============
 
 /**
  * @route   POST /api/auth/refresh
- * @desc    Rafraîchir le token d'accès
+ * @desc    Rafraîchir le token d'accès avec le refresh token
  * @access  Public
  */
 router.post('/refresh', rafraichirToken);
 
+// =============== ROUTES PUBLIQUES - MOT DE PASSE OUBLIÉ ===============
+
 /**
  * @route   POST /api/auth/forgot-password
+ * @route   POST /api/auth/mot-de-passe-oublie (alias français)
  * @desc    Demande de réinitialisation de mot de passe
  * @access  Public
  */
 router.post('/forgot-password', motDePasseOublie);
-
-/**
- * @route   POST /api/auth/mot-de-passe-oublie
- * @desc    Demande de réinitialisation (version française)
- * @access  Public
- */
 router.post('/mot-de-passe-oublie', demandeReinitialisationMotDePasse);
 
 /**
@@ -87,23 +80,20 @@ router.get('/reset-password/:token', confirmerReinitialisationMotDePasse);
 
 /**
  * @route   POST /api/auth/reset-password/:token
- * @desc    Réinitialiser le mot de passe
+ * @desc    Réinitialiser le mot de passe avec le token
  * @access  Public
  */
 router.post('/reset-password/:token', reinitialiserMotDePasse);
 
+// =============== ROUTES PUBLIQUES - CONFIRMATION EMAIL ===============
+
 /**
  * @route   GET /api/auth/confirm-email/:token
+ * @route   GET /api/auth/confirm-email (avec query param ?token=...)
  * @desc    Confirmer l'email de l'utilisateur via un token
  * @access  Public
  */
 router.get('/confirm-email/:token', confirmerEmail);
-
-/**
- * @route   GET /api/auth/confirm-email
- * @desc    Confirmer l'email via query param (?token=...)
- * @access  Public
- */
 router.get('/confirm-email', confirmerEmail);
 
 /**
@@ -113,55 +103,42 @@ router.get('/confirm-email', confirmerEmail);
  */
 router.post('/resend-confirmation', renvoyerConfirmationEmail);
 
-// =============== ROUTES PROTÉGÉES ===============
+// =============== ROUTES PROTÉGÉES - DÉCONNEXION ===============
 
 /**
  * @route   POST /api/auth/deconnexion
+ * @route   POST /api/auth/logout (alias anglais)
  * @desc    Déconnexion utilisateur
- * @access  Privé
+ * @access  Privé - Token requis
  */
 router.post('/deconnexion', authMiddleware, deconnexion);
-
-/**
- * @route   POST /api/auth/logout
- * @desc    Alias pour déconnexion
- * @access  Privé
- */
 router.post('/logout', authMiddleware, deconnexion);
+
+// =============== ROUTES PROTÉGÉES - VÉRIFICATION ET PROFIL ===============
 
 /**
  * @route   GET /api/auth/verify
- * @desc    Vérifier la validité du token
- * @access  Privé
+ * @desc    Vérifier la validité du token d'authentification
+ * @access  Privé - Token requis
  */
 router.get('/verify', authMiddleware, verifierToken);
 
 /**
  * @route   GET /api/auth/me
+ * @route   GET /api/auth/profil (alias français)
+ * @route   GET /api/auth/user (alias)
  * @desc    Obtenir les informations de l'utilisateur connecté
- * @access  Privé
+ * @access  Privé - Token requis
  */
 router.get('/me', authMiddleware, obtenirUtilisateurConnecte);
-
-/**
- * @route   GET /api/auth/profil
- * @desc    Alias pour obtenir le profil utilisateur
- * @access  Privé
- */
 router.get('/profil', authMiddleware, obtenirUtilisateurConnecte);
-
-/**
- * @route   GET /api/auth/user
- * @desc    Alias pour obtenir l'utilisateur connecté
- * @access  Privé
- */
 router.get('/user', authMiddleware, obtenirUtilisateurConnecte);
 
-// =============== ROUTES DE TEST/SANTÉ ===============
+// =============== ROUTES DE MONITORING ET DIAGNOSTICS ===============
 
 /**
  * @route   GET /api/auth/health
- * @desc    Vérifier l'état du service d'authentification
+ * @desc    Vérifier l'état de santé du service d'authentification
  * @access  Public
  */
 router.get('/health', (req, res) => {
@@ -179,30 +156,24 @@ router.get('/health', (req, res) => {
     routes: {
       publiques: [
         'POST /inscription',
-        'POST /connexion',
-        'POST /login',
-        'POST /admin/connexion',
-        'POST /admin/login',
+        'POST /connexion | /login',
+        'POST /admin/connexion | /admin/login',
         'POST /refresh',
-        'POST /forgot-password',
-        'POST /mot-de-passe-oublie',
+        'POST /forgot-password | /mot-de-passe-oublie',
         'GET /reset-password/:token',
         'POST /reset-password/:token',
-        'GET /confirm-email/:token',
-        'GET /confirm-email',
+        'GET /confirm-email/:token | /confirm-email',
         'POST /resend-confirmation'
       ],
       protegees: [
-        'POST /deconnexion',
-        'POST /logout',
+        'POST /deconnexion | /logout',
         'GET /verify',
-        'GET /me',
-        'GET /profil',
-        'GET /user'
+        'GET /me | /profil | /user'
       ],
-      test: [
+      monitoring: [
         'GET /health',
-        'GET /test'
+        'GET /test',
+        'GET /status'
       ]
     }
   });
@@ -210,7 +181,7 @@ router.get('/health', (req, res) => {
 
 /**
  * @route   GET /api/auth/test
- * @desc    Route de test simple
+ * @desc    Route de test simple pour vérifier la connectivité
  * @access  Public
  */
 router.get('/test', (req, res) => {
@@ -252,30 +223,32 @@ router.get('/status', (req, res) => {
       variables: envStatus
     },
     services: {
-      database: 'Opérationnel', // Vous pourriez ajouter une vérification réelle
+      database: 'Opérationnel',
       email: process.env.EMAIL_HOST ? 'Configuré' : 'Non configuré',
       jwt: process.env.JWT_SECRET ? 'Configuré' : 'Non configuré'
     }
   });
 });
 
-// =============== GESTION D'ERREURS ===============
+// =============== GESTION CENTRALISÉE DES ERREURS ===============
 
 /**
  * Middleware d'erreurs spécifique au router d'authentification
- * Respecte la structure AppError unifié ou propage l'erreur
+ * Gère les erreurs selon le format AppError unifié
  */
 router.use((error, req, res, next) => {
-  // Log de l'erreur pour le débogage
+  // Log détaillé de l'erreur pour le debugging
   console.error('Erreur dans le router auth:', {
     message: error.message,
     stack: error.stack,
     url: req.url,
     method: req.method,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    userAgent: req.get('User-Agent'),
+    ip: req.ip
   });
 
-  // Respecter notre AppError unifié
+  // Gestion des erreurs AppError ou erreurs avec structure similaire
   if (error instanceof AppError || (error && typeof error.status === 'number' && typeof error.code === 'string')) {
     return res.status(error.status).json({
       success: false,
@@ -305,7 +278,7 @@ router.use((error, req, res, next) => {
     });
   }
 
-  // Gestion des erreurs de validation Express
+  // Gestion des erreurs de parsing JSON Express
   if (error.type === 'entity.parse.failed') {
     return res.status(400).json({
       success: false,
@@ -315,8 +288,20 @@ router.use((error, req, res, next) => {
     });
   }
 
-  // Pour toutes les autres erreurs, laisser le handler global décider
+  // Gestion des erreurs de validation Express
+  if (error.type === 'entity.too.large') {
+    return res.status(413).json({
+      success: false,
+      code: 'PAYLOAD_TOO_LARGE',
+      message: 'Données trop volumineuses',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Pour toutes les autres erreurs, les propager au handler global
   return next(error);
 });
+
+// =============== EXPORT DU ROUTER ===============
 
 module.exports = router;

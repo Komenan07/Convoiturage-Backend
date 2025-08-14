@@ -237,6 +237,13 @@ const changerMotDePasse = async (req, res, next) => {
   try {
     const { ancienMotDePasse, nouveauMotDePasse } = req.body;
 
+    if (!ancienMotDePasse || !nouveauMotDePasse) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Ancien et nouveau mot de passe requis' 
+      });
+    }
+
     if (!req.user?.userId) {
       return res.status(400).json({ 
         success: false, 
@@ -244,10 +251,14 @@ const changerMotDePasse = async (req, res, next) => {
       });
     }
 
-    const utilisateur = await Utilisateur.findById(req.user.userId);
+    // Sélectionner explicitement le mot de passe
+    const utilisateur = await Utilisateur.findById(req.user.userId).select('+motDePasse');
     if (!utilisateur) {
       return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
     }
+
+    console.log("Ancien reçu:", ancienMotDePasse);
+    console.log("Mot de passe BDD:", utilisateur.motDePasse);
 
     const isPasswordValid = await bcrypt.compare(ancienMotDePasse, utilisateur.motDePasse);
     if (!isPasswordValid) {
@@ -255,8 +266,7 @@ const changerMotDePasse = async (req, res, next) => {
     }
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(nouveauMotDePasse, salt);
-    utilisateur.motDePasse = hashedPassword;
+    utilisateur.motDePasse = await bcrypt.hash(nouveauMotDePasse, salt);
     await utilisateur.save();
 
     logger.info('Mot de passe modifié', { userId: req.user.userId });

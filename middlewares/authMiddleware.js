@@ -1,4 +1,4 @@
-// middlewares/authMiddleware.js
+// middlewares/authMiddleware.js - Version corrigée
 const jwt = require('jsonwebtoken');
 const User = require('../models/Utilisateur');
 const AppError = require('../utils/AppError');
@@ -66,16 +66,37 @@ const authMiddleware = async (req, res, next) => {
       return next(AppError.userNotFound({ tokenUserId: decoded.userId }));
     }
 
-    // 5. Vérifier le statut du compte
-    if (user.statut !== 'actif') {
+    // 5. Vérifier le statut du compte - CORRECTION ICI
+    // Utiliser la méthode peutSeConnecter() pour une vérification cohérente
+    const statutAutorise = user.peutSeConnecter();
+    if (!statutAutorise.autorise) {
       securityLogger.warn('Accès refusé - Compte désactivé', {
         event: 'account_disabled',
         userId: user._id,
-        statut: user.statut,
+        statut: user.statutCompte,
+        raison: statutAutorise.raison,
         ip: req.ip,
         endpoint: `${req.method} ${req.originalUrl}`
       });
-      return next(AppError.accountDisabled({ userId: user._id, statut: user.statut }));
+      
+      const context = {
+        userId: user._id,
+        statut: user.statutCompte,
+        raison: statutAutorise.raison,
+        deblocageA: statutAutorise.deblocageA
+      };
+
+      // Retourner des erreurs spécifiques selon le statut
+      if (user.statutCompte === 'BLOQUE') {
+        return next(AppError.accountPermanentlyBlocked(context));
+      } else if (user.statutCompte === 'SUSPENDU') {
+        return next(AppError.accountSuspended(context));
+      } else if (user.statutCompte === 'EN_ATTENTE_VERIFICATION') {
+        return next(AppError.accountPendingVerification(context));
+      } else if (statutAutorise.raison === 'Compte temporairement bloqué') {
+        return next(AppError.accountTemporarilyBlocked(context));
+      }
+      return next(AppError.accountDisabled(context));
     }
 
     // 6. Ajouter les informations utilisateur à la requête
@@ -96,54 +117,6 @@ const authMiddleware = async (req, res, next) => {
   } catch (error) {
     return next(AppError.serverError("Erreur serveur lors de l'authentification", { originalError: error.message }));
   }
-};
-
-/**
- * Middleware pour vérifier les rôles administrateur
- */
-const adminMiddleware = async (req, res, next) => {
-  try {
-    // D'abord, vérifier l'authentification
-    await authMiddleware(req, res, () => {
-      // Vérifier le rôle admin
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: 'Accès refusé. Droits administrateur requis.',
-          code: 'ADMIN_REQUIRED'
-        });
-      }
-      next();
-    });
-  } catch (error) {
-    console.error('Erreur dans adminMiddleware:', error);
-    return next(AppError.serverError('Erreur serveur lors de la vérification des droits admin', { originalError: error.message }));
-  }
-};
-
-/**
- * Middleware pour vérifier plusieurs rôles autorisés
- */
-const roleMiddleware = (rolesAutorises) => {
-  return async (req, res, next) => {
-    try {
-      // D'abord, vérifier l'authentification
-      await authMiddleware(req, res, () => {
-        // Vérifier si le rôle utilisateur est dans la liste autorisée
-        if (!rolesAutorises.includes(req.user.role)) {
-          return res.status(403).json({
-            success: false,
-            message: `Accès refusé. Rôles autorisés: ${rolesAutorises.join(', ')}`,
-            code: 'ROLE_NOT_AUTHORIZED'
-          });
-        }
-        next();
-      });
-    } catch (error) {
-      console.error('Erreur dans roleMiddleware:', error);
-      return next(AppError.serverError('Erreur serveur lors de la vérification des rôles', { originalError: error.message }));
-    }
-  };
 };
 
 /**
@@ -175,15 +148,23 @@ const optionalAuthMiddleware = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.userId).select('-password -refreshToken');
       
-      if (user && user.statut === 'actif') {
-        req.user = {
-          userId: user._id,
-          email: user.email,
-          role: user.role,
-          nom: user.nom,
-          prenom: user.prenom
-        };
-        req.userProfile = user;
+      // CORRECTION : Utiliser statutCompte et la méthode peutSeConnecter()
+      if (user) {
+        const statutAutorise = user.peutSeConnecter();
+        if (statutAutorise.autorise) {
+          req.user = {
+            id: user._id,
+            userId: user._id,
+            email: user.email,
+            role: user.role,
+            nom: user.nom,
+            prenom: user.prenom
+          };
+          req.userProfile = user;
+        } else {
+          req.user = null;
+          req.userProfile = null;
+        }
       } else {
         req.user = null;
         req.userProfile = null;
@@ -201,14 +182,53 @@ const optionalAuthMiddleware = async (req, res, next) => {
     // En cas d'erreur, continuer sans authentification
     req.user = null;
     req.userProfile = null;
-    return next(AppError.serverError('Erreur serveur lors de l\'authentification optionnelle', { originalError: error.message }));
+    return next();
   }
 };
 
-/**
- * Middleware pour vérifier que l'utilisateur accède à ses propres données
- * Utilise req.params.userId ou req.params.id
- */
+// ... Reste des middlewares inchangé
+const adminMiddleware = async (req, res, next) => {
+  try {
+    // D'abord, vérifier l'authentification
+    await authMiddleware(req, res, () => {
+      // Vérifier le rôle admin
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Accès refusé. Droits administrateur requis.',
+          code: 'ADMIN_REQUIRED'
+        });
+      }
+      next();
+    });
+  } catch (error) {
+    console.error('Erreur dans adminMiddleware:', error);
+    return next(AppError.serverError('Erreur serveur lors de la vérification des droits admin', { originalError: error.message }));
+  }
+};
+
+const roleMiddleware = (rolesAutorises) => {
+  return async (req, res, next) => {
+    try {
+      // D'abord, vérifier l'authentification
+      await authMiddleware(req, res, () => {
+        // Vérifier si le rôle utilisateur est dans la liste autorisée
+        if (!rolesAutorises.includes(req.user.role)) {
+          return res.status(403).json({
+            success: false,
+            message: `Accès refusé. Rôles autorisés: ${rolesAutorises.join(', ')}`,
+            code: 'ROLE_NOT_AUTHORIZED'
+          });
+        }
+        next();
+      });
+    } catch (error) {
+      console.error('Erreur dans roleMiddleware:', error);
+      return next(AppError.serverError('Erreur serveur lors de la vérification des rôles', { originalError: error.message }));
+    }
+  };
+};
+
 const ownershipMiddleware = async (req, res, next) => {
   try {
     const targetUserId = req.params.userId || req.params.id;
@@ -229,9 +249,6 @@ const ownershipMiddleware = async (req, res, next) => {
   }
 };
 
-/**
- * Middleware de logging des accès authentifiés
- */
 const logAuthMiddleware = (req, res, next) => {
   if (req.user) {
     console.log(`🔐 Accès authentifié: ${req.method} ${req.originalUrl} - User: ${req.user.userId} (${req.user.role})`);

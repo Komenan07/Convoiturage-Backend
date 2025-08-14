@@ -214,3 +214,1459 @@
   message: 'Email envoyé avec succès',
   timestamp: '2025-08-14 10:58:58'
 }
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 11:56:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 12:03:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689dacad1561f047f59ca0dd"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-14 12:03:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 12:04:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 12:04:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 14:21:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689df1095d315ec6507050c3"),
+  email: 'davidassouhoun2004@gmail.com',
+  level: 'info',
+  message: 'Nouvel utilisateur créé',
+  timestamp: '2025-08-14 14:22:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'davidassouhoun2004@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 14:28:32'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'davidassouhoun2004@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 14:28:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-14 14:35:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'warn',
+  message: 'Inscription échouée - Email déjà utilisé',
+  timestamp: '2025-08-14 14:35:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-14 14:39:06'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-14 14:39:07'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-14 14:39:07'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-14 14:39:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-14 14:39:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-14 14:39:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'komenanjean07@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-14 14:40:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-14 14:40:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-14 14:40:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-14 14:43:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-14 14:43:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689df6245d315ec6507050d4"),
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-14 14:43:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689df6245d315ec6507050d4"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-14 14:43:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'ccf5937f5a...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-14 14:45:41'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689df6245d315ec6507050d4"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-14 14:45:41'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-14 14:45:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'davidassouhoun2004@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 15:09:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'davidassouhoun2004@gmail.com',
+  tentativesEchouees: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 15:09:46'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 15:12:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 15:12:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 15:33:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 15:34:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  index: 0,
+  code: 16755,
+  level: 'error',
+  message: `Erreur connexion: Can't extract geo keys: { _id: ObjectId('689e011af59c8dea038aff14'), email: "kouakou01marc@gmail.com", motDePasse: "$2a$10$eLE.jtte9aXP8S7Pex53BeVKNF4oWm2leDSWBUPXhsSoHmea6PuR6", nom: "Kouakou", prenom: "Marc", telephone: "0701020305", statutCompte: "ACTIF", role: "utilisateur", estVerifie: true, emailConfirmeLe: new Date(1755185434402), tentativesConnexionEchouees: 0, derniereTentativeConnexion: null, compteBloqueLe: null, __v: 1, adresse: { coordonnees: { type: "Point" }, ville: "Abidjan" }, badges: [], contactsUrgence: [], dateInscription: new Date(1755185679009), derniereConnexion: new Date(1755185679241), documentIdentite: { statutVerification: "EN_ATTENTE" }, historiqueStatuts: [], nombreTrajetsAnnules: 0, nombreTrajetsEffectues: 0, noteGenerale: 0, preferences: { climatisation: true, conversation: "NEUTRE", languePreferee: "FR", musique: true }, scoreConfiance: 50, updatedAt: new Date(1755185679241) }  Point must be an array or object, instead got type missing`,
+  stack: `MongoServerError: Can't extract geo keys: { _id: ObjectId('689e011af59c8dea038aff14'), email: "kouakou01marc@gmail.com", motDePasse: "$2a$10$eLE.jtte9aXP8S7Pex53BeVKNF4oWm2leDSWBUPXhsSoHmea6PuR6", nom: "Kouakou", prenom: "Marc", telephone: "0701020305", statutCompte: "ACTIF", role: "utilisateur", estVerifie: true, emailConfirmeLe: new Date(1755185434402), tentativesConnexionEchouees: 0, derniereTentativeConnexion: null, compteBloqueLe: null, __v: 1, adresse: { coordonnees: { type: "Point" }, ville: "Abidjan" }, badges: [], contactsUrgence: [], dateInscription: new Date(1755185679009), derniereConnexion: new Date(1755185679241), documentIdentite: { statutVerification: "EN_ATTENTE" }, historiqueStatuts: [], nombreTrajetsAnnules: 0, nombreTrajetsEffectues: 0, noteGenerale: 0, preferences: { climatisation: true, conversation: "NEUTRE", languePreferee: "FR", musique: true }, scoreConfiance: 50, updatedAt: new Date(1755185679241) }  Point must be an array or object, instead got type missing\n` +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongodb\\lib\\operations\\update.js:70:33\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongodb\\lib\\operations\\command.js:84:64\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-14 15:34:39',
+  [Symbol(errorLabels)]: Set(0) {}
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 15:37:32'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 15:38:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 15:39:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-14 15:39:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 15:52:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 15:52:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-14 15:52:32'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 15:54:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-14 15:54:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e0fb35d315ec6507050ec"),
+  email: 'davidassohoun2004@gmail.com',
+  level: 'info',
+  message: 'Nouvel utilisateur créé',
+  timestamp: '2025-08-14 16:32:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 16:47:06'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-14 16:47:06'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 16:58:07'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e028cdf480136c006cd2c"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-14 16:58:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 17:09:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:10:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:10:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:11:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  tentativesEchouees: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:11:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:13:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  tentativesEchouees: 4,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:13:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-14 17:14:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-14 17:14:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e1979e0443e4db9a5cce7"),
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-14 17:14:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e1979e0443e4db9a5cce7"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-14 17:14:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'f09df5b968...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-14 17:16:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e1979e0443e4db9a5cce7"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-14 17:16:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-14 17:16:25'
+}
+{
+  message: 'Confirmation email - Token manquant',
+  level: 'warn',
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-14 17:20:32'
+}
+{
+  message: 'Confirmation email - Token manquant',
+  level: 'warn',
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-14 17:21:20'
+}
+{
+  message: 'Confirmation email - Token manquant',
+  level: 'warn',
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-14 17:21:22'
+}
+{
+  message: 'Confirmation email - Token manquant',
+  level: 'warn',
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-14 17:21:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:22:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:22:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:22:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:22:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:26:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:26:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:26:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 17:26:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:26:57'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:34:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 4,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:34:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:41:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:41:46'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:41:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:41:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:42:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 4,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:42:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:45:40'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 5,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:45:41'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 17:46:36'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:46:42'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 6,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:46:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 17:48:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:48:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e1f57ffa710b7ddd63836"),
+  statut: 'ACTIF',
+  raison: 'Compte temporairement bloqué',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-14 17:48:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:49:07'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  tentativesEchouees: 5,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:49:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 17:50:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:51:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e1f57ffa710b7ddd63836"),
+  statut: 'ACTIF',
+  raison: 'Compte temporairement bloqué',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-14 17:51:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 17:53:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:53:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:53:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:54:16'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 17:54:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 17:54:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 17:56:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 17:56:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:57:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e22c03ac536040f88cb15"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-14 17:57:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 17:57:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 17:58:07'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e22c03ac536040f88cb15"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-14 17:58:08'
+}
+{
+  message: 'Confirmation email - Token manquant',
+  level: 'warn',
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-14 17:58:35'
+}
+{
+  message: 'Confirmation email - Token manquant',
+  level: 'warn',
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-14 17:58:39'
+}
+{
+  message: 'Confirmation email - Token manquant',
+  level: 'warn',
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-14 17:58:40'
+}
+{
+  message: 'Confirmation email - Token manquant',
+  level: 'warn',
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-14 17:58:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'eyJhbGciOi...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-14 18:00:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'eyJhbGciOi...',
+  level: 'warn',
+  message: 'Confirmation email - Token invalide ou expiré',
+  timestamp: '2025-08-14 18:00:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 18:03:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 18:06:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 18:08:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e22c03ac536040f88cb15"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-14 18:08:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 18:08:24'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e22c03ac536040f88cb15"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-14 18:08:24'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'eyJhbGciOi...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-14 18:09:24'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'eyJhbGciOi...',
+  level: 'warn',
+  message: 'Confirmation email - Token invalide ou expiré',
+  timestamp: '2025-08-14 18:09:24'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'f09df5b968...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-14 18:10:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'f09df5b968...',
+  level: 'warn',
+  message: 'Confirmation email - Token invalide ou expiré',
+  timestamp: '2025-08-14 18:10:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 18:23:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 18:24:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 18:24:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 18:25:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 18:31:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 18:33:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  tentativesEchouees: 6,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 18:33:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 18:33:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 18:37:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 18:38:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 18:58:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Demande mot de passe oublié',
+  timestamp: '2025-08-14 19:00:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-14 19:00:24'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e062568c133616acce6fc"),
+  level: 'info',
+  message: 'Email réinitialisation envoyé',
+  timestamp: '2025-08-14 19:00:24'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Demande mot de passe oublié',
+  timestamp: '2025-08-14 19:09:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-14 19:09:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e062568c133616acce6fc"),
+  level: 'info',
+  message: 'Email réinitialisation envoyé',
+  timestamp: '2025-08-14 19:09:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 19:31:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e22c03ac536040f88cb15"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-14 19:31:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur changement mot de passe: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at changerMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\controllers\\utilisateurController.js:252:42)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-14 19:32:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: 'Erreur traitée (AppError utilitaire) Erreur serveur lors du changement de mot de passe',
+  context: { originalError: 'Illegal arguments: string, undefined' },
+  url: '/api/utilisateurs/mot-de-passe',
+  method: 'PUT',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: new ObjectId("689e22c03ac536040f88cb15"),
+  body: {
+    ancienMotDePasse: 'AncienPassword123!',
+    nouveauMotDePasse: 'NouveauPassword456!'
+  },
+  query: {},
+  params: {},
+  timestamp: '2025-08-14 19:32:00',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur changement mot de passe: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at changerMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\controllers\\utilisateurController.js:252:42)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-14 19:32:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: 'Erreur traitée (AppError utilitaire) Erreur serveur lors du changement de mot de passe',
+  context: { originalError: 'Illegal arguments: string, undefined' },
+  url: '/api/utilisateurs/mot-de-passe',
+  method: 'PUT',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: new ObjectId("689e22c03ac536040f88cb15"),
+  body: { ancienMotDePasse: 'Je@nM@rc79!', nouveauMotDePasse: 'Komen@n79' },
+  query: {},
+  params: {},
+  timestamp: '2025-08-14 19:32:38',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-14 19:37:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e22c03ac536040f88cb15"),
+  level: 'info',
+  message: 'Mot de passe modifié',
+  timestamp: '2025-08-14 19:37:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 19:38:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 19:38:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 19:38:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 19:38:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 19:38:36'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 4,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 19:38:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-14 19:38:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 5,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-14 19:38:54'
+}
