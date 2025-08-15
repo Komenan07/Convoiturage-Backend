@@ -92,3 +92,4 @@ async function testConnexionSmartFinal() {
 
 // Test de connexion
 testConnexionSmartFinal();
+

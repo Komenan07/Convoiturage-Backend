@@ -78,3 +78,4 @@ async function testConnexionSmart() {
 
 // Test de connexion
 testConnexionSmart();
+

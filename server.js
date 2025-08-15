@@ -4,8 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const connectDB = require('./config/db');
 const { errorHandler } = require('./middlewares/errorHandler');
-//const socketIo = require('socket.io');
-
+const http = require('http'); 
 
 const app = express();
 
@@ -15,14 +14,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Configuration des fichiers statiques pour les uploads
-
-// Créer les répertoires d'upload s'ils n'existent pas
 const uploadDirs = [
   path.join(__dirname, 'public', 'uploads', 'photos'),
   path.join(__dirname, 'public', 'uploads', 'documents'),
   path.join(__dirname, 'public', 'uploads', 'vehicules')
 ];
-
 uploadDirs.forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -42,20 +38,16 @@ const chargerRouteSecurisee = (cheminRoute, nomRoute, urlBase) => {
       console.warn(`⚠️ Fichier route non trouvé: ${cheminComplet}`);
       return false;
     }
-
     delete require.cache[require.resolve(cheminRoute)];
-    const route = require(cheminRoute);
-
+    const route = require(cheminComplet);
     if (!route) {
       console.error(`❌ ${nomRoute}: Le module n'exporte rien (undefined/null)`);
       return false;
     }
-
     if (typeof route !== 'function') {
       console.error(`❌ ${nomRoute}: Le module exporté n'est pas un router Express valide`);
       return false;
     }
-
     app.use(urlBase, route);
     console.log(`✅ Route ${nomRoute} chargée avec succès (${urlBase})`);
     return true;
@@ -65,12 +57,10 @@ const chargerRouteSecurisee = (cheminRoute, nomRoute, urlBase) => {
   }
 };
 
-// Configuration des routes - CORRIGÉ
+// Configuration des routes
 console.log('🚀 Chargement des routes...\n');
-
 const routesConfig = [
   { nom: 'authentification', chemins: ['./routes/authRoute.js'], url: '/api/auth' },
-  // CORRECTION: Utilisateur au singulier pour correspondre au nom du fichier
   { nom: 'utilisateurs', chemins: ['./routes/utilisateur.js'], url: '/api/utilisateurs' },
   { nom: 'véhicules', chemins: ['./routes/vehicules.js'], url: '/api/vehicules' },
   { nom: 'trajets', chemins: ['./routes/trajets.js'], url: '/api/trajets' },
@@ -87,7 +77,6 @@ const routesConfig = [
 
 let routesChargees = 0;
 const routesDetails = [];
-
 routesConfig.forEach(config => {
   let routeChargee = false;
   for (const chemin of config.chemins) {
@@ -156,14 +145,19 @@ const demarrerServeur = async () => {
     console.log('✅ Connexion MongoDB établie');
 
     // Créer un serveur HTTP natif afin d'attacher Socket.io
-    const http = require('http');
     const server = http.createServer(app);
 
     // Initialiser Socket.io
     try {
       const { initSocket } = require('./realtime/socket');
-      initSocket(server, app);
+      const io = initSocket(server, app); // <-- Récupérer l'instance io pour une utilisation ultérieure si nécessaire
       console.log('✅ Socket.io initialisé');
+
+      // Exemple : Écouter un événement personnalisé au niveau du serveur principal (optionnel)
+      io.on('connection', (socket) => {
+        console.log(`🔌 Socket connecté: ${socket.id}`);
+      });
+
     } catch (e) {
       console.warn('⚠️ Socket.io non initialisé:', e.message);
     }
@@ -176,6 +170,7 @@ const demarrerServeur = async () => {
       console.log(`📋 Endpoints: http://${HOST}:${PORT}/api`);
       console.log('🎉 ================================\n');
     });
+
   } catch (error) {
     console.error('❌ Erreur lors du démarrage du serveur:', error.message);
     process.exit(1);

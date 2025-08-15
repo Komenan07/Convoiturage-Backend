@@ -182,6 +182,87 @@ const supprimerAlerteUrgence = async (req, res, next) => {
 // =============== MÉTHODES SPÉCIFIQUES ===============
 
 /**
+ * @desc    Déclencher une alerte d'urgence immédiate
+ * @route   POST /api/alertes-urgence/declencher
+ * @access  Privé (utilisateur authentifié)
+ */
+const declencherAlerte = async (req, res, next) => {
+  try {
+    logger.info('Déclenchement alerte urgence immédiate', { userId: req.user.userId });
+
+    const { 
+      description, 
+      position, 
+      typeUrgence, 
+      contactsAlertes,
+      personnesPresentes,
+      niveauUrgence = 'CRITIQUE' 
+    } = req.body;
+
+    // Validation des champs requis
+    if (!description) {
+      return res.status(400).json({
+        success: false,
+        message: 'Description de l\'urgence requise'
+      });
+    }
+
+    if (!position || !position.coordinates) {
+      return res.status(400).json({
+        success: false,
+        message: 'Position GPS requise pour déclencher l\'alerte'
+      });
+    }
+
+    // Créer l'alerte d'urgence immédiate
+    const alerteData = {
+      declencheurId: req.user.userId,
+      description,
+      position,
+      typeUrgence: typeUrgence || 'GENERALE',
+      niveauUrgence,
+      statut: 'ACTIVE',
+      dateDeclaration: new Date(),
+      contactsAlertes: contactsAlertes || [],
+      personnesPresentes: personnesPresentes || [],
+      estUrgenceImmediate: true, // Marquer comme urgence immédiate
+      dateActivation: new Date()
+    };
+
+    const nouvelleAlerte = new AlerteUrgence(alerteData);
+    await nouvelleAlerte.save();
+
+    // TODO: Ici vous pouvez ajouter la logique pour :
+    // - Envoyer des notifications SMS/Email aux contacts
+    // - Notifier les services d'urgence si nécessaire
+    // - Déclencher des alertes push
+    // - Enregistrer dans un système de géolocalisation d'urgence
+
+    logger.info('Alerte urgence immédiate déclenchée', { 
+      alerteId: nouvelleAlerte._id, 
+      userId: req.user.userId,
+      niveauUrgence 
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Alerte d\'urgence déclenchée avec succès',
+      alerte: nouvelleAlerte,
+      informations: {
+        alerteActive: true,
+        dateDeclaration: nouvelleAlerte.dateDeclaration,
+        niveauUrgence: nouvelleAlerte.niveauUrgence,
+        contactsNotifies: nouvelleAlerte.contactsAlertes.length
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur déclenchement alerte urgence:', error);
+    return next(AppError.serverError('Erreur serveur lors du déclenchement de l\'alerte urgence', { originalError: error.message }));
+  }
+};
+
+/**
  * @desc    Mettre à jour le statut d'une alerte d'urgence
  * @route   PUT /api/alertes-urgence/:alerteId/statut
  * @access  Privé (utilisateur authentifié)
@@ -219,6 +300,7 @@ const mettreAJourStatutAlerte = async (req, res, next) => {
       });
     }
 
+    const ancienStatut = alerte.statut;
     alerte.statut = nouveauStatut;
     alerte.dateModification = new Date();
     
@@ -227,8 +309,9 @@ const mettreAJourStatutAlerte = async (req, res, next) => {
     }
 
     // Ajouter à l'historique des statuts
+    alerte.historiqueStatuts = alerte.historiqueStatuts || [];
     alerte.historiqueStatuts.push({
-      ancienStatut: alerte.statut,
+      ancienStatut,
       nouveauStatut,
       raison: raison || 'Modification par l\'utilisateur',
       dateModification: new Date(),
@@ -515,6 +598,7 @@ module.exports = {
   supprimerAlerteUrgence,
   
   // Méthodes spécifiques
+  declencherAlerte,
   mettreAJourStatutAlerte,
   ajouterContactAlerte,
   ajouterPersonnePresente,

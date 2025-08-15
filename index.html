@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Socket.IO</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    #logs {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 300px;
+      overflow-y: scroll;
+      margin: 20px 0;
+      background-color: #f9f9f9;
+    }
+    button {
+      padding: 8px 16px;
+      margin: 5px;
+      cursor: pointer;
+    }
+    .success {
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test Socket.IO</h1>
+  <p>Ouvrez la console (F12) pour voir les logs détaillés.</p>
+
+  <div>
+    <h3>Actions</h3>
+    <button onclick="connectSocket()">Se connecter</button>
+    <button onclick="joinConversation()">Rejoindre une conversation</button>
+    <button onclick="sendMessage()">Envoyer un message</button>
+    <button onclick="joinTrajet()">Rejoindre un trajet</button>
+    <button onclick="updateLocation()">Mettre à jour la position</button>
+    <button onclick="disconnectSocket()">Se déconnecter</button>
+  </div>
+
+  <h3>Logs</h3>
+  <div id="logs"></div>
+
+  <script>
+    let socket = null;
+    const logsDiv = document.getElementById('logs');
+
+    function log(message, isError = false) {
+      const logEntry = document.createElement('p');
+      logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logEntry.className = isError ? 'error' : 'success';
+      logsDiv.appendChild(logEntry);
+      logsDiv.scrollTop = logsDiv.scrollHeight;
+      console.log(message);
+    }
+
+    function connectSocket() {
+      if (socket && socket.connected) {
+        log('Déjà connecté !');
+        return;
+      }
+
+      // Remplacez par votre token JWT valide
+      const token = prompt("Entrez votre token JWT :", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODlmNjE5OGU2OGQwMzRmZmY0MDM2NDIiLCJyb2xlIjoidXRpbGlzYXRldXIiLCJpYXQiOjE3NTUyNzU4NzgsImV4cCI6MTc1NTI3Njc3OH0.NDKl32X6qjbhKtXxfny3aeQlEUTB3FmCxQHe3DCIV9c");
+      if (!token) {
+        log('Token requis !', true);
+        return;
+      }
+
+      socket = io("http://localhost:3000", {
+        auth: { token }
+      });
+
+      socket.on("connect", () => {
+        log(`Connecté au serveur ! ID: ${socket.id}`);
+      });
+
+      socket.on("connect_error", (err) => {
+        log(`Erreur de connexion: ${err.message}`, true);
+      });
+
+      socket.on("disconnect", (reason) => {
+        log(`Déconnecté: ${reason}`);
+      });
+
+      // Écouter les événements de base
+      socket.on("connection:ack", (data) => {
+        log(`Connexion confirmée: ${JSON.stringify(data)}`);
+      });
+
+      socket.on("user_online", (data) => {
+        log(`Utilisateur en ligne: ${JSON.stringify(data)}`);
+      });
+
+      socket.on("new_message", (data) => {
+        log(`Nouveau message: ${JSON.stringify(data)}`);
+      });
+
+      socket.on("trajet_location_update", (data) => {
+        log(`Mise à jour de position: ${JSON.stringify(data)}`);
+      });
+    }
+
+    function joinConversation() {
+      if (!socket || !socket.connected) {
+        log('Non connecté au serveur !', true);
+        return;
+      }
+
+      const conversationId = prompt("ID de la conversation :", "id_dune_conversation_existante");
+      if (!conversationId) {
+        log('ID de conversation requis !', true);
+        return;
+      }
+
+      socket.emit("conversation:join", { conversationId }, (response) => {
+        if (response.success) {
+          log(`Conversation rejointe: ${JSON.stringify(response)}`);
+        } else {
+          log(`Erreur: ${response.error}`, true);
+        }
+      });
+    }
+
+    function sendMessage() {
+      if (!socket || !socket.connected) {
+        log('Non connecté au serveur !', true);
+        return;
+      }
+
+      const conversationId = prompt("ID de la conversation :", "id_dune_conversation_existante");
+      const destinataireId = prompt("ID du destinataire :", "id_dun_utilisateur_existant");
+      const contenu = prompt("Contenu du message :", "Bonjour, ceci est un test !");
+
+      if (!conversationId || !destinataireId || !contenu) {
+        log('Tous les champs sont requis !', true);
+        return;
+      }
+
+      socket.emit("send_message", {
+        conversationId,
+        destinataireId,
+        contenu,
+        typeMessage: "TEXTE"
+      }, (response) => {
+        if (response.success) {
+          log(`Message envoyé: ${JSON.stringify(response)}`);
+        } else {
+          log(`Erreur: ${response.error}`, true);
+        }
+      });
+    }
+
+    function joinTrajet() {
+      if (!socket || !socket.connected) {
+        log('Non connecté au serveur !', true);
+        return;
+      }
+
+      const trajetId = prompt("ID du trajet :", "id_dun_trajet_existant");
+      if (!trajetId) {
+        log('ID de trajet requis !', true);
+        return;
+      }
+
+      socket.emit("trajet:join", { trajetId }, (response) => {
+        if (response.success) {
+          log(`Trajet rejoint: ${JSON.stringify(response)}`);
+        } else {
+          log(`Erreur: ${response.error}`, true);
+        }
+      });
+    }
+
+    function updateLocation() {
+      if (!socket || !socket.connected) {
+        log('Non connecté au serveur !', true);
+        return;
+      }
+
+      const trajetId = prompt("ID du trajet :", "id_dun_trajet_existant");
+      if (!trajetId) {
+        log('ID de trajet requis !', true);
+        return;
+      }
+
+      socket.emit("update_location", {
+        trajetId,
+        position: {
+          type: "Point",
+          coordinates: [-4.03, 5.35] // Exemple : Coordonnées d'Abidjan
+        }
+      }, (response) => {
+        if (response.success) {
+          log(`Position mise à jour: ${JSON.stringify(response)}`);
+        } else {
+          log(`Erreur: ${response.error}`, true);
+        }
+      });
+    }
+
+    function disconnectSocket() {
+      if (!socket || !socket.connected) {
+        log('Non connecté au serveur !', true);
+        return;
+      }
+
+      socket.disconnect();
+      log('Déconnecté du serveur.');
+    }
+  </script>
+</body>
+</html>

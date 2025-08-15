@@ -1,0 +1,174 @@
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Erreur déclenchement alerte urgence: Cannot read properties of undefined (reading 'userId')",
+  stack: "TypeError: Cannot read properties of undefined (reading 'userId')\n" +
+    '    at declencherAlerte (C:\\Projet perso\\Convoiturage-Backend\\controllers\\alerteUrgenceController.js:191:78)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\routes\\alertes-urgence.js:75:5\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:659:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+    '    at async C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:576:5',
+  timestamp: '2025-08-15 10:55:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: "Erreur traitée (AppError utilitaire) Erreur serveur lors du déclenchement de l'alerte urgence",
+  context: {
+    originalError: "Cannot read properties of undefined (reading 'userId')"
+  },
+  url: '/api/alertes-urgence',
+  method: 'POST',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: {
+    description: "Accident de voiture sur l'autoroute A1",
+    position: { type: 'Point', coordinates: [ -4.032, 5.345 ] },
+    contactsAlertes: [
+      {
+        nom: 'Jean Dupont',
+        telephone: '+225070123456',
+        relation: 'Famille'
+      }
+    ],
+    personnesPresentes: [ { nom: 'Marie Martin', telephone: '+225080654321' } ]
+  },
+  query: {},
+  params: {},
+  timestamp: '2025-08-15 10:55:51',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Erreur déclenchement alerte urgence: Cannot read properties of undefined (reading 'userId')",
+  stack: "TypeError: Cannot read properties of undefined (reading 'userId')\n" +
+    '    at declencherAlerte (C:\\Projet perso\\Convoiturage-Backend\\controllers\\alerteUrgenceController.js:191:78)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\routes\\alertes-urgence.js:75:5\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:659:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+    '    at async C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:576:5',
+  timestamp: '2025-08-15 11:07:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: "Erreur traitée (AppError utilitaire) Erreur serveur lors du déclenchement de l'alerte urgence",
+  context: {
+    originalError: "Cannot read properties of undefined (reading 'userId')"
+  },
+  url: '/api/alertes-urgence',
+  method: 'POST',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: {
+    description: "Accident de voiture sur l'autoroute A1",
+    position: { type: 'Point', coordinates: [ -4.032, 5.345 ] },
+    contactsAlertes: [
+      {
+        nom: 'Jean Dupont',
+        telephone: '+225070123456',
+        relation: 'Famille'
+      }
+    ],
+    personnesPresentes: [ { nom: 'Marie Martin', telephone: '+225080654321' } ]
+  },
+  query: {},
+  params: {},
+  timestamp: '2025-08-15 11:07:25',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Erreur déclenchement alerte urgence: Cannot read properties of undefined (reading 'userId')",
+  stack: "TypeError: Cannot read properties of undefined (reading 'userId')\n" +
+    '    at declencherAlerte (C:\\Projet perso\\Convoiturage-Backend\\controllers\\alerteUrgenceController.js:191:78)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\routes\\alertes-urgence.js:75:5\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:659:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+    '    at async C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:576:5',
+  timestamp: '2025-08-15 11:15:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: "Erreur traitée (AppError utilitaire) Erreur serveur lors du déclenchement de l'alerte urgence",
+  context: {
+    originalError: "Cannot read properties of undefined (reading 'userId')"
+  },
+  url: '/api/alertes-urgence',
+  method: 'POST',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: {},
+  query: {},
+  params: {},
+  timestamp: '2025-08-15 11:15:00',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  error: {
+    message: 'Expected double-quoted property name in JSON at position 42 (line 3 column 1)',
+    stack: 'Error: Expected double-quoted property name in JSON at position 42 (line 3 column 1)\n' +
+      '    at errorHandler (C:\\Projet perso\\Convoiturage-Backend\\middlewares\\errorHandler.js:664:17)\n' +
+      '    at Layer.handle_error (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:71:5)\n' +
+      '    at trim_prefix (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:326:13)\n' +
+      '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:286:9\n' +
+      '    at Function.process_params (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:346:12)\n' +
+      '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:280:10)\n' +
+      '    at Layer.handle_error (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:67:12)\n' +
+      '    at trim_prefix (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:326:13)\n' +
+      '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:286:9\n' +
+      '    at param (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:365:14)',
+    statusCode: 400,
+    errorCode: 'SYSTEM_001'
+  },
+  context: {
+    url: '/api/auth/resend-confirmation',
+    method: 'POST',
+    ip: '::1',
+    userAgent: 'PostmanRuntime/7.45.0',
+    user: undefined,
+    body: {},
+    query: {},
+    params: {},
+    timestamp: '2025-08-15T17:51:19.987Z'
+  },
+  level: 'error',
+  message: 'Erreur système',
+  timestamp: '2025-08-15 17:51:19'
+}

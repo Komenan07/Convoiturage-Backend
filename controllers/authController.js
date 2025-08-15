@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const sendEmail = require('../utils/emailService');
-const { logger, securityLogger } = require('../utils/logger');
+const { logger } = require('../utils/logger');
 const AppError = require('../utils/AppError');
 
 const inscription = async (req, res, next) => {
@@ -362,8 +362,6 @@ const renvoyerConfirmationEmail = async (req, res, next) => {
     }));
   }
 };
-
-// Contrôleur de connexion
 const connexion = async (req, res, next) => {
   try {
     logger.info('Tentative de connexion', { email: req.body.email });
@@ -374,15 +372,23 @@ const connexion = async (req, res, next) => {
     if (!email || !motDePasse) {
       return res.status(400).json({
         success: false,
-        message: 'Email et mot de passe sont requis'
+        message: 'Email et mot de passe sont requis',
+        codeErreur: 'MISSING_FIELDS'
       });
     }
 
-    // Vérifier l'utilisateur
-    const user = await User.findOne({ email }).select('+motDePasse');
+    // ✅ Récupérer l'utilisateur avec le mot de passe
+    const user = await User.findOne({ email }, '+motDePasse');
+    
+    // ❌ EMAIL INCORRECT
     if (!user) {
-      logger.warn('Connexion échouée - Utilisateur non trouvé', { email });
-      return next(AppError.userNotFound({ email }));
+      logger.warn('Connexion échouée - Email incorrect', { email });
+      return res.status(401).json({
+        success: false,
+        message: 'Adresse email incorrecte',
+        codeErreur: 'INVALID_EMAIL',
+        champ: 'email'
+      });
     }
 
     // Vérifier le statut du compte
@@ -394,62 +400,102 @@ const connexion = async (req, res, next) => {
         raison: statutAutorise.raison 
       });
       
-      const context = {
-        userId: user._id,
-        statut: user.statutCompte,
-        raison: statutAutorise.raison,
-        deblocageA: statutAutorise.deblocageA
-      };
+      // Messages spécifiques selon le statut
+      let messageStatut = '';
+      let codeErreurStatut = '';
 
-      // Journalisation sécurité
-      securityLogger.warn('Connexion refusée - Compte non autorisé', {
-        event: 'login_blocked',
-        ...context,
-        ip: req.ip
-      });
-
-      // Conserver le mapping fin des statuts mais via AppError typé
-      if (user.statutCompte === 'BLOQUE') {
-        return next(AppError.accountPermanentlyBlocked(context));
-      } else if (user.statutCompte === 'SUSPENDU') {
-        return next(AppError.accountSuspended(context));
-      } else if (user.statutCompte === 'EN_ATTENTE_VERIFICATION') {
-        return next(AppError.accountPendingVerification(context));
-      } else if (statutAutorise.raison === 'Compte temporairement bloqué') {
-        return next(AppError.accountTemporarilyBlocked(context));
+      switch (user.statutCompte) {
+        case 'EN_ATTENTE_VERIFICATION':
+          messageStatut = 'Votre compte n\'est pas encore vérifié. Vérifiez votre email.';
+          codeErreurStatut = 'ACCOUNT_NOT_VERIFIED';
+          break;
+        case 'BLOQUE':
+          messageStatut = 'Votre compte a été bloqué définitivement.';
+          codeErreurStatut = 'ACCOUNT_BLOCKED';
+          break;
+        case 'SUSPENDU':
+          messageStatut = 'Votre compte est temporairement suspendu.';
+          codeErreurStatut = 'ACCOUNT_SUSPENDED';
+          break;
+        default:
+          if (statutAutorise.raison === 'Compte temporairement bloqué') {
+            messageStatut = 'Votre compte est temporairement bloqué suite à plusieurs tentatives de connexion échouées.';
+            codeErreurStatut = 'ACCOUNT_TEMP_BLOCKED';
+          } else {
+            messageStatut = 'Votre compte est désactivé.';
+            codeErreurStatut = 'ACCOUNT_DISABLED';
+          }
       }
-      return next(AppError.accountDisabled(context));
+
+      return res.status(403).json({
+        success: false,
+        message: messageStatut,
+        codeErreur: codeErreurStatut
+      });
     }
 
-    // Vérifier la présence du mot de passe côté utilisateur
+    // Vérifier la présence du mot de passe
     if (!user.motDePasse) {
-      logger.warn('Connexion échouée - Utilisateur sans mot de passe', { email });
+      logger.error('Mot de passe non récupéré', { userId: user._id });
       return res.status(500).json({
         success: false,
-        message: 'Erreur de configuration du compte'
+        message: 'Erreur de configuration du compte',
+        codeErreur: 'ACCOUNT_CONFIG_ERROR'
       });
     }
 
-    // Vérifier le mot de passe
-    const isMatch = await user.verifierMotDePasse(motDePasse);
+    // ✅ VÉRIFICATION MOT DE PASSE avec protection contre hash corrompu
+    let isMatch = false;
+    
+    try {
+      // Vérifier si le hash est valide (commence par $2a$, $2b$, $2x$)
+      if (!user.motDePasse.startsWith('$2')) {
+        logger.warn('Hash corrompu détecté', { userId: user._id });
+        return res.status(500).json({
+          success: false,
+          message: 'Erreur de sécurité du compte. Veuillez réinitialiser votre mot de passe.',
+          codeErreur: 'CORRUPTED_HASH'
+        });
+      }
+      
+      isMatch = await bcrypt.compare(motDePasse.trim(), user.motDePasse);
+      
+    } catch (bcryptError) {
+      logger.error('Erreur bcrypt', { error: bcryptError.message, userId: user._id });
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur de vérification du mot de passe',
+        codeErreur: 'PASSWORD_VERIFICATION_ERROR'
+      });
+    }
+
+    // ❌ MOT DE PASSE INCORRECT
     if (!isMatch) {
       // Incrémenter les tentatives échouées
       await user.incrementerTentativesEchouees();
       
+      const tentativesRestantes = Math.max(0, 5 - (user.tentativesConnexionEchouees + 1));
+      
       logger.warn('Connexion échouée - Mot de passe incorrect', { 
         email, 
-        tentativesEchouees: user.tentativesConnexionEchouees + 1
+        tentativesEchouees: user.tentativesConnexionEchouees + 1,
+        tentativesRestantes
       });
       
       return res.status(401).json({
         success: false,
-        message: 'Identifiants invalides',
-        codeErreur: 'INVALID_CREDENTIALS',
-        tentativesRestantes: Math.max(0, 5 - (user.tentativesConnexionEchouees + 1))
+        message: 'Mot de passe incorrect',
+        codeErreur: 'INVALID_PASSWORD',
+        champ: 'motDePasse',
+        tentativesRestantes,
+        avertissement: tentativesRestantes <= 2 ? 
+          `Attention : il vous reste ${tentativesRestantes} tentative(s) avant blocage temporaire` : 
+          null
       });
     }
 
-    // Réinitialiser les tentatives échouées en cas de succès
+    // ✅ CONNEXION RÉUSSIE
+    // Réinitialiser les tentatives échouées
     if (user.tentativesConnexionEchouees > 0) {
       user.tentativesConnexionEchouees = 0;
       user.derniereTentativeConnexion = null;
@@ -474,6 +520,7 @@ const connexion = async (req, res, next) => {
     await user.mettreAJourDerniereConnexion();
 
     logger.info('Connexion réussie', { userId: user._id });
+    
     res.json({
       success: true,
       message: 'Connexion réussie',
@@ -496,50 +543,59 @@ const connexion = async (req, res, next) => {
   }
 };
 
-// Contrôleur de connexion admin
+// ✅ Fonction connexionAdmin similaire avec messages spécifiques
 const connexionAdmin = async (req, res, next) => {
   try {
     logger.info('Tentative de connexion admin', { email: req.body.email });
     
     const { email, motDePasse } = req.body;
 
-    // Validation des champs requis
     if (!email || !motDePasse) {
       return res.status(400).json({
         success: false,
-        message: 'Email et mot de passe sont requis'
+        message: 'Email et mot de passe sont requis',
+        codeErreur: 'MISSING_FIELDS'
       });
     }
 
-    const user = await User.findOne({ email, role: 'admin' });
+    const user = await User.findOne({ email, role: 'admin' }, '+motDePasse');
+    
     if (!user) {
-      logger.warn('Connexion admin échouée - Utilisateur non admin', { email });
-      return res.status(401).json({
-        success: false,
-        message: 'Accès administrateur refusé',
-        codeErreur: 'ADMIN_ACCESS_DENIED'
-      });
+      // Vérifier s'il existe un utilisateur avec cet email mais pas admin
+      const userExists = await User.findOne({ email });
+      
+      if (userExists) {
+        return res.status(403).json({
+          success: false,
+          message: 'Accès administrateur refusé pour ce compte',
+          codeErreur: 'NOT_ADMIN',
+          champ: 'role'
+        });
+      } else {
+        return res.status(401).json({
+          success: false,
+          message: 'Adresse email administrateur incorrecte',
+          codeErreur: 'INVALID_ADMIN_EMAIL',
+          champ: 'email'
+        });
+      }
     }
 
-    const isMatch = await user.verifierMotDePasse(motDePasse);
+    const isMatch = await bcrypt.compare(motDePasse.trim(), user.motDePasse);
     if (!isMatch) {
-      // Incrémenter les tentatives échouées
       await user.incrementerTentativesEchouees();
       
-      logger.warn('Connexion admin échouée - Mot de passe incorrect', { 
-        email, 
-        tentativesEchouees: user.tentativesConnexionEchouees + 1
-      });
+      const tentativesRestantes = Math.max(0, 5 - (user.tentativesConnexionEchouees + 1));
       
       return res.status(401).json({
         success: false,
-        message: 'Identifiants invalides',
-        codeErreur: 'INVALID_CREDENTIALS',
-        tentativesRestantes: Math.max(0, 5 - (user.tentativesConnexionEchouees + 1))
+        message: 'Mot de passe administrateur incorrect',
+        codeErreur: 'INVALID_ADMIN_PASSWORD',
+        champ: 'motDePasse',
+        tentativesRestantes
       });
     }
 
-    // Générer le token admin
     const token = jwt.sign(
       { userId: user._id, role: 'admin' },
       process.env.JWT_SECRET,
@@ -547,6 +603,7 @@ const connexionAdmin = async (req, res, next) => {
     );
 
     logger.info('Connexion admin réussie', { userId: user._id });
+    
     res.json({
       success: true,
       message: 'Connexion administrateur réussie',
@@ -565,7 +622,6 @@ const connexionAdmin = async (req, res, next) => {
     return next(AppError.serverError('Erreur serveur lors de la connexion admin', { originalError: error.message }));
   }
 };
-
 // Contrôleur de déconnexion
 const deconnexion = async (req, res, next) => {
   try {
