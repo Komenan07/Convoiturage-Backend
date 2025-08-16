@@ -76,7 +76,7 @@
         return;
       }
 
-      socket = io("http://localhost:3000", {
+      socket = io("ws://localhost:3000", {
         auth: { token }
       });
 

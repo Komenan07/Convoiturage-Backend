@@ -70,3 +70,93 @@
   message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
   timestamp: '2025-08-16 00:14:45'
 }
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-16 00:15:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-16 00:15:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-16 00:16:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fcdc0a78cf2e49531c881"),
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-16 00:16:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fcdc0a78cf2e49531c881"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-16 00:16:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '38a6d51876...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-16 00:16:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fcdc0a78cf2e49531c881"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-16 00:16:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-16 00:16:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-16 00:20:41'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fcdc0a78cf2e49531c881"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-16 00:20:42'
+}
