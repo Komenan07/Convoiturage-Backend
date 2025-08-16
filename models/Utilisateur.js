@@ -84,12 +84,7 @@ const utilisateurSchema = new mongoose.Schema({
   
   photoProfil: {
     type: String,
-    validate: {
-      validator: function(url) {
-        return !url || validator.isURL(url);
-      },
-      message: 'URL de photo invalide'
-    }
+    default:null
   },
 
   // Vérification d'identité
@@ -121,12 +116,7 @@ const utilisateurSchema = new mongoose.Schema({
     },
     photoDocument: {
       type: String,
-      validate: {
-        validator: function(url) {
-          return !url || validator.isURL(url);
-        },
-        message: 'URL de document invalide'
-      }
+      default: null
     },
     statutVerification: {
       type: String,
@@ -392,20 +382,6 @@ utilisateurSchema.virtual('estDocumentVerifie').get(function() {
   return this.documentIdentite && this.documentIdentite.statutVerification === 'VERIFIE';
 });
 
-// Middleware pre-save pour hasher le mot de passe
-utilisateurSchema.pre('save', async function(next) {
-  // Si le mot de passe n'a pas été modifié, continuer
-  if (!this.isModified('motDePasse')) return next();
-  
-  try {
-    // Hasher le mot de passe
-    const salt = await bcrypt.genSalt(12);
-    this.motDePasse = await bcrypt.hash(this.motDePasse, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
 
 // Middleware pour mettre à jour le statut de vérification
 utilisateurSchema.pre('save', function(next) {

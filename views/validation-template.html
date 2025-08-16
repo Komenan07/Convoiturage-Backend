@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenue sur ShareRide - Compte Activé</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #7c3aed 0%, #059669 100%);
+            padding: 30px 20px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+            font-weight: bold;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .header h1 {
+            color: white;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #059669, #10b981);
+            border-radius: 50%;
+            margin: 0 auto 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 40px;
+        }
+        
+        .content h2 {
+            color: #7c3aed;
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .content p {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #4b5563;
+            text-align: center;
+        }
+        
+        .features {
+            background-color: #f8fafc;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+            border-left: 4px solid #059669;
+        }
+        
+        .feature-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #7c3aed, #a855f7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        
+        .feature-text {
+            font-size: 15px;
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        .cta-button {
+            display: block;
+            width: fit-content;
+            margin: 30px auto;
+            padding: 15px 35px;
+            background: linear-gradient(135deg, #7c3aed, #059669);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            transition: transform 0.2s ease;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+        }
+        
+        .footer {
+            background-color: #f1f5f9;
+            padding: 25px 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .footer p {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+        
+        .social-links {
+            margin: 15px 0;
+        }
+        
+        .social-links a {
+            display: inline-block;
+            margin: 0 8px;
+            width: 35px;
+            height: 35px;
+            background: linear-gradient(135deg, #7c3aed, #059669);
+            border-radius: 50%;
+            color: white;
+            text-decoration: none;
+            line-height: 35px;
+            font-size: 16px;
+            transition: transform 0.2s ease;
+        }
+        
+        .social-links a:hover {
+            transform: scale(1.1);
+        }
+        
+        .divider {
+            height: 2px;
+            background: linear-gradient(90deg, #7c3aed, #059669);
+            margin: 20px 0;
+            border-radius: 1px;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .header {
+                padding: 25px 15px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .features {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header avec logo et branding -->
+        <div class="header">
+            <div class="logo">SR</div>
+            <h1>ShareRide</h1>
+            <p>Votre plateforme de covoiturage de confiance</p>
+        </div>
+        
+        <!-- Contenu principal -->
+        <div class="content">
+            <div class="success-icon">✓</div>
+            
+            <h2>Félicitations ! Votre compte est activé</h2>
+            
+            <p><strong>Bonjour [NOM_UTILISATEUR],</strong></p>
+            
+            <p>Nous sommes ravis de vous accueillir dans la communauté ShareRide ! Votre compte a été activé avec succès et vous pouvez dès maintenant profiter de tous nos services.</p>
+            
+            <div class="divider"></div>
+            
+            <!-- Fonctionnalités disponibles -->
+            <div class="features">
+                <div class="feature-item">
+                    <div class="feature-icon">🚗</div>
+                    <div class="feature-text">Proposez vos trajets et partagez vos frais</div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon">🔍</div>
+                    <div class="feature-text">Recherchez des covoiturages près de chez vous</div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon">💬</div>
+                    <div class="feature-text">Communiquez facilement avec les autres membres</div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon">⭐</div>
+                    <div class="feature-text">Consultez les avis et notations des conducteurs</div>
+                </div>
+            </div>
+            
+            <p>Prêt(e) à commencer votre première aventure en covoiturage ?</p>
+            
+            <a href="#" class="cta-button">Accéder à l'application</a>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>Merci de faire confiance à ShareRide pour vos déplacements !</p>
+            <p>Une question ? Contactez-nous à <strong>support@shareride.com</strong></p>
+            
+            <div class="social-links">
+                <a href="#">📘</a>
+                <a href="#">📷</a>
+                <a href="#">🐦</a>
+            </div>
+            
+            <p style="font-size: 12px; margin-top: 20px;">
+                © 2025 ShareRide. Tous droits réservés.<br>
+                123 Avenue du Covoiturage, 75000 Paris, France
+            </p>
+        </div>
+    </div>
+</body>
+</html>
