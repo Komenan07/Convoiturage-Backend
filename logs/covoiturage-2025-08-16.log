@@ -1,0 +1,72 @@
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-16 00:07:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-16 00:08:16'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-16 00:08:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-16 00:09:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-16 00:11:10'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-16 00:11:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-16 00:12:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-16 00:12:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-16 00:14:45'
+}

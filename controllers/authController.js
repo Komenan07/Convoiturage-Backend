@@ -6,6 +6,8 @@ const crypto = require('crypto');
 const sendEmail = require('../utils/emailService');
 const { logger } = require('../utils/logger');
 const AppError = require('../utils/AppError');
+const fs = require('fs');
+const path = require('path');
 
 const inscription = async (req, res, next) => {
   try {
@@ -77,7 +79,7 @@ const inscription = async (req, res, next) => {
     await newUser.save({ maxTimeMS: 30000 });
 
     // Envoyer l'email de confirmation
-    const confirmationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/confirm-email/${confirmationToken}`;
+    const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
     
     try {
       await sendEmail({
@@ -223,22 +225,6 @@ const confirmerEmail = async (req, res, next) => {
     
     await user.save();
 
-    // Générer un token JWT pour la connexion automatique
-    const accessToken = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '15m' }
-    );
-
-    const refreshToken = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    user.refreshToken = refreshToken;
-    await user.save();
-
     logger.info('Email confirmé avec succès', { userId: user._id });
     
     // Envoyer un email de bienvenue
@@ -266,20 +252,26 @@ const confirmerEmail = async (req, res, next) => {
       logger.error('Erreur envoi email bienvenue:', emailError);
     }
 
-    res.json({
-      success: true,
-      message: 'Email confirmé avec succès. Vous êtes maintenant connecté.',
-      token: accessToken,
-      refreshToken,
-      user: {
-        id: user._id,
-        nom: user.nom,
-        prenom: user.prenom,
-        email: user.email,
-        role: user.role,
-        statutCompte: user.statutCompte
-      }
-    });
+    // res.json({
+    //   success: true,
+    //   message: 'Email confirmé avec succès. Vous êtes maintenant connecté.',
+    //   token: accessToken,
+    //   refreshToken,
+    //   user: {
+    //     id: user._id,
+    //     nom: user.nom,
+    //     prenom: user.prenom,
+    //     email: user.email,
+    //     role: user.role,
+    //     statutCompte: user.statutCompte
+    //   }
+    // });
+
+    const templatePath = path.join(process.cwd(), 'views' , 'validation-template.html');
+    const htmlTemplate = fs.readFileSync(templatePath, 'utf8');
+    
+    res.setHeader('Content-Type', 'text/html');
+    res.send(htmlTemplate);
     
   } catch (error) {
     logger.error('Erreur confirmation email:', error);
@@ -367,6 +359,7 @@ const connexion = async (req, res, next) => {
     logger.info('Tentative de connexion', { email: req.body.email });
     
     const { email, motDePasse } = req.body;
+
 
     // Validation des champs requis
     if (!email || !motDePasse) {

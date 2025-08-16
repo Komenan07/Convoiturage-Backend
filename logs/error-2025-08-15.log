@@ -172,3 +172,103 @@
   message: 'Erreur système',
   timestamp: '2025-08-15 17:51:19'
 }
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-15 22:54:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-15 22:54:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-15 22:54:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-15 22:54:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'EAUTH',
+  command: 'API',
+  level: 'error',
+  message: `Erreur lors de l'envoi de l'email: Missing credentials for "PLAIN"`,
+  stack: 'Error: Missing credentials for "PLAIN"\n' +
+    '    at SMTPConnection._formatError (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:809:19)\n' +
+    '    at SMTPConnection.login (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:454:38)\n' +
+    '    at C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-transport\\index.js:272:32\n' +
+    '    at SMTPConnection.<anonymous> (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:215:17)\n' +
+    '    at Object.onceWrapper (node:events:632:28)\n' +
+    '    at SMTPConnection.emit (node:events:518:28)\n' +
+    '    at SMTPConnection._actionEHLO (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:1371:14)\n' +
+    '    at SMTPConnection._processResponse (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:993:20)\n' +
+    '    at SMTPConnection._onData (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:774:14)\n' +
+    '    at SMTPConnection._onSocketData (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:195:44)',
+  timestamp: '2025-08-15 22:54:41'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Erreur envoi email confirmation: Erreur lors de l'envoi de l'email",
+  stack: "Error: Erreur lors de l'envoi de l'email\n" +
+    '    at sendEmail (C:\\new\\covoiturage\\Convoiturage-Backend\\utils\\emailService.js:27:11)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+    '    at async inscription (C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\authController.js:83:7)',
+  timestamp: '2025-08-15 22:54:41'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  error: {
+    message: 'Expected double-quoted property name in JSON at position 100',
+    stack: 'Error: Expected double-quoted property name in JSON at position 100\n' +
+      '    at errorHandler (C:\\new\\covoiturage\\Convoiturage-Backend\\middlewares\\errorHandler.js:664:17)\n' +
+      '    at Layer.handle_error (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:71:5)\n' +
+      '    at trim_prefix (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:326:13)\n' +
+      '    at C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:286:9\n' +
+      '    at Function.process_params (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:346:12)\n' +
+      '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:280:10)\n' +
+      '    at Layer.handle_error (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:67:12)\n' +
+      '    at trim_prefix (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:326:13)\n' +
+      '    at C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:286:9\n' +
+      '    at param (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:365:14)',
+    statusCode: 400,
+    errorCode: 'SYSTEM_001'
+  },
+  context: {
+    url: '/api/auth/inscription',
+    method: 'POST',
+    ip: '::1',
+    userAgent: 'PostmanRuntime/7.39.1',
+    user: undefined,
+    body: {},
+    query: {},
+    params: {},
+    timestamp: '2025-08-15T23:41:49.083Z'
+  },
+  level: 'error',
+  message: 'Erreur système',
+  timestamp: '2025-08-15 23:41:49'
+}
