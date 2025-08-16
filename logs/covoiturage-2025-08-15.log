@@ -1293,3 +1293,55 @@
   message: 'Connexion réussie',
   timestamp: '2025-08-15 19:04:17'
 }
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 19:07:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 19:08:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  tentativesEchouees: 4,
+  tentativesRestantes: 1,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 19:08:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur de connexion MongoDB: queryTxt ETIMEOUT covoiturage-app.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 23:12:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur de connexion MongoDB: queryTxt ETIMEOUT covoiturage-app.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 23:36:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 23:37:58'
+}

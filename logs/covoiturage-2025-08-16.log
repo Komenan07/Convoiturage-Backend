@@ -1,0 +1,29 @@
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-16 00:09:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  event: 'log_rotation',
+  oldFile: 'C:\\Projet perso\\Convoiturage-Backend\\logs\\covoiturage-2025-08-15.log',
+  newFile: 'C:\\Projet perso\\Convoiturage-Backend\\logs\\covoiturage-2025-08-16.log',
+  level: 'info',
+  message: 'Rotation des fichiers de logs',
+  timestamp: '2025-08-16 00:09:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'warn',
+  message: 'Connexion échouée - Email incorrect',
+  timestamp: '2025-08-16 00:09:12'
+}

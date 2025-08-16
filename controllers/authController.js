@@ -58,7 +58,7 @@ const inscription = async (req, res, next) => {
       motDePasse: hashedPassword,
       telephone,
       role: 'utilisateur',
-      statutCompte: 'EN_ATTENTE_VERIFICATION', // Statut initial pour vérification
+      statutCompte: 'EN_ATTENTE_VERIFICATION', 
       tentativesConnexionEchouees: 0,
       derniereTentativeConnexion: null,
       compteBloqueLe: null,

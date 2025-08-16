@@ -172,3 +172,19 @@
   message: 'Erreur système',
   timestamp: '2025-08-15 17:51:19'
 }
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur de connexion MongoDB: queryTxt ETIMEOUT covoiturage-app.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 23:12:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur de connexion MongoDB: queryTxt ETIMEOUT covoiturage-app.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 23:36:22'
+}
