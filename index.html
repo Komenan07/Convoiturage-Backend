@@ -36,20 +36,18 @@
 <body>
   <h1>Test Socket.IO</h1>
   <p>Ouvrez la console (F12) pour voir les logs détaillés.</p>
-
   <div>
     <h3>Actions</h3>
     <button onclick="connectSocket()">Se connecter</button>
     <button onclick="joinConversation()">Rejoindre une conversation</button>
-    <button onclick="sendMessage()">Envoyer un message</button>
-    <button onclick="joinTrajet()">Rejoindre un trajet</button>
-    <button onclick="updateLocation()">Mettre à jour la position</button>
+    <button onclick="sendMessage()">Envoyer un message privé</button>
+    <button onclick="createReservation()">Créer une réservation</button>
+    <button onclick="joinPublicChat()">Rejoindre le chat public</button>
+    <button onclick="sendPublicMessage()">Envoyer un message public</button>
     <button onclick="disconnectSocket()">Se déconnecter</button>
   </div>
-
   <h3>Logs</h3>
   <div id="logs"></div>
-
   <script>
     let socket = null;
     const logsDiv = document.getElementById('logs');
@@ -68,17 +66,13 @@
         log('Déjà connecté !');
         return;
       }
-
       // Remplacez par votre token JWT valide
-      const token = prompt("Entrez votre token JWT :", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODlmNjE5OGU2OGQwMzRmZmY0MDM2NDIiLCJyb2xlIjoidXRpbGlzYXRldXIiLCJpYXQiOjE3NTUyNzU4NzgsImV4cCI6MTc1NTI3Njc3OH0.NDKl32X6qjbhKtXxfny3aeQlEUTB3FmCxQHe3DCIV9c");
-      if (!token) {
-        log('Token requis !', true);
-        return;
+      const token = prompt("Entrez votre token JWT (laisser vide pour tester en anonyme) :", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODlmNjE5OGU2OGQwMzRmZmY0MDM2NDIiLCJyb2xlIjoidXRpbGlzYXRldXIiLCJpYXQiOjE3NTUyNzU4NzgsImV4cCI6MTc1NTI3Njc3OH0.NDKl32X6qjbhKtXxfny3aeQlEUTB3FmCxQHe3DCIV9c");
+      const options = {};
+      if (token) {
+        options.auth = { token };
       }
-
-      socket = io("ws://localhost:3000", {
-        auth: { token }
-      });
+      socket = io("ws://localhost:3000", options);
 
       socket.on("connect", () => {
         log(`Connecté au serveur ! ID: ${socket.id}`);
@@ -102,11 +96,19 @@
       });
 
       socket.on("new_message", (data) => {
-        log(`Nouveau message: ${JSON.stringify(data)}`);
+        log(`Nouveau message privé: ${JSON.stringify(data)}`);
       });
 
-      socket.on("trajet_location_update", (data) => {
-        log(`Mise à jour de position: ${JSON.stringify(data)}`);
+      socket.on("public_message", (data) => {
+        log(`Message public: ${JSON.stringify(data)}`);
+      });
+
+      socket.on("reservation_created", (data) => {
+        log(`Réservation créée: ${JSON.stringify(data)}`);
+      });
+
+      socket.on("user_offline", (data) => {
+        log(`Utilisateur hors ligne: ${JSON.stringify(data)}`);
       });
     }
 
@@ -115,13 +117,11 @@
         log('Non connecté au serveur !', true);
         return;
       }
-
-      const conversationId = prompt("ID de la conversation :", "id_dune_conversation_existante");
+      const conversationId = prompt("ID de la conversation :", "60d5ec9f8b3e4b001f8e4a1b");
       if (!conversationId) {
         log('ID de conversation requis !', true);
         return;
       }
-
       socket.emit("conversation:join", { conversationId }, (response) => {
         if (response.success) {
           log(`Conversation rejointe: ${JSON.stringify(response)}`);
@@ -136,16 +136,13 @@
         log('Non connecté au serveur !', true);
         return;
       }
-
-      const conversationId = prompt("ID de la conversation :", "id_dune_conversation_existante");
-      const destinataireId = prompt("ID du destinataire :", "id_dun_utilisateur_existant");
+      const conversationId = prompt("ID de la conversation :", "60d5ec9f8b3e4b001f8e4a1b");
+      const destinataireId = prompt("ID du destinataire :", "60d5ec9f8b3e4b001f8e4a1c");
       const contenu = prompt("Contenu du message :", "Bonjour, ceci est un test !");
-
       if (!conversationId || !destinataireId || !contenu) {
         log('Tous les champs sont requis !', true);
         return;
       }
-
       socket.emit("send_message", {
         conversationId,
         destinataireId,
@@ -160,48 +157,67 @@
       });
     }
 
-    function joinTrajet() {
+    function createReservation() {
       if (!socket || !socket.connected) {
         log('Non connecté au serveur !', true);
         return;
       }
-
-      const trajetId = prompt("ID du trajet :", "id_dun_trajet_existant");
-      if (!trajetId) {
-        log('ID de trajet requis !', true);
+      const trajetId = prompt("ID du trajet :", "60d5ec9f8b3e4b001f8e4a1d");
+      const nombrePlacesReservees = prompt("Nombre de places :", "1");
+      const pointPriseEnCharge = prompt("Point de prise en charge :", "Gare d'Abidjan");
+      const pointDepose = prompt("Point de dépose :", "Aéroport");
+      if (!trajetId || !nombrePlacesReservees || !pointPriseEnCharge || !pointDepose) {
+        log('Tous les champs sont requis !', true);
         return;
       }
-
-      socket.emit("trajet:join", { trajetId }, (response) => {
+      socket.emit("create_reservation", {
+        trajetId,
+        nombrePlacesReservees: parseInt(nombrePlacesReservees),
+        pointPriseEnCharge,
+        pointDepose
+      }, (response) => {
         if (response.success) {
-          log(`Trajet rejoint: ${JSON.stringify(response)}`);
+          log(`Réservation créée: ${JSON.stringify(response)}`);
         } else {
           log(`Erreur: ${response.error}`, true);
         }
       });
     }
 
-    function updateLocation() {
+    function joinPublicChat() {
       if (!socket || !socket.connected) {
         log('Non connecté au serveur !', true);
         return;
       }
+      const roomName = prompt("Nom de la salle publique :", "general");
+      socket.emit("public_chat:join", { roomName }, (response) => {
+        if (response.success) {
+          log(`Chat public rejoint: ${JSON.stringify(response)}`);
+        } else {
+          log(`Erreur: ${response.error}`, true);
+        }
+      });
+    }
 
-      const trajetId = prompt("ID du trajet :", "id_dun_trajet_existant");
-      if (!trajetId) {
-        log('ID de trajet requis !', true);
+    function sendPublicMessage() {
+      if (!socket || !socket.connected) {
+        log('Non connecté au serveur !', true);
         return;
       }
-
-      socket.emit("update_location", {
-        trajetId,
-        position: {
-          type: "Point",
-          coordinates: [-4.03, 5.35] // Exemple : Coordonnées d'Abidjan
-        }
+      const roomName = prompt("Nom de la salle publique :", "general");
+      const content = prompt("Contenu du message :", "Salut à tous !");
+      const username = prompt("Votre pseudo (optionnel) :", "Anonyme");
+      if (!content) {
+        log('Contenu requis !', true);
+        return;
+      }
+      socket.emit("send_public_message", {
+        roomName,
+        content,
+        username
       }, (response) => {
         if (response.success) {
-          log(`Position mise à jour: ${JSON.stringify(response)}`);
+          log(`Message public envoyé: ${JSON.stringify(response)}`);
         } else {
           log(`Erreur: ${response.error}`, true);
         }
@@ -213,7 +229,6 @@
         log('Non connecté au serveur !', true);
         return;
       }
-
       socket.disconnect();
       log('Déconnecté du serveur.');
     }

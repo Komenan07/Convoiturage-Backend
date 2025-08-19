@@ -9,6 +9,25 @@ const AppError = require('../utils/AppError');
 const fs = require('fs');
 const path = require('path');
 
+// Fonction utilitaire pour charger et remplacer les variables dans un template
+const chargerTemplate = (nomTemplate, variables = {}) => {
+  try {
+    const templatePath = path.join(process.cwd(), 'views', nomTemplate);
+    let htmlTemplate = fs.readFileSync(templatePath, 'utf8');
+    
+    // Remplacer les variables dans le template
+    Object.keys(variables).forEach(key => {
+      const regex = new RegExp(`\\$\\{${key}\\}`, 'g');
+      htmlTemplate = htmlTemplate.replace(regex, variables[key]);
+    });
+    
+    return htmlTemplate;
+  } catch (error) {
+    logger.error(`Erreur chargement template ${nomTemplate}:`, error);
+    throw new Error(`Impossible de charger le template ${nomTemplate}`);
+  }
+};
+
 const inscription = async (req, res, next) => {
   try {
     logger.info('Tentative d\'inscription', { email: req.body.email });
@@ -82,32 +101,16 @@ const inscription = async (req, res, next) => {
     const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
     
     try {
+      // Charger le template d'inscription avec les variables
+      const emailHtml = chargerTemplate('envoiEmail-template.html', {
+        'newUser.prenom': newUser.prenom,
+        'confirmationUrl': confirmationUrl
+      });
+
       await sendEmail({
         to: newUser.email,
-        subject: 'Confirmez votre adresse email',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">Bienvenue ${newUser.prenom} !</h2>
-            <p>Merci de vous être inscrit sur notre plateforme.</p>
-            <p>Pour activer votre compte, veuillez cliquer sur le lien ci-dessous :</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${confirmationUrl}" 
-                 style="background-color: #007bff; color: white; padding: 12px 30px; 
-                        text-decoration: none; border-radius: 5px; display: inline-block;">
-                Confirmer mon email
-              </a>
-            </div>
-            <p style="color: #666; font-size: 14px;">
-              Ce lien expirera dans 24 heures.<br>
-              Si vous n'avez pas créé de compte, ignorez ce message.
-            </p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-            <p style="color: #999; font-size: 12px;">
-              Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>
-              ${confirmationUrl}
-            </p>
-          </div>
-        `
+        subject: 'Confirmez votre adresse email - WAYZ-ECO',
+        html: emailHtml
       });
 
       logger.info('Email de confirmation envoyé', { userId: newUser._id, email: newUser.email });
@@ -190,10 +193,7 @@ const confirmerEmail = async (req, res, next) => {
     }
     
     logger.info('Tentative de confirmation d\'email', { token: token.substring(0, 10) + '...' });
-    // const hashedToken = crypto
-    //   .createHash('sha256')
-    //   .update(token)
-    //   .digest('hex');
+    
     // Trouver l'utilisateur avec ce token
     const user = await User.findOne({
       tokenConfirmationEmail: token,
@@ -227,51 +227,70 @@ const confirmerEmail = async (req, res, next) => {
 
     logger.info('Email confirmé avec succès', { userId: user._id });
     
-    // Envoyer un email de bienvenue
+    // Envoyer un email de bienvenue avec template
     try {
+      const welcomeHtml = chargerTemplate('welcome-template.html', {
+        'user.prenom': user.prenom,
+        'dashboardUrl': `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`
+      });
+
       await sendEmail({
         to: user.email,
-        subject: 'Bienvenue ! Votre compte est activé',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #28a745;">Félicitations ${user.prenom} !</h2>
-            <p>Votre compte a été confirmé avec succès.</p>
-            <p>Vous pouvez maintenant profiter de tous nos services.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" 
-                 style="background-color: #28a745; color: white; padding: 12px 30px; 
-                        text-decoration: none; border-radius: 5px; display: inline-block;">
-                Accéder à mon compte
-              </a>
-            </div>
-            <p style="color: #666;">Merci de nous faire confiance !</p>
-          </div>
-        `
+        subject: 'Bienvenue ! Votre compte WAYZ-ECO est activé',
+        html: welcomeHtml
       });
     } catch (emailError) {
       logger.error('Erreur envoi email bienvenue:', emailError);
+      // Fallback avec template simple si welcome-template.html n'existe pas
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: 'Bienvenue ! Votre compte WAYZ-ECO est activé',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #28a745;">Félicitations ${user.prenom} !</h2>
+              <p>Votre compte WAYZ-ECO a été confirmé avec succès.</p>
+              <p>Vous pouvez maintenant profiter de tous nos services de covoiturage.</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" 
+                   style="background-color: #28a745; color: white; padding: 12px 30px; 
+                          text-decoration: none; border-radius: 5px; display: inline-block;">
+                  Accéder à mon compte
+                </a>
+              </div>
+              <p style="color: #666;">Merci de nous faire confiance !</p>
+            </div>
+          `
+        });
+      } catch (fallbackError) {
+        logger.error('Erreur envoi email bienvenue fallback:', fallbackError);
+      }
     }
 
-    // res.json({
-    //   success: true,
-    //   message: 'Email confirmé avec succès. Vous êtes maintenant connecté.',
-    //   token: accessToken,
-    //   refreshToken,
-    //   user: {
-    //     id: user._id,
-    //     nom: user.nom,
-    //     prenom: user.prenom,
-    //     email: user.email,
-    //     role: user.role,
-    //     statutCompte: user.statutCompte
-    //   }
-    // });
-
-    const templatePath = path.join(process.cwd(), 'views' , 'validation-template.html');
-    const htmlTemplate = fs.readFileSync(templatePath, 'utf8');
-    
-    res.setHeader('Content-Type', 'text/html');
-    res.send(htmlTemplate);
+    // Charger et afficher le template de validation
+    try {
+      const validationHtml = chargerTemplate('validation-template.html', {
+        'user.prenom': user.prenom,
+        'user.email': user.email
+      });
+      
+      res.setHeader('Content-Type', 'text/html');
+      res.send(validationHtml);
+    } catch (templateError) {
+      logger.error('Erreur chargement template validation:', templateError);
+      // Fallback si le template n'existe pas
+      res.setHeader('Content-Type', 'text/html');
+      res.send(`
+        <html>
+          <head><title>Email confirmé - WAYZ-ECO</title></head>
+          <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+            <h1 style="color: #28a745;">Email confirmé avec succès !</h1>
+            <p>Bonjour ${user.prenom}, votre compte WAYZ-ECO est maintenant actif.</p>
+            <p>Vous pouvez fermer cette fenêtre et vous connecter à l'application.</p>
+          </body>
+        </html>
+      `);
+    }
     
   } catch (error) {
     logger.error('Erreur confirmation email:', error);
@@ -317,28 +336,27 @@ const renvoyerConfirmationEmail = async (req, res, next) => {
     
     await user.save();
     
-    // Renvoyer l'email
-    const confirmationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/confirm-email/${confirmationToken}`;
+    // Renvoyer l'email avec template
+    const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
     
-    await sendEmail({
-      to: user.email,
-      subject: 'Confirmez votre adresse email',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Confirmez votre email</h2>
-          <p>Bonjour ${user.prenom},</p>
-          <p>Voici votre nouveau lien de confirmation :</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${confirmationUrl}" 
-               style="background-color: #007bff; color: white; padding: 12px 30px; 
-                      text-decoration: none; border-radius: 5px; display: inline-block;">
-              Confirmer mon email
-            </a>
-          </div>
-          <p style="color: #666; font-size: 14px;">Ce lien expirera dans 24 heures.</p>
-        </div>
-      `
-    });
+    try {
+      const emailHtml = chargerTemplate('envoiEmail-template.html', {
+        'newUser.prenom': user.prenom,
+        'confirmationUrl': confirmationUrl
+      });
+
+      await sendEmail({
+        to: user.email,
+        subject: 'Confirmez votre adresse email - WAYZ-ECO',
+        html: emailHtml
+      });
+    } catch (emailError) {
+      logger.error('Erreur renvoi email confirmation:', emailError);
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'envoi de l\'email'
+      });
+    }
     
     logger.info('Email de confirmation renvoyé', { userId: user._id });
     
@@ -354,12 +372,12 @@ const renvoyerConfirmationEmail = async (req, res, next) => {
     }));
   }
 };
+
 const connexion = async (req, res, next) => {
   try {
     logger.info('Tentative de connexion', { email: req.body.email });
     
     const { email, motDePasse } = req.body;
-
 
     // Validation des champs requis
     if (!email || !motDePasse) {
@@ -370,10 +388,10 @@ const connexion = async (req, res, next) => {
       });
     }
 
-    // ✅ Récupérer l'utilisateur avec le mot de passe
+    // Récupérer l'utilisateur avec le mot de passe
     const user = await User.findOne({ email }, '+motDePasse');
     
-    // ❌ EMAIL INCORRECT
+    // EMAIL INCORRECT
     if (!user) {
       logger.warn('Connexion échouée - Email incorrect', { email });
       return res.status(401).json({
@@ -437,7 +455,7 @@ const connexion = async (req, res, next) => {
       });
     }
 
-    // ✅ VÉRIFICATION MOT DE PASSE avec protection contre hash corrompu
+    // VÉRIFICATION MOT DE PASSE avec protection contre hash corrompu
     let isMatch = false;
     
     try {
@@ -462,7 +480,7 @@ const connexion = async (req, res, next) => {
       });
     }
 
-    // ❌ MOT DE PASSE INCORRECT
+    // MOT DE PASSE INCORRECT
     if (!isMatch) {
       // Incrémenter les tentatives échouées
       await user.incrementerTentativesEchouees();
@@ -487,7 +505,7 @@ const connexion = async (req, res, next) => {
       });
     }
 
-    // ✅ CONNEXION RÉUSSIE
+    // CONNEXION RÉUSSIE
     // Réinitialiser les tentatives échouées
     if (user.tentativesConnexionEchouees > 0) {
       user.tentativesConnexionEchouees = 0;
@@ -536,7 +554,6 @@ const connexion = async (req, res, next) => {
   }
 };
 
-// ✅ Fonction connexionAdmin similaire avec messages spécifiques
 const connexionAdmin = async (req, res, next) => {
   try {
     logger.info('Tentative de connexion admin', { email: req.body.email });
@@ -615,6 +632,7 @@ const connexionAdmin = async (req, res, next) => {
     return next(AppError.serverError('Erreur serveur lors de la connexion admin', { originalError: error.message }));
   }
 };
+
 // Contrôleur de déconnexion
 const deconnexion = async (req, res, next) => {
   try {
@@ -762,32 +780,12 @@ const rafraichirToken = async (req, res, next) => {
 // Mot de passe oublié
 const motDePasseOublie = async (req, res, next) => {
   try {
-    // ===== DEBUG : Afficher les informations de la requête =====
-    console.log('=== DEBUG MOT DE PASSE OUBLIE ===');
-    console.log('Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('Content-Type:', req.get('Content-Type'));
-    console.log('Body (raw):', req.body);
-    console.log('Body type:', typeof req.body);
-    console.log('Body keys:', Object.keys(req.body));
-    console.log('==============================');
-
     const { email } = req.body;
-
-    // ===== DEBUG : Vérification de l'email =====
-    console.log('Email reçu:', email);
-    console.log('Type de email:', typeof email);
 
     if (!email) {
       return res.status(400).json({
         success: false,
-        message: 'Email requis',
-        debug: {
-          receivedBody: req.body,
-          emailValue: email,
-          emailType: typeof email,
-          contentType: req.get('Content-Type'),
-          headers: req.headers
-        }
+        message: 'Email requis'
       });
     }
 
@@ -809,54 +807,32 @@ const motDePasseOublie = async (req, res, next) => {
     user.expirationTokenReset = Date.now() + 3600000; // 1 heure
     await user.save();
 
-    // Envoyer l'email
+    // Envoyer l'email avec template
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
     try {
-    await sendEmail({
-    to: user.email,
-    subject: 'Réinitialisation de votre mot de passe',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #ddd; border-radius: 10px; overflow: hidden;">
-        <!-- En-tête violet -->
-        <div style="background-color: #4B0082; color: white; padding: 20px; text-align: center;">
-          <h2 style="margin: 0;">Covoiturage App</h2>
-        </div>
+      const resetHtml = chargerTemplate('reset-password-template.html', {
+        'user.prenom': user.prenom,
+        'resetUrl': resetUrl
+      });
 
-        <!-- Contenu -->
-        <div style="padding: 20px; background-color: #f9f9f9;">
-          <h3 style="color: #4B0082;">Bonjour ${user.prenom},</h3>
-          <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le bouton ci-dessous pour procéder à la réinitialisation :</p>
-
-          <!-- Bouton vert -->
-          <div style="text-align: center; margin: 20px 0;">
-            <a href="${resetUrl}"
-               style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
-              Réinitialiser mon mot de passe
-            </a>
-          </div>
-
-          <p>Ce lien expirera dans <strong>1 heure</strong>.</p>
-          <p style="color: #666; font-size: 14px;">Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email en toute sécurité.</p>
-        </div>
-
-        <!-- Pied de page -->
-        <div style="background-color: #4B0082; color: white; padding: 10px; text-align: center; font-size: 12px;">
-          <p style="margin: 0;">© 2025 Covoiturage App. Tous droits réservés.</p>
-        </div>
-      </div>
-    `
-  });
-  logger.info('Email réinitialisation envoyé', { userId: user._id });
-} catch (emailError) {
-  logger.error('Erreur envoi email réinitialisation:', emailError);
-  user.tokenResetMotDePasse = undefined;
-  user.expirationTokenReset = undefined;
-  await user.save();
-  return res.status(500).json({
-    success: false,
-    message: 'Erreur lors de l\'envoi de l\'email'
-  });
-}
+      await sendEmail({
+        to: user.email,
+        subject: 'Réinitialisation de votre mot de passe - WAYZ-ECO',
+        html: resetHtml
+      });
+      
+      logger.info('Email réinitialisation envoyé', { userId: user._id });
+    } catch (emailError) {
+      logger.error('Erreur envoi email réinitialisation:', emailError);
+      user.tokenResetMotDePasse = undefined;
+      user.expirationTokenReset = undefined;
+      await user.save();
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'envoi de l\'email'
+      });
+    }
 
     res.json({
       success: true,

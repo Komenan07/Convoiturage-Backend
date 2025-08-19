@@ -185,3 +185,11 @@
   timestamp: '2025-08-16 00:20:42'
 >>>>>>> a1116a4e775022b19c0865b784f18970dda786ca
 }
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-16 00:59:29'
+}
