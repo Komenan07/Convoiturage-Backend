@@ -3,6 +3,9 @@ node_modules/
 
 # Ignorer le fichier .env
 .env
-
+#Ignorer les logs
 logs/
 .log
+
+* text=auto
+# 

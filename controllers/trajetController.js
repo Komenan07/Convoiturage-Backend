@@ -9,57 +9,130 @@ class TrajetController {
   /**
    * Créer un trajet ponctuel
    */
-  async creerTrajetPonctuel(req, res, next) {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Erreurs de validation', 
-          errors: errors.array() 
-        });
-      }
-
-      const trajetData = {
-        ...req.body,
-        conducteurId: req.user.id,
-        typeTrajet: 'PONCTUEL'
-      };
-
-      // Validation avec Google Maps API (simulation)
-      const itineraireValide = await this.validerItineraire(
-        trajetData.pointDepart.coordonnees.coordinates,
-        trajetData.pointArrivee.coordonnees.coordinates
-      );
-
-      if (!itineraireValide.success) {
-        return res.status(400).json({
-          success: false,
-          message: 'Itinéraire invalide',
-          details: itineraireValide.message
-        });
-      }
-
-      // Ajout des données calculées depuis Google Maps
-      trajetData.distance = itineraireValide.distance;
-      trajetData.dureeEstimee = itineraireValide.duree;
-      trajetData.heureArriveePrevue = itineraireValide.heureArrivee;
-
-      const nouveauTrajet = new Trajet(trajetData);
-      await nouveauTrajet.save();
-
-      await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
-
-      res.status(201).json({
-        success: true,
-        message: 'Trajet ponctuel créé avec succès',
-        data: nouveauTrajet
+  /**
+ * Créer un trajet ponctuel - VERSION SIMPLIFIÉE POUR DEBUG
+ */
+async creerTrajetPonctuel(req, res, next) {
+  try {
+    console.log('=== DÉBUT DEBUG CRÉATION TRAJET ===');
+    
+    // 1. Vérifier l'utilisateur
+    console.log('1. Vérification utilisateur...');
+    console.log('req.user:', req.user);
+    
+    if (!req.user || !req.user.id) {
+      console.log('ERREUR: Utilisateur non authentifié');
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié'
       });
-
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la création du trajet', { originalError: error.message }));
     }
+    console.log('✓ Utilisateur OK:', req.user.id);
+
+    // 2. Vérifier les données reçues
+    console.log('2. Vérification données...');
+    console.log('req.body:', JSON.stringify(req.body, null, 2));
+
+    // 3. Validation express-validator
+    console.log('3. Validation express-validator...');
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('ERREUR: Validation failed:', errors.array());
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Erreurs de validation', 
+        errors: errors.array() 
+      });
+    }
+    console.log('✓ Validation OK');
+
+    // 4. Préparer les données minimales
+    console.log('4. Préparation données minimales...');
+    const trajetData = {
+      conducteurId: req.user.id,
+      typeTrajet: 'PONCTUEL',
+      pointDepart: req.body.pointDepart,
+      pointArrivee: req.body.pointArrivee,
+      dateDepart: req.body.dateDepart,
+      heureDepart: req.body.heureDepart,
+      prixParPassager: req.body.prixParPassager,
+      nombrePlacesDisponibles: req.body.nombrePlacesDisponibles,
+      nombrePlacesTotal: req.body.nombrePlacesTotal,
+      vehiculeUtilise: req.body.vehiculeUtilise,
+      distance: 50, // Valeur fixe pour test
+      dureeEstimee: 60, // Valeur fixe pour test
+      heureArriveePrevue: "09:00" // Valeur fixe pour test
+    };
+
+    console.log('Données préparées:', JSON.stringify(trajetData, null, 2));
+
+    // 5. Test de création en mémoire
+    console.log('5. Test création en mémoire...');
+    const nouveauTrajet = new Trajet(trajetData);
+    console.log('✓ Trajet créé en mémoire');
+
+    // 6. Test de validation
+    console.log('6. Test validation...');
+    await nouveauTrajet.validate();
+    console.log('✓ Validation réussie');
+
+    // 7. Test de sauvegarde
+    console.log('7. Test sauvegarde...');
+    await nouveauTrajet.save();
+    console.log('✓ Sauvegarde réussie, ID:', nouveauTrajet._id);
+
+    // 8. Test de population (optionnel pour debug)
+    console.log('8. Test population...');
+    try {
+      await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
+      console.log('✓ Population réussie');
+    } catch (popError) {
+      console.log('⚠️ Erreur population (non critique):', popError.message);
+    }
+
+    console.log('=== FIN DEBUG - SUCCÈS ===');
+
+    res.status(201).json({
+      success: true,
+      message: 'Trajet ponctuel créé avec succès',
+      data: nouveauTrajet
+    });
+
+  } catch (error) {
+    console.log('=== ERREUR DANS DEBUG ===');
+    console.error('Type d\'erreur:', error.name);
+    console.error('Message:', error.message);
+    console.error('Stack:', error.stack);
+    
+    if (error.name === 'ValidationError') {
+      console.error('Erreurs de validation:', error.errors);
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation des données',
+        errors: Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message,
+          value: err.value
+        }))
+      });
+    }
+    
+    if (error.code === 11000) {
+      console.error('Erreur de duplication:', error.keyValue);
+      return res.status(400).json({
+        success: false,
+        message: 'Données en conflit',
+        details: error.keyValue
+      });
+    }
+
+    console.log('=== FIN DEBUG - ERREUR ===');
+    return next(AppError.serverError('Erreur serveur lors de la création du trajet', { 
+      originalError: error.message,
+      errorType: error.name 
+    }));
   }
+}
 
   /**
    * Créer un trajet récurrent

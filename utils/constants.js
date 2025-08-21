@@ -23,13 +23,13 @@ const STATUT_VERIFICATION = {
   REJETE: 'REJETE'
 };
 
-const TYPE_CONVERSATION = {
+const PREFERENCE_CONVERSATION = {
   BAVARD: 'BAVARD',
   CALME: 'CALME',
   NEUTRE: 'NEUTRE'
 };
 
-const LANGUE_PREFEREE = {
+const LANGUES = {
   FRANCAIS: 'FR',
   ANGLAIS: 'ANG'
 };
@@ -107,7 +107,10 @@ const STATUT_PAIEMENT = {
   EN_ATTENTE: 'EN_ATTENTE',
   PAYE: 'PAYE',
   REMBOURSE: 'REMBOURSE',
-  ECHEC: 'ECHEC'
+  ECHEC: 'ECHEC',
+  TRAITE: 'TRAITE',
+  COMPLETE: 'COMPLETE',
+  ANNULE: 'ANNULE'
 };
 
 const METHODE_PAIEMENT = {
@@ -139,14 +142,30 @@ const TYPE_MESSAGE = {
   LOCALISATION: 'LOCALISATION'
 };
 
-const MODELES_MESSAGES_PREDEFINIS = {
+const MESSAGES_PREDEFINIS = {
+  // Messages de base
   ARRIVEE_BIENTOT: "J'arrive bientôt au point de rendez-vous",
   RETARD_5MIN: "Je suis en retard de 5 minutes",
   RETARD_10MIN: "Je suis en retard de 10 minutes", 
   PROBLEME_CIRCULATION: "Il y a des embouteillages, je serai en retard",
   ARRIVE: "Je suis arrivé(e) au point de rendez-vous",
   DEMARRE: "On peut partir",
-  MERCI_TRAJET: "Merci pour ce trajet !"
+  MERCI_TRAJET: "Merci pour ce trajet !",
+  
+  // Messages d'urgence
+  AIDE_URGENCE: "J'ai besoin d'aide immédiatement",
+  ACCIDENT_ROUTE: "Il y a eu un accident sur la route",
+  PANNE_VEHICULE: "Mon véhicule est en panne",
+  
+  // Messages de courtoisie
+  BONJOUR_MATIN: "Bonjour ! Comment allez-vous ?",
+  BONNE_ROUTE: "Bonne route et bon voyage !",
+  AU_REVOIR: "Merci pour le trajet, au revoir !",
+  
+  // Messages informatifs
+  TRAFIC_DENSE: "Le trafic est dense, nous serons en retard",
+  ROUTE_BLOQUEE: "La route habituelle est bloquée, changement d'itinéraire",
+  PAUSE_ESSENCE: "Arrêt rapide pour faire le plein d'essence"
 };
 
 const TYPE_PIECE_JOINTE = {
@@ -247,19 +266,6 @@ const STATUT_NOTIFICATION_URGENCE = {
 };
 
 // ========================================
-// PAIEMENT - CONSTANTES
-// ========================================
-
-const STATUT_PAIEMENT_DETAILLE = {
-  EN_ATTENTE: 'EN_ATTENTE',
-  TRAITE: 'TRAITE',
-  COMPLETE: 'COMPLETE',
-  ECHEC: 'ECHEC',
-  REMBOURSE: 'REMBOURSE',
-  ANNULE: 'ANNULE'
-};
-
-// ========================================
 // ADMINISTRATEUR - CONSTANTES
 // ========================================
 
@@ -345,7 +351,7 @@ const COULEURS_VEHICULES = {
 const COMMUNES_ABIDJAN = {
   ABOBO: 'ABOBO',
   ADJAME: 'ADJAME',
-  ATTÉCOUBÉ: 'ATTÉCOUBÉ',
+  ATTECOUBE: 'ATTÉCOUBÉ',
   COCODY: 'COCODY',
   KOUMASSI: 'KOUMASSI',
   MARCORY: 'MARCORY',
@@ -372,6 +378,146 @@ const VILLES_COTE_DIVOIRE = {
 };
 
 // ========================================
+// WAZE INTÉGRATION - CONSTANTES
+// ========================================
+
+const WAZE_CONFIG = {
+  BASE_URL: 'https://waze.com/ul',
+  DEEP_LINK_IOS: 'waze://',
+  DEEP_LINK_ANDROID: 'https://waze.com/ul',
+  MAX_WAYPOINTS: 3,
+  DEFAULT_VEHICLE_TYPE: 'car'
+};
+
+const WAZE_NAVIGATION_OPTIONS = {
+  AVOID_TOLLS: 'tolls',
+  AVOID_HIGHWAYS: 'highways',
+  AVOID_FERRIES: 'ferries'
+};
+
+const TRAFFIC_LEVELS = {
+  LIGHT: 'light',
+  NORMAL: 'normal',
+  MODERATE: 'moderate',
+  HEAVY: 'heavy',
+  UNKNOWN: 'unknown'
+};
+
+// ========================================
+// SOCKET.IO - CONSTANTES
+// ========================================
+
+const SOCKET_EVENTS = {
+  // Connexion
+  CONNECTION: 'connection',
+  DISCONNECT: 'disconnect',
+  CONNECT: 'connect',
+  PING: 'ping',
+  PONG: 'pong',
+  
+  // Chat
+  JOIN_CONVERSATION: 'joinConversation',
+  SEND_MESSAGE: 'sendMessage',
+  NEW_MESSAGE: 'newMessage',
+  TYPING: 'typing',
+  USER_TYPING: 'userTyping',
+  MARK_AS_READ: 'markAsRead',
+  
+  // GPS/Tracking
+  START_TRIP_TRACKING: 'startTripTracking',
+  UPDATE_POSITION: 'updatePosition',
+  POSITION_UPDATE: 'positionUpdate',
+  TRIP_STARTED: 'tripStarted',
+  TRIP_ENDED: 'tripEnded',
+  
+  // Réservations
+  MAKE_RESERVATION: 'makeReservation',
+  ACCEPT_RESERVATION: 'acceptReservation',
+  REJECT_RESERVATION: 'rejectReservation',
+  CANCEL_RESERVATION: 'cancelReservation',
+  
+  // Alertes
+  TRIGGER_EMERGENCY: 'triggerEmergency',
+  EMERGENCY_ALERT: 'emergencyAlert',
+  UPDATE_EMERGENCY_STATUS: 'updateEmergencyStatus',
+  
+  // Waze
+  REQUEST_WAZE_NAVIGATION: 'requestWazeNavigation',
+  WAZE_NAVIGATION_READY: 'wazeNavigationReady',
+  GET_TRAFFIC_INFO: 'getTrafficInfo',
+  TRAFFIC_INFO_UPDATE: 'trafficInfoUpdate',
+  
+  // Erreurs
+  ERROR: 'error'
+};
+
+const SOCKET_ERROR_TYPES = {
+  CONVERSATION_ERROR: 'CONVERSATION_ERROR',
+  MESSAGE_ERROR: 'MESSAGE_ERROR',
+  GPS_ERROR: 'GPS_ERROR',
+  TRACKING_ERROR: 'TRACKING_ERROR',
+  RESERVATION_ERROR: 'RESERVATION_ERROR',
+  ALERT_ERROR: 'ALERT_ERROR',
+  WAZE_ERROR: 'WAZE_ERROR',
+  AUTH_ERROR: 'AUTH_ERROR'
+};
+
+// ========================================
+// NOTIFICATIONS PUSH - CONSTANTES
+// ========================================
+
+const NOTIFICATION_TYPES = {
+  NEW_MESSAGE: 'new_message',
+  NEW_RESERVATION: 'new_reservation',
+  RESERVATION_CONFIRMED: 'reservation_confirmed',
+  RESERVATION_REJECTED: 'reservation_rejected',
+  TRIP_STARTED: 'trip_started',
+  DRIVER_NEARBY: 'driver_nearby',
+  TRIP_REMINDER: 'trip_reminder',
+  EMERGENCY_ALERT: 'emergency_alert',
+  PAYMENT_RECEIVED: 'payment_received'
+};
+
+const NOTIFICATION_PRIORITIES = {
+  LOW: 'low',
+  NORMAL: 'normal',
+  HIGH: 'high',
+  MAX: 'max'
+};
+
+const NOTIFICATION_SOUNDS = {
+  DEFAULT: 'default',
+  ALERT: 'alert',
+  EMERGENCY: 'emergency',
+  SILENT: 'silent'
+};
+
+// ========================================
+// API RESPONSE - CONSTANTES
+// ========================================
+
+const HTTP_STATUS = {
+  OK: 200,
+  CREATED: 201,
+  NO_CONTENT: 204,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  UNPROCESSABLE_ENTITY: 422,
+  TOO_MANY_REQUESTS: 429,
+  INTERNAL_SERVER_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503
+};
+
+const API_RESPONSE_STATUS = {
+  SUCCESS: 'success',
+  ERROR: 'error',
+  FAIL: 'fail'
+};
+
+// ========================================
 // VALIDATION - CONSTANTES
 // ========================================
 
@@ -393,7 +539,10 @@ const LIMITES = {
   MAX_AGE_UTILISATEUR: 80,
   MAX_CARACTERES_COMMENTAIRE: 500,
   MAX_TAILLE_PHOTO: 5 * 1024 * 1024, // 5MB
-  MAX_CONTACTS_URGENCE: 3
+  MAX_CONTACTS_URGENCE: 3,
+  MAX_DISTANCE_RECHERCHE: 50, // km
+  MAX_JOURS_RESERVATION_AVANCE: 30,
+  MIN_HEURES_ANNULATION: 2
 };
 
 // ========================================
@@ -437,7 +586,9 @@ const CONFIG = {
   PAGINATION_LIMIT_MAX: 100,
   DISTANCE_RECHERCHE_DEFAULT: 10, // km
   TEMPS_LIMITE_CONFIRMATION: 30 * 60 * 1000, // 30 minutes
-  DELAI_ANNULATION_GRATUITE: 2 * 60 * 60 * 1000 // 2 heures
+  DELAI_ANNULATION_GRATUITE: 2 * 60 * 60 * 1000, // 2 heures
+  WEBSOCKET_PING_TIMEOUT: 60000,
+  WEBSOCKET_PING_INTERVAL: 25000
 };
 
 // ========================================
@@ -449,8 +600,8 @@ module.exports = {
   SEXE,
   TYPE_DOCUMENT_IDENTITE,
   STATUT_VERIFICATION,
-  TYPE_CONVERSATION,
-  LANGUE_PREFEREE,
+  PREFERENCE_CONVERSATION,
+  LANGUES,
   RELATION_CONTACT_URGENCE,
   BADGES_UTILISATEUR,
   STATUT_COMPTE,
@@ -469,7 +620,7 @@ module.exports = {
 
   // Message
   TYPE_MESSAGE,
-  MODELES_MESSAGES_PREDEFINIS,
+  MESSAGES_PREDEFINIS,
   TYPE_PIECE_JOINTE,
 
   // Évaluation
@@ -489,9 +640,6 @@ module.exports = {
   STATUT_ALERTE,
   STATUT_NOTIFICATION_URGENCE,
 
-  // Paiement
-  STATUT_PAIEMENT_DETAILLE,
-
   // Administration
   ROLE_ADMIN,
   PERMISSIONS,
@@ -508,6 +656,24 @@ module.exports = {
   // Géolocalisation
   COMMUNES_ABIDJAN,
   VILLES_COTE_DIVOIRE,
+
+  // Waze intégration
+  WAZE_CONFIG,
+  WAZE_NAVIGATION_OPTIONS,
+  TRAFFIC_LEVELS,
+
+  // Socket.IO
+  SOCKET_EVENTS,
+  SOCKET_ERROR_TYPES,
+
+  // Notifications
+  NOTIFICATION_TYPES,
+  NOTIFICATION_PRIORITIES,
+  NOTIFICATION_SOUNDS,
+
+  // API
+  HTTP_STATUS,
+  API_RESPONSE_STATUS,
 
   // Validation
   REGEX_PATTERNS,

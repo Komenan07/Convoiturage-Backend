@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+//const mongoose = require('mongoose');
 const winston = require('winston');
 const AppErrorNew = require('../utils/AppError');
 const NEW_CODES = require('../utils/errorCodes');
@@ -612,7 +612,7 @@ const handleMulterError = (err) => {
 /**
  * Middleware principal de gestion d'erreurs
  */
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res) => {
     let error = { ...err };
     error.message = err.message;
 
@@ -704,7 +704,7 @@ const errorHandler = (err, req, res, next) => {
 
     // En développement, inclure la stack trace
     if (process.env.NODE_ENV === 'development') {
-        response.error.stack = error.stack;
+        response.error.stack = error.stack;  // <- ERREUR ICI
         response.context = errorContext;
     }
 
@@ -814,7 +814,7 @@ const businessRuleValidator = {
     },
 
     // Validation des règles de paiement
-    validatePaymentRules: (payment, reservation, user) => {
+    validatePaymentRules: (payment, reservation) => {
         // Vérifier le montant
         if (payment.montantTotal !== reservation.montantTotal) {
             throw new AppError(
@@ -843,7 +843,7 @@ const businessRuleValidator = {
 /**
  * Gestionnaire d'erreurs spécifiques aux webhooks
  */
-const webhookErrorHandler = (err, req, res, next) => {
+const webhookErrorHandler = (err, req, res) => {
     // Log spécial pour les webhooks
     errorLogger.error('Erreur webhook', {
         error: err.message,
@@ -952,7 +952,7 @@ const sanitizeError = (error) => {
 /**
  * Gestionnaire d'erreurs pour la production avec monitoring
  */
-const productionErrorHandler = (err, req, res, next) => {
+const productionErrorHandler = (err, req, res) => {
     let error = sanitizeError(err instanceof AppError ? err : new AppError(
         'Une erreur inattendue s\'est produite',
         500,
