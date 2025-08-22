@@ -1,237 +1,1000 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test Socket.IO</title>
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    #logs {
-      border: 1px solid #ccc;
-      padding: 10px;
-      height: 300px;
-      overflow-y: scroll;
-      margin: 20px 0;
-      background-color: #f9f9f9;
-    }
-    button {
-      padding: 8px 16px;
-      margin: 5px;
-      cursor: pointer;
-    }
-    .success {
-      color: green;
-    }
-    .error {
-      color: red;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intégration Waze - Covoiturage</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .waze-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+
+        .waze-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .waze-icon {
+            width: 24px;
+            height: 24px;
+            background: #00d4ff;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .btn {
+            background: #00d4ff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background: #00a8cc;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,212,255,0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .coordinates-input {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .route-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .route-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .traffic-info {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+
+        .traffic-light { background: #d4edda; border-left: 4px solid #28a745; }
+        .traffic-normal { background: #fff3cd; border-left: 4px solid #ffc107; }
+        .traffic-moderate { background: #f8d7da; border-left: 4px solid #fd7e14; }
+        .traffic-heavy { background: #f5c6cb; border-left: 4px solid #dc3545; }
+
+        .share-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .share-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: white;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .share-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .whatsapp { background: #25d366; }
+        .telegram { background: #0088cc; }
+        .sms { background: #007bff; }
+
+        .device-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #00d4ff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            color: #00d4ff;
+            border-bottom: 3px solid #00d4ff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .coordinates-input {
+                grid-template-columns: 1fr;
+            }
+
+            .route-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .share-links {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h1>Test Socket.IO</h1>
-  <p>Ouvrez la console (F12) pour voir les logs détaillés.</p>
-  <div>
-    <h3>Actions</h3>
-    <button onclick="connectSocket()">Se connecter</button>
-    <button onclick="joinConversation()">Rejoindre une conversation</button>
-    <button onclick="sendMessage()">Envoyer un message privé</button>
-    <button onclick="createReservation()">Créer une réservation</button>
-    <button onclick="joinPublicChat()">Rejoindre le chat public</button>
-    <button onclick="sendPublicMessage()">Envoyer un message public</button>
-    <button onclick="disconnectSocket()">Se déconnecter</button>
-  </div>
-  <h3>Logs</h3>
-  <div id="logs"></div>
-  <script>
-    let socket = null;
-    const logsDiv = document.getElementById('logs');
+    <div class="container">
+        <div class="header">
+            <h1>🗺️ Intégration Waze</h1>
+            <p>Navigation intelligente pour votre covoiturage</p>
+        </div>
 
-    function log(message, isError = false) {
-      const logEntry = document.createElement('p');
-      logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-      logEntry.className = isError ? 'error' : 'success';
-      logsDiv.appendChild(logEntry);
-      logsDiv.scrollTop = logsDiv.scrollHeight;
-      console.log(message);
-    }
+        <div class="content">
+            <!-- Onglets de navigation -->
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('navigation')">Navigation</button>
+                <button class="tab" onclick="showTab('traffic')">Trafic</button>
+                <button class="tab" onclick="showTab('sharing')">Partage</button>
+                <button class="tab" onclick="showTab('trip')">Trajet</button>
+            </div>
 
-    function connectSocket() {
-      if (socket && socket.connected) {
-        log('Déjà connecté !');
-        return;
-      }
-      // Remplacez par votre token JWT valide
-      const token = prompt("Entrez votre token JWT (laisser vide pour tester en anonyme) :", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODlmNjE5OGU2OGQwMzRmZmY0MDM2NDIiLCJyb2xlIjoidXRpbGlzYXRldXIiLCJpYXQiOjE3NTUyNzU4NzgsImV4cCI6MTc1NTI3Njc3OH0.NDKl32X6qjbhKtXxfny3aeQlEUTB3FmCxQHe3DCIV9c");
-      const options = {};
-      if (token) {
-        options.auth = { token };
-      }
-      socket = io("ws://localhost:3000", options);
+            <!-- Alertes -->
+            <div id="alert" class="alert"></div>
 
-      socket.on("connect", () => {
-        log(`Connecté au serveur ! ID: ${socket.id}`);
-      });
+            <!-- Onglet Navigation -->
+            <div id="navigation" class="tab-content active">
+                <div class="waze-section">
+                    <h3><span class="waze-icon">W</span>Navigation Simple</h3>
+                    
+                    <div class="input-group">
+                        <label>Destination</label>
+                        <input type="text" id="destination-address" placeholder="Adresse de destination">
+                    </div>
 
-      socket.on("connect_error", (err) => {
-        log(`Erreur de connexion: ${err.message}`, true);
-      });
+                    <div class="input-group">
+                        <label>Coordonnées GPS (optionnel)</label>
+                        <div class="coordinates-input">
+                            <input type="number" id="dest-lng" placeholder="Longitude" step="any">
+                            <input type="number" id="dest-lat" placeholder="Latitude" step="any">
+                        </div>
+                    </div>
 
-      socket.on("disconnect", (reason) => {
-        log(`Déconnecté: ${reason}`);
-      });
+                    <button class="btn" onclick="generateSimpleNavigation()">
+                        🧭 Générer Navigation Waze
+                    </button>
+                    <button class="btn btn-secondary" onclick="getCurrentLocation()">
+                        📍 Ma Position
+                    </button>
 
-      // Écouter les événements de base
-      socket.on("connection:ack", (data) => {
-        log(`Connexion confirmée: ${JSON.stringify(data)}`);
-      });
+                    <div id="simple-result" style="margin-top: 15px;"></div>
+                </div>
 
-      socket.on("user_online", (data) => {
-        log(`Utilisateur en ligne: ${JSON.stringify(data)}`);
-      });
+                <div class="waze-section">
+                    <h3><span class="waze-icon">R</span>Itinéraire Multi-Points</h3>
+                    
+                    <div id="waypoints-container">
+                        <div class="waypoint-group">
+                            <h4>Point de départ</h4>
+                            <input type="text" class="waypoint-address" placeholder="Adresse de départ">
+                            <div class="coordinates-input">
+                                <input type="number" class="waypoint-lng" placeholder="Longitude" step="any">
+                                <input type="number" class="waypoint-lat" placeholder="Latitude" step="any">
+                            </div>
+                        </div>
+                        
+                        <div class="waypoint-group">
+                            <h4>Destination</h4>
+                            <input type="text" class="waypoint-address" placeholder="Adresse de destination">
+                            <div class="coordinates-input">
+                                <input type="number" class="waypoint-lng" placeholder="Longitude" step="any">
+                                <input type="number" class="waypoint-lat" placeholder="Latitude" step="any">
+                            </div>
+                        </div>
+                    </div>
 
-      socket.on("new_message", (data) => {
-        log(`Nouveau message privé: ${JSON.stringify(data)}`);
-      });
+                    <button class="btn btn-secondary" onclick="addWaypoint()">
+                        ➕ Ajouter un arrêt
+                    </button>
+                    <button class="btn" onclick="generateMultiPointRoute()">
+                        🛣️ Créer Itinéraire
+                    </button>
 
-      socket.on("public_message", (data) => {
-        log(`Message public: ${JSON.stringify(data)}`);
-      });
+                    <div id="route-result"></div>
+                </div>
+            </div>
 
-      socket.on("reservation_created", (data) => {
-        log(`Réservation créée: ${JSON.stringify(data)}`);
-      });
+            <!-- Onglet Trafic -->
+            <div id="traffic" class="tab-content">
+                <div class="waze-section">
+                    <h3><span class="waze-icon">🚦</span>Informations Trafic</h3>
+                    
+                    <div class="input-group">
+                        <label>Zone à analyser</label>
+                        <div class="coordinates-input">
+                            <input type="number" id="traffic-lng" placeholder="Longitude" step="any" value="-4.0435">
+                            <input type="number" id="traffic-lat" placeholder="Latitude" step="any" value="5.3364">
+                        </div>
+                    </div>
 
-      socket.on("user_offline", (data) => {
-        log(`Utilisateur hors ligne: ${JSON.stringify(data)}`);
-      });
-    }
+                    <div class="input-group">
+                        <label>Rayon d'analyse (mètres)</label>
+                        <input type="number" id="traffic-radius" value="5000" min="1000" max="50000">
+                    </div>
 
-    function joinConversation() {
-      if (!socket || !socket.connected) {
-        log('Non connecté au serveur !', true);
-        return;
-      }
-      const conversationId = prompt("ID de la conversation :", "60d5ec9f8b3e4b001f8e4a1b");
-      if (!conversationId) {
-        log('ID de conversation requis !', true);
-        return;
-      }
-      socket.emit("conversation:join", { conversationId }, (response) => {
-        if (response.success) {
-          log(`Conversation rejointe: ${JSON.stringify(response)}`);
-        } else {
-          log(`Erreur: ${response.error}`, true);
+                    <button class="btn" onclick="getTrafficInfo()">
+                        🚦 Analyser le Trafic
+                    </button>
+                    <button class="btn btn-success" onclick="subscribeToTraffic()">
+                        🔔 S'abonner aux Mises à Jour
+                    </button>
+
+                    <div id="traffic-result"></div>
+                </div>
+            </div>
+
+            <!-- Onglet Partage -->
+            <div id="sharing" class="tab-content">
+                <div class="waze-section">
+                    <h3><span class="waze-icon">📤</span>Partage de Trajet</h3>
+                    
+                    <div class="input-group">
+                        <label>Informations du trajet</label>
+                        <input type="text" id="trip-from" placeholder="Point de départ">
+                        <input type="text" id="trip-to" placeholder="Destination">
+                        <input type="date" id="trip-date">
+                        <input type="time" id="trip-time">
+                        <input type="text" id="driver-name" placeholder="Nom du conducteur">
+                    </div>
+
+                    <button class="btn" onclick="generateShareLinks()">
+                        🔗 Générer Liens de Partage
+                    </button>
+
+                    <div id="share-result"></div>
+                </div>
+            </div>
+
+            <!-- Onglet Trajet -->
+            <div id="trip" class="tab-content">
+                <div class="waze-section">
+                    <h3><span class="waze-icon">🚗</span>Navigation de Trajet</h3>
+                    
+                    <div class="input-group">
+                        <label>ID du Trajet</label>
+                        <input type="text" id="trip-id" placeholder="Entrez l'ID du trajet">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Type de Navigation</label>
+                        <select id="navigation-type">
+                            <option value="pickup">Vers point de prise en charge</option>
+                            <option value="destination">Vers destination finale</option>
+                            <option value="complete">Itinéraire complet</option>
+                        </select>
+                    </div>
+
+                    <button class="btn" onclick="generateTripNavigation()">
+                        🗺️ Navigation pour ce Trajet
+                    </button>
+
+                    <div id="trip-result"></div>
+                </div>
+            </div>
+
+            <!-- Informations sur l'appareil -->
+            <div class="device-info">
+                <h4>📱 Compatibilité Waze</h4>
+                <div id="device-compatibility"></div>
+            </div>
+
+            <!-- Loader -->
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Génération en cours...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Socket.IO pour la communication temps réel -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Configuration et variables globales
+        let socket = null;
+        let currentUser = null;
+        let isSocketConnected = false;
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            checkDeviceCompatibility();
+            initializeSocket();
+        });
+
+        // Connexion Socket.IO
+        function initializeSocket() {
+            const token = localStorage.getItem('authToken'); // Récupérer le token d'auth
+            
+            if (!token) {
+                showAlert('Veuillez vous connecter pour utiliser les fonctionnalités temps réel', 'error');
+                return;
+            }
+
+            socket = io({
+                auth: {
+                    token: token
+                }
+            });
+
+            socket.on('connect', () => {
+                isSocketConnected = true;
+                showAlert('Connexion temps réel établie', 'success');
+            });
+
+            socket.on('disconnect', () => {
+                isSocketConnected = false;
+                showAlert('Connexion temps réel perdue', 'error');
+            });
+
+            // Gestionnaires d'événements Waze
+            socket.on('wazeNavigationReady', handleWazeNavigationReady);
+            socket.on('wazeTripShared', handleWazeTripShared);
+            socket.on('trafficInfoUpdate', handleTrafficUpdate);
+            socket.on('alternativeRoutesReady', handleAlternativeRoutes);
+            socket.on('error', handleSocketError);
         }
-      });
-    }
 
-    function sendMessage() {
-      if (!socket || !socket.connected) {
-        log('Non connecté au serveur !', true);
-        return;
-      }
-      const conversationId = prompt("ID de la conversation :", "60d5ec9f8b3e4b001f8e4a1b");
-      const destinataireId = prompt("ID du destinataire :", "60d5ec9f8b3e4b001f8e4a1c");
-      const contenu = prompt("Contenu du message :", "Bonjour, ceci est un test !");
-      if (!conversationId || !destinataireId || !contenu) {
-        log('Tous les champs sont requis !', true);
-        return;
-      }
-      socket.emit("send_message", {
-        conversationId,
-        destinataireId,
-        contenu,
-        typeMessage: "TEXTE"
-      }, (response) => {
-        if (response.success) {
-          log(`Message envoyé: ${JSON.stringify(response)}`);
-        } else {
-          log(`Erreur: ${response.error}`, true);
+        // Gestion des onglets
+        function showTab(tabName) {
+            // Masquer tous les contenus d'onglets
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Désactiver tous les onglets
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Activer l'onglet sélectionné
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
         }
-      });
-    }
 
-    function createReservation() {
-      if (!socket || !socket.connected) {
-        log('Non connecté au serveur !', true);
-        return;
-      }
-      const trajetId = prompt("ID du trajet :", "60d5ec9f8b3e4b001f8e4a1d");
-      const nombrePlacesReservees = prompt("Nombre de places :", "1");
-      const pointPriseEnCharge = prompt("Point de prise en charge :", "Gare d'Abidjan");
-      const pointDepose = prompt("Point de dépose :", "Aéroport");
-      if (!trajetId || !nombrePlacesReservees || !pointPriseEnCharge || !pointDepose) {
-        log('Tous les champs sont requis !', true);
-        return;
-      }
-      socket.emit("create_reservation", {
-        trajetId,
-        nombrePlacesReservees: parseInt(nombrePlacesReservees),
-        pointPriseEnCharge,
-        pointDepose
-      }, (response) => {
-        if (response.success) {
-          log(`Réservation créée: ${JSON.stringify(response)}`);
-        } else {
-          log(`Erreur: ${response.error}`, true);
+        // Navigation simple
+        async function generateSimpleNavigation() {
+            const address = document.getElementById('destination-address').value;
+            const lng = document.getElementById('dest-lng').value;
+            const lat = document.getElementById('dest-lat').value;
+
+            if (!address && (!lng || !lat)) {
+                showAlert('Veuillez entrer une adresse ou des coordonnées', 'error');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                const destination = {
+                    address: address,
+                    coordinates: lng && lat ? [parseFloat(lng), parseFloat(lat)] : null
+                };
+
+                const response = await fetch('/api/waze/navigation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    },
+                    body: JSON.stringify({
+                        destination,
+                        userAgent: navigator.userAgent
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayNavigationResult(result.navigation, 'simple-result');
+                    showAlert('Navigation générée avec succès!', 'success');
+                } else {
+                    showAlert(result.message || 'Erreur lors de la génération', 'error');
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur de connexion', 'error');
+            } finally {
+                showLoading(false);
+            }
         }
-      });
-    }
 
-    function joinPublicChat() {
-      if (!socket || !socket.connected) {
-        log('Non connecté au serveur !', true);
-        return;
-      }
-      const roomName = prompt("Nom de la salle publique :", "general");
-      socket.emit("public_chat:join", { roomName }, (response) => {
-        if (response.success) {
-          log(`Chat public rejoint: ${JSON.stringify(response)}`);
-        } else {
-          log(`Erreur: ${response.error}`, true);
+        // Itinéraire multi-points
+        async function generateMultiPointRoute() {
+            const waypointGroups = document.querySelectorAll('.waypoint-group');
+            const waypoints = [];
+
+            waypointGroups.forEach((group, index) => {
+                const address = group.querySelector('.waypoint-address').value;
+                const lng = group.querySelector('.waypoint-lng').value;
+                const lat = group.querySelector('.waypoint-lat').value;
+
+                if (address || (lng && lat)) {
+                    waypoints.push({
+                        address: address,
+                        coordinates: lng && lat ? [parseFloat(lng), parseFloat(lat)] : null,
+                        type: index === 0 ? 'start' : (index === waypointGroups.length - 1 ? 'end' : 'waypoint')
+                    });
+                }
+            });
+
+            if (waypoints.length < 2) {
+                showAlert('Au moins 2 points sont requis', 'error');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                const response = await fetch('/api/waze/route', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    },
+                    body: JSON.stringify({ waypoints })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayRouteResult(result, 'route-result');
+                    showAlert('Itinéraire créé avec succès!', 'success');
+                } else {
+                    showAlert(result.message || 'Erreur lors de la création', 'error');
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur de connexion', 'error');
+            } finally {
+                showLoading(false);
+            }
         }
-      });
-    }
 
-    function sendPublicMessage() {
-      if (!socket || !socket.connected) {
-        log('Non connecté au serveur !', true);
-        return;
-      }
-      const roomName = prompt("Nom de la salle publique :", "general");
-      const content = prompt("Contenu du message :", "Salut à tous !");
-      const username = prompt("Votre pseudo (optionnel) :", "Anonyme");
-      if (!content) {
-        log('Contenu requis !', true);
-        return;
-      }
-      socket.emit("send_public_message", {
-        roomName,
-        content,
-        username
-      }, (response) => {
-        if (response.success) {
-          log(`Message public envoyé: ${JSON.stringify(response)}`);
-        } else {
-          log(`Erreur: ${response.error}`, true);
+        // Ajouter un point de passage
+        function addWaypoint() {
+            const container = document.getElementById('waypoints-container');
+            const waypointCount = container.querySelectorAll('.waypoint-group').length;
+
+            const waypointHTML = `
+                <div class="waypoint-group">
+                    <h4>Arrêt ${waypointCount - 1} <button onclick="removeWaypoint(this)" style="background: #dc3545; color: white; border: none; border-radius: 3px; padding: 2px 6px; margin-left: 10px;">✕</button></h4>
+                    <input type="text" class="waypoint-address" placeholder="Adresse de l'arrêt">
+                    <div class="coordinates-input">
+                        <input type="number" class="waypoint-lng" placeholder="Longitude" step="any">
+                        <input type="number" class="waypoint-lat" placeholder="Latitude" step="any">
+                    </div>
+                </div>
+            `;
+
+            // Insérer avant le dernier élément (destination)
+            const lastWaypoint = container.lastElementChild;
+            lastWaypoint.insertAdjacentHTML('beforebegin', waypointHTML);
         }
-      });
-    }
 
-    function disconnectSocket() {
-      if (!socket || !socket.connected) {
-        log('Non connecté au serveur !', true);
-        return;
-      }
-      socket.disconnect();
-      log('Déconnecté du serveur.');
-    }
-  </script>
+        // Supprimer un point de passage
+        function removeWaypoint(button) {
+            button.closest('.waypoint-group').remove();
+        }
+
+        // Informations de trafic
+        async function getTrafficInfo() {
+            const lng = document.getElementById('traffic-lng').value;
+            const lat = document.getElementById('traffic-lat').value;
+            const radius = document.getElementById('traffic-radius').value;
+
+            if (!lng || !lat) {
+                showAlert('Coordonnées requises', 'error');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                const response = await fetch(`/api/waze/traffic/${lng}/${lat}?radius=${radius}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    displayTrafficInfo(result, 'traffic-result');
+                    showAlert('Informations de trafic récupérées', 'success');
+                } else {
+                    showAlert(result.message || 'Erreur lors de la récupération', 'error');
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                showAlert('Erreur de connexion', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // S'abonner aux mises à jour de trafic
+        function subscribeToTraffic() {
+            if (!isSocketConnected) {
+                showAlert('Connexion temps réel requise', 'error');
+                return;
+            }
+
+            const lng = parseFloat(document.getElementById('traffic-lng').value);
+            const lat = parseFloat(document.getElementById('traffic-lat').value);
+            const radius = parseInt(document.getElementById('traffic-radius').value);
+
+            socket.emit('subscribeToTrafficUpdates', {
+                coordinates: [lng, lat],
+                radius,
+                updateInterval: 300000 // 5 minutes
+            });
+
+            showAlert('Abonnement aux mises à jour activé', 'info');
+        }
+
+        // Générer liens de partage
+        function generateShareLinks() {
+            const tripData = {
+                from: document.getElementById('trip-from').value,
+                to: document.getElementById('trip-to').value,
+                date: document.getElementById('trip-date').value,
+                time: document.getElementById('trip-time').value,
+                driverName: document.getElementById('driver-name').value
+            };
+
+            if (!tripData.from || !tripData.to || !tripData.driverName) {
+                showAlert('Veuillez remplir tous les champs obligatoires', 'error');
+                return;
+            }
+
+            const shareMessage = `🚗 Covoiturage avec ${tripData.driverName}
+📍 De: ${tripData.from}
+📍 Vers: ${tripData.to}
+🕒 ${tripData.date} à ${tripData.time}
+🗺️ Navigation Waze: `;
+
+            const shareLinks = {
+                whatsapp: `https://wa.me/?text=${encodeURIComponent(shareMessage)}`,
+                telegram: `https://t.me/share/url?text=${encodeURIComponent(shareMessage)}`,
+                sms: `sms:?body=${encodeURIComponent(shareMessage)}`
+            };
+
+            displayShareLinks(shareLinks, 'share-result');
+            showAlert('Liens de partage générés!', 'success');
+        }
+
+        // Navigation pour trajet spécifique
+        function generateTripNavigation() {
+            if (!isSocketConnected) {
+                showAlert('Connexion temps réel requise', 'error');
+                return;
+            }
+
+            const tripId = document.getElementById('trip-id').value;
+            const navigationType = document.getElementById('navigation-type').value;
+
+            if (!tripId) {
+                showAlert('ID du trajet requis', 'error');
+                return;
+            }
+
+            socket.emit('requestWazeNavigation', {
+                trajetId: tripId,
+                navigationType
+            });
+
+            showAlert('Demande de navigation envoyée...', 'info');
+        }
+
+        // Obtenir la position actuelle
+        function getCurrentLocation() {
+            if (!navigator.geolocation) {
+                showAlert('Géolocalisation non supportée', 'error');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    document.getElementById('dest-lng').value = position.coords.longitude;
+                    document.getElementById('dest-lat').value = position.coords.latitude;
+                    document.getElementById('traffic-lng').value = position.coords.longitude;
+                    document.getElementById('traffic-lat').value = position.coords.latitude;
+                    showAlert('Position récupérée!', 'success');
+                },
+                (error) => {
+                    showAlert('Erreur de géolocalisation: ' + error.message, 'error');
+                }
+            );
+        }
+
+        // Vérifier la compatibilité de l'appareil
+        function checkDeviceCompatibility() {
+            const userAgent = navigator.userAgent;
+            const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+            const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+            const isAndroid = /Android/i.test(userAgent);
+
+            let compatibilityHTML = `
+                <p><strong>Appareil:</strong> ${isMobile ? 'Mobile' : 'Desktop'}</p>
+                <p><strong>Système:</strong> ${isIOS ? 'iOS' : (isAndroid ? 'Android' : 'Desktop')}</p>
+                <p><strong>Deep Links Waze:</strong> ${isMobile ? '✅ Supportés' : '❌ Non supportés'}</p>
+                <p><strong>Navigation Web:</strong> ✅ Supportée</p>
+            `;
+
+            if (isMobile) {
+                compatibilityHTML += `<p><strong>Recommandation:</strong> Utilisez les liens directs pour ouvrir Waze</p>`;
+            } else {
+                compatibilityHTML += `<p><strong>Recommandation:</strong> Utilisez la navigation web Waze</p>`;
+            }
+
+            document.getElementById('device-compatibility').innerHTML = compatibilityHTML;
+        }
+
+        // Gestionnaires d'événements Socket.IO
+        function handleWazeNavigationReady(data) {
+            displayNavigationResult(data.route, 'trip-result');
+            showAlert(`Navigation ${data.userRole} prête!`, 'success');
+        }
+
+        function handleWazeTripShared(data) {
+            showAlert('Trajet partagé avec succès!', 'success');
+        }
+
+        function handleTrafficUpdate(data) {
+            displayTrafficInfo(data, 'traffic-result');
+        }
+
+        function handleAlternativeRoutes(data) {
+            console.log('Routes alternatives:', data);
+        }
+
+        function handleSocketError(error) {
+            showAlert(error.message || 'Erreur Socket.IO', 'error');
+        }
+
+        // Fonctions d'affichage
+        function displayNavigationResult(navigation, containerId) {
+            const container = document.getElementById(containerId);
+            
+            let html = `
+                <div class="route-info">
+                    <h4>🗺️ Navigation Waze Prête</h4>
+                    <div class="share-links">
+                        <a href="${navigation.webURL}" target="_blank" class="btn">
+                            🌐 Ouvrir Waze Web
+                        </a>
+            `;
+
+            if (navigation.mobileLinks) {
+                html += `
+                    <a href="${navigation.mobileLinks.ios}" class="btn">
+                        📱 Ouvrir sur iOS
+                    </a>
+                    <a href="${navigation.mobileLinks.android}" class="btn">
+                        🤖 Ouvrir sur Android
+                    </a>
+                `;
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function displayRouteResult(result, containerId) {
+            const container = document.getElementById(containerId);
+            
+            let html = `
+                <div class="route-info">
+                    <h4>🛣️ Itinéraire Multi-Points</h4>
+                    <div class="route-stats">
+                        <div class="stat-item">
+                            <span class="stat-value">${result.routeInfo.totalDistance} km</span>
+                            <span class="stat-label">Distance</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">${result.routeInfo.estimatedDuration} min</span>
+                            <span class="stat-label">Durée estimée</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">${result.routeInfo.waypoints}</span>
+                            <span class="stat-label">Points</span>
+                        </div>
+                    </div>
+                    <div class="share-links">
+                        <a href="${result.wazeURL}" target="_blank" class="btn">
+                            🗺️ Ouvrir dans Waze
+                        </a>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function displayTrafficInfo(result, containerId) {
+            const container = document.getElementById(containerId);
+            const traffic = result.traffic;
+            
+            let trafficClass = 'traffic-normal';
+            if (traffic.level === 'light') trafficClass = 'traffic-light';
+            else if (traffic.level === 'moderate') trafficClass = 'traffic-moderate';
+            else if (traffic.level === 'heavy') trafficClass = 'traffic-heavy';
+
+            let html = `
+                <div class="traffic-info ${trafficClass}">
+                    <h4>🚦 État du Trafic</h4>
+                    <p><strong>Niveau:</strong> ${traffic.description}</p>
+                    <p><strong>Facteur de vitesse:</strong> ${(traffic.speedFactor * 100).toFixed(0)}%</p>
+                    <p><strong>Dernière mise à jour:</strong> ${new Date(traffic.lastUpdated).toLocaleTimeString()}</p>
+                </div>
+            `;
+
+            if (result.incidents && result.incidents.length > 0) {
+                html += `<div style="margin-top: 10px;"><strong>Incidents:</strong><ul>`;
+                result.incidents.forEach(incident => {
+                    html += `<li>${incident.description} (${incident.severity})</li>`;
+                });
+                html += `</ul></div>`;
+            }
+
+            if (result.recommendations && result.recommendations.length > 0) {
+                html += `<div style="margin-top: 10px;"><strong>Recommandations:</strong><ul>`;
+                result.recommendations.forEach(rec => {
+                    html += `<li>${rec}</li>`;
+                });
+                html += `</ul></div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function displayShareLinks(links, containerId) {
+            const container = document.getElementById(containerId);
+            
+            const html = `
+                <div class="route-info">
+                    <h4>📤 Liens de Partage</h4>
+                    <div class="share-links">
+                        <a href="${links.whatsapp}" target="_blank" class="share-btn whatsapp">
+                            📱 WhatsApp
+                        </a>
+                        <a href="${links.telegram}" target="_blank" class="share-btn telegram">
+                            ✈️ Telegram
+                        </a>
+                        <a href="${links.sms}" class="share-btn sms">
+                            💬 SMS
+                        </a>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Fonctions utilitaires
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.className = `alert alert-${type} show`;
+            alert.textContent = message;
+            
+            setTimeout(() => {
+                alert.classList.remove('show');
+            }, 5000);
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            loading.classList.toggle('show', show);
+        }
+    </script>
 </body>
 </html>

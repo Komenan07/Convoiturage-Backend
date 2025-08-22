@@ -30789,3 +30789,1229 @@
   version: '1.0.0',
   timestamp: '2025-08-15 15:44:20'
 }
+{
+  error: Error: Cannot find module 'redis'
+  Require stack:
+  - C:\Projet perso\Convoiturage-Backend\config\redis.js
+  - C:\Projet perso\Convoiturage-Backend\server.js
+      at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+      at Function._load (node:internal/modules/cjs/loader:1211:37)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\config\redis.js:1:15)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ]
+  },
+  level: 'error',
+  message: "uncaughtException: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  stack: "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  exception: true,
+  date: 'Thu Aug 21 2025 19:03:10 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 37076,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 71639040,
+      heapTotal: 34705408,
+      heapUsed: 24650408,
+      external: 20525642,
+      arrayBuffers: 18264303
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 122442.796 },
+  trace: [
+    {
+      column: 15,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._resolveFilename',
+      line: 1401,
+      method: '_resolveFilename',
+      native: false
+    },
+    {
+      column: 19,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'defaultResolveImpl',
+      line: 1057,
+      method: null,
+      native: false
+    },
+    {
+      column: 22,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'resolveForCJSWithHooks',
+      line: 1062,
+      method: null,
+      native: false
+    },
+    {
+      column: 37,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1211,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 15,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      function: null,
+      line: 1,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-21 19:03:10'
+}
+{
+  error: Error: Cannot find module 'redis'
+  Require stack:
+  - C:\Projet perso\Convoiturage-Backend\config\redis.js
+  - C:\Projet perso\Convoiturage-Backend\server.js
+      at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+      at Function._load (node:internal/modules/cjs/loader:1211:37)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\config\redis.js:1:15)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ]
+  },
+  level: 'error',
+  message: "uncaughtException: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  stack: "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  exception: true,
+  date: 'Thu Aug 21 2025 19:19:26 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 28004,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 71913472,
+      heapTotal: 34705408,
+      heapUsed: 24566584,
+      external: 20525642,
+      arrayBuffers: 18264303
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 123418.953 },
+  trace: [
+    {
+      column: 15,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._resolveFilename',
+      line: 1401,
+      method: '_resolveFilename',
+      native: false
+    },
+    {
+      column: 19,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'defaultResolveImpl',
+      line: 1057,
+      method: null,
+      native: false
+    },
+    {
+      column: 22,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'resolveForCJSWithHooks',
+      line: 1062,
+      method: null,
+      native: false
+    },
+    {
+      column: 37,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1211,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 15,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      function: null,
+      line: 1,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-21 19:19:27'
+}
+{
+  error: Error: Cannot find module 'redis'
+  Require stack:
+  - C:\Projet perso\Convoiturage-Backend\config\redis.js
+  - C:\Projet perso\Convoiturage-Backend\server.js
+      at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+      at Function._load (node:internal/modules/cjs/loader:1211:37)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\config\redis.js:1:15)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ]
+  },
+  level: 'error',
+  message: "uncaughtException: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  stack: "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  exception: true,
+  date: 'Thu Aug 21 2025 19:23:02 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 27780,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 71667712,
+      heapTotal: 34705408,
+      heapUsed: 24506232,
+      external: 20525642,
+      arrayBuffers: 18264303
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 123634.765 },
+  trace: [
+    {
+      column: 15,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._resolveFilename',
+      line: 1401,
+      method: '_resolveFilename',
+      native: false
+    },
+    {
+      column: 19,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'defaultResolveImpl',
+      line: 1057,
+      method: null,
+      native: false
+    },
+    {
+      column: 22,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'resolveForCJSWithHooks',
+      line: 1062,
+      method: null,
+      native: false
+    },
+    {
+      column: 37,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1211,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 15,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      function: null,
+      line: 1,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-21 19:23:02'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use ::1:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at GetAddrInfoReqWrap.callback (node:net:2205:7)
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '::1',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use ::1:3000\n' +
+    'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  stack: 'Error: listen EADDRINUSE: address already in use ::1:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at GetAddrInfoReqWrap.callback (node:net:2205:7)\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:134:8)',
+  exception: true,
+  date: 'Thu Aug 21 2025 19:25:39 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 36364,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 109559808,
+      heapTotal: 73846784,
+      heapUsed: 46411832,
+      external: 39021759,
+      arrayBuffers: 36544908
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 123791.343 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: 'GetAddrInfoReqWrap.callback',
+      line: 2205,
+      method: 'callback',
+      native: false
+    },
+    {
+      column: 8,
+      file: 'node:dns',
+      function: 'GetAddrInfoReqWrap.onlookupall [as oncomplete]',
+      line: 134,
+      method: 'onlookupall [as oncomplete]',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-21 19:25:39'
+}
+{
+  error: Error: Cannot find module 'redis'
+  Require stack:
+  - C:\Projet perso\Convoiturage-Backend\config\redis.js
+  - C:\Projet perso\Convoiturage-Backend\server.js
+      at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+      at Function._load (node:internal/modules/cjs/loader:1211:37)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\config\redis.js:1:15)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ]
+  },
+  level: 'error',
+  message: "uncaughtException: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  stack: "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  exception: true,
+  date: 'Thu Aug 21 2025 19:27:04 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 38584,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 69136384,
+      heapTotal: 34705408,
+      heapUsed: 24676136,
+      external: 20525642,
+      arrayBuffers: 18264303
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 123876.796 },
+  trace: [
+    {
+      column: 15,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._resolveFilename',
+      line: 1401,
+      method: '_resolveFilename',
+      native: false
+    },
+    {
+      column: 19,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'defaultResolveImpl',
+      line: 1057,
+      method: null,
+      native: false
+    },
+    {
+      column: 22,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'resolveForCJSWithHooks',
+      line: 1062,
+      method: null,
+      native: false
+    },
+    {
+      column: 37,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1211,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 15,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      function: null,
+      line: 1,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-21 19:27:04'
+}
+{
+  error: Error: Cannot find module 'redis'
+  Require stack:
+  - C:\Projet perso\Convoiturage-Backend\config\redis.js
+  - C:\Projet perso\Convoiturage-Backend\server.js
+      at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+      at Function._load (node:internal/modules/cjs/loader:1211:37)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\config\redis.js:1:15)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ]
+  },
+  level: 'error',
+  message: "uncaughtException: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  stack: "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  exception: true,
+  date: 'Thu Aug 21 2025 19:27:26 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 29236,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 69455872,
+      heapTotal: 34705408,
+      heapUsed: 24628480,
+      external: 20525642,
+      arrayBuffers: 18264303
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 123898.109 },
+  trace: [
+    {
+      column: 15,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._resolveFilename',
+      line: 1401,
+      method: '_resolveFilename',
+      native: false
+    },
+    {
+      column: 19,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'defaultResolveImpl',
+      line: 1057,
+      method: null,
+      native: false
+    },
+    {
+      column: 22,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'resolveForCJSWithHooks',
+      line: 1062,
+      method: null,
+      native: false
+    },
+    {
+      column: 37,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1211,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 15,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      function: null,
+      line: 1,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-21 19:27:26'
+}
+{
+  error: Error: Cannot find module 'redis'
+  Require stack:
+  - C:\Projet perso\Convoiturage-Backend\config\redis.js
+  - C:\Projet perso\Convoiturage-Backend\server.js
+      at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+      at Function._load (node:internal/modules/cjs/loader:1211:37)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\config\redis.js:1:15)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ]
+  },
+  level: 'error',
+  message: "uncaughtException: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  stack: "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  exception: true,
+  date: 'Thu Aug 21 2025 19:27:35 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 38584,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 70279168,
+      heapTotal: 35229696,
+      heapUsed: 24111424,
+      external: 20648773,
+      arrayBuffers: 18264479
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 123907.906 },
+  trace: [
+    {
+      column: 15,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._resolveFilename',
+      line: 1401,
+      method: '_resolveFilename',
+      native: false
+    },
+    {
+      column: 19,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'defaultResolveImpl',
+      line: 1057,
+      method: null,
+      native: false
+    },
+    {
+      column: 22,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'resolveForCJSWithHooks',
+      line: 1062,
+      method: null,
+      native: false
+    },
+    {
+      column: 37,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1211,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 15,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      function: null,
+      line: 1,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-21 19:27:35'
+}
+{
+  error: Error: Cannot find module 'redis'
+  Require stack:
+  - C:\Projet perso\Convoiturage-Backend\config\redis.js
+  - C:\Projet perso\Convoiturage-Backend\server.js
+      at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+      at Function._load (node:internal/modules/cjs/loader:1211:37)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\config\redis.js:1:15)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ]
+  },
+  level: 'error',
+  message: "uncaughtException: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  stack: "Error: Cannot find module 'redis'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js:1:15)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)',
+  exception: true,
+  date: 'Thu Aug 21 2025 19:28:49 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 39540,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 70815744,
+      heapTotal: 34967552,
+      heapUsed: 24399248,
+      external: 20648773,
+      arrayBuffers: 18264479
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 123981.671 },
+  trace: [
+    {
+      column: 15,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._resolveFilename',
+      line: 1401,
+      method: '_resolveFilename',
+      native: false
+    },
+    {
+      column: 19,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'defaultResolveImpl',
+      line: 1057,
+      method: null,
+      native: false
+    },
+    {
+      column: 22,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'resolveForCJSWithHooks',
+      line: 1062,
+      method: null,
+      native: false
+    },
+    {
+      column: 37,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1211,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 15,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\config\\redis.js',
+      function: null,
+      line: 1,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-21 19:28:49'
+}

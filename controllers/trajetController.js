@@ -137,65 +137,63 @@ async creerTrajetPonctuel(req, res, next) {
   /**
    * Créer un trajet récurrent
    */
-  async creerTrajetRecurrent(req, res, next) {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Erreurs de validation', 
-          errors: errors.array() 
-        });
-      }
-
-      const trajetData = {
-        ...req.body,
-        conducteurId: req.user.id,
-        typeTrajet: 'RECURRENT'
-      };
-
-      // Validation de la récurrence
-      if (!trajetData.recurrence || !trajetData.recurrence.jours || trajetData.recurrence.jours.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'La récurrence est requise pour un trajet récurrent'
-        });
-      }
-
-      // Validation avec Google Maps API
-      const itineraireValide = await this.validerItineraire(
-        trajetData.pointDepart.coordonnees.coordinates,
-        trajetData.pointArrivee.coordonnees.coordinates
-      );
-
-      if (!itineraireValide.success) {
-        return res.status(400).json({
-          success: false,
-          message: 'Itinéraire invalide',
-          details: itineraireValide.message
-        });
-      }
-
-      trajetData.distance = itineraireValide.distance;
-      trajetData.dureeEstimee = itineraireValide.duree;
-      trajetData.heureArriveePrevue = itineraireValide.heureArrivee;
-
-      const nouveauTrajet = new Trajet(trajetData);
-      await nouveauTrajet.save();
-
-      await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
-
-      res.status(201).json({
-        success: true,
-        message: 'Trajet récurrent créé avec succès',
-        data: nouveauTrajet
+ async creerTrajetRecurrent(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Erreurs de validation', 
+        errors: errors.array() 
       });
-
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la création du trajet récurrent', { originalError: error.message }));
     }
-  }
 
+    const trajetData = {
+      ...req.body,
+      conducteurId: req.user.id,
+      typeTrajet: 'RECURRENT'
+    };
+
+    // Validation de la récurrence
+    if (!trajetData.recurrence || !trajetData.recurrence.jours || trajetData.recurrence.jours.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'La récurrence est requise pour un trajet récurrent'
+      });
+    }
+
+    // Calculs par défaut (remplace l'API Google Maps)
+    if (!trajetData.distance) {
+      trajetData.distance = 15; // km par défaut
+    }
+    if (!trajetData.dureeEstimee) {
+      trajetData.dureeEstimee = Math.round(trajetData.distance * 2); // 2 min/km estimation
+    }
+    if (!trajetData.heureArriveePrevue) {
+      // Calcul de l'heure d'arrivée basé sur l'heure de départ + durée
+      const [heures, minutes] = trajetData.heureDepart.split(':').map(Number);
+      const totalMinutes = heures * 60 + minutes + trajetData.dureeEstimee;
+      const nouvellesHeures = Math.floor(totalMinutes / 60) % 24;
+      const nouvellesMinutes = totalMinutes % 60;
+      trajetData.heureArriveePrevue = `${nouvellesHeures.toString().padStart(2, '0')}:${nouvellesMinutes.toString().padStart(2, '0')}`;
+    }
+
+    const nouveauTrajet = new Trajet(trajetData);
+    await nouveauTrajet.save();
+
+    await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
+
+    res.status(201).json({
+      success: true,
+      message: 'Trajet récurrent créé avec succès',
+      data: nouveauTrajet
+    });
+
+  } catch (error) {
+    console.error('Erreur création trajet récurrent:', error);
+    return next(AppError.serverError('Erreur serveur lors de la création du trajet récurrent', { originalError: error.message }));
+  }
+}
   // ==================== READ ====================
 
   /**
