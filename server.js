@@ -162,7 +162,7 @@ const demarrerServeur = async () => {
       console.warn('⚠️ Socket.io non initialisé:', e.message);
     }
 
-    server.listen(PORT, HOST, () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log('🎉 ================================');
       console.log(`🚀 Serveur démarré avec succès!`);
       console.log(`📍 URL: http://${HOST}:${PORT}`);

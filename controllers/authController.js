@@ -58,7 +58,7 @@ const inscription = async (req, res, next) => {
       logger.warn('Inscription échouée - Email déjà utilisé', { email });
       return res.status(409).json({
         success: false,
-        message: 'Un compte avec cet email existe déjà'
+        message: 'Un compte avec cet email ou ce numero existe déjà'
       });
     }
     
@@ -162,7 +162,7 @@ const inscription = async (req, res, next) => {
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: 'Un compte avec cet email existe déjà'
+        message: 'Un compte avec cet email ou ce numéro existe déjà'
       });
     }
 
@@ -542,9 +542,11 @@ const connexion = async (req, res, next) => {
         nom: user.nom,
         prenom: user.prenom,
         email: user.email,
+        telephone: user.telephone,
         role: user.role,
         photo: user.photo,
-        statutCompte: user.statutCompte
+        statutCompte: user.statutCompte,
+        dateInscription: user.dateInscription || user.createdAt
       }
     });
     

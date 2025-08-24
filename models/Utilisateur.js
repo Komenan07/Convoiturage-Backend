@@ -347,6 +347,12 @@ const utilisateurSchema = new mongoose.Schema({
     type: String,
     enum: ['utilisateur', 'admin'],
     default: 'utilisateur'
+  },
+
+  typeUser: {
+    type: String,
+    enum: ['conducteur', 'passager'],
+    default: 'passager'
   }
 
 }, {
