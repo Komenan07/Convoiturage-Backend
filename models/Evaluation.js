@@ -391,10 +391,10 @@ evaluationSchema.statics.detecterEvaluationsSuspectes = async function(userId) {
   if (evaluations.length < 3) return { suspect: false };
   
   const notesRecentes = evaluations.slice(0, 5);
-  const moyenneRecente = notesRecentes.reduce((sum, eval) => 
-    sum + eval.notes.noteGlobale, 0) / notesRecentes.length;
+  const moyenneRecente = notesRecentes.reduce((sum, evaluation) => 
+    sum + evaluation.notes.noteGlobale, 0) / notesRecentes.length;
   
-  const signalements = evaluations.filter(eval => eval.estSignalement).length;
+  const signalements = evaluations.filter(evaluation => evaluation.estSignalement).length;
   
   return {
     suspect: moyenneRecente < 2.5 || signalements >= 2,

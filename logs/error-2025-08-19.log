@@ -43,3 +43,32 @@
     '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
   timestamp: '2025-08-19 19:35:13'
 }
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Projet perso\\Convoiturage-Backend\\views\\welcome-template.html',
+  level: 'error',
+  message: "Erreur chargement template welcome-template.html: ENOENT: no such file or directory, open 'C:\\Projet perso\\Convoiturage-Backend\\views\\welcome-template.html'",
+  stack: "Error: ENOENT: no such file or directory, open 'C:\\Projet perso\\Convoiturage-Backend\\views\\welcome-template.html'\n" +
+    '    at Object.readFileSync (node:fs:442:20)\n' +
+    '    at chargerTemplate (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:16:27)\n' +
+    '    at confirmerEmail (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:232:27)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-19 23:33:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur envoi email bienvenue: Impossible de charger le template welcome-template.html',
+  stack: 'Error: Impossible de charger le template welcome-template.html\n' +
+    '    at chargerTemplate (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:27:11)\n' +
+    '    at confirmerEmail (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:232:27)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-19 23:33:39'
+}

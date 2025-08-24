@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2'); 
 
 // Schéma pour les points géographiques (départ, arrivée, arrêts)
 const pointSchema = new mongoose.Schema({
@@ -501,7 +502,7 @@ trajetSchema.virtual('placesReservees').get(function() {
 trajetSchema.virtual('tauxOccupation').get(function() {
   return Math.round((this.placesReservees / this.nombrePlacesTotal) * 100);
 });
-
+trajetSchema.plugin(mongoosePaginate);
 module.exports = mongoose.model('Trajet', trajetSchema);
 // Mettre à jour les statistiques du conducteur quand un trajet est terminé
 trajetSchema.pre('save', async function(next) {

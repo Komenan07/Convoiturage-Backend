@@ -1,127 +1,37 @@
 const express = require('express');
 const router = express.Router();
+const EvenementController = require('../controllers/evenementController');
 
-// Import sécurisé d'asyncHandler
-let asyncHandler;
+// Instanciation du contrôleur
+const evenementController = new EvenementController();
+
+// Import du middleware d'authentification
+let protect;
 try {
-  asyncHandler = require('express-async-handler');
+  const authMiddleware = require('../middlewares/authMiddleware');
+  protect = authMiddleware.protect;
 } catch (error) {
-  console.warn('⚠️ express-async-handler non trouvé, utilisation d\'une version simplifiée');
-  asyncHandler = (fn) => (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-}
-
-// Import sécurisé du contrôleur
-let evenementController;
-try {
-  evenementController = require('../controllers/evenementController');
-} catch (error) {
-  console.warn('⚠️ Contrôleur evenementController non trouvé, utilisation des méthodes par défaut');
-  evenementController = {
-    obtenirStatistiques: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    obtenirEvenementsAVenir: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    rechercherParProximite: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    exporterEvenements: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    obtenirEvenements: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    rechercheAvancee: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    obtenirEvenement: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    obtenirGroupesCovoiturage: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    creerEvenement: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    mettreAJourEvenement: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    changerStatut: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    supprimerEvenement: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    ajouterGroupeCovoiturage: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    supprimerGroupeCovoiturage: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    rejoindreGroupe: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-    quitterGroupe: asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: 'Non implémenté' });
-    }),
-  };
-}
-
-// Vérifier que toutes les méthodes sont définies
-const requiredMethods = [
-  'obtenirStatistiques', 'obtenirEvenementsAVenir', 'rechercherParProximite',
-  'exporterEvenements', 'obtenirEvenements', 'rechercheAvancee', 'obtenirEvenement',
-  'obtenirGroupesCovoiturage', 'creerEvenement', 'mettreAJourEvenement',
-  'changerStatut', 'supprimerEvenement', 'ajouterGroupeCovoiturage',
-  'supprimerGroupeCovoiturage', 'rejoindreGroupe', 'quitterGroupe'
-];
-
-requiredMethods.forEach(method => {
-  if (!evenementController[method]) {
-    console.warn(`⚠️ Méthode ${method} manquante dans le contrôleur, création d'une méthode par défaut`);
-    evenementController[method] = asyncHandler(async (req, res) => {
-      res.status(501).json({ success: false, message: `Méthode ${method} non implémentée` });
-    });
-  }
-});
-
-// Middleware d'authentification par défaut
-let auth = (req, res, next) => {
-  console.warn('⚠️ Middleware auth non disponible, accès autorisé');
-  req.user = { id: 'user_test_' + Date.now(), role: 'user' };
-  next();
-};
-
-// Essayer d'importer le vrai middleware d'authentification
-try {
-  const { protect } = require('../middlewares/authMiddleware');
-  auth = protect;
-} catch (error) {
-  console.warn('⚠️ Middleware protect non trouvé, utilisation du middleware par défaut');
-}
-
-// Middleware d'upload par défaut
-let upload = {
-  single: (fieldName) => (req, res, next) => {
-    console.warn(`⚠️ Middleware upload.single('${fieldName}') non disponible`);
-    req.file = null;
+  console.warn('⚠️ Middleware protect non trouvé');
+  // Middleware temporaire pour les tests
+  protect = (req, res, next) => {
+    req.user = { 
+      id: '68a5f9e043391dafa36887e4', 
+      role: 'utilisateur',
+      nom: 'SIGATOUGO',
+      prenom: 'BORIS CONSTANT'
+    };
     next();
-  }
-};
+  };
+}
 
 // Validation des IDs MongoDB
 const validerIdEvenement = (req, res, next) => {
-  const { id, evenementId } = req.params;
-  const idToValidate = id || evenementId;
-
-  if (idToValidate && (idToValidate.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(idToValidate))) {
+  const { id } = req.params;
+  if (id && (id.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(id))) {
     return res.status(400).json({
       success: false,
       message: 'Format ID événement invalide',
-      id_fourni: idToValidate
+      id_fourni: id
     });
   }
   next();
@@ -140,14 +50,8 @@ const validerIdGroupe = (req, res, next) => {
   next();
 };
 
-// Logger spécifique aux événements
-const loggerEvenements = (req, res, next) => {
-  console.log(`🎉 [EVENEMENTS] ${req.method} ${req.originalUrl} - User: ${req.user?.id || 'Anonymous'}`);
-  next();
-};
-
-// Validation des paramètres de proximité
-const validerProximite = (req, res, next) => {
+// Validation des paramètres de localisation
+const validerLocalisation = (req, res, next) => {
   const { longitude, latitude, rayon } = req.query;
 
   if (longitude && (isNaN(longitude) || longitude < -180 || longitude > 180)) {
@@ -174,149 +78,205 @@ const validerProximite = (req, res, next) => {
   next();
 };
 
-// Appliquer le logger sur toutes les routes
+// Logger pour le debugging
+const loggerEvenements = (req, res, next) => {
+  console.log(`🎉 [EVENEMENTS] ${req.method} ${req.originalUrl} - User: ${req.user?.id || 'Anonymous'}`);
+  next();
+};
+
 router.use(loggerEvenements);
 
-// =============== ROUTES PUBLIQUES ===============
-// Obtenir les statistiques des événements
-router.get('/statistiques', evenementController.obtenirStatistiques);
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Evenement:
+ *       type: object
+ *       required:
+ *         - nom
+ *         - description
+ *         - typeEvenement
+ *         - dateDebut
+ *         - dateFin
+ *         - lieu
+ *       properties:
+ *         _id:
+ *           type: string
+ *           description: ID unique de l'événement
+ *         nom:
+ *           type: string
+ *           maxLength: 200
+ *           description: Nom de l'événement
+ *         description:
+ *           type: string
+ *           maxLength: 2000
+ *           description: Description détaillée
+ *         typeEvenement:
+ *           type: string
+ *           enum: [SPORT, CONCERT, FESTIVAL, CONFERENCE]
+ *         dateDebut:
+ *           type: string
+ *           format: date-time
+ *         dateFin:
+ *           type: string
+ *           format: date-time
+ *         lieu:
+ *           type: object
+ *           properties:
+ *             nom:
+ *               type: string
+ *             adresse:
+ *               type: string
+ *             ville:
+ *               type: string
+ *             coordonnees:
+ *               type: object
+ *               properties:
+ *                 type:
+ *                   type: string
+ *                   enum: [Point]
+ *                 coordinates:
+ *                   type: array
+ *                   items:
+ *                     type: number
+ *         capaciteEstimee:
+ *           type: number
+ *         statutEvenement:
+ *           type: string
+ *           enum: [PROGRAMME, EN_COURS, TERMINE, ANNULE]
+ *         sourceDetection:
+ *           type: string
+ *           enum: [MANUEL, AUTOMATIQUE, API_EXTERNE]
+ *         groupesCovoiturage:
+ *           type: array
+ *           items:
+ *             type: object
+ *         tags:
+ *           type: array
+ *           items:
+ *             type: string
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ */
+
+// =============== ROUTES CREATE ===============
+
+/**
+ * @swagger
+ * tags:
+ *   - name: Événements - CREATE
+ *     description: Création d'événements et groupes de covoiturage
+ *   - name: Événements - READ
+ *     description: Consultation des événements
+ *   - name: Événements - UPDATE
+ *     description: Modification des événements
+ *   - name: Événements - DELETE
+ *     description: Suppression et annulation des événements
+ */
+
+// Créer un événement manuellement
+router.post('/creer-manuel', protect, evenementController.creerEvenementManuel);
+
+// Importer des événements depuis une API externe
+router.post('/import-api', protect, evenementController.importerEvenementsAPI);
+
+// Créer un groupe de covoiturage
+router.post('/:id/groupes-covoiturage', protect, validerIdEvenement, evenementController.creerGroupeCovoiturage);
+
+// =============== ROUTES READ ===============
 
 // Obtenir les événements à venir
-router.get('/avenir', evenementController.obtenirEvenementsAVenir);
+router.get('/a-venir', evenementController.obtenirEvenementsAVenir);
 
-// Rechercher des événements par proximité géographique
-router.get('/proximite', validerProximite, evenementController.rechercherParProximite);
+// Rechercher par localisation
+router.get('/recherche-localisation', validerLocalisation, evenementController.rechercherParLocalisation);
 
-// Exporter des événements
-router.get('/export', evenementController.exporterEvenements);
-
-// Obtenir tous les événements avec filtres
-router.get('/', evenementController.obtenirEvenements);
-
-// Recherche avancée d'événements
-router.post('/recherche-avancee', evenementController.rechercheAvancee);
-
-// Obtenir un événement spécifique par ID
-router.get('/:id', validerIdEvenement, evenementController.obtenirEvenement);
+// Obtenir les trajets associés à un événement
+router.get('/:id/trajets', validerIdEvenement, evenementController.obtenirTrajetsAssocies);
 
 // Obtenir les groupes de covoiturage d'un événement
 router.get('/:id/groupes-covoiturage', validerIdEvenement, evenementController.obtenirGroupesCovoiturage);
 
-// =============== ROUTES PROTÉGÉES (AUTHENTIFICATION REQUISE) ===============
-// Créer un nouvel événement
-router.post('/', auth, upload.single('imageEvenement'), evenementController.creerEvenement);
+// Obtenir un événement spécifique
+router.get('/:id', validerIdEvenement, evenementController.obtenirEvenement);
 
-// Mettre à jour un événement
-router.put('/:id', auth, validerIdEvenement, upload.single('imageEvenement'), evenementController.mettreAJourEvenement);
+// Obtenir tous les événements (doit être en dernier des GET)
+router.get('/', evenementController.obtenirTousEvenements);
 
-// Changer le statut d'un événement
-router.patch('/:id/statut', auth, validerIdEvenement, evenementController.changerStatut);
+// =============== ROUTES UPDATE ===============
 
-// Supprimer un événement
-router.delete('/:id', auth, validerIdEvenement, evenementController.supprimerEvenement);
+// Modifier les détails d'un événement
+router.put('/:id', protect, validerIdEvenement, evenementController.modifierDetailsEvenement);
 
-// =============== ROUTES GROUPES DE COVOITURAGE ===============
-// Ajouter un groupe de covoiturage à un événement
-router.post('/:id/groupes-covoiturage', auth, validerIdEvenement, evenementController.ajouterGroupeCovoiturage);
+// Mettre à jour le statut
+router.patch('/:id/statut', protect, validerIdEvenement, evenementController.mettreAJourStatut);
 
-// Supprimer un groupe de covoiturage
-router.delete('/:id/groupes-covoiturage/:groupeId', auth, validerIdEvenement, validerIdGroupe, evenementController.supprimerGroupeCovoiturage);
+// Modifier un groupe de covoiturage
+router.put('/:id/groupes-covoiturage/:groupeId', protect, validerIdEvenement, validerIdGroupe, evenementController.modifierGroupeCovoiturage);
 
 // Rejoindre un groupe de covoiturage
-router.post('/:id/groupes-covoiturage/:groupeId/rejoindre', auth, validerIdEvenement, validerIdGroupe, evenementController.rejoindreGroupe);
+router.post('/:id/groupes-covoiturage/:groupeId/rejoindre', protect, validerIdEvenement, validerIdGroupe, evenementController.rejoindreGroupeCovoiturage);
 
 // Quitter un groupe de covoiturage
-router.delete('/:id/groupes-covoiturage/:groupeId/quitter', auth, validerIdEvenement, validerIdGroupe, evenementController.quitterGroupe);
+router.delete('/:id/groupes-covoiturage/:groupeId/quitter', protect, validerIdEvenement, validerIdGroupe, evenementController.quitterGroupeCovoiturage);
+
+// =============== ROUTES DELETE ===============
+
+// Annuler un événement
+router.patch('/:id/annuler', protect, validerIdEvenement, evenementController.annulerEvenement);
+
+// Supprimer un groupe de covoiturage
+router.delete('/:id/groupes-covoiturage/:groupeId', protect, validerIdEvenement, validerIdGroupe, evenementController.supprimerGroupeCovoiturage);
 
 // =============== ROUTES DE TEST (DÉVELOPPEMENT) ===============
-if (process.env.NODE_ENV !== 'production') {
-  // Route de test pour vérifier la structure
-  router.get('/test/structure', (req, res) => {
-    res.json({
-      success: true,
-      message: 'Routes événements fonctionnelles',
-      controlleur_charge: !!evenementController.creerEvenement,
-      middlewares_charges: {
-        auth: typeof auth === 'function',
-        upload: typeof upload.single === 'function',
-        asyncHandler: !!asyncHandler
-      },
-      routes_publiques: [
-        'GET /api/evenements',
-        'GET /api/evenements/a-venir',
-        'GET /api/evenements/proximite',
-        'GET /api/evenements/statistiques',
-        'GET /api/evenements/export',
-        'POST /api/evenements/recherche-avancee',
-        'GET /api/evenements/:id',
-        'GET /api/evenements/:id/groupes-covoiturage'
+router.get('/test/structure', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API Événements opérationnelle',
+    routes_disponibles: {
+      create: [
+        'POST /creer-manuel - Créer événement manuel',
+        'POST /import-api - Import événements API externe',
+        'POST /:id/groupes-covoiturage - Créer groupe covoiturage'
       ],
-      routes_protegees: [
-        'POST /api/evenements',
-        'PUT /api/evenements/:id',
-        'PATCH /api/evenements/:id/statut',
-        'DELETE /api/evenements/:id',
-        'POST /api/evenements/:id/groupes-covoiturage',
-        'DELETE /api/evenements/:id/groupes-covoiturage/:groupeId',
-        'POST /api/evenements/:id/groupes-covoiturage/:groupeId/rejoindre',
-        'DELETE /api/evenements/:id/groupes-covoiturage/:groupeId/quitter'
+      read: [
+        'GET /a-venir - Événements à venir',
+        'GET /recherche-localisation - Recherche par localisation',
+        'GET /:id/trajets - Trajets associés',
+        'GET /:id/groupes-covoiturage - Groupes covoiturage',
+        'GET /:id - Événement spécifique',
+        'GET / - Tous les événements'
+      ],
+      update: [
+        'PUT /:id - Modifier détails événement',
+        'PATCH /:id/statut - Mettre à jour statut',
+        'PUT /:id/groupes-covoiturage/:groupeId - Modifier groupe',
+        'POST /:id/groupes-covoiturage/:groupeId/rejoindre - Rejoindre groupe',
+        'DELETE /:id/groupes-covoiturage/:groupeId/quitter - Quitter groupe'
+      ],
+      delete: [
+        'PATCH /:id/annuler - Annuler événement',
+        'DELETE /:id/groupes-covoiturage/:groupeId - Supprimer groupe'
       ]
-    });
+    },
+    middlewares: {
+      auth: typeof protect === 'function',
+      validation: true,
+      logging: true
+    }
   });
-
-  // Route de test pour créer un événement de démonstration
-  router.post('/test/demo', auth, (req, res) => {
-    const demoEvent = {
-      nom: 'Événement de Test',
-      description: 'Ceci est un événement de démonstration créé automatiquement',
-      typeEvenement: 'SOCIAL',
-      dateDebut: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Dans 7 jours
-      dateFin: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000), // 4h plus tard
-      lieu: {
-        adresse: 'Cocody, Abidjan, Côte d\'Ivoire',
-        ville: 'Abidjan',
-        coordonnees: {
-          latitude: 5.3599517,
-          longitude: -3.9615917
-        }
-      },
-      capaciteEstimee: 50,
-      organisateur: req.user.id,
-      tags: ['test', 'demo', 'covoiturage']
-    };
-    res.json({
-      success: true,
-      message: 'Événement de test créé (simulation)',
-      data: {
-        ...demoEvent,
-        id: 'demo_event_' + Date.now(),
-        statutEvenement: 'PROGRAMME',
-        participantsInscrits: 0,
-        groupesCovoiturage: []
-      },
-      note: 'Utilisez POST /api/evenements avec de vraies données pour créer un vrai événement'
-    });
-  });
-
-  // Route pour tester la recherche par proximité
-  router.get('/test/proximite-demo', (req, res) => {
-    const abidjanCoords = {
-      latitude: 5.3599517,
-      longitude: -3.9615917
-    };
-
-    res.json({
-      success: true,
-      message: 'Test de proximité - Coordonnées d\'Abidjan',
-      exemple_url: `/api/evenements/proximite?latitude=${abidjanCoords.latitude}&longitude=${abidjanCoords.longitude}&rayon=20`,
-      coordonnees_test: abidjanCoords,
-      note: 'Utilisez ces coordonnées pour tester la recherche par proximité'
-    });
-  });
-}
+});
 
 // =============== GESTION D'ERREURS ===============
-// Middleware de gestion d'erreurs spécifique aux événements
 router.use((error, req, res, next) => {
   console.error(`💥 [EVENEMENTS] Erreur ${req.method} ${req.originalUrl}:`, {
     message: error.message,
@@ -326,40 +286,59 @@ router.use((error, req, res, next) => {
     query: req.query,
     timestamp: new Date().toISOString()
   });
-
-  // Erreurs spécifiques aux événements
+    next(error);
+  // Erreurs de validation MongoDB
   if (error.name === 'ValidationError') {
+    const errors = Object.values(error.errors).map(err => ({
+      field: err.path,
+      message: err.message
+    }));
     return res.status(400).json({
       success: false,
-      message: 'Données d\'événement invalides',
-      details: error.message
+      message: 'Erreurs de validation',
+      errors
     });
   }
 
+  // Erreur de cast (ID invalide)
   if (error.name === 'CastError') {
     return res.status(400).json({
       success: false,
-      message: 'ID d\'événement invalide',
-      details: error.message
+      message: 'ID invalide',
+      details: `${error.path}: ${error.value}`
     });
   }
 
-  if (error.message && error.message.includes('Event not found')) {
+  // Erreur de duplication
+  if (error.code === 11000) {
+    return res.status(400).json({
+      success: false,
+      message: 'Données dupliquées',
+      details: error.keyPattern
+    });
+  }
+
+  // Erreurs spécifiques aux événements
+  if (error.message?.includes('Événement non trouvé')) {
     return res.status(404).json({
       success: false,
       message: 'Événement non trouvé'
     });
   }
 
-  if (error.message && error.message.includes('Unauthorized')) {
+  if (error.message?.includes('Non autorisé')) {
     return res.status(403).json({
       success: false,
-      message: 'Vous n\'êtes pas autorisé à effectuer cette action'
+      message: 'Action non autorisée'
     });
   }
 
   // Erreur générale
-  return next(error);
+  res.status(500).json({
+    success: false,
+    message: 'Erreur interne du serveur',
+    ...(process.env.NODE_ENV === 'development' && { details: error.message })
+  });
 });
 
 module.exports = router;

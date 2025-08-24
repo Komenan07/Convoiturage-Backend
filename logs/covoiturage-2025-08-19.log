@@ -287,3 +287,166 @@
   message: 'Confirmation email - Token invalide ou expiré',
   timestamp: '2025-08-19 19:39:45'
 }
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-19 23:30:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-19 23:30:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'warn',
+  message: 'Inscription échouée - Email déjà utilisé',
+  timestamp: '2025-08-19 23:30:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-19 23:31:07'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'warn',
+  message: 'Inscription échouée - Email déjà utilisé',
+  timestamp: '2025-08-19 23:31:07'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-19 23:32:40'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-19 23:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("68a50999dd44ecd8892a8970"),
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-19 23:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("68a50999dd44ecd8892a8970"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-19 23:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'a546c54b95...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-19 23:33:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("68a50999dd44ecd8892a8970"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-19 23:33:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Projet perso\\Convoiturage-Backend\\views\\welcome-template.html',
+  level: 'error',
+  message: "Erreur chargement template welcome-template.html: ENOENT: no such file or directory, open 'C:\\Projet perso\\Convoiturage-Backend\\views\\welcome-template.html'",
+  stack: "Error: ENOENT: no such file or directory, open 'C:\\Projet perso\\Convoiturage-Backend\\views\\welcome-template.html'\n" +
+    '    at Object.readFileSync (node:fs:442:20)\n' +
+    '    at chargerTemplate (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:16:27)\n' +
+    '    at confirmerEmail (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:232:27)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-19 23:33:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur envoi email bienvenue: Impossible de charger le template welcome-template.html',
+  stack: 'Error: Impossible de charger le template welcome-template.html\n' +
+    '    at chargerTemplate (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:27:11)\n' +
+    '    at confirmerEmail (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:232:27)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-19 23:33:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-19 23:33:42'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'a546c54b95...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-19 23:36:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'a546c54b95...',
+  level: 'warn',
+  message: 'Confirmation email - Token invalide ou expiré',
+  timestamp: '2025-08-19 23:36:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-19 23:58:39'
+}
