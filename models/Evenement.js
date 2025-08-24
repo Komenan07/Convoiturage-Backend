@@ -26,6 +26,13 @@ const groupeCovoiturageSchema = new mongoose.Schema({
     type: String,
     required: true,
     match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/ // Format HH:MM
+  },
+  // Ajout pour la gestion des membres
+  maxMembres: {
+    type: Number,
+    default: 4,
+    min: 2,
+    max: 8
   }
 }, { _id: true });
 
@@ -137,6 +144,14 @@ const evenementSchema = new mongoose.Schema({
     default: 'MANUEL'
   },
   
+  // Source externe pour l'import
+  source: {
+    type: String,
+    required: function() {
+      return this.sourceDetection === 'API_EXTERNE';
+    }
+  },
+  
   // Covoiturage associé
   trajetsAssocies: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -150,6 +165,22 @@ const evenementSchema = new mongoose.Schema({
     type: String,
     enum: ['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE'],
     default: 'PROGRAMME'
+  },
+  
+  // Champs pour l'annulation
+  motifAnnulation: {
+    type: String,
+    maxlength: 500
+  },
+  
+  dateAnnulation: {
+    type: Date
+  },
+  
+  // Motif de changement de statut
+  motifChangementStatut: {
+    type: String,
+    maxlength: 500
   },
   
   // Champs additionnels utiles
@@ -196,6 +227,9 @@ evenementSchema.index({ "lieu.ville": 1, "dateDebut": 1 });
 // Index pour les tags
 evenementSchema.index({ "tags": 1 });
 
+// Index pour la source
+evenementSchema.index({ "sourceDetection": 1, "source": 1 });
+
 // Propriété virtuelle pour calculer la durée
 evenementSchema.virtual('dureeHeures').get(function() {
   if (this.dateDebut && this.dateFin) {
@@ -207,6 +241,16 @@ evenementSchema.virtual('dureeHeures').get(function() {
 // Propriété virtuelle pour le nombre de groupes de covoiturage
 evenementSchema.virtual('nombreGroupesCovoiturage').get(function() {
   return this.groupesCovoiturage ? this.groupesCovoiturage.length : 0;
+});
+
+// Propriété virtuelle pour le nombre total de places de covoiturage disponibles
+evenementSchema.virtual('placesCovoiturageDisponibles').get(function() {
+  if (!this.groupesCovoiturage) return 0;
+  return this.groupesCovoiturage.reduce((total, groupe) => {
+    const placesOccupees = groupe.membres ? groupe.membres.length : 0;
+    const placesLibres = Math.max(0, (groupe.maxMembres || 4) - placesOccupees);
+    return total + placesLibres;
+  }, 0);
 });
 
 // Middleware pre-save pour la validation croisée
@@ -221,12 +265,17 @@ evenementSchema.pre('save', function(next) {
     this.tags = [...new Set(this.tags.filter(tag => tag.trim().length > 0))];
   }
   
+  // Validation conditionnelle pour l'annulation
+  if (this.statutEvenement === 'ANNULE' && !this.dateAnnulation) {
+    this.dateAnnulation = new Date();
+  }
+  
   next();
 });
 
 // Méthodes d'instance
-evenementSchema.methods.ajouterGroupeCovoiturage = function(groupe) {
-  this.groupesCovoiturage.push(groupe);
+evenementSchema.methods.ajouterGroupeCovoiturage = function(donneesGroupe) {
+  this.groupesCovoiturage.push(donneesGroupe);
   return this.save();
 };
 
@@ -246,6 +295,32 @@ evenementSchema.methods.estEnCours = function() {
   return this.dateDebut <= maintenant && this.dateFin >= maintenant;
 };
 
+evenementSchema.methods.estTermine = function() {
+  return this.dateFin < new Date() || this.statutEvenement === 'TERMINE';
+};
+
+evenementSchema.methods.estAnnule = function() {
+  return this.statutEvenement === 'ANNULE';
+};
+
+evenementSchema.methods.peutEtreModifie = function() {
+  return this.statutEvenement === 'PROGRAMME' && this.estAVenir();
+};
+
+evenementSchema.methods.peutEtreAnnule = function() {
+  return ['PROGRAMME', 'EN_COURS'].includes(this.statutEvenement);
+};
+
+// Méthodes pour la gestion des groupes de covoiturage
+evenementSchema.methods.obtenirGroupeCovoiturage = function(groupeId) {
+  return this.groupesCovoiturage.id(groupeId);
+};
+
+evenementSchema.methods.utilisateurDansGroupe = function(groupeId, userId) {
+  const groupe = this.obtenirGroupeCovoiturage(groupeId);
+  return groupe ? groupe.membres.includes(userId) : false;
+};
+
 // Méthodes statiques
 evenementSchema.statics.rechercherParProximite = function(longitude, latitude, rayonKm = 10) {
   return this.find({
@@ -259,14 +334,141 @@ evenementSchema.statics.rechercherParProximite = function(longitude, latitude, r
   });
 };
 
-evenementSchema.statics.obtenirEvenementsAVenir = function(limit = 20) {
-  return this.find({
+evenementSchema.statics.obtenirEvenementsAVenir = function(limit = 20, ville = null) {
+  let query = this.find({
     dateDebut: { $gt: new Date() },
     statutEvenement: 'PROGRAMME'
-  })
-  .sort({ dateDebut: 1 })
-  .limit(limit)
-  .populate('trajetsAssocies');
+  });
+
+  if (ville) {
+    query = query.where('lieu.ville').regex(new RegExp(ville, 'i'));
+  }
+
+  return query
+    .sort({ dateDebut: 1 })
+    .limit(limit)
+    .populate('trajetsAssocies');
+};
+
+evenementSchema.statics.obtenirStatistiques = function(periode = '30d') {
+  const maintenant = new Date();
+  let dateDebut;
+
+  switch (periode) {
+    case '7d':
+      dateDebut = new Date(maintenant - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case '30d':
+      dateDebut = new Date(maintenant - 30 * 24 * 60 * 60 * 1000);
+      break;
+    case '90d':
+      dateDebut = new Date(maintenant - 90 * 24 * 60 * 60 * 1000);
+      break;
+    default:
+      dateDebut = new Date(maintenant - 30 * 24 * 60 * 60 * 1000);
+  }
+
+  return this.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: dateDebut }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalEvenements: { $sum: 1 },
+        evenementsParType: {
+          $push: "$typeEvenement"
+        },
+        evenementsParStatut: {
+          $push: "$statutEvenement"
+        },
+        totalGroupesCovoiturage: {
+          $sum: { $size: { $ifNull: ["$groupesCovoiturage", []] } }
+        }
+      }
+    }
+  ]);
+};
+
+// Méthode pour recherche avancée
+evenementSchema.statics.rechercheAvancee = function(criteres, options = {}) {
+  const {
+    motsCles,
+    typeEvenement,
+    dateDebutMin,
+    dateDebutMax,
+    ville,
+    tags,
+    capaciteMin,
+    capaciteMax,
+    coordonnees,
+    rayon
+  } = criteres;
+
+  // Extraire les options
+  const {
+    page = 1,
+    limit = 20,
+    sort = { dateCreation: -1 },
+    populate = []
+  } = options;
+
+  let query = {};
+
+  // Recherche textuelle
+  if (motsCles) {
+    query.$or = [
+      { nom: new RegExp(motsCles, 'i') },
+      { description: new RegExp(motsCles, 'i') },
+      { tags: new RegExp(motsCles, 'i') }
+    ];
+  }
+
+  // Filtres basiques
+  if (typeEvenement) query.typeEvenement = typeEvenement;
+  if (ville) query['lieu.ville'] = new RegExp(ville, 'i');
+  if (tags && tags.length > 0) query.tags = { $in: tags };
+
+  // Filtres de dates
+  if (dateDebutMin || dateDebutMax) {
+    query.dateDebut = {};
+    if (dateDebutMin) query.dateDebut.$gte = new Date(dateDebutMin);
+    if (dateDebutMax) query.dateDebut.$lte = new Date(dateDebutMax);
+  }
+
+  // Filtres de capacité
+  if (capaciteMin || capaciteMax) {
+    query.capaciteEstimee = {};
+    if (capaciteMin) query.capaciteEstimee.$gte = capaciteMin;
+    if (capaciteMax) query.capaciteEstimee.$lte = capaciteMax;
+  }
+
+  // Recherche géospatiale
+  if (coordonnees && coordonnees.latitude && coordonnees.longitude) {
+    query['lieu.coordonnees'] = {
+      $near: {
+        $geometry: {
+          type: 'Point',
+          coordinates: [coordonnees.longitude, coordonnees.latitude]
+        },
+        $maxDistance: (rayon || 10) * 1000
+      }
+    };
+  }
+
+  // Appliquer les options à la requête
+  let mongoQuery = this.find(query);
+  
+  if (populate.length > 0) {
+    populate.forEach(pop => mongoQuery = mongoQuery.populate(pop));
+  }
+  
+  return mongoQuery
+    .sort(sort)
+    .limit(limit)
+    .skip((page - 1) * limit);
 };
 
 module.exports = mongoose.model('Evenement', evenementSchema);

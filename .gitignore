@@ -1,11 +1,34 @@
-# Ignorer le dossier node_modules
+# 📁 Dossier des dépendances
 node_modules/
 
-# Ignorer le fichier .env
-.env
-#Ignorer les logs
-logs/
-.log
+# 🧪 Fichiers de logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-* text=auto
-# 
+# 📂 Dossiers temporaires
+tmp/
+temp/
+
+# 🧠 Fichiers de configuration système
+.DS_Store
+Thumbs.db
+
+# 🔐 Fichiers sensibles ou secrets
+.env
+.env.local
+.env.*.local
+
+# 🧪 Résultats de tests ou coverage
+coverage/
+*.lcov
+
+# 🛠️ Fichiers de build ou de transpilation
+dist/
+build/
+
+# 📦 Fichiers de package lock (optionnel selon ton workflow)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

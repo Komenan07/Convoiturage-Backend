@@ -1,108 +1,505 @@
+const Evenement = require('../models/Evenement');
 const AppError = require('../utils/AppError');
 
 class EvenementController {
-  constructor(evenementService) {
-    this.evenementService = evenementService;
-
+  constructor() {
     // Bind des méthodes pour conserver le contexte
-    this.creerEvenement = this.creerEvenement.bind(this);
-    this.obtenirEvenements = this.obtenirEvenements.bind(this);
-    this.obtenirEvenement = this.obtenirEvenement.bind(this);
-    this.mettreAJourEvenement = this.mettreAJourEvenement.bind(this);
-    this.supprimerEvenement = this.supprimerEvenement.bind(this);
-    this.changerStatut = this.changerStatut.bind(this);
+    this.creerEvenementManuel = this.creerEvenementManuel.bind(this);
+    this.importerEvenementsAPI = this.importerEvenementsAPI.bind(this);
     this.obtenirEvenementsAVenir = this.obtenirEvenementsAVenir.bind(this);
-    this.rechercherParProximite = this.rechercherParProximite.bind(this);
-    this.rechercheAvancee = this.rechercheAvancee.bind(this);
-    this.exporterEvenements = this.exporterEvenements.bind(this);
-    this.obtenirStatistiques = this.obtenirStatistiques.bind(this);
+    this.rechercherParLocalisation = this.rechercherParLocalisation.bind(this);
+    this.obtenirTrajetsAssocies = this.obtenirTrajetsAssocies.bind(this);
+    this.modifierDetailsEvenement = this.modifierDetailsEvenement.bind(this);
+    this.mettreAJourStatut = this.mettreAJourStatut.bind(this);
+    this.creerGroupeCovoiturage = this.creerGroupeCovoiturage.bind(this);
     this.obtenirGroupesCovoiturage = this.obtenirGroupesCovoiturage.bind(this);
-    this.ajouterGroupeCovoiturage = this.ajouterGroupeCovoiturage.bind(this);
+    this.modifierGroupeCovoiturage = this.modifierGroupeCovoiturage.bind(this);
     this.supprimerGroupeCovoiturage = this.supprimerGroupeCovoiturage.bind(this);
-    this.rejoindrGroupe = this.rejoindrGroupe.bind(this);
-    this.quitterGroupe = this.quitterGroupe.bind(this);
+    this.rejoindreGroupeCovoiturage = this.rejoindreGroupeCovoiturage.bind(this);
+    this.quitterGroupeCovoiturage = this.quitterGroupeCovoiturage.bind(this);
+    this.annulerEvenement = this.annulerEvenement.bind(this);
+    this.obtenirEvenement = this.obtenirEvenement.bind(this);
+    this.obtenirTousEvenements = this.obtenirTousEvenements.bind(this);
   }
 
-  // =============== ROUTES PUBLIQUES ===============
+  // =============== CREATE OPERATIONS ===============
 
   /**
-   * Obtenir tous les événements avec filtres et pagination
+   * @swagger
+   * /api/evenements/creer-manuel:
+   *   post:
+   *     summary: Créer un événement manuellement
+   *     tags: [Événements - CREATE]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - nom
+   *               - description
+   *               - typeEvenement
+   *               - dateDebut
+   *               - dateFin
+   *               - lieu
+   *             properties:
+   *               nom:
+   *                 type: string
+   *                 maxLength: 200
+   *                 example: "Championnat de Football Local"
+   *               description:
+   *                 type: string
+   *                 maxLength: 2000
+   *                 example: "Tournoi de football organisé dans le quartier"
+   *               typeEvenement:
+   *                 type: string
+   *                 enum: [SPORT, CONCERT, FESTIVAL, CONFERENCE]
+   *                 example: "SPORT"
+   *               dateDebut:
+   *                 type: string
+   *                 format: date-time
+   *                 example: "2025-09-15T14:00:00.000Z"
+   *               dateFin:
+   *                 type: string
+   *                 format: date-time
+   *                 example: "2025-09-15T18:00:00.000Z"
+   *               lieu:
+   *                 type: object
+   *                 required: [nom, adresse, ville, coordonnees]
+   *                 properties:
+   *                   nom:
+   *                     type: string
+   *                     example: "Stade Municipal"
+   *                   adresse:
+   *                     type: string
+   *                     example: "Rue des Sports, Cocody"
+   *                   ville:
+   *                     type: string
+   *                     example: "Abidjan"
+   *                   coordonnees:
+   *                     type: object
+   *                     properties:
+   *                       type:
+   *                         type: string
+   *                         enum: [Point]
+   *                         example: "Point"
+   *                       coordinates:
+   *                         type: array
+   *                         items:
+   *                           type: number
+   *                         example: [-3.9615917, 5.3599517]
+   *               capaciteEstimee:
+   *                 type: number
+   *                 minimum: 1
+   *                 maximum: 1000000
+   *                 example: 200
+   *               tags:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *                 example: ["football", "sport", "tournoi"]
+   *     responses:
+   *       201:
+   *         description: Événement créé avec succès
+   *       400:
+   *         description: Données invalides
+   *       401:
+   *         description: Non authentifié
    */
-  async obtenirEvenements(req, res) {
+  async creerEvenementManuel(req, res, next) {
     try {
-      const {
-        page = 1,
-        limit = 10,
-        typeEvenement,
-        ville,
-        statut = 'PROGRAMME',
-        dateDebut,
-        dateFin,
-        motsCles,
-        tags,
-        organisateur
-      } = req.query;
-
-      const filtres = {};
-      
-      if (typeEvenement) filtres.typeEvenement = typeEvenement;
-      if (ville) filtres['lieu.ville'] = new RegExp(ville, 'i');
-      if (statut) filtres.statutEvenement = statut;
-      if (organisateur) filtres.organisateur = organisateur;
-      if (tags) filtres.tags = { $in: tags.split(',') };
-      
-      // Filtres de dates
-      if (dateDebut || dateFin) {
-        filtres.dateDebut = {};
-        if (dateDebut) filtres.dateDebut.$gte = new Date(dateDebut);
-        if (dateFin) filtres.dateDebut.$lte = new Date(dateFin);
-      }
-
-      // Recherche textuelle
-      if (motsCles) {
-        filtres.$or = [
-          { nom: new RegExp(motsCles, 'i') },
-          { description: new RegExp(motsCles, 'i') },
-          { tags: new RegExp(motsCles, 'i') }
-        ];
-      }
-
-      const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        sort: { dateCreation: -1 },
-        populate: [
-          { path: 'organisateur', select: 'prenom nom avatar' },
-          { path: 'groupesCovoiturage.conducteur', select: 'prenom nom' }
-        ]
+      const donneesEvenement = {
+        ...req.body,
+        sourceDetection: 'MANUEL'
       };
 
-      const result = await this.evenementService.obtenirEvenements(filtres, options);
-      
-      res.json({
-        success: true,
-        data: result.evenements,
-        pagination: {
-          page: result.page,
-          pages: result.pages,
-          total: result.total,
-          limit: result.limit
+      // Validation des données requises
+      const champsRequis = ['nom', 'description', 'typeEvenement', 'dateDebut', 'dateFin', 'lieu'];
+      for (const champ of champsRequis) {
+        if (!donneesEvenement[champ]) {
+          return res.status(400).json({
+            success: false,
+            message: `Le champ ${champ} est requis`
+          });
         }
+      }
+
+      const nouvelEvenement = new Evenement(donneesEvenement);
+      const evenement = await nouvelEvenement.save();
+
+      res.status(201).json({
+        success: true,
+        message: 'Événement créé avec succès',
+        data: evenement
       });
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la récupération des événements', { originalError: error.message }));
+      console.error('Erreur creerEvenementManuel:', error);
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Données invalides',
+          errors: error.errors
+        });
+      }
+      return next(AppError.serverError('Erreur lors de la création de l\'événement'));
     }
   }
 
   /**
-   * Obtenir un événement spécifique par ID
+   * @swagger
+   * /api/evenements/import-api:
+   *   post:
+   *     summary: Importer des événements depuis une API externe
+   *     tags: [Événements - CREATE]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               source:
+   *                 type: string
+   *                 example: "eventbrite"
+   *               evenements:
+   *                 type: array
+   *                 items:
+   *                   type: object
+   *     responses:
+   *       201:
+   *         description: Événements importés avec succès
+   *       400:
+   *         description: Erreur d'importation
    */
-  async obtenirEvenement(req, res) {
+  async importerEvenementsAPI(req, res, next) {
+    try {
+      const { source, evenements } = req.body;
+
+      if (!evenements || !Array.isArray(evenements)) {
+        return res.status(400).json({
+          success: false,
+          message: 'La liste des événements est requise'
+        });
+      }
+
+      const evenementsImportes = [];
+      const erreurs = [];
+
+      for (const eventData of evenements) {
+        try {
+          const evenement = new Evenement({
+            ...eventData,
+            sourceDetection: 'API_EXTERNE',
+            source: source
+          });
+          
+          const evenementSauvegarde = await evenement.save();
+          evenementsImportes.push(evenementSauvegarde);
+        } catch (error) {
+          erreurs.push({
+            evenement: eventData.nom || 'Nom inconnu',
+            erreur: error.message
+          });
+        }
+      }
+
+      res.status(201).json({
+        success: true,
+        message: `${evenementsImportes.length} événements importés avec succès`,
+        data: {
+          evenements_importes: evenementsImportes,
+          erreurs: erreurs,
+          total_importe: evenementsImportes.length,
+          total_erreurs: erreurs.length
+        }
+      });
+    } catch (error) {
+      console.error('Erreur importerEvenementsAPI:', error);
+      return next(AppError.serverError('Erreur lors de l\'importation des événements'));
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/evenements/{id}/groupes-covoiturage:
+   *   post:
+   *     summary: Créer un groupe de covoiturage pour un événement
+   *     tags: [Événements - CREATE]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID de l'événement
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - nom
+   *               - heureDepart
+   *             properties:
+   *               nom:
+   *                 type: string
+   *                 maxLength: 100
+   *                 example: "Covoiturage Yopougon → Cocody"
+   *               description:
+   *                 type: string
+   *                 maxLength: 500
+   *                 example: "Départ de Yopougon vers le stade"
+   *               tarifPrefere:
+   *                 type: number
+   *                 minimum: 0
+   *                 example: 2000
+   *               heureDepart:
+   *                 type: string
+   *                 pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+   *                 example: "13:30"
+   *     responses:
+   *       201:
+   *         description: Groupe de covoiturage créé avec succès
+   *       404:
+   *         description: Événement non trouvé
+   */
+  async creerGroupeCovoiturage(req, res, next) {
     try {
       const { id } = req.params;
+      const donneesGroupe = req.body;
+
+      const evenement = await Evenement.findById(id);
+      if (!evenement) {
+        return res.status(404).json({
+          success: false,
+          message: 'Événement non trouvé'
+        });
+      }
+
+      const groupe = await evenement.ajouterGroupeCovoiturage(donneesGroupe);
+
+      res.status(201).json({
+        success: true,
+        message: 'Groupe de covoiturage créé avec succès',
+        data: groupe.groupesCovoiturage[groupe.groupesCovoiturage.length - 1]
+      });
+    } catch (error) {
+      console.error('Erreur creerGroupeCovoiturage:', error);
+      return next(AppError.serverError('Erreur lors de la création du groupe de covoiturage'));
+    }
+  }
+
+  // =============== READ OPERATIONS ===============
+
+  /**
+   * @swagger
+   * /api/evenements/a-venir:
+   *   get:
+   *     summary: Obtenir les événements à venir
+   *     tags: [Événements - READ]
+   *     parameters:
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 20
+   *         description: Nombre maximum d'événements à retourner
+   *       - in: query
+   *         name: ville
+   *         schema:
+   *           type: string
+   *         description: Filtrer par ville
+   *     responses:
+   *       200:
+   *         description: Liste des événements à venir
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     $ref: '#/components/schemas/Evenement'
+   */
+  async obtenirEvenementsAVenir(req, res, next) {
+    try {
+      const { limit = 20, ville } = req.query;
       
-      const evenement = await this.evenementService.obtenirEvenementParId(id);
-      
+      let query = Evenement.find({
+        dateDebut: { $gt: new Date() },
+        statutEvenement: 'PROGRAMME'
+      })
+      .sort({ dateDebut: 1 })
+      .limit(parseInt(limit))
+      .populate('trajetsAssocies');
+
+      if (ville) {
+        query = query.where('lieu.ville').regex(new RegExp(ville, 'i'));
+      }
+
+      const evenements = await query.exec();
+
+      res.json({
+        success: true,
+        data: evenements,
+        count: evenements.length
+      });
+    } catch (error) {
+      console.error('Erreur obtenirEvenementsAVenir:', error);
+      return next(AppError.serverError('Erreur lors de la récupération des événements à venir'));
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/evenements/recherche-localisation:
+   *   get:
+   *     summary: Rechercher des événements par localisation
+   *     tags: [Événements - READ]
+   *     parameters:
+   *       - in: query
+   *         name: longitude
+   *         required: true
+   *         schema:
+   *           type: number
+   *         description: Longitude du point de recherche
+   *       - in: query
+   *         name: latitude
+   *         required: true
+   *         schema:
+   *           type: number
+   *         description: Latitude du point de recherche
+   *       - in: query
+   *         name: rayon
+   *         schema:
+   *           type: number
+   *           default: 10
+   *         description: Rayon de recherche en kilomètres
+   *     responses:
+   *       200:
+   *         description: Événements trouvés par localisation
+   *       400:
+   *         description: Paramètres de localisation invalides
+   */
+  async rechercherParLocalisation(req, res, next) {
+    try {
+      const { longitude, latitude, rayon = 10 } = req.query;
+
+      if (!longitude || !latitude) {
+        return res.status(400).json({
+          success: false,
+          message: 'Longitude et latitude sont requises'
+        });
+      }
+
+      const evenements = await Evenement.rechercherParProximite(
+        parseFloat(longitude),
+        parseFloat(latitude),
+        parseFloat(rayon)
+      );
+
+      res.json({
+        success: true,
+        data: evenements,
+        criteres: {
+          longitude: parseFloat(longitude),
+          latitude: parseFloat(latitude),
+          rayon: parseFloat(rayon)
+        },
+        count: evenements.length
+      });
+    } catch (error) {
+      console.error('Erreur rechercherParLocalisation:', error);
+      return next(AppError.serverError('Erreur lors de la recherche par localisation'));
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/evenements/{id}/trajets:
+   *   get:
+   *     summary: Obtenir les trajets associés à un événement
+   *     tags: [Événements - READ]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID de l'événement
+   *     responses:
+   *       200:
+   *         description: Trajets associés à l'événement
+   *       404:
+   *         description: Événement non trouvé
+   */
+  async obtenirTrajetsAssocies(req, res, next) {
+    try {
+      const { id } = req.params;
+
+      const evenement = await Evenement.findById(id)
+        .populate('trajetsAssocies')
+        .select('trajetsAssocies nom');
+
+      if (!evenement) {
+        return res.status(404).json({
+          success: false,
+          message: 'Événement non trouvé'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          evenement: evenement.nom,
+          trajets: evenement.trajetsAssocies
+        },
+        count: evenement.trajetsAssocies.length
+      });
+    } catch (error) {
+      console.error('Erreur obtenirTrajetsAssocies:', error);
+      return next(AppError.serverError('Erreur lors de la récupération des trajets'));
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/evenements/{id}:
+   *   get:
+   *     summary: Obtenir un événement par ID
+   *     tags: [Événements - READ]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID de l'événement
+   *     responses:
+   *       200:
+   *         description: Détails de l'événement
+   *       404:
+   *         description: Événement non trouvé
+   */
+  async obtenirEvenement(req, res, next) {
+    try {
+      const { id } = req.params;
+
+      const evenement = await Evenement.findById(id)
+        .populate('trajetsAssocies')
+        .populate('groupesCovoiturage.membres', 'prenom nom');
+
       if (!evenement) {
         return res.status(404).json({
           success: false,
@@ -115,286 +512,288 @@ class EvenementController {
         data: evenement
       });
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la récupération de l\'événement', { originalError: error.message }));
+      console.error('Erreur obtenirEvenement:', error);
+      return next(AppError.serverError('Erreur lors de la récupération de l\'événement'));
     }
   }
 
   /**
-   * Obtenir les événements à venir
+   * @swagger
+   * /api/evenements:
+   *   get:
+   *     summary: Obtenir tous les événements avec filtres
+   *     tags: [Événements - READ]
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           default: 1
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 10
+   *       - in: query
+   *         name: typeEvenement
+   *         schema:
+   *           type: string
+   *           enum: [SPORT, CONCERT, FESTIVAL, CONFERENCE]
+   *       - in: query
+   *         name: ville
+   *         schema:
+   *           type: string
+   *       - in: query
+   *         name: statut
+   *         schema:
+   *           type: string
+   *           enum: [PROGRAMME, EN_COURS, TERMINE, ANNULE]
+   *     responses:
+   *       200:
+   *         description: Liste paginée des événements
    */
-  async obtenirEvenementsAVenir(req, res) {
-    try {
-      const { limit = 10, ville } = req.query;
-      
-      const filtres = {
-        dateDebut: { $gte: new Date() },
-        statutEvenement: 'PROGRAMME'
-      };
-
-      if (ville) {
-        filtres['lieu.ville'] = new RegExp(ville, 'i');
-      }
-
-      const evenements = await this.evenementService.obtenirEvenements(filtres, {
-        limit: parseInt(limit),
-        sort: { dateDebut: 1 },
-        populate: [
-          { path: 'organisateur', select: 'prenom nom avatar' }
-        ]
-      });
-
-      res.json({
-        success: true,
-        data: evenements.evenements
-      });
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la récupération des événements à venir', { originalError: error.message }));
-    }
-  }
-
-  /**
-   * Rechercher des événements par proximité géographique
-   */
-  async rechercherParProximite(req, res) {
-    try {
-      const { latitude, longitude, rayon = 10, limit = 20 } = req.query;
-
-      if (!latitude || !longitude) {
-        return res.status(400).json({
-          success: false,
-          message: 'Latitude et longitude sont requises'
-        });
-      }
-
-      const evenements = await this.evenementService.rechercherParProximite(
-        parseFloat(latitude),
-        parseFloat(longitude),
-        parseFloat(rayon),
-        parseInt(limit)
-      );
-
-      res.json({
-        success: true,
-        data: evenements,
-        criteres: {
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-          rayon: parseFloat(rayon)
-        }
-      });
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la recherche par proximité', { originalError: error.message }));
-    }
-  }
-
-  /**
-   * Recherche avancée d'événements
-   */
-  async rechercheAvancee(req, res) {
+  async obtenirTousEvenements(req, res, next) {
     try {
       const {
-        motsCles,
-        typeEvenement,
-        dateDebutMin,
-        dateDebutMax,
-        ville,
-        tags,
-        capaciteMin,
-        capaciteMax,
-        coordonnees,
-        rayon,
         page = 1,
-        limit = 10
-      } = req.body;
-
-      const criteres = await this.evenementService.construireCriteresRecherche({
-        motsCles,
+        limit = 10,
         typeEvenement,
-        dateDebutMin,
-        dateDebutMax,
         ville,
-        tags,
-        capaciteMin,
-        capaciteMax,
-        coordonnees,
-        rayon
-      });
+        statut,
+        dateDebut,
+        dateFin,
+        motsCles
+      } = req.query;
 
-      const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        sort: { pertinence: -1, dateDebut: 1 },
-        populate: [
-          { path: 'organisateur', select: 'prenom nom avatar' }
-        ]
-      };
+      let query = {};
 
-      const result = await this.evenementService.rechercheAvancee(criteres, options);
+      if (typeEvenement) query.typeEvenement = typeEvenement;
+      if (ville) query['lieu.ville'] = new RegExp(ville, 'i');
+      if (statut) query.statutEvenement = statut;
 
-      res.json({
-        success: true,
-        data: result.evenements,
-        pagination: {
-          page: result.page,
-          pages: result.pages,
-          total: result.total
-        },
-        criteres_utilises: criteres
-      });
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la recherche avancée', { originalError: error.message }));
-    }
-  }
-
-  /**
-   * Exporter des événements
-   */
-  async exporterEvenements(req, res) {
-    try {
-      const { format = 'json', ...filtres } = req.query;
-
-      const evenements = await this.evenementService.exporterEvenements(filtres);
-
-      if (format === 'csv') {
-        const csv = await this.evenementService.convertirEnCSV(evenements);
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename="evenements.csv"');
-        return res.send(csv);
+      if (dateDebut || dateFin) {
+        query.dateDebut = {};
+        if (dateDebut) query.dateDebut.$gte = new Date(dateDebut);
+        if (dateFin) query.dateDebut.$lte = new Date(dateFin);
       }
+
+      if (motsCles) {
+        query.$or = [
+          { nom: new RegExp(motsCles, 'i') },
+          { description: new RegExp(motsCles, 'i') },
+          { tags: new RegExp(motsCles, 'i') }
+        ];
+      }
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const total = await Evenement.countDocuments(query);
+
+      const evenements = await Evenement.find(query)
+        .sort({ dateDebut: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate('trajetsAssocies', 'origine destination');
 
       res.json({
         success: true,
         data: evenements,
-        format,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de l\'export des événements', { originalError: error.message }));
-    }
-  }
-
-  /**
-   * Obtenir les statistiques des événements
-   */
-  async obtenirStatistiques(req, res) {
-    try {
-      const { periode = '30d', ville } = req.query;
-
-      const stats = await this.evenementService.obtenirStatistiques(periode, ville);
-
-      res.json({
-        success: true,
-        data: stats,
-        periode,
-        ville: ville || 'toutes'
-      });
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { originalError: error.message }));
-    }
-  }
-
-  // =============== ROUTES PROTÉGÉES ===============
-
-  /**
-   * Créer un nouvel événement
-   */
-  async creerEvenement(req, res) {
-    try {
-      const donneesEvenement = {
-        ...req.body,
-        organisateur: req.user.id
-      };
-
-      // Gestion de l'image uploadée
-      if (req.file) {
-        donneesEvenement.imageEvenement = req.file.path || req.file.filename;
-      }
-
-      // Validation des données requises
-      const champsRequis = ['nom', 'description', 'typeEvenement', 'dateDebut', 'lieu'];
-      for (const champ of champsRequis) {
-        if (!donneesEvenement[champ]) {
-          return res.status(400).json({
-            success: false,
-            message: `Le champ ${champ} est requis`
-          });
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / parseInt(limit))
         }
-      }
-
-      const evenement = await this.evenementService.creerEvenement(donneesEvenement);
-
-      res.status(201).json({
-        success: true,
-        message: 'Événement créé avec succès',
-        data: evenement
       });
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la création de l\'événement', { originalError: error.message }));
+      console.error('Erreur obtenirTousEvenements:', error);
+      return next(AppError.serverError('Erreur lors de la récupération des événements'));
     }
   }
 
   /**
-   * Mettre à jour un événement
+   * @swagger
+   * /api/evenements/{id}/groupes-covoiturage:
+   *   get:
+   *     summary: Obtenir les groupes de covoiturage d'un événement
+   *     tags: [Événements - READ]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID de l'événement
+   *     responses:
+   *       200:
+   *         description: Liste des groupes de covoiturage
+   *       404:
+   *         description: Événement non trouvé
    */
-  async mettreAJourEvenement(req, res) {
+  async obtenirGroupesCovoiturage(req, res, next) {
     try {
       const { id } = req.params;
-      const userId = req.user.id;
 
-      // Vérifier si l'utilisateur est autorisé
-      const evenementExistant = await this.evenementService.obtenirEvenementParId(id);
-      if (!evenementExistant) {
+      const evenement = await Evenement.findById(id)
+        .populate('groupesCovoiturage.membres', 'prenom nom')
+        .select('groupesCovoiturage nom');
+
+      if (!evenement) {
         return res.status(404).json({
           success: false,
           message: 'Événement non trouvé'
         });
       }
 
-      if (evenementExistant.organisateur.toString() !== userId && req.user.role !== 'admin') {
-        return res.status(403).json({
+      res.json({
+        success: true,
+        data: {
+          evenement: evenement.nom,
+          groupes: evenement.groupesCovoiturage
+        },
+        count: evenement.groupesCovoiturage.length
+      });
+    } catch (error) {
+      console.error('Erreur obtenirGroupesCovoiturage:', error);
+      return next(AppError.serverError('Erreur lors de la récupération des groupes'));
+    }
+  }
+
+  // =============== UPDATE OPERATIONS ===============
+
+  /**
+   * @swagger
+   * /api/evenements/{id}:
+   *   put:
+   *     summary: Modifier les détails d'un événement
+   *     tags: [Événements - UPDATE]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID de l'événement
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               nom:
+   *                 type: string
+   *               description:
+   *                 type: string
+   *               capaciteEstimee:
+   *                 type: number
+   *               tags:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *     responses:
+   *       200:
+   *         description: Événement modifié avec succès
+   *       404:
+   *         description: Événement non trouvé
+   */
+  async modifierDetailsEvenement(req, res, next) {
+    try {
+      const { id } = req.params;
+      const donneesMAJ = req.body;
+
+      const evenement = await Evenement.findByIdAndUpdate(
+        id,
+        donneesMAJ,
+        { new: true, runValidators: true }
+      );
+
+      if (!evenement) {
+        return res.status(404).json({
           success: false,
-          message: 'Vous n\'êtes pas autorisé à modifier cet événement'
+          message: 'Événement non trouvé'
         });
       }
 
-      const donneesMAJ = { ...req.body };
-
-      // Gestion de la nouvelle image
-      if (req.file) {
-        donneesMAJ.imageEvenement = req.file.path || req.file.filename;
-      }
-
-      const evenementMAJ = await this.evenementService.mettreAJourEvenement(id, donneesMAJ);
-
       res.json({
         success: true,
-        message: 'Événement mis à jour avec succès',
-        data: evenementMAJ
+        message: 'Événement modifié avec succès',
+        data: evenement
       });
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la mise à jour de l\'événement', { originalError: error.message }));
+      console.error('Erreur modifierDetailsEvenement:', error);
+      return next(AppError.serverError('Erreur lors de la modification de l\'événement'));
     }
   }
 
   /**
-   * Changer le statut d'un événement
+   * @swagger
+   * /api/evenements/{id}/statut:
+   *   patch:
+   *     summary: Mettre à jour le statut d'un événement
+   *     tags: [Événements - UPDATE]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID de l'événement
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - statut
+   *             properties:
+   *               statut:
+   *                 type: string
+   *                 enum: [PROGRAMME, EN_COURS, TERMINE, ANNULE]
+   *               motif:
+   *                 type: string
+   *                 description: Raison du changement de statut
+   *     responses:
+   *       200:
+   *         description: Statut mis à jour avec succès
+   *       400:
+   *         description: Statut invalide
+   *       404:
+   *         description: Événement non trouvé
    */
-  async changerStatut(req, res) {
+  async mettreAJourStatut(req, res, next) {
     try {
       const { id } = req.params;
       const { statut, motif } = req.body;
-      const userId = req.user.id;
 
-      const statutsAutorises = ['PROGRAMME', 'ANNULE', 'REPORTE', 'TERMINE'];
-      if (!statutsAutorises.includes(statut)) {
+      const statutsValides = ['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE'];
+      if (!statutsValides.includes(statut)) {
         return res.status(400).json({
           success: false,
           message: 'Statut invalide',
-          statuts_autorises: statutsAutorises
+          statuts_valides: statutsValides
         });
       }
 
-      const evenement = await this.evenementService.changerStatut(id, statut, userId, motif);
+      const evenement = await Evenement.findByIdAndUpdate(
+        id,
+        { 
+          statutEvenement: statut,
+          ...(motif && { motifChangementStatut: motif })
+        },
+        { new: true }
+      );
+
+      if (!evenement) {
+        return res.status(404).json({
+          success: false,
+          message: 'Événement non trouvé'
+        });
+      }
 
       res.json({
         success: true,
@@ -402,130 +801,387 @@ class EvenementController {
         data: evenement
       });
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors du changement de statut', { originalError: error.message }));
+      console.error('Erreur mettreAJourStatut:', error);
+      return next(AppError.serverError('Erreur lors de la mise à jour du statut'));
     }
   }
 
   /**
-   * Supprimer un événement
+   * @swagger
+   * /api/evenements/{id}/groupes-covoiturage/{groupeId}:
+   *   put:
+   *     summary: Modifier un groupe de covoiturage
+   *     tags: [Événements - UPDATE]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID de l'événement
+   *       - in: path
+   *         name: groupeId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID du groupe de covoiturage
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               nom:
+   *                 type: string
+   *               description:
+   *                 type: string
+   *               tarifPrefere:
+   *                 type: number
+   *               heureDepart:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Groupe modifié avec succès
+   *       404:
+   *         description: Événement ou groupe non trouvé
    */
-  async supprimerEvenement(req, res) {
+  async modifierGroupeCovoiturage(req, res, next) {
     try {
-      const { id } = req.params;
-      const userId = req.user.id;
+      const { id, groupeId } = req.params;
+      const donneesMAJ = req.body;
 
-      const resultat = await this.evenementService.supprimerEvenement(id, userId);
+      const evenement = await Evenement.findOneAndUpdate(
+        { _id: id, "groupesCovoiturage._id": groupeId },
+        { 
+          $set: {
+            "groupesCovoiturage.$.nom": donneesMAJ.nom,
+            "groupesCovoiturage.$.description": donneesMAJ.description,
+            "groupesCovoiturage.$.tarifPrefere": donneesMAJ.tarifPrefere,
+            "groupesCovoiturage.$.heureDepart": donneesMAJ.heureDepart
+          }
+        },
+        { new: true }
+      );
+
+      if (!evenement) {
+        return res.status(404).json({
+          success: false,
+          message: 'Événement ou groupe non trouvé'
+        });
+      }
+
+      const groupeModifie = evenement.groupesCovoiturage.id(groupeId);
 
       res.json({
         success: true,
-        message: 'Événement supprimé avec succès',
-        data: resultat
+        message: 'Groupe de covoiturage modifié avec succès',
+        data: groupeModifie
       });
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la suppression de l\'événement', { originalError: error.message }));
-    }
-  }
-
-  // =============== GROUPES DE COVOITURAGE ===============
-
-  /**
-   * Obtenir les groupes de covoiturage d'un événement
-   */
-  async obtenirGroupesCovoiturage(req, res) {
-    try {
-      const { id } = req.params;
-
-      const groupes = await this.evenementService.obtenirGroupesCovoiturage(id);
-
-      res.json({
-        success: true,
-        data: groupes
-      });
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la récupération des groupes de covoiturage', { originalError: error.message }));
+      console.error('Erreur modifierGroupeCovoiturage:', error);
+      return next(AppError.serverError('Erreur lors de la modification du groupe'));
     }
   }
 
   /**
-   * Ajouter un groupe de covoiturage à un événement
+   * @swagger
+   * /api/evenements/{id}/groupes-covoiturage/{groupeId}/rejoindre:
+   *   post:
+   *     summary: Rejoindre un groupe de covoiturage
+   *     tags: [Événements - UPDATE]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID de l'événement
+   *       - in: path
+   *         name: groupeId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID du groupe de covoiturage
+   *     responses:
+   *       200:
+   *         description: Utilisateur ajouté au groupe avec succès
+   *       404:
+   *         description: Événement ou groupe non trouvé
+   *       400:
+   *         description: L'utilisateur est déjà dans le groupe
    */
-  async ajouterGroupeCovoiturage(req, res) {
-    try {
-      const { id } = req.params;
-      const donneesGroupe = {
-        ...req.body,
-        conducteur: req.user.id
-      };
-
-      const groupe = await this.evenementService.ajouterGroupeCovoiturage(id, donneesGroupe);
-
-      res.status(201).json({
-        success: true,
-        message: 'Groupe de covoiturage ajouté avec succès',
-        data: groupe
-      });
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de l\'ajout du groupe de covoiturage', { originalError: error.message }));
-    }
-  }
-
-  /**
-   * Supprimer un groupe de covoiturage
-   */
-  async supprimerGroupeCovoiturage(req, res) {
+  async rejoindreGroupeCovoiturage(req, res, next) {
     try {
       const { id, groupeId } = req.params;
       const userId = req.user.id;
 
-      const resultat = await this.evenementService.supprimerGroupeCovoiturage(id, groupeId, userId);
+      const evenement = await Evenement.findById(id);
+      if (!evenement) {
+        return res.status(404).json({
+          success: false,
+          message: 'Événement non trouvé'
+        });
+      }
+
+      const groupe = evenement.groupesCovoiturage.id(groupeId);
+      if (!groupe) {
+        return res.status(404).json({
+          success: false,
+          message: 'Groupe de covoiturage non trouvé'
+        });
+      }
+
+      // Vérifier si l'utilisateur est déjà membre
+      if (groupe.membres.includes(userId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vous êtes déjà membre de ce groupe'
+        });
+      }
+
+      groupe.membres.push(userId);
+      await evenement.save();
+
+      res.json({
+        success: true,
+        message: 'Vous avez rejoint le groupe de covoiturage avec succès',
+        data: groupe
+      });
+    } catch (error) {
+      console.error('Erreur rejoindreGroupeCovoiturage:', error);
+      return next(AppError.serverError('Erreur lors de l\'adhésion au groupe'));
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/evenements/{id}/groupes-covoiturage/{groupeId}/quitter:
+   *   delete:
+   *     summary: Quitter un groupe de covoiturage
+   *     tags: [Événements - UPDATE]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID de l'événement
+   *       - in: path
+   *         name: groupeId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID du groupe de covoiturage
+   *     responses:
+   *       200:
+   *         description: Utilisateur retiré du groupe avec succès
+   *       404:
+   *         description: Événement ou groupe non trouvé
+   *       400:
+   *         description: L'utilisateur n'est pas membre du groupe
+   */
+  async quitterGroupeCovoiturage(req, res, next) {
+    try {
+      const { id, groupeId } = req.params;
+      const userId = req.user.id;
+
+      const evenement = await Evenement.findById(id);
+      if (!evenement) {
+        return res.status(404).json({
+          success: false,
+          message: 'Événement non trouvé'
+        });
+      }
+
+      const groupe = evenement.groupesCovoiturage.id(groupeId);
+      if (!groupe) {
+        return res.status(404).json({
+          success: false,
+          message: 'Groupe de covoiturage non trouvé'
+        });
+      }
+
+      // Vérifier si l'utilisateur est membre
+      if (!groupe.membres.includes(userId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vous n\'êtes pas membre de ce groupe'
+        });
+      }
+
+      groupe.membres.pull(userId);
+      await evenement.save();
+
+      res.json({
+        success: true,
+        message: 'Vous avez quitté le groupe de covoiturage avec succès',
+        data: groupe
+      });
+    } catch (error) {
+      console.error('Erreur quitterGroupeCovoiturage:', error);
+      return next(AppError.serverError('Erreur lors de la sortie du groupe'));
+    }
+  }
+
+  // =============== DELETE OPERATIONS ===============
+
+  /**
+   * @swagger
+   * /api/evenements/{id}/annuler:
+   *   patch:
+   *     summary: Annuler un événement
+   *     tags: [Événements - DELETE]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID de l'événement à annuler
+   *     requestBody:
+   *       required: false
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               motifAnnulation:
+   *                 type: string
+   *                 description: Raison de l'annulation
+   *                 example: "Conditions météorologiques défavorables"
+   *     responses:
+   *       200:
+   *         description: Événement annulé avec succès
+   *       404:
+   *         description: Événement non trouvé
+   *       400:
+   *         description: L'événement ne peut pas être annulé
+   */
+  async annulerEvenement(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { motifAnnulation } = req.body;
+
+      const evenement = await Evenement.findById(id);
+      if (!evenement) {
+        return res.status(404).json({
+          success: false,
+          message: 'Événement non trouvé'
+        });
+      }
+
+      // Vérifier si l'événement peut être annulé
+      if (evenement.statutEvenement === 'TERMINE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Un événement terminé ne peut pas être annulé'
+        });
+      }
+
+      if (evenement.statutEvenement === 'ANNULE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Cet événement est déjà annulé'
+        });
+      }
+
+      evenement.statutEvenement = 'ANNULE';
+      if (motifAnnulation) {
+        evenement.motifAnnulation = motifAnnulation;
+      }
+      evenement.dateAnnulation = new Date();
+
+      await evenement.save();
+
+      res.json({
+        success: true,
+        message: 'Événement annulé avec succès',
+        data: {
+          id: evenement._id,
+          nom: evenement.nom,
+          statut: evenement.statutEvenement,
+          motifAnnulation: evenement.motifAnnulation,
+          dateAnnulation: evenement.dateAnnulation
+        }
+      });
+    } catch (error) {
+      console.error('Erreur annulerEvenement:', error);
+      return next(AppError.serverError('Erreur lors de l\'annulation de l\'événement'));
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/evenements/{id}/groupes-covoiturage/{groupeId}:
+   *   delete:
+   *     summary: Supprimer un groupe de covoiturage
+   *     tags: [Événements - DELETE]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID de l'événement
+   *       - in: path
+   *         name: groupeId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID du groupe de covoiturage à supprimer
+   *     responses:
+   *       200:
+   *         description: Groupe de covoiturage supprimé avec succès
+   *       404:
+   *         description: Événement ou groupe non trouvé
+   *       403:
+   *         description: Non autorisé à supprimer ce groupe
+   */
+  async supprimerGroupeCovoiturage(req, res, next) {
+    try {
+      const { id, groupeId } = req.params;
+
+      const evenement = await Evenement.findById(id);
+      if (!evenement) {
+        return res.status(404).json({
+          success: false,
+          message: 'Événement non trouvé'
+        });
+      }
+
+      const groupe = evenement.groupesCovoiturage.id(groupeId);
+      if (!groupe) {
+        return res.status(404).json({
+          success: false,
+          message: 'Groupe de covoiturage non trouvé'
+        });
+      }
+
+      // Utiliser la méthode du modèle pour supprimer le groupe
+      await evenement.supprimerGroupeCovoiturage(groupeId);
 
       res.json({
         success: true,
         message: 'Groupe de covoiturage supprimé avec succès',
-        data: resultat
+        data: {
+          evenementId: id,
+          groupeId: groupeId
+        }
       });
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la suppression du groupe de covoiturage', { originalError: error.message }));
-    }
-  }
-
-  /**
-   * Rejoindre un groupe de covoiturage
-   */
-  async rejoindrGroupe(req, res) {
-    try {
-      const { id, groupeId } = req.params;
-      const userId = req.user.id;
-
-      const groupe = await this.evenementService.rejoindrGroupe(id, groupeId, userId);
-
-      res.json({
-        success: true,
-        message: 'Vous avez rejoint le groupe de covoiturage',
-        data: groupe
-      });
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de l\'adhésion au groupe', { originalError: error.message }));
-    }
-  }
-
-  /**
-   * Quitter un groupe de covoiturage
-   */
-  async quitterGroupe(req, res) {
-    try {
-      const { id, groupeId } = req.params;
-      const userId = req.user.id;
-
-      const groupe = await this.evenementService.quitterGroupe(id, groupeId, userId);
-
-      res.json({
-        success: true,
-        message: 'Vous avez quitté le groupe de covoiturage',
-        data: groupe
-      });
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la sortie du groupe', { originalError: error.message }));
+      console.error('Erreur supprimerGroupeCovoiturage:', error);
+      return next(AppError.serverError('Erreur lors de la suppression du groupe'));
     }
   }
 }
