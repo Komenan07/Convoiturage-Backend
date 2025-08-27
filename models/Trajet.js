@@ -177,6 +177,13 @@ const preferencesSchema = new mongoose.Schema({
 
 // Schéma principal du TRAJET
 const trajetSchema = new mongoose.Schema({
+  titre: {
+    type: String,
+  },
+  description: {
+    type: String,
+    default: null
+  },
   conducteurId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Utilisateur',
