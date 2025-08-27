@@ -4,14 +4,36 @@ const path = require('path');
 const fs = require('fs');
 const connectDB = require('./config/db');
 const { errorHandler } = require('./middlewares/errorHandler');
-const http = require('http'); 
+const http = require('http');
+const { globalRateLimit, smartRateLimit } = require('./middlewares/rateLimiter');
+const helmet = require('helmet');
+require('dotenv').config();
 
 const app = express();
+
+// Configuration de sécurité avec Helmet
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // Configuration de base
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Rate limiting global
+app.use('/api', globalRateLimit);
+
+// Rate limiting intelligent par endpoint
+app.use('/api', smartRateLimit);
+
+// Middleware de logging des requêtes en développement
+if (process.env.NODE_ENV === 'development') {
+  app.use('/api', (req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - IP: ${req.ip} - User: ${req.user?.id || 'Anonyme'}`);
+    next();
+  });
+}
 
 // Configuration des fichiers statiques pour les uploads
 const uploadDirs = [
@@ -114,6 +136,96 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Route d'information sur les messages
+app.get('/api/messages/info', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Service de messagerie actif',
+    features: {
+      textMessages: true,
+      locationSharing: true,
+      predefinedTemplates: true,
+      realTimeMessaging: true,
+      messageSearch: true,
+      readReceipts: true
+    },
+    templates: [
+      'ARRIVEE_PROCHE',
+      'RETARD', 
+      'ARRIVEE',
+      'PROBLEME_CIRCULATION',
+      'PROBLEME_VOITURE',
+      'MERCI',
+      'LOCALISATION_DEMANDE',
+      'CONFIRMATION',
+      'ANNULATION'
+    ],
+    rateLimits: {
+      sendMessage: '30 per minute',
+      readMessages: '100 per minute',
+      searchMessages: '20 per minute'
+    }
+  });
+});
+
+// Route de test pour les notifications (développement uniquement)
+app.get('/api/messages/test-notification', async (req, res) => {
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(403).json({
+      success: false,
+      message: 'Endpoint de test disponible uniquement en développement'
+    });
+  }
+  
+  try {
+    const notificationService = require('./services/notificationService');
+    const testResult = await notificationService.testEmailConfiguration();
+    
+    res.json({
+      success: true,
+      message: 'Test de notification',
+      result: testResult,
+      smtpConfigured: notificationService.isOperational()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erreur test notification',
+      error: error.message
+    });
+  }
+});
+
+// Route de statistiques des messages (développement uniquement)
+app.get('/api/messages/stats', async (req, res) => {
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(403).json({
+      success: false,
+      message: 'Statistiques disponibles uniquement en développement'
+    });
+  }
+  
+  try {
+    const presenceService = require('./services/presenceService');
+    const onlineUsers = presenceService.getOnlineUsers();
+    
+    res.json({
+      success: true,
+      stats: {
+        onlineUsers: onlineUsers.length,
+        connectedSockets: req.app.get('io')?.sockets?.sockets?.size || 0,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erreur récupération statistiques',
+      error: error.message
+    });
+  }
+});
+
 // Route d'information sur les endpoints disponibles
 app.get('/api', (req, res) => {
   const endpoints = routesDetails.map(route => ({ nom: route.nom, url: route.url, status: route.status }));
@@ -150,13 +262,95 @@ const demarrerServeur = async () => {
     // Initialiser Socket.io
     try {
       const { initSocket } = require('./realtime/socket');
-      const io = initSocket(server, app); // <-- Récupérer l'instance io pour une utilisation ultérieure si nécessaire
+      const io = initSocket(server, app);
       console.log('✅ Socket.io initialisé');
 
-      // Exemple : Écouter un événement personnalisé au niveau du serveur principal (optionnel)
-      io.on('connection', (socket) => {
-        console.log(`🔌 Socket connecté: ${socket.id}`);
-      });
+      // Stocker l'instance io dans l'app pour l'utiliser dans les contrôleurs
+      app.set('io', io);
+
+      // Intégration des messages avec Socket.io
+      try {
+        // Initialiser les services de messages
+        const presenceService = require('./services/presenceService');
+        
+        // Gestion des événements de connexion/déconnexion pour messages
+        io.on('connection', (socket) => {
+          console.log(`Socket connecté: ${socket.id}`);
+          
+          // Authentifier l'utilisateur du socket
+          socket.on('authenticate', (token) => {
+            try {
+              const jwt = require('jsonwebtoken');
+              const decoded = jwt.verify(token, process.env.JWT_SECRET);
+              socket.userId = decoded.id;
+              
+              // Marquer l'utilisateur comme en ligne
+              presenceService.setOnline(decoded.id);
+              
+              console.log(`Utilisateur authentifié: ${decoded.id}`);
+              socket.emit('authenticated', { success: true });
+            } catch (error) {
+              console.error('Erreur authentification socket:', error.message);
+              socket.emit('auth_error', { message: 'Token invalide' });
+            }
+          });
+          
+          // Rejoindre une conversation
+          socket.on('join_conversation', (conversationId) => {
+            if (socket.userId) {
+              socket.join(`conversation:${conversationId}`);
+              console.log(`Utilisateur ${socket.userId} a rejoint la conversation ${conversationId}`);
+              socket.emit('joined_conversation', { conversationId });
+            } else {
+              socket.emit('error', { message: 'Authentification requise' });
+            }
+          });
+          
+          // Quitter une conversation
+          socket.on('leave_conversation', (conversationId) => {
+            if (socket.userId) {
+              socket.leave(`conversation:${conversationId}`);
+              console.log(`Utilisateur ${socket.userId} a quitté la conversation ${conversationId}`);
+              socket.emit('left_conversation', { conversationId });
+            }
+          });
+          
+          // Indicateur de frappe
+          socket.on('typing', ({ conversationId, isTyping }) => {
+            if (socket.userId) {
+              socket.to(`conversation:${conversationId}`).emit('user_typing', {
+                userId: socket.userId,
+                isTyping
+              });
+            }
+          });
+          
+          // Marquer un message comme lu via Socket
+          socket.on('mark_message_read', ({ messageId, conversationId }) => {
+            if (socket.userId) {
+              socket.to(`conversation:${conversationId}`).emit('message_read', {
+                messageId,
+                readBy: socket.userId
+              });
+            }
+          });
+          
+          // Déconnexion
+          socket.on('disconnect', () => {
+            if (socket.userId) {
+              // Marquer l'utilisateur comme hors ligne
+              presenceService.setOffline(socket.userId);
+              console.log(`Utilisateur ${socket.userId} déconnecté`);
+            }
+            console.log(`Socket déconnecté: ${socket.id}`);
+          });
+        });
+        
+        console.log('✅ Intégration messages-Socket.io configurée');
+        
+      } catch (msgError) {
+        console.warn('⚠️ Erreur intégration messages:', msgError.message);
+      }
 
     } catch (e) {
       console.warn('⚠️ Socket.io non initialisé:', e.message);
@@ -168,6 +362,11 @@ const demarrerServeur = async () => {
       console.log(`📍 URL: http://${HOST}:${PORT}`);
       console.log(`🔗 Santé: http://${HOST}:${PORT}/api/health`);
       console.log(`📋 Endpoints: http://${HOST}:${PORT}/api`);
+      console.log(`💬 Messages: http://${HOST}:${PORT}/api/messages/info`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🧪 Test notifications: http://${HOST}:${PORT}/api/messages/test-notification`);
+        console.log(`📊 Stats messages: http://${HOST}:${PORT}/api/messages/stats`);
+      }
       console.log('🎉 ================================\n');
     });
 

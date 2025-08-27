@@ -1,637 +1,681 @@
-const Message = require('../models/Message');
+const { Message } = require('../models/Message');
 const Conversation = require('../models/Conversation');
-const Utilisateur = require('../models/Utilisateur');
-const { AppError } = require('../utils/helpers');
+const AppError = require('../utils/AppError');
 const mongoose = require('mongoose');
 
 class MessageService {
 
   /**
-   * Envoyer un nouveau message
+   * Envoyer un message texte
    */
-  async envoyerMessage(donnees) {
-    const { conversationId, expediteurId, destinataireId, contenu, typeMessage = 'TEXTE', pieceJointe = null, modeleUtilise = null } = donnees;
-
-    // Validation de base
-    if (!contenu && !pieceJointe) {
-      throw new AppError('Le contenu du message ou une pièce jointe est requis', 400);
-    }
-
-    if (!conversationId || !expediteurId) {
-      throw new AppError('ID conversation et expéditeur requis', 400);
-    }
-
-    // Vérifier que la conversation existe
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) {
-      throw new AppError('Conversation non trouvée', 404);
-    }
-
-    // Vérifier que l'expéditeur fait partie de la conversation
-    if (!conversation.participants.includes(expediteurId)) {
-      throw new AppError('Vous n\'êtes pas autorisé à envoyer des messages dans cette conversation', 403);
-    }
-
-    // Déterminer le destinataire si non fourni
-    let destinataireIdFinal = destinataireId;
-    if (!destinataireIdFinal) {
-      // Trouver l'autre participant de la conversation
-      destinataireIdFinal = conversation.participants.find(
-        participantId => !participantId.equals(expediteurId)
-      );
-    }
-
-    // Créer le message
-    const nouveauMessage = new Message({
-      conversationId,
-      expediteurId,
-      destinataireId: destinataireIdFinal,
-      contenu,
-      typeMessage,
-      pieceJointe,
-      modeleUtilise,
-      dateEnvoi: new Date(),
-      lu: false
-    });
-
-    await nouveauMessage.save();
-
-    // Mettre à jour la conversation
-    await Conversation.findByIdAndUpdate(conversationId, {
-      derniereActivite: new Date(),
-      $inc: { nombreMessagesNonLus: 1 }
-    });
-
-    // Peupler les informations de l'expéditeur
-    await nouveauMessage.populate('expediteurId', 'nom prenom photoProfil');
-
-    return nouveauMessage;
-  }
-
-  /**
-   * Obtenir les messages d'une conversation avec pagination
-   */
-  async obtenirMessages(conversationId, utilisateurId, options = {}) {
-    const { page = 1, limite = 50 } = options;
-
-    // Vérifier que l'utilisateur fait partie de la conversation
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) {
-      throw new AppError('Conversation non trouvée', 404);
-    }
-
-    if (!conversation.participants.includes(utilisateurId)) {
-      throw new AppError('Accès non autorisé à cette conversation', 403);
-    }
-
-    // Calcul de la pagination
-    const skip = (page - 1) * limite;
-
-    // Récupérer les messages avec pagination (ordre décroissant par date)
-    const messages = await Message.find({ conversationId })
-      .populate('expediteurId', 'nom prenom photoProfil')
-      .populate('destinataireId', 'nom prenom')
-      .sort({ dateEnvoi: -1 })
-      .skip(skip)
-      .limit(limite)
-      .lean();
-
-    // Compter le total pour la pagination
-    const total = await Message.countDocuments({ conversationId });
-
-    // Marquer les messages comme lus
-    await this.marquerMessagesCommelus(conversationId, utilisateurId);
-
-    return {
-      messages: messages.reverse(), // Remettre dans l'ordre chronologique
-      pagination: {
-        page,
-        limite,
-        total,
-        pages: Math.ceil(total / limite),
-        hasNext: page < Math.ceil(total / limite),
-        hasPrev: page > 1
-      }
-    };
-  }
-
-  /**
-   * Marquer les messages comme lus
-   */
-  async marquerMessagesCommelus(conversationId, utilisateurId) {
-    // Marquer tous les messages non lus destinés à cet utilisateur comme lus
-    const result = await Message.updateMany(
-      {
+  static async envoyerMessageTexte(data) {
+    try {
+      const {
         conversationId,
-        destinataireId: utilisateurId,
+        expediteurId,
+        destinataireId,
+        contenu
+      } = data;
+
+      // Validation
+      if (!contenu || contenu.trim().length === 0) {
+        throw new AppError('Le contenu du message est requis', 400);
+      }
+
+      if (!conversationId || !expediteurId) {
+        throw new AppError('ID conversation et expéditeur requis', 400);
+      }
+
+      // Vérifier que la conversation existe
+      const conversation = await Conversation.findById(conversationId);
+      if (!conversation) {
+        throw new AppError('Conversation non trouvée', 404);
+      }
+
+      // Vérifier l'autorisation
+      if (!conversation.participants.includes(expediteurId)) {
+        throw new AppError('Vous n\'êtes pas autorisé à envoyer des messages dans cette conversation', 403);
+      }
+
+      // Créer le message
+      const message = new Message({
+        conversationId: new mongoose.Types.ObjectId(conversationId),
+        expediteurId: new mongoose.Types.ObjectId(expediteurId),
+        destinataireId: destinataireId ? new mongoose.Types.ObjectId(destinataireId) : null,
+        contenu: contenu.trim(),
+        typeMessage: 'TEXTE',
+        dateEnvoi: new Date(),
         lu: false
-      },
-      {
-        lu: true,
-        dateLecture: new Date()
-      }
-    );
-
-    // Réinitialiser le compteur de messages non lus pour cet utilisateur
-    await Conversation.findByIdAndUpdate(conversationId, {
-      nombreMessagesNonLus: 0
-    });
-
-    return result.modifiedCount;
-  }
-
-  /**
-   * Supprimer un message
-   */
-  async supprimerMessage(messageId, utilisateurId) {
-    const message = await Message.findById(messageId);
-    
-    if (!message) {
-      throw new AppError('Message non trouvé', 404);
-    }
-
-    // Seul l'expéditeur peut supprimer son message
-    if (!message.expediteurId.equals(utilisateurId)) {
-      throw new AppError('Vous ne pouvez supprimer que vos propres messages', 403);
-    }
-
-    // Vérifier que le message n'est pas trop ancien (ex: 24h)
-    const limiteSuppressionHeures = 24;
-    const maintenant = new Date();
-    const tempsEcoule = (maintenant - message.dateEnvoi) / (1000 * 60 * 60);
-    
-    if (tempsEcoule > limiteSuppressionHeures) {
-      throw new AppError(`Impossible de supprimer un message de plus de ${limiteSuppressionHeures}h`, 400);
-    }
-
-    await Message.findByIdAndDelete(messageId);
-
-    return {
-      message: 'Message supprimé avec succès',
-      messageId
-    };
-  }
-
-  /**
-   * Signaler un message
-   */
-  async signalerMessage(messageId, signalantId, motifSignalement) {
-    const message = await Message.findById(messageId);
-    
-    if (!message) {
-      throw new AppError('Message non trouvé', 404);
-    }
-
-    // Ne pas permettre de signaler ses propres messages
-    if (message.expediteurId.equals(signalantId)) {
-      throw new AppError('Vous ne pouvez pas signaler vos propres messages', 400);
-    }
-
-    // Mettre à jour le message
-    const messageSignale = await Message.findByIdAndUpdate(
-      messageId,
-      {
-        estSignale: true,
-        motifSignalement
-      },
-      { new: true }
-    );
-
-    // TODO: Créer un signalement dans la collection SIGNALEMENT
-    // const signalement = await SignalementService.creerSignalement({
-    //   signalantId,
-    //   signaleId: message.expediteurId,
-    //   messageId,
-    //   typeSignalement: 'CONTENU',
-    //   motif: motifSignalement
-    // });
-
-    return {
-      message: 'Message signalé avec succès',
-      messageSignale
-    };
-  }
-
-  /**
-   * Obtenir les conversations d'un utilisateur
-   */
-  async obtenirConversations(utilisateurId, options = {}) {
-    const { page = 1, limite = 20 } = options;
-    const skip = (page - 1) * limite;
-
-    // Récupérer les conversations où l'utilisateur est participant
-    const conversations = await Conversation.find({
-      participants: utilisateurId,
-      estArchivee: false
-    })
-    .populate('participants', 'nom prenom photoProfil')
-    .populate('trajetId', 'pointDepart pointArrivee dateDepart')
-    .sort({ derniereActivite: -1 })
-    .skip(skip)
-    .limit(limite)
-    .lean();
-
-    // Pour chaque conversation, récupérer le dernier message
-    const conversationsAvecDernierMessage = await Promise.all(
-      conversations.map(async (conversation) => {
-        const dernierMessage = await Message.findOne({
-          conversationId: conversation._id
-        })
-        .populate('expediteurId', 'nom prenom')
-        .sort({ dateEnvoi: -1 })
-        .lean();
-
-        // Compter les messages non lus pour cet utilisateur
-        const messagesNonLus = await Message.countDocuments({
-          conversationId: conversation._id,
-          destinataireId: utilisateurId,
-          lu: false
-        });
-
-        return {
-          ...conversation,
-          dernierMessage,
-          messagesNonLus
-        };
-      })
-    );
-
-    const total = await Conversation.countDocuments({
-      participants: utilisateurId,
-      estArchivee: false
-    });
-
-    return {
-      conversations: conversationsAvecDernierMessage,
-      pagination: {
-        page,
-        limite,
-        total,
-        pages: Math.ceil(total / limite),
-        hasNext: page < Math.ceil(total / limite),
-        hasPrev: page > 1
-      }
-    };
-  }
-
-  /**
-   * Créer ou récupérer une conversation entre utilisateurs
-   */
-  async obtenirOuCreerConversation(trajetId, participantIds) {
-    // Vérifier qu'il y a exactement 2 participants
-    if (!Array.isArray(participantIds) || participantIds.length !== 2) {
-      throw new AppError('Une conversation doit avoir exactement 2 participants', 400);
-    }
-
-    // Vérifier si une conversation existe déjà pour ce trajet et ces participants
-    let conversation = await Conversation.findOne({
-      trajetId,
-      participants: { $all: participantIds, $size: 2 }
-    });
-
-    if (!conversation) {
-      // Créer une nouvelle conversation
-      conversation = new Conversation({
-        trajetId,
-        participants: participantIds,
-        derniereActivite: new Date(),
-        nombreMessagesNonLus: 0,
-        estArchivee: false
       });
 
-      await conversation.save();
+      return await message.save();
+    } catch (error) {
+      throw new Error(`Erreur envoi message: ${error.message}`);
     }
-
-    // Peupler les informations
-    await conversation.populate('participants', 'nom prenom photoProfil');
-    await conversation.populate('trajetId', 'pointDepart pointArrivee dateDepart conducteurId');
-
-    return conversation;
   }
 
   /**
-   * Archiver une conversation
+   * Envoyer une position GPS
    */
-  async archiverConversation(conversationId, utilisateurId) {
-    const conversation = await Conversation.findById(conversationId);
-    
-    if (!conversation) {
-      throw new AppError('Conversation non trouvée', 404);
+  static async envoyerPosition(data) {
+    try {
+      const {
+        conversationId,
+        expediteurId,
+        destinataireId,
+        contenu = 'Position partagée',
+        longitude,
+        latitude
+      } = data;
+
+      // Validation des coordonnées
+      if (longitude === undefined || latitude === undefined) {
+        throw new AppError('Coordonnées GPS requises', 400);
+      }
+
+      const lon = parseFloat(longitude);
+      const lat = parseFloat(latitude);
+
+      if (isNaN(lon) || isNaN(lat) || lon < -180 || lon > 180 || lat < -90 || lat > 90) {
+        throw new AppError('Coordonnées GPS invalides', 400);
+      }
+
+      // Vérifier que la conversation existe
+      const conversation = await Conversation.findById(conversationId);
+      if (!conversation) {
+        throw new AppError('Conversation non trouvée', 404);
+      }
+
+      if (!conversation.participants.includes(expediteurId)) {
+        throw new AppError('Vous n\'êtes pas autorisé à envoyer des messages dans cette conversation', 403);
+      }
+
+      // Créer le message avec localisation
+      const message = new Message({
+        conversationId: new mongoose.Types.ObjectId(conversationId),
+        expediteurId: new mongoose.Types.ObjectId(expediteurId),
+        destinataireId: destinataireId ? new mongoose.Types.ObjectId(destinataireId) : null,
+        contenu: contenu,
+        typeMessage: 'POSITION',
+        pieceJointe: {
+          type: 'LOCALISATION',
+          coordonnees: {
+            type: 'Point',
+            coordinates: [lon, lat]
+          }
+        },
+        dateEnvoi: new Date(),
+        lu: false
+      });
+
+      return await message.save();
+    } catch (error) {
+      throw new Error(`Erreur envoi position: ${error.message}`);
     }
+  }
 
-    if (!conversation.participants.includes(utilisateurId)) {
-      throw new AppError('Accès non autorisé à cette conversation', 403);
+  /**
+   * Utiliser un modèle prédéfini
+   */
+  static async utiliserModelePredefini(data) {
+    try {
+      const {
+        conversationId,
+        expediteurId,
+        destinataireId,
+        modeleUtilise,
+        contenu
+      } = data;
+
+      if (!modeleUtilise || !contenu) {
+        throw new AppError('Modèle et contenu requis', 400);
+      }
+
+      // Vérifier que la conversation existe
+      const conversation = await Conversation.findById(conversationId);
+      if (!conversation) {
+        throw new AppError('Conversation non trouvée', 404);
+      }
+
+      if (!conversation.participants.includes(expediteurId)) {
+        throw new AppError('Vous n\'êtes pas autorisé à envoyer des messages dans cette conversation', 403);
+      }
+
+      // Créer le message avec modèle
+      const message = new Message({
+        conversationId: new mongoose.Types.ObjectId(conversationId),
+        expediteurId: new mongoose.Types.ObjectId(expediteurId),
+        destinataireId: destinataireId ? new mongoose.Types.ObjectId(destinataireId) : null,
+        contenu: contenu,
+        typeMessage: 'MODELE_PREDEFINI',
+        modeleUtilise: modeleUtilise,
+        dateEnvoi: new Date(),
+        lu: false
+      });
+
+      return await message.save();
+    } catch (error) {
+      throw new Error(`Erreur utilisation modèle: ${error.message}`);
     }
+  }
 
-    await Conversation.findByIdAndUpdate(conversationId, {
-      estArchivee: true
-    });
+  /**
+   * Obtenir les messages d'une conversation
+   */
+  static async obtenirMessagesConversation(conversationId, options = {}) {
+    try {
+      const {
+        page = 1,
+        limite = 50,
+        depuisDate
+      } = options;
 
-    return {
-      message: 'Conversation archivée avec succès',
-      conversationId
-    };
+      // Validation
+      if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+        throw new AppError('ID de conversation invalide', 400);
+      }
+
+      const filtre = { conversationId: new mongoose.Types.ObjectId(conversationId) };
+      if (depuisDate) {
+        filtre.dateEnvoi = { $gte: new Date(depuisDate) };
+      }
+
+      const skip = (page - 1) * limite;
+
+      const messages = await Message.find(filtre)
+        .populate('expediteurId', 'nom prenom avatar')
+        .populate('destinataireId', 'nom prenom avatar')
+        .sort({ dateEnvoi: -1 })
+        .skip(skip)
+        .limit(limite)
+        .lean();
+
+      const total = await Message.countDocuments(filtre);
+
+      return {
+        messages,
+        pagination: {
+          page,
+          limite,
+          total,
+          pages: Math.ceil(total / limite)
+        }
+      };
+    } catch (error) {
+      throw new Error(`Erreur récupération messages: ${error.message}`);
+    }
   }
 
   /**
    * Rechercher dans les messages
    */
-  async rechercherMessages(utilisateurId, termeRecherche, options = {}) {
-    const { page = 1, limite = 20 } = options;
-    const skip = (page - 1) * limite;
+  static async rechercherMessages(utilisateurId, termeRecherche, options = {}) {
+    try {
+      const {
+        page = 1,
+        limite = 20,
+        typeMessage
+      } = options;
 
-    // Obtenir les conversations de l'utilisateur
-    const conversationsUtilisateur = await Conversation.find({
-      participants: utilisateurId
-    }).select('_id');
+      if (!termeRecherche || termeRecherche.trim().length < 2) {
+        throw new AppError('Le terme de recherche doit contenir au moins 2 caractères', 400);
+      }
 
-    const conversationIds = conversationsUtilisateur.map(conv => conv._id);
+      const filtre = {
+        $or: [
+          { expediteurId: new mongoose.Types.ObjectId(utilisateurId) },
+          { destinataireId: new mongoose.Types.ObjectId(utilisateurId) }
+        ],
+        contenu: { $regex: termeRecherche.trim(), $options: 'i' }
+      };
 
-    // Rechercher dans les messages
-    const query = {
-      conversationId: { $in: conversationIds },
-      contenu: { $regex: termeRecherche, $options: 'i' }
-    };
+      if (typeMessage) {
+        filtre.typeMessage = typeMessage;
+      }
 
-    const messages = await Message.find(query)
-      .populate('expediteurId', 'nom prenom photoProfil')
-      .populate('conversationId', 'trajetId')
+      const skip = (page - 1) * limite;
+
+      const messages = await Message.find(filtre)
+        .populate('expediteurId', 'nom prenom')
+        .populate('destinataireId', 'nom prenom')
+        .populate('conversationId', 'nom')
+        .sort({ dateEnvoi: -1 })
+        .skip(skip)
+        .limit(limite)
+        .lean();
+
+      const total = await Message.countDocuments(filtre);
+
+      return {
+        messages,
+        pagination: {
+          page,
+          limite,
+          total,
+          pages: Math.ceil(total / limite)
+        }
+      };
+    } catch (error) {
+      throw new Error(`Erreur recherche messages: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtenir les messages non lus
+   */
+  static async obtenirMessagesNonLus(utilisateurId) {
+    try {
+      const messages = await Message.find({
+        destinataireId: new mongoose.Types.ObjectId(utilisateurId),
+        lu: false
+      })
+      .populate('expediteurId', 'nom prenom avatar')
+      .populate('conversationId', 'nom')
       .sort({ dateEnvoi: -1 })
+      .lean();
+
+      const count = messages.length;
+
+      return { messages, count };
+    } catch (error) {
+      throw new Error(`Erreur récupération messages non lus: ${error.message}`);
+    }
+  }
+
+  /**
+   * Marquer un message comme lu
+   */
+  static async marquerCommeLu(messageId, utilisateurId) {
+    try {
+      const message = await Message.findOneAndUpdate(
+        { 
+          _id: new mongoose.Types.ObjectId(messageId),
+          destinataireId: new mongoose.Types.ObjectId(utilisateurId),
+          lu: false
+        },
+        { 
+          lu: true,
+          dateLecture: new Date()
+        },
+        { new: true }
+      );
+
+      if (!message) {
+        throw new Error('Message non trouvé ou déjà lu');
+      }
+
+      return message;
+    } catch (error) {
+      throw new Error(`Erreur marquage lecture: ${error.message}`);
+    }
+  }
+
+  /**
+   * Marquer tous les messages d'une conversation comme lus
+   */
+  static async marquerConversationCommeLue(conversationId, utilisateurId) {
+    try {
+      const result = await Message.updateMany(
+        {
+          conversationId: new mongoose.Types.ObjectId(conversationId),
+          destinataireId: new mongoose.Types.ObjectId(utilisateurId),
+          lu: false
+        },
+        {
+          lu: true,
+          dateLecture: new Date()
+        }
+      );
+
+      return {
+        messagesMarques: result.modifiedCount,
+        message: `${result.modifiedCount} messages marqués comme lus`
+      };
+    } catch (error) {
+      throw new Error(`Erreur marquage conversation: ${error.message}`);
+    }
+  }
+
+  /**
+   * Signaler un message
+   */
+  static async signalerMessage(messageId, motifSignalement, moderateurId) {
+    try {
+      const message = await Message.findByIdAndUpdate(
+        new mongoose.Types.ObjectId(messageId),
+        {
+          estSignale: true,
+          motifSignalement,
+          moderateurId: moderateurId ? new mongoose.Types.ObjectId(moderateurId) : null
+        },
+        { new: true }
+      );
+
+      if (!message) {
+        throw new Error('Message non trouvé');
+      }
+
+      return message;
+    } catch (error) {
+      throw new Error(`Erreur signalement: ${error.message}`);
+    }
+  }
+
+  /**
+   * Supprimer un message (soft delete)
+   */
+  static async supprimerMessage(messageId, utilisateurId) {
+    try {
+      // Vérifier que l'utilisateur est l'expéditeur
+      const message = await Message.findOne({
+        _id: new mongoose.Types.ObjectId(messageId),
+        expediteurId: new mongoose.Types.ObjectId(utilisateurId)
+      });
+
+      if (!message) {
+        throw new Error('Message non trouvé ou non autorisé');
+      }
+
+      // Soft delete - marquer comme supprimé
+      message.contenu = '[Message supprimé]';
+      message.pieceJointe = undefined;
+      message.modeleUtilise = undefined;
+
+      await message.save();
+
+      return { message: 'Message supprimé avec succès' };
+    } catch (error) {
+      throw new Error(`Erreur suppression: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtenir les statistiques de messages
+   */
+  static async obtenirStatistiques(utilisateurId, periode = 30) {
+    try {
+      const dateDebut = new Date();
+      dateDebut.setDate(dateDebut.getDate() - periode);
+
+      const stats = await Message.aggregate([
+        {
+          $match: {
+            $or: [
+              { expediteurId: new mongoose.Types.ObjectId(utilisateurId) },
+              { destinataireId: new mongoose.Types.ObjectId(utilisateurId) }
+            ],
+            dateEnvoi: { $gte: dateDebut }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalMessages: { $sum: 1 },
+            messagesEnvoyes: {
+              $sum: {
+                $cond: [
+                  { $eq: ['$expediteurId', new mongoose.Types.ObjectId(utilisateurId)] },
+                  1, 0
+                ]
+              }
+            },
+            messagesRecus: {
+              $sum: {
+                $cond: [
+                  { $eq: ['$destinataireId', new mongoose.Types.ObjectId(utilisateurId)] },
+                  1, 0
+                ]
+              }
+            },
+            messagesNonLus: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$destinataireId', new mongoose.Types.ObjectId(utilisateurId)] },
+                      { $eq: ['$lu', false] }
+                    ]
+                  },
+                  1, 0
+                ]
+              }
+            }
+          }
+        }
+      ]);
+
+      return stats[0] || {
+        totalMessages: 0,
+        messagesEnvoyes: 0,
+        messagesRecus: 0,
+        messagesNonLus: 0
+      };
+    } catch (error) {
+      throw new Error(`Erreur calcul statistiques: ${error.message}`);
+    }
+  }
+
+  /**
+   * Recherche géospatiale de messages avec localisation
+   */
+  static async rechercherMessagesProximite(longitude, latitude, rayonKm = 10) {
+    try {
+      const rayonRadians = rayonKm / 6378.1; // Conversion km vers radians
+
+      const messages = await Message.find({
+        'pieceJointe.type': 'LOCALISATION',
+        'pieceJointe.coordonnees': {
+          $geoWithin: {
+            $centerSphere: [[longitude, latitude], rayonRadians]
+          }
+        }
+      })
+      .populate('expediteurId', 'nom prenom avatar')
+      .sort({ dateEnvoi: -1 })
+      .limit(50)
+      .lean();
+
+      return messages;
+    } catch (error) {
+      throw new Error(`Erreur recherche géospatiale: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtenir les conversations d'un utilisateur
+   */
+  static async obtenirConversations(utilisateurId, options = {}) {
+    try {
+      const { page = 1, limite = 20 } = options;
+      const skip = (page - 1) * limite;
+
+      const conversations = await Conversation.find({
+        participants: new mongoose.Types.ObjectId(utilisateurId)
+      })
+      .populate('participants', 'nom prenom avatar')
+      .populate('trajetId', 'pointDepart pointArrivee dateDepart')
+      .sort({ derniereActivite: -1 })
       .skip(skip)
       .limit(limite)
       .lean();
 
-    const total = await Message.countDocuments(query);
+      // Ajouter le dernier message et compteur non lus pour chaque conversation
+      const conversationsAvecDetails = await Promise.all(
+        conversations.map(async (conversation) => {
+          const dernierMessage = await Message.findOne({
+            conversationId: conversation._id
+          })
+          .populate('expediteurId', 'nom prenom')
+          .sort({ dateEnvoi: -1 })
+          .lean();
 
-    return {
-      messages,
-      pagination: {
-        page,
-        limite,
-        total,
-        pages: Math.ceil(total / limite),
-        hasNext: page < Math.ceil(total / limite),
-        hasPrev: page > 1
-      },
-      termeRecherche
-    };
-  }
+          const messagesNonLus = await Message.countDocuments({
+            conversationId: conversation._id,
+            destinataireId: new mongoose.Types.ObjectId(utilisateurId),
+            lu: false
+          });
 
-  /**
-   * Obtenir les statistiques de messages pour un utilisateur
-   */
-  async obtenirStatistiquesMessages(utilisateurId) {
-    // Messages envoyés
-    const messagesEnvoyes = await Message.countDocuments({
-      expediteurId: utilisateurId
-    });
+          return {
+            ...conversation,
+            dernierMessage,
+            messagesNonLus
+          };
+        })
+      );
 
-    // Messages reçus
-    const messagesRecus = await Message.countDocuments({
-      destinataireId: utilisateurId
-    });
+      const total = await Conversation.countDocuments({
+        participants: new mongoose.Types.ObjectId(utilisateurId)
+      });
 
-    // Messages non lus
-    const messagesNonLus = await Message.countDocuments({
-      destinataireId: utilisateurId,
-      lu: false
-    });
-
-    // Conversations actives
-    const conversationsActives = await Conversation.countDocuments({
-      participants: utilisateurId,
-      estArchivee: false
-    });
-
-    // Messages par type
-    const messagesParType = await Message.aggregate([
-      {
-        $match: {
-          $or: [
-            { expediteurId: new mongoose.Types.ObjectId(utilisateurId) },
-            { destinataireId: new mongoose.Types.ObjectId(utilisateurId) }
-          ]
+      return {
+        conversations: conversationsAvecDetails,
+        pagination: {
+          page,
+          limite,
+          total,
+          pages: Math.ceil(total / limite)
         }
-      },
-      {
-        $group: {
-          _id: '$typeMessage',
-          count: { $sum: 1 }
+      };
+    } catch (error) {
+      throw new Error(`Erreur récupération conversations: ${error.message}`);
+    }
+  }
+
+  /**
+   * Créer ou récupérer une conversation
+   */
+  static async obtenirOuCreerConversation(participantIds, trajetId = null) {
+    try {
+      if (!Array.isArray(participantIds) || participantIds.length !== 2) {
+        throw new AppError('Une conversation doit avoir exactement 2 participants', 400);
+      }
+
+      // Vérifier si une conversation existe déjà
+      let conversation = await Conversation.findOne({
+        participants: { 
+          $all: participantIds.map(id => new mongoose.Types.ObjectId(id)), 
+          $size: 2 
+        },
+        ...(trajetId && { trajetId: new mongoose.Types.ObjectId(trajetId) })
+      });
+
+      if (!conversation) {
+        // Créer une nouvelle conversation
+        conversation = new Conversation({
+          participants: participantIds.map(id => new mongoose.Types.ObjectId(id)),
+          trajetId: trajetId ? new mongoose.Types.ObjectId(trajetId) : null,
+          derniereActivite: new Date()
+        });
+
+        await conversation.save();
+      }
+
+      // Peupler les informations
+      await conversation.populate('participants', 'nom prenom avatar');
+      if (trajetId) {
+        await conversation.populate('trajetId', 'pointDepart pointArrivee dateDepart');
+      }
+
+      return conversation;
+    } catch (error) {
+      throw new Error(`Erreur création/récupération conversation: ${error.message}`);
+    }
+  }
+
+  /**
+   * Nettoyer les anciens messages
+   */
+  static async nettoyerAnciensmessages(joursConservation = 90) {
+    try {
+      const dateLimit = new Date();
+      dateLimit.setDate(dateLimit.getDate() - joursConservation);
+
+      const result = await Message.deleteMany({
+        dateEnvoi: { $lt: dateLimit },
+        estSignale: false // Garder les messages signalés
+      });
+
+      return {
+        message: `${result.deletedCount} anciens messages supprimés`,
+        messagesSupprimes: result.deletedCount,
+        dateLimit
+      };
+    } catch (error) {
+      throw new Error(`Erreur nettoyage: ${error.message}`);
+    }
+  }
+
+  /**
+   * Modération - Obtenir les messages signalés
+   */
+  static async obtenirMessagesSignales(options = {}) {
+    try {
+      const { page = 1, limite = 20 } = options;
+      const skip = (page - 1) * limite;
+
+      const messages = await Message.find({ estSignale: true })
+        .populate('expediteurId', 'nom prenom email')
+        .populate('moderateurId', 'nom prenom')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limite);
+
+      const total = await Message.countDocuments({ estSignale: true });
+
+      return {
+        messages,
+        pagination: {
+          page,
+          limite,
+          total,
+          pages: Math.ceil(total / limite)
         }
-      }
-    ]);
-
-    return {
-      messagesEnvoyes,
-      messagesRecus,
-      messagesNonLus,
-      conversationsActives,
-      messagesParType: messagesParType.reduce((acc, item) => {
-        acc[item._id] = item.count;
-        return acc;
-      }, {})
-    };
+      };
+    } catch (error) {
+      throw new Error(`Erreur récupération messages signalés: ${error.message}`);
+    }
   }
 
   /**
-   * Modérer un message (admin)
+   * Valider les coordonnées GPS
    */
-  async modererMessage(messageId, moderateurId, action) {
-    const message = await Message.findById(messageId);
+  static validerCoordonnees(longitude, latitude) {
+    const lon = parseFloat(longitude);
+    const lat = parseFloat(latitude);
     
-    if (!message) {
-      throw new AppError('Message non trouvé', 404);
+    if (isNaN(lon) || isNaN(lat)) {
+      return false;
     }
-
-    const actionsValides = ['APPROUVER', 'REJETER', 'SUPPRIMER'];
-    if (!actionsValides.includes(action)) {
-      throw new AppError('Action de modération invalide', 400);
-    }
-
-    let updateData = {
-      moderateurId,
-      dateModeration: new Date()
-    };
-
-    switch (action) {
-      case 'APPROUVER':
-        updateData.estSignale = false;
-        updateData.motifSignalement = null;
-        break;
-      
-      case 'REJETER':
-        // Garder le signalement mais marquer comme traité
-        updateData.estTraite = true;
-        break;
-      
-      case 'SUPPRIMER':
-        await Message.findByIdAndDelete(messageId);
-        return {
-          message: 'Message supprimé par modération',
-          messageId,
-          action
-        };
-    }
-
-    const messageModere = await Message.findByIdAndUpdate(
-      messageId,
-      updateData,
-      { new: true }
-    ).populate('expediteurId', 'nom prenom');
-
-    return {
-      message: `Message ${action.toLowerCase()} par modération`,
-      messageModere,
-      action
-    };
-  }
-
-  /**
-   * Obtenir les messages signalés (admin)
-   */
-  async obtenirMessagesSignales(options = {}) {
-    const { page = 1, limite = 20, statut = 'EN_ATTENTE' } = options;
-    const skip = (page - 1) * limite;
-
-    let query = { estSignale: true };
     
-    if (statut !== 'TOUS') {
-      query.estTraite = statut === 'TRAITE';
+    return lon >= -180 && lon <= 180 && lat >= -90 && lat <= 90;
+  }
+
+  /**
+   * Formater un message pour l'affichage
+   */
+  static formaterMessage(message) {
+    const messageFormated = {
+      id: message._id,
+      conversationId: message.conversationId,
+      expediteur: message.expediteurId,
+      destinataire: message.destinataireId,
+      contenu: message.contenu,
+      typeMessage: message.typeMessage,
+      dateEnvoi: message.dateEnvoi,
+      lu: message.lu,
+      dateLecture: message.dateLecture
+    };
+
+    if (message.pieceJointe) {
+      messageFormated.pieceJointe = message.pieceJointe;
     }
 
-    const messages = await Message.find(query)
-      .populate('expediteurId', 'nom prenom email')
-      .populate('conversationId', 'trajetId')
-      .sort({ dateEnvoi: -1 })
-      .skip(skip)
-      .limit(limite);
-
-    const total = await Message.countDocuments(query);
-
-    return {
-      messages,
-      pagination: {
-        page,
-        limite,
-        total,
-        pages: Math.ceil(total / limite),
-        hasNext: page < Math.ceil(total / limite),
-        hasPrev: page > 1
-      }
-    };
-  }
-
-  /**
-   * Envoyer un message prédéfini (templates locaux)
-   */
-  async envoyerMessagePredefini(conversationId, expediteurId, modeleUtilise, variables = {}) {
-    // Templates de messages prédéfinis en français local
-    const modelesMessages = {
-      'ARRIVEE_PROCHE': 'Je suis bientôt arrivé(e) au point de rendez-vous ! 🚗',
-      'RETARD_5MIN': 'Désolé(e), j\'ai un petit retard de 5 minutes environ ⏰',
-      'RETARD_10MIN': 'Je suis en retard d\'environ 10 minutes, désolé(e) 😔',
-      'ARRIVE_LIEU': 'Je suis arrivé(e) au point de rendez-vous 📍',
-      'DEMANDE_POSITION': 'Pouvez-vous partager votre position s\'il vous plaît ? 📱',
-      'REMERCIEMENT': 'Merci pour ce bon trajet ! À bientôt 😊',
-      'PROBLEME_TECHNIQUE': 'J\'ai un petit problème technique, je vous tiens au courant 🔧',
-      'CONFIRMATION_TRAJET': 'Je confirme ma présence pour le trajet ✅',
-      'ANNULATION_URGENCE': 'Désolé(e), je dois annuler pour cause d\'urgence 🚨'
-    };
-
-    const contenu = modelesMessages[modeleUtilise];
-    if (!contenu) {
-      throw new AppError('Modèle de message non trouvé', 404);
+    if (message.modeleUtilise) {
+      messageFormated.modeleUtilise = message.modeleUtilise;
     }
 
-    // Remplacer les variables dans le template si nécessaire
-    let contenuFinal = contenu;
-    Object.keys(variables).forEach(key => {
-      contenuFinal = contenuFinal.replace(`{{${key}}}`, variables[key]);
-    });
-
-    return await this.envoyerMessage({
-      conversationId,
-      expediteurId,
-      contenu: contenuFinal,
-      typeMessage: 'MODELE_PREDEFINI',
-      modeleUtilise
-    });
-  }
-
-  /**
-   * Obtenir le nombre de messages non lus pour un utilisateur
-   */
-  async obtenirNombreMessagesNonLus(utilisateurId) {
-    const nombreNonLus = await Message.countDocuments({
-      destinataireId: utilisateurId,
-      lu: false
-    });
-
-    return { nombreMessagesNonLus: nombreNonLus };
-  }
-
-  /**
-   * Envoyer un message de localisation
-   */
-  async envoyerLocalisation(conversationId, expediteurId, coordonnees) {
-    if (!coordonnees || !coordonnees.longitude || !coordonnees.latitude) {
-      throw new AppError('Coordonnées de localisation requises', 400);
-    }
-
-    const pieceJointe = {
-      type: 'LOCALISATION',
-      coordonnees: {
-        type: 'Point',
-        coordinates: [coordonnees.longitude, coordonnees.latitude]
-      }
-    };
-
-    return await this.envoyerMessage({
-      conversationId,
-      expediteurId,
-      contenu: '📍 Position partagée',
-      typeMessage: 'POSITION',
-      pieceJointe
-    });
-  }
-
-  /**
-   * Obtenir les messages par période
-   */
-  async obtenirMessagesParPeriode(debut, fin, options = {}) {
-    const query = {
-      dateEnvoi: {
-        $gte: new Date(debut),
-        $lte: new Date(fin)
-      }
-    };
-
-    const messages = await Message.find(query)
-      .populate('expediteurId', 'nom prenom')
-      .sort({ dateEnvoi: -1 })
-      .limit(options.limite || 100);
-
-    return messages;
-  }
-
-  /**
-   * Nettoyer les anciens messages (tâche de maintenance)
-   */
-  async nettoyerAnciensmessages(joursConservation = 90) {
-    const dateLimit = new Date();
-    dateLimit.setDate(dateLimit.getDate() - joursConservation);
-
-    const result = await Message.deleteMany({
-      dateEnvoi: { $lt: dateLimit },
-      estSignale: false // Garder les messages signalés pour investigation
-    });
-
-    return {
-      message: `${result.deletedCount} anciens messages supprimés`,
-      messagesSupprimes: result.deletedCount,
-      dateLimit
-    };
+    return messageFormated;
   }
 }
 
-module.exports = new MessageService();
+module.exports = MessageService;

@@ -1,17 +1,17 @@
 // =====================================================
-// MODEL: SIGNALEMENT
+// MODEL: SIGNALEMENT - CORRIGÉ POUR CORRESPONDRE AU CONTRÔLEUR
 // =====================================================
 
 const mongoose = require('mongoose');
 
 const signalementSchema = new mongoose.Schema({
   // =====================================================
-  // RÉFÉRENCES
+  // RÉFÉRENCES (noms corrigés)
   // =====================================================
-  signalantId: {
+  rapportePar: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Utilisateur',
-    required: [true, 'L\'ID du signalant est requis'],
+    required: [true, 'L\'ID du rapporteur est requis'],
     index: true
   },
 
@@ -42,7 +42,7 @@ const signalementSchema = new mongoose.Schema({
   typeSignalement: {
     type: String,
     enum: {
-      values: ['COMPORTEMENT', 'CONTENU', 'FRAUDE', 'SECURITE'],
+      values: ['COMPORTEMENT', 'SECURITE', 'FRAUDE', 'SPAM', 'CONTENU_INAPPROPRIE', 'AUTRE'],
       message: 'Type de signalement non valide'
     },
     required: [true, 'Le type de signalement est requis'],
@@ -53,30 +53,9 @@ const signalementSchema = new mongoose.Schema({
     type: String,
     enum: {
       values: [
-        // COMPORTEMENT
-        'COMPORTEMENT_INAPPROPRIE',
-        'HARCELEMENT',
-        'DISCRIMINATION',
-        'VIOLENCE_VERBALE',
-        'NON_RESPECT_REGLES',
-        
-        // CONTENU
-        'CONTENU_OFFENSANT',
-        'SPAM',
-        'CONTENU_INAPPROPRIE',
-        'FAUSSES_INFORMATIONS',
-        
-        // FRAUDE
-        'FAUX_PROFIL',
-        'PRIX_ABUSIFS',
-        'ANNULATION_ABUSIVE',
-        'FAUSSE_EVALUATION',
-        
-        // SÉCURITÉ
-        'CONDUITE_DANGEREUSE',
-        'VEHICULE_NON_CONFORME',
-        'USURPATION_IDENTITE',
-        'MENACES'
+        'HARCELEMENT', 'MENACES', 'CONDUITE_DANGEREUSE', 'VEHICULE_NON_CONFORME',
+        'USURPATION_IDENTITE', 'VIOLENCE_VERBALE', 'DISCRIMINATION',
+        'COMPORTEMENT_INAPPROPRIE', 'FAUX_PROFIL', 'CONTENU_OFFENSANT'
       ],
       message: 'Motif de signalement non valide'
     },
@@ -93,37 +72,55 @@ const signalementSchema = new mongoose.Schema({
   },
 
   preuves: [{
-    type: String,
-    validate: {
-      validator: function(url) {
-        // Validation basique d'URL
-        return /^https?:\/\/.+\.(jpg|jpeg|png|gif|pdf|mp4|mov)$/i.test(url);
-      },
-      message: 'URL de preuve non valide'
+    url: {
+      type: String,
+      required: true
+    },
+    publicId: {
+      type: String,
+      required: true
+    },
+    nomOriginal: {
+      type: String,
+      required: true
+    },
+    type: {
+      type: String,
+      required: true
+    },
+    taille: {
+      type: Number,
+      required: true
     }
   }],
 
   // =====================================================
   // TRAITEMENT DU SIGNALEMENT
   // =====================================================
-  statutTraitement: {
+  statut: {
     type: String,
     enum: {
-      values: ['EN_ATTENTE', 'EN_COURS', 'TRAITE', 'REJETE'],
+      values: ['EN_ATTENTE', 'EN_COURS', 'TRAITE', 'REJETE', 'CLASSE_SANS_SUITE'],
       message: 'Statut de traitement non valide'
     },
     default: 'EN_ATTENTE',
     index: true
   },
 
-  moderateurId: {
+  moderateurAssigne: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Administrateur',
+    ref: 'Utilisateur',
     default: null,
     index: true
   },
 
-  actionsPrises: [{
+  traitePar: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Utilisateur',
+    default: null
+  },
+
+  actionsDisciplinaires: [{
     type: String,
     enum: {
       values: [
@@ -132,7 +129,6 @@ const signalementSchema = new mongoose.Schema({
         'SUSPENSION_7_JOURS',
         'SUSPENSION_30_JOURS',
         'BLOCAGE_DEFINITIF',
-        'SUPPRESSION_CONTENU',
         'LIMITATION_FONCTIONNALITES',
         'VERIFICATION_IDENTITE_REQUISE'
       ],
@@ -140,7 +136,7 @@ const signalementSchema = new mongoose.Schema({
     }
   }],
 
-  commentaireModeratrice: {
+  commentaireModeration: {
     type: String,
     maxlength: [500, 'Le commentaire ne peut dépasser 500 caractères'],
     trim: true,
@@ -150,13 +146,23 @@ const signalementSchema = new mongoose.Schema({
   // =====================================================
   // DATES
   // =====================================================
-  dateSignalement: {
+  dateCreation: {
     type: Date,
     default: Date.now,
     index: true
   },
 
   dateTraitement: {
+    type: Date,
+    default: null
+  },
+
+  dateAssignation: {
+    type: Date,
+    default: null
+  },
+
+  dateModification: {
     type: Date,
     default: null
   },
@@ -171,16 +177,35 @@ const signalementSchema = new mongoose.Schema({
     index: true
   },
 
-  nombreSignalementsSimilaires: {
-    type: Number,
-    default: 0,
-    min: 0
+  escalade: {
+    type: Boolean,
+    default: false
   },
 
-  ipSignalant: {
-    type: String,
+  dateEscalade: {
+    type: Date,
     default: null
-  }
+  },
+
+  historique: [{
+    action: {
+      type: String,
+      required: true
+    },
+    moderateur: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Utilisateur',
+      required: true
+    },
+    date: {
+      type: Date,
+      default: Date.now
+    },
+    commentaire: {
+      type: String,
+      default: ''
+    }
+  }]
 }, {
   timestamps: true,
   collection: 'signalements'
@@ -190,31 +215,27 @@ const signalementSchema = new mongoose.Schema({
 // INDEX COMPOSITES
 // =====================================================
 
-// Index pour les requêtes de modération
 signalementSchema.index({ 
-  statutTraitement: 1, 
-  dateSignalement: -1 
+  statut: 1, 
+  dateCreation: -1 
 });
 
-// Index pour les statistiques
 signalementSchema.index({ 
   typeSignalement: 1, 
-  statutTraitement: 1,
-  dateSignalement: -1 
+  statut: 1,
+  dateCreation: -1 
 });
 
-// Index pour éviter les doublons
 signalementSchema.index({ 
-  signalantId: 1, 
+  rapportePar: 1, 
   signaleId: 1, 
   trajetId: 1, 
   messageId: 1 
 });
 
-// Index pour les recherches par utilisateur signalé
 signalementSchema.index({ 
   signaleId: 1, 
-  statutTraitement: 1 
+  statut: 1 
 });
 
 // =====================================================
@@ -222,20 +243,13 @@ signalementSchema.index({
 // =====================================================
 
 signalementSchema.pre('save', function(next) {
-  // Empêcher l'auto-signalement
-  if (this.signalantId && this.signaleId && 
-      this.signalantId.toString() === this.signaleId.toString()) {
+  if (this.rapportePar && this.signaleId && 
+      this.rapportePar.toString() === this.signaleId.toString()) {
     return next(new Error('Un utilisateur ne peut pas se signaler lui-même'));
   }
 
-  // Définir la priorité automatiquement
-  if (this.isNew) {
-    this.priorite = this.calculerPriorite();
-  }
-
-  // Mettre à jour la date de traitement
-  if (this.isModified('statutTraitement') && 
-      this.statutTraitement !== 'EN_ATTENTE') {
+  if (this.isModified('statut') && 
+      this.statut !== 'EN_ATTENTE') {
     this.dateTraitement = new Date();
   }
 
@@ -249,127 +263,32 @@ signalementSchema.pre('save', function(next) {
 signalementSchema.methods.calculerPriorite = function() {
   const motifsCritiques = [
     'MENACES', 
-    'VIOLENCE_VERBALE', 
     'CONDUITE_DANGEREUSE',
-    'USURPATION_IDENTITE'
+    'VEHICULE_NON_CONFORME',
+    'USURPATION_IDENTITE',
+    'VIOLENCE_VERBALE'
   ];
   
   const motifsHauts = [
     'HARCELEMENT',
-    'DISCRIMINATION', 
-    'VEHICULE_NON_CONFORME',
-    'FAUX_PROFIL'
+    'DISCRIMINATION',
+    'COMPORTEMENT_INAPPROPRIE',
+    'FAUX_PROFIL',
+    'CONTENU_OFFENSANT'
   ];
 
   if (motifsCritiques.includes(this.motif)) {
     return 'CRITIQUE';
   } else if (motifsHauts.includes(this.motif)) {
     return 'HAUTE';
-  } else if (this.nombreSignalementsSimilaires > 2) {
+  } else if (this.typeSignalement === 'SECURITE') {
     return 'HAUTE';
-  } else {
+  } else if (this.typeSignalement === 'FRAUDE') {
     return 'NORMALE';
+  } else {
+    return 'BASSE';
   }
 };
-
-signalementSchema.methods.marquerTraite = function(moderateurId, actions, commentaire) {
-  this.statutTraitement = 'TRAITE';
-  this.moderateurId = moderateurId;
-  this.actionsPrises = actions || [];
-  this.commentaireModeratrice = commentaire || '';
-  this.dateTraitement = new Date();
-  return this.save();
-};
-
-signalementSchema.methods.rejeter = function(moderateurId, raison) {
-  this.statutTraitement = 'REJETE';
-  this.moderateurId = moderateurId;
-  this.commentaireModeratrice = raison || 'Signalement non fondé';
-  this.dateTraitement = new Date();
-  return this.save();
-};
-
-// =====================================================
-// MÉTHODES STATIQUES
-// =====================================================
-
-signalementSchema.statics.obtenirStatistiques = async function(dateDebut, dateFin) {
-  const pipeline = [
-    {
-      $match: {
-        dateSignalement: {
-          $gte: dateDebut || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-          $lte: dateFin || new Date()
-        }
-      }
-    },
-    {
-      $group: {
-        _id: '$statutTraitement',
-        count: { $sum: 1 },
-        parType: {
-          $push: {
-            type: '$typeSignalement',
-            motif: '$motif'
-          }
-        }
-      }
-    }
-  ];
-
-  return this.aggregate(pipeline);
-};
-
-signalementSchema.statics.obtenirQueueModeration = async function(limite = 50) {
-  return this.find({
-    statutTraitement: { $in: ['EN_ATTENTE', 'EN_COURS'] }
-  })
-  .populate('signalantId', 'nom prenom email')
-  .populate('signaleId', 'nom prenom email')
-  .populate('trajetId', 'pointDepart pointArrivee dateDepart')
-  .populate('moderateurId', 'nom prenom')
-  .sort({ priorite: -1, dateSignalement: 1 })
-  .limit(limite);
-};
-
-signalementSchema.statics.verifierDoublon = async function(signalantId, signaleId, trajetId, messageId) {
-  const query = { signalantId, signaleId };
-  
-  if (trajetId) query.trajetId = trajetId;
-  if (messageId) query.messageId = messageId;
-
-  // Vérifier s'il existe déjà un signalement similaire dans les 24h
-  query.dateSignalement = {
-    $gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
-  };
-
-  return this.findOne(query);
-};
-
-// =====================================================
-// MÉTHODES VIRTUELLES
-// =====================================================
-
-signalementSchema.virtual('tempsTraitement').get(function() {
-  if (this.dateTraitement && this.dateSignalement) {
-    return this.dateTraitement - this.dateSignalement;
-  }
-  return null;
-});
-
-signalementSchema.virtual('estUrgent').get(function() {
-  return ['CRITIQUE', 'HAUTE'].includes(this.priorite);
-});
-
-signalementSchema.virtual('estEnRetard').get(function() {
-  if (this.statutTraitement === 'EN_ATTENTE') {
-    const delaiMax = this.priorite === 'CRITIQUE' ? 2 : 
-                     this.priorite === 'HAUTE' ? 24 : 72; // heures
-    const tempsEcoule = (Date.now() - this.dateSignalement) / (1000 * 60 * 60);
-    return tempsEcoule > delaiMax;
-  }
-  return false;
-});
 
 // =====================================================
 // CONFIGURATION JSON

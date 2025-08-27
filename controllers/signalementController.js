@@ -2,7 +2,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { validationResult } = require('express-validator');
-const AppError = require('../utils/AppError');
+const mongoose = require('mongoose');
 
 // Models
 const Signalement = require('../models/Signalement');
@@ -45,15 +45,52 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Configuration Multer
-const uploadPreuves = multer({
-  storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB maximum par fichier
-    files: 5 // Maximum 5 fichiers
-  },
-  fileFilter: fileFilter
-}).array('preuves', 5);
+// Configuration Multer avec gestion d'erreur
+const uploadPreuves = (req, res, next) => {
+  const upload = multer({
+    storage: storage,
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB maximum par fichier
+      files: 5 // Maximum 5 fichiers
+    },
+    fileFilter: fileFilter
+  }).array('preuves', 5);
+
+  upload(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      let message = 'Erreur lors de l\'upload des fichiers';
+      
+      switch (err.code) {
+        case 'LIMIT_FILE_SIZE':
+          message = 'Fichier trop volumineux (max 10MB par fichier)';
+          break;
+        case 'LIMIT_FILE_COUNT':
+          message = 'Trop de fichiers (max 5 fichiers)';
+          break;
+        case 'LIMIT_UNEXPECTED_FILE':
+          message = 'Champ de fichier inattendu';
+          break;
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: message,
+        code: 'UPLOAD_ERROR',
+        details: err.message
+      });
+    }
+
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'Erreur lors de l\'upload',
+        code: 'FILE_ERROR'
+      });
+    }
+
+    next();
+  });
+};
 
 // Fonctions utilitaires internes
 
@@ -138,7 +175,16 @@ const appliquerActionsDisciplinaires = async (userId, actions) => {
     }
 
     await utilisateur.save();
-    await notificationService.envoyerNotificationSanction(utilisateur, actions);
+    
+    // Gestion d'erreur pour les notifications
+    try {
+      if (notificationService && typeof notificationService.envoyerNotificationSanction === 'function') {
+        await notificationService.envoyerNotificationSanction(utilisateur, actions);
+      }
+    } catch (notifError) {
+      console.error('Erreur notification sanction:', notifError);
+      // Continue sans faire échouer l'opération
+    }
 
     return true;
   } catch (error) {
@@ -147,19 +193,91 @@ const appliquerActionsDisciplinaires = async (userId, actions) => {
   }
 };
 
+// Validation des ObjectIds
+const isValidObjectId = (id) => {
+  return mongoose.Types.ObjectId.isValid(id);
+};
+
+// Fonction utilitaire pour obtenir l'ID utilisateur
+const getUserId = (user) => {
+  return user._id || user.id || user.userId;
+};
+
 // Contrôleurs principaux
 
-const creerSignalement = async (req, res, next) => {
+const creerSignalement = async (req, res, _next) => {
   try {
+    console.log('=== DEBUT CREATION SIGNALEMENT ===');
+
+    // Normaliser l'ID utilisateur dès le début
+    const userId = getUserId(req.user);
+
+    // 1. Validation des données d'entrée
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
       nettoyerFichiersTemp(req.files);
       return res.status(400).json(erreurValidation);
     }
 
+    // 2. Vérification de l'utilisateur connecté
+    if (!req.user || !userId) {
+      nettoyerFichiersTemp(req.files);
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non authentifié',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
+    // 3. Extraction et validation des données
     const { signaleId, typeSignalement, motif, description, trajetId, messageId } = req.body;
 
-    if (signaleId === req.user._id.toString()) {
+    // Validation des champs obligatoires
+    if (!signaleId || !typeSignalement || !motif || !description) {
+      nettoyerFichiersTemp(req.files);
+      return res.status(400).json({
+        success: false,
+        message: 'Champs obligatoires manquants',
+        code: 'MISSING_REQUIRED_FIELDS',
+        details: {
+          signaleId: !signaleId ? 'requis' : 'ok',
+          typeSignalement: !typeSignalement ? 'requis' : 'ok',
+          motif: !motif ? 'requis' : 'ok',
+          description: !description ? 'requis' : 'ok'
+        }
+      });
+    }
+
+    // Validation des ObjectIds
+    if (!isValidObjectId(signaleId)) {
+      nettoyerFichiersTemp(req.files);
+      return res.status(400).json({
+        success: false,
+        message: 'ID utilisateur signalé invalide',
+        code: 'INVALID_USER_ID'
+      });
+    }
+
+    if (trajetId && !isValidObjectId(trajetId)) {
+      nettoyerFichiersTemp(req.files);
+      return res.status(400).json({
+        success: false,
+        message: 'ID trajet invalide',
+        code: 'INVALID_TRAJET_ID'
+      });
+    }
+
+    if (messageId && !isValidObjectId(messageId)) {
+      nettoyerFichiersTemp(req.files);
+      return res.status(400).json({
+        success: false,
+        message: 'ID message invalide',
+        code: 'INVALID_MESSAGE_ID'
+      });
+    }
+
+    // 4. Vérification auto-signalement
+    if (signaleId === userId.toString()) {
       nettoyerFichiersTemp(req.files);
       return res.status(400).json({
         success: false,
@@ -168,6 +286,7 @@ const creerSignalement = async (req, res, next) => {
       });
     }
 
+    // 5. Vérification de l'existence de l'utilisateur signalé
     const utilisateurSignale = await User.findById(signaleId);
     if (!utilisateurSignale) {
       nettoyerFichiersTemp(req.files);
@@ -178,35 +297,64 @@ const creerSignalement = async (req, res, next) => {
       });
     }
 
-    let trajet = null, message = null;
+    // 6. Vérification du trajet si fourni
+    let trajet = null;
     if (trajetId) {
-      trajet = await Trajet.findById(trajetId);
-      if (!trajet) {
+      try {
+        trajet = await Trajet.findById(trajetId);
+        if (!trajet) {
+          nettoyerFichiersTemp(req.files);
+          return res.status(404).json({
+            success: false,
+            message: 'Trajet référencé introuvable',
+            code: 'TRAJET_NOT_FOUND'
+          });
+        }
+      } catch (trajetError) {
+        console.error('Erreur recherche trajet:', trajetError);
         nettoyerFichiersTemp(req.files);
-        return res.status(404).json({
+        return res.status(500).json({
           success: false,
-          message: 'Trajet référencé introuvable',
-          code: 'TRAJET_NOT_FOUND'
+          message: 'Erreur lors de la recherche du trajet',
+          code: 'TRAJET_SEARCH_ERROR'
         });
       }
     }
 
+    // 7. Vérification du message si fourni
+    let message = null;
     if (messageId) {
-      message = await Message.findById(messageId);
-      if (!message) {
+      try {
+        message = await Message.findById(messageId);
+        if (!message) {
+          nettoyerFichiersTemp(req.files);
+          return res.status(404).json({
+            success: false,
+            message: 'Message référencé introuvable',
+            code: 'MESSAGE_NOT_FOUND'
+          });
+        }
+      } catch (messageError) {
+        console.error('Erreur recherche message:', messageError);
         nettoyerFichiersTemp(req.files);
-        return res.status(404).json({
+        return res.status(500).json({
           success: false,
-          message: 'Message référencé introuvable',
-          code: 'MESSAGE_NOT_FOUND'
+          message: 'Erreur lors de la recherche du message',
+          code: 'MESSAGE_SEARCH_ERROR'
         });
       }
     }
 
+    // 8. Traitement des preuves
     let preuves = [];
     if (req.files && req.files.length > 0) {
       try {
         for (const fichier of req.files) {
+          // Vérifier que le service Cloudinary est disponible
+          if (!uploadToCloudinary || typeof uploadToCloudinary !== 'function') {
+            throw new Error('Service de téléchargement non disponible');
+          }
+
           const resultatUpload = await uploadToCloudinary(fichier.path, {
             folder: 'signalements/preuves',
             resource_type: fichier.mimetype.startsWith('video/') ? 'video' : 'image'
@@ -222,40 +370,83 @@ const creerSignalement = async (req, res, next) => {
         }
 
         nettoyerFichiersTemp(req.files);
-      } catch (error) {
+        console.log(`${preuves.length} preuves uploadées avec succès`);
+      } catch (uploadError) {
         nettoyerFichiersTemp(req.files);
-        console.error('Erreur upload preuves:', error);
-        return next(AppError.serverError('Erreur serveur lors du téléchargement des preuves', { originalError: error.message }));
+        console.error('Erreur upload preuves:', uploadError);
+        return res.status(500).json({
+          success: false,
+          message: 'Erreur lors du téléchargement des preuves',
+          code: 'UPLOAD_ERROR',
+          details: uploadError.message
+        });
       }
     }
 
+    // 9. Calcul de la priorité
     const priorite = calculerPriorite(typeSignalement, motif);
 
-    const nouveauSignalement = new Signalement({
-      rapportePar: req.user._id,
-      signaleId: signaleId,
+    // 10. Création du signalement
+    const donneesSignalement = {
+      rapportePar: userId,
+      signaleId: new mongoose.Types.ObjectId(signaleId),
       typeSignalement,
       motif,
       description,
-      trajetId,
-      messageId,
       preuves,
       priorite,
       statut: 'EN_ATTENTE',
       dateCreation: new Date()
-    });
+    };
 
-    await nouveauSignalement.save();
-
-    await nouveauSignalement.populate([
-      { path: 'rapportePar', select: 'nom prenom email' },
-      { path: 'signaleId', select: 'nom prenom email' }
-    ]);
-
-    if (['HAUTE', 'CRITIQUE'].includes(priorite)) {
-      await notificationService.notifierModerateursPriorite(nouveauSignalement);
+    // Ajouter les références optionnelles seulement si elles existent
+    if (trajetId && trajet) {
+      donneesSignalement.trajetId = new mongoose.Types.ObjectId(trajetId);
+    }
+    if (messageId && message) {
+      donneesSignalement.messageId = new mongoose.Types.ObjectId(messageId);
     }
 
+    let nouveauSignalement;
+    try {
+      nouveauSignalement = new Signalement(donneesSignalement);
+      await nouveauSignalement.save();
+      console.log('Signalement créé avec ID:', nouveauSignalement._id);
+    } catch (saveError) {
+      console.error('Erreur sauvegarde signalement:', saveError);
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de la sauvegarde du signalement',
+        code: 'SAVE_ERROR',
+        details: saveError.message
+      });
+    }
+
+    // 11. Population des données
+    try {
+      await nouveauSignalement.populate([
+        { path: 'rapportePar', select: 'nom prenom email' },
+        { path: 'signaleId', select: 'nom prenom email' }
+      ]);
+    } catch (populateError) {
+      console.error('Erreur population:', populateError);
+      // Continue même si la population échoue
+    }
+
+    // 12. Notifications pour priorité haute/critique
+    if (['HAUTE', 'CRITIQUE'].includes(priorite)) {
+      try {
+        if (notificationService && typeof notificationService.notifierModerateursPriorite === 'function') {
+          await notificationService.notifierModerateursPriorite(nouveauSignalement);
+          console.log('Notification modérateurs envoyée');
+        }
+      } catch (notifError) {
+        console.error('Erreur notification:', notifError);
+        // Continue même si la notification échoue
+      }
+    }
+
+    console.log('=== SIGNALEMENT CREE AVEC SUCCES ===');
     res.status(201).json({
       success: true,
       message: 'Signalement créé avec succès',
@@ -263,16 +454,38 @@ const creerSignalement = async (req, res, next) => {
         signalement: nouveauSignalement
       }
     });
+
   } catch (error) {
+    console.error('=== ERREUR GENERALE CREATION SIGNALEMENT ===');
+    console.error('Type:', error.constructor.name);
+    console.error('Message:', error.message);
+    console.error('Stack:', error.stack);
+    
     nettoyerFichiersTemp(req.files);
-    console.error('Erreur création signalement:', error);
-    return next(AppError.serverError('Erreur serveur lors de la création du signalement', { originalError: error.message }));
+    
+    // Retourner une réponse JSON au lieu de laisser Express générer du HTML
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la création du signalement',
+      code: 'SERVER_ERROR',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Erreur interne'
+    });
   }
 };
 
-const uploaderPreuves = async (req, res, next) => {
+const uploaderPreuves = async (req, res, _next) => {
   try {
+    const userId = getUserId(req.user);
     const { signalementId } = req.body;
+
+    if (!signalementId || !isValidObjectId(signalementId)) {
+      nettoyerFichiersTemp(req.files);
+      return res.status(400).json({
+        success: false,
+        message: 'ID signalement invalide',
+        code: 'INVALID_SIGNALEMENT_ID'
+      });
+    }
 
     const signalement = await Signalement.findById(signalementId);
     if (!signalement) {
@@ -284,7 +497,7 @@ const uploaderPreuves = async (req, res, next) => {
       });
     }
 
-    if (signalement.rapportePar.toString() !== req.user._id.toString()) {
+    if (signalement.rapportePar.toString() !== userId.toString()) {
       nettoyerFichiersTemp(req.files);
       return res.status(403).json({
         success: false,
@@ -304,22 +517,32 @@ const uploaderPreuves = async (req, res, next) => {
 
     let nouvellesPreuves = [];
     if (req.files && req.files.length > 0) {
-      for (const fichier of req.files) {
-        const resultatUpload = await uploadToCloudinary(fichier.path, {
-          folder: 'signalements/preuves',
-          resource_type: fichier.mimetype.startsWith('video/') ? 'video' : 'image'
-        });
+      try {
+        for (const fichier of req.files) {
+          const resultatUpload = await uploadToCloudinary(fichier.path, {
+            folder: 'signalements/preuves',
+            resource_type: fichier.mimetype.startsWith('video/') ? 'video' : 'image'
+          });
 
-        nouvellesPreuves.push({
-          url: resultatUpload.secure_url,
-          publicId: resultatUpload.public_id,
-          nomOriginal: fichier.originalname,
-          type: fichier.mimetype,
-          taille: fichier.size
+          nouvellesPreuves.push({
+            url: resultatUpload.secure_url,
+            publicId: resultatUpload.public_id,
+            nomOriginal: fichier.originalname,
+            type: fichier.mimetype,
+            taille: fichier.size
+          });
+        }
+
+        nettoyerFichiersTemp(req.files);
+      } catch (uploadError) {
+        nettoyerFichiersTemp(req.files);
+        return res.status(500).json({
+          success: false,
+          message: 'Erreur lors du téléchargement des preuves',
+          code: 'UPLOAD_ERROR',
+          details: uploadError.message
         });
       }
-
-      nettoyerFichiersTemp(req.files);
     }
 
     signalement.preuves.push(...nouvellesPreuves);
@@ -337,17 +560,23 @@ const uploaderPreuves = async (req, res, next) => {
   } catch (error) {
     nettoyerFichiersTemp(req.files);
     console.error('Erreur upload preuves:', error);
-    return next(AppError.serverError('Erreur serveur lors de l\'upload des preuves', { originalError: error.message }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de l\'upload des preuves',
+      code: 'SERVER_ERROR',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Erreur interne'
+    });
   }
 };
 
-const obtenirQueueModeration = async (req, res, next) => {
+const obtenirQueueModeration = async (req, res, _next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
       return res.status(400).json(erreurValidation);
     }
 
+    const userId = getUserId(req.user);
     const page = parseInt(req.query.page) || 1;
     const limite = parseInt(req.query.limite) || 20;
     const skip = (page - 1) * limite;
@@ -366,7 +595,7 @@ const obtenirQueueModeration = async (req, res, next) => {
 
     if (req.user.role === 'MODERATEUR') {
       filtres.$or = [
-        { moderateurAssigne: req.user._id },
+        { moderateurAssigne: userId },
         { moderateurAssigne: { $exists: false } }
       ];
     }
@@ -416,17 +645,22 @@ const obtenirQueueModeration = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Erreur queue modération:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération de la queue', { originalError: error.message }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération de la queue',
+      code: 'SERVER_ERROR'
+    });
   }
 };
 
-const obtenirHistoriqueSignalements = async (req, res, next) => {
+const obtenirHistoriqueSignalements = async (req, res, _next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
       return res.status(400).json(erreurValidation);
     }
 
+    const userId = getUserId(req.user);
     const page = parseInt(req.query.page) || 1;
     const limite = parseInt(req.query.limite) || 20;
     const skip = (page - 1) * limite;
@@ -434,7 +668,14 @@ const obtenirHistoriqueSignalements = async (req, res, next) => {
     let filtres = {};
 
     if (req.query.userId) {
-      if (req.user.role === 'ADMIN' || req.query.userId === req.user._id.toString()) {
+      if (req.user.role === 'ADMIN' || req.query.userId === userId.toString()) {
+        if (!isValidObjectId(req.query.userId)) {
+          return res.status(400).json({
+            success: false,
+            message: 'ID utilisateur invalide',
+            code: 'INVALID_USER_ID'
+          });
+        }
         filtres.rapportePar = req.query.userId;
       } else {
         return res.status(403).json({
@@ -482,15 +723,22 @@ const obtenirHistoriqueSignalements = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Erreur historique signalements:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération de l\'historique', { originalError: error.message }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération de l\'historique',
+      code: 'SERVER_ERROR'
+    });
   }
 };
 
-const obtenirSignalement = async (req, res, next) => {
+const obtenirSignalement = async (req, res, _next) => {
   try {
-    const erreurValidation = validerDonnees(req);
-    if (erreurValidation) {
-      return res.status(400).json(erreurValidation);
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID signalement invalide',
+        code: 'INVALID_SIGNALEMENT_ID'
+      });
     }
 
     const signalement = await Signalement.findById(req.params.id)
@@ -523,18 +771,40 @@ const obtenirSignalement = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Erreur récupération signalement:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération du signalement', { originalError: error.message }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération du signalement',
+      code: 'SERVER_ERROR'
+    });
   }
 };
 
-const traiterSignalement = async (req, res, next) => {
+const traiterSignalement = async (req, res, _next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
       return res.status(400).json(erreurValidation);
     }
 
+    const userId = getUserId(req.user);
+
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID signalement invalide',
+        code: 'INVALID_SIGNALEMENT_ID'
+      });
+    }
+
     const { action, actionsDisciplinaires = [], commentaire } = req.body;
+
+    if (!['APPROUVER', 'REJETER'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Action invalide',
+        code: 'INVALID_ACTION'
+      });
+    }
 
     const signalement = await Signalement.findById(req.params.id)
       .populate('rapportePar', 'nom prenom email')
@@ -558,7 +828,7 @@ const traiterSignalement = async (req, res, next) => {
 
     if (req.user.role === 'MODERATEUR' &&
         signalement.moderateurAssigne &&
-        signalement.moderateurAssigne.toString() !== req.user._id.toString()) {
+        signalement.moderateurAssigne.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Vous n\'êtes pas assigné à ce signalement',
@@ -577,7 +847,11 @@ const traiterSignalement = async (req, res, next) => {
         );
 
         if (!succes) {
-          return next(AppError.serverError('Erreur serveur lors de l\'application des sanctions', { originalError: 'Échec de l\'application des sanctions' }));
+          return res.status(500).json({
+            success: false,
+            message: 'Erreur lors de l\'application des sanctions',
+            code: 'SANCTIONS_ERROR'
+          });
         }
       }
     } else {
@@ -586,25 +860,34 @@ const traiterSignalement = async (req, res, next) => {
 
     signalement.statut = nouveauStatut;
     signalement.dateTraitement = new Date();
-    signalement.traitePar = req.user._id;
+    signalement.traitePar = userId;
     signalement.actionsDisciplinaires = actionsDisciplinaires;
     signalement.commentaireModeration = commentaire;
 
     signalement.historique.push({
       action: action,
-      moderateur: req.user._id,
+      moderateur: userId,
       date: new Date(),
       commentaire: commentaire || `Signalement ${action.toLowerCase()}`
     });
 
     await signalement.save();
 
-    await Promise.all([
-      notificationService.notifierRapporteur(signalement, action),
-      action === 'APPROUVER' ?
-        notificationService.notifierUtilisateurSignale(signalement, actionsDisciplinaires) :
-        Promise.resolve()
-    ]);
+    // Notifications avec gestion d'erreur
+    try {
+      if (notificationService) {
+        await Promise.all([
+          typeof notificationService.notifierRapporteur === 'function' ? 
+            notificationService.notifierRapporteur(signalement, action) : Promise.resolve(),
+          action === 'APPROUVER' && typeof notificationService.notifierUtilisateurSignale === 'function' ?
+            notificationService.notifierUtilisateurSignale(signalement, actionsDisciplinaires) :
+            Promise.resolve()
+        ]);
+      }
+    } catch (notifError) {
+      console.error('Erreur notifications:', notifError);
+      // Continue sans faire échouer l'opération
+    }
 
     res.json({
       success: true,
@@ -616,18 +899,40 @@ const traiterSignalement = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Erreur traitement signalement:', error);
-    return next(AppError.serverError('Erreur serveur lors du traitement du signalement', { originalError: error.message }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors du traitement du signalement',
+      code: 'SERVER_ERROR'
+    });
   }
 };
 
-const assignerModerateur = async (req, res, next) => {
+const assignerModerateur = async (req, res, _next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
       return res.status(400).json(erreurValidation);
     }
 
+    const userId = getUserId(req.user);
+
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID signalement invalide',
+        code: 'INVALID_SIGNALEMENT_ID'
+      });
+    }
+
     const { moderateurId } = req.body;
+
+    if (!moderateurId || !isValidObjectId(moderateurId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID modérateur invalide',
+        code: 'INVALID_MODERATOR_ID'
+      });
+    }
 
     const moderateur = await User.findById(moderateurId);
     if (!moderateur || !['ADMIN', 'MODERATEUR'].includes(moderateur.role)) {
@@ -661,14 +966,21 @@ const assignerModerateur = async (req, res, next) => {
 
     signalement.historique.push({
       action: 'ASSIGNE',
-      moderateur: req.user._id,
+      moderateur: userId,
       date: new Date(),
       commentaire: `Assigné à ${moderateur.nom} ${moderateur.prenom}`
     });
 
     await signalement.save();
 
-    await notificationService.notifierAssignationModerateur(moderateur, signalement);
+    // Notification avec gestion d'erreur
+    try {
+      if (notificationService && typeof notificationService.notifierAssignationModerateur === 'function') {
+        await notificationService.notifierAssignationModerateur(moderateur, signalement);
+      }
+    } catch (notifError) {
+      console.error('Erreur notification assignation:', notifError);
+    }
 
     await signalement.populate([
       { path: 'moderateurAssigne', select: 'nom prenom email' },
@@ -685,15 +997,29 @@ const assignerModerateur = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Erreur assignation modérateur:', error);
-    return next(AppError.serverError('Erreur serveur lors de l\'assignation', { originalError: error.message }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de l\'assignation',
+      code: 'SERVER_ERROR'
+    });
   }
 };
 
-const classerSignalement = async (req, res, next) => {
+const classerSignalement = async (req, res, _next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
       return res.status(400).json(erreurValidation);
+    }
+
+    const userId = getUserId(req.user);
+
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID signalement invalide',
+        code: 'INVALID_SIGNALEMENT_ID'
+      });
     }
 
     const { raison } = req.body;
@@ -717,7 +1043,7 @@ const classerSignalement = async (req, res, next) => {
 
     if (req.user.role === 'MODERATEUR' &&
         signalement.moderateurAssigne &&
-        signalement.moderateurAssigne.toString() !== req.user._id.toString()) {
+        signalement.moderateurAssigne.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Vous n\'êtes pas assigné à ce signalement',
@@ -727,19 +1053,26 @@ const classerSignalement = async (req, res, next) => {
 
     signalement.statut = 'CLASSE_SANS_SUITE';
     signalement.dateTraitement = new Date();
-    signalement.traitePar = req.user._id;
+    signalement.traitePar = userId;
     signalement.commentaireModeration = raison || 'Classé sans suite';
 
     signalement.historique.push({
       action: 'CLASSE_SANS_SUITE',
-      moderateur: req.user._id,
+      moderateur: userId,
       date: new Date(),
       commentaire: raison || 'Classé sans suite'
     });
 
     await signalement.save();
 
-    await notificationService.notifierClassementSansSuite(signalement);
+    // Notification avec gestion d'erreur
+    try {
+      if (notificationService && typeof notificationService.notifierClassementSansSuite === 'function') {
+        await notificationService.notifierClassementSansSuite(signalement);
+      }
+    } catch (notifError) {
+      console.error('Erreur notification classement:', notifError);
+    }
 
     res.json({
       success: true,
@@ -750,11 +1083,15 @@ const classerSignalement = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Erreur classement signalement:', error);
-    return next(AppError.serverError('Erreur serveur lors du classement', { originalError: error.message }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors du classement',
+      code: 'SERVER_ERROR'
+    });
   }
 };
 
-const rechercherSignalements = async (req, res, next) => {
+const rechercherSignalements = async (req, res, _next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
@@ -765,8 +1102,16 @@ const rechercherSignalements = async (req, res, next) => {
     const limite = parseInt(req.query.limite) || 20;
     const skip = (page - 1) * limite;
 
+    // Validation des paramètres de pagination
+    if (page < 1 || limite < 1 || limite > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Paramètres de pagination invalides',
+        code: 'INVALID_PAGINATION'
+      });
+    }
+
     let filtres = {};
-    let pipeline = [];
 
     if (req.query.q) {
       filtres.$or = [
@@ -778,7 +1123,17 @@ const rechercherSignalements = async (req, res, next) => {
     if (req.query.type) filtres.typeSignalement = req.query.type;
     if (req.query.motif) filtres.motif = { $regex: req.query.motif, $options: 'i' };
     if (req.query.priorite) filtres.priorite = req.query.priorite;
-    if (req.query.moderateurId) filtres.moderateurAssigne = req.query.moderateurId;
+    
+    if (req.query.moderateurId) {
+      if (!isValidObjectId(req.query.moderateurId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID modérateur invalide',
+          code: 'INVALID_MODERATOR_ID'
+        });
+      }
+      filtres.moderateurAssigne = req.query.moderateurId;
+    }
 
     if (req.query.statut) {
       const statuts = req.query.statut.split(',');
@@ -787,11 +1142,31 @@ const rechercherSignalements = async (req, res, next) => {
 
     if (req.query.dateDebut || req.query.dateFin) {
       filtres.dateCreation = {};
-      if (req.query.dateDebut) filtres.dateCreation.$gte = new Date(req.query.dateDebut);
-      if (req.query.dateFin) filtres.dateCreation.$lte = new Date(req.query.dateFin);
+      if (req.query.dateDebut) {
+        const dateDebut = new Date(req.query.dateDebut);
+        if (isNaN(dateDebut.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: 'Date de début invalide',
+            code: 'INVALID_START_DATE'
+          });
+        }
+        filtres.dateCreation.$gte = dateDebut;
+      }
+      if (req.query.dateFin) {
+        const dateFin = new Date(req.query.dateFin);
+        if (isNaN(dateFin.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: 'Date de fin invalide',
+            code: 'INVALID_END_DATE'
+          });
+        }
+        filtres.dateCreation.$lte = dateFin;
+      }
     }
 
-    pipeline = [
+    const pipeline = [
       { $match: filtres },
       {
         $lookup: {
@@ -857,11 +1232,15 @@ const rechercherSignalements = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Erreur recherche signalements:', error);
-    return next(AppError.serverError('Erreur serveur lors de la recherche', { originalError: error.message }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la recherche',
+      code: 'SERVER_ERROR'
+    });
   }
 };
 
-const obtenirStatistiquesModeration = async (req, res, next) => {
+const obtenirStatistiquesModeration = async (req, res, _next) => {
   try {
     const erreurValidation = validerDonnees(req);
     if (erreurValidation) {
@@ -873,11 +1252,35 @@ const obtenirStatistiquesModeration = async (req, res, next) => {
       new Date(req.query.dateDebut) :
       new Date(dateFin.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+    // Validation des dates
+    if (isNaN(dateDebut.getTime()) || isNaN(dateFin.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dates invalides',
+        code: 'INVALID_DATES'
+      });
+    }
+
+    if (dateDebut > dateFin) {
+      return res.status(400).json({
+        success: false,
+        message: 'La date de début doit être antérieure à la date de fin',
+        code: 'INVALID_DATE_RANGE'
+      });
+    }
+
     const filtres = {
       dateCreation: { $gte: dateDebut, $lte: dateFin }
     };
 
     if (req.query.moderateurId) {
+      if (!isValidObjectId(req.query.moderateurId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID modérateur invalide',
+          code: 'INVALID_MODERATOR_ID'
+        });
+      }
       filtres.traitePar = req.query.moderateurId;
     }
 
@@ -1052,11 +1455,15 @@ const obtenirStatistiquesModeration = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Erreur statistiques modération:', error);
-    return next(AppError.serverError('Erreur serveur lors du calcul des statistiques', { originalError: error.message }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors du calcul des statistiques',
+      code: 'SERVER_ERROR'
+    });
   }
 };
 
-const obtenirMetriquesTempsReel = async (req, res, next) => {
+const obtenirMetriquesTempsReel = async (req, res, _next) => {
   try {
     const hier = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
@@ -1164,7 +1571,11 @@ const obtenirMetriquesTempsReel = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Erreur métriques temps réel:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération des métriques', { originalError: error.message }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de la récupération des métriques',
+      code: 'SERVER_ERROR'
+    });
   }
 };
 
@@ -1189,6 +1600,11 @@ const nettoyerSignalementsExpires = async () => {
 
 const obtenirSignalementsUtilisateur = async (userId) => {
   try {
+    if (!isValidObjectId(userId)) {
+      console.error('ID utilisateur invalide:', userId);
+      return [];
+    }
+
     return await Signalement.find({
       $or: [
         { rapportePar: userId },
@@ -1206,6 +1622,11 @@ const obtenirSignalementsUtilisateur = async (userId) => {
 
 const verifierSignalementsEnCours = async (userId) => {
   try {
+    if (!isValidObjectId(userId)) {
+      console.error('ID utilisateur invalide:', userId);
+      return false;
+    }
+
     const count = await Signalement.countDocuments({
       signaleId: userId,
       statut: { $in: ['EN_ATTENTE', 'EN_COURS'] }
@@ -1228,11 +1649,17 @@ const escaladerSignalementsUrgents = async () => {
     }).populate('rapportePar signaleId', 'nom prenom email');
 
     for (const signalement of signalements) {
-      await notificationService.notifierEscalade(signalement);
+      try {
+        if (notificationService && typeof notificationService.notifierEscalade === 'function') {
+          await notificationService.notifierEscalade(signalement);
+        }
 
-      signalement.escalade = true;
-      signalement.dateEscalade = new Date();
-      await signalement.save();
+        signalement.escalade = true;
+        signalement.dateEscalade = new Date();
+        await signalement.save();
+      } catch (escaladeError) {
+        console.error(`Erreur escalade signalement ${signalement._id}:`, escaladeError);
+      }
     }
 
     return signalements.length;

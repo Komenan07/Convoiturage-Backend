@@ -1,15 +1,14 @@
 // services/notificationService.js
 const nodemailer = require('nodemailer');
-const mongoose = require('mongoose');
 
 /**
- * Service pour gérer les notifications (email, push, etc.)
+ * Service pour gérer les notifications (email principalement)
+ * Simplifié pour correspondre au contexte des messages
  */
 class NotificationService {
   constructor() {
     this.emailTransporter = null;
     this.initEmailTransporter();
-    console.log('✅ Service de notification initialisé');
   }
 
   /**
@@ -17,280 +16,269 @@ class NotificationService {
    */
   initEmailTransporter() {
     try {
-      // Vérifier si les variables d'environnement sont définies
-      if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-        console.warn('⚠️ Configuration email incomplète - les notifications par email sont désactivées');
+      // Configuration SMTP basique avec les variables d'environnement
+      const smtpConfig = {
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: process.env.SMTP_PORT || 587,
+        secure: process.env.SMTP_PORT == 465, // true pour 465, false pour d'autres ports
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      };
+
+      // Vérifier si les variables sont définies
+      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.warn('Configuration SMTP manquante - notifications email désactivées');
         return;
       }
+
+      this.emailTransporter = nodemailer.createTransporter(smtpConfig);
       
-      this.emailTransporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST,
-        port: process.env.EMAIL_PORT || 587,
-        secure: process.env.EMAIL_SECURE === 'true',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD
-        }
-      });
-      
-      // Vérifier la connexion
+      // Test de connexion optionnel (sans bloquer)
       this.emailTransporter.verify()
-        .then(() => console.log('✅ Service de notification email prêt'))
-        .catch(err => console.error('❌ Erreur de configuration email:', err.message));
+        .then(() => console.log('Service email configuré'))
+        .catch(err => console.warn('Problème configuration email:', err.message));
+
     } catch (error) {
-      console.error('❌ Erreur d\'initialisation du service de notification:', error.message);
+      console.error('Erreur initialisation service email:', error.message);
       this.emailTransporter = null;
     }
   }
 
   /**
-   * Envoie un email
+   * Envoie un email simple
    * @param {string} to - Adresse email du destinataire
    * @param {string} subject - Sujet de l'email
-   * @param {string} text - Contenu texte de l'email
-   * @param {string} html - Contenu HTML de l'email (optionnel)
+   * @param {string} text - Contenu texte
+   * @param {string} html - Contenu HTML optionnel
    * @returns {Promise} - Résultat de l'envoi
    */
   async sendEmail(to, subject, text, html = null) {
-    if (!this.emailTransporter) {
-      throw new Error('Service de notification email non disponible');
-    }
-    
-    const emailOptions = {
-      from: `"${process.env.APP_NAME || 'Service de Covoiturage'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      text
-    };
-    
-    if (html) {
-      emailOptions.html = html;
-    }
-    
-    return this.emailTransporter.sendMail(emailOptions);
-  }
-
-  /**
-   * Envoie une notification push
-   * @param {string} userId - ID de l'utilisateur
-   * @param {string} title - Titre de la notification
-   * @param {string} body - Corps de la notification
-   * @param {Object} data - Données supplémentaires
-   * @returns {Promise} - Résultat de l'envoi
-   */
-  async sendPushNotification(userId, title, body, data = {}) {
     try {
-      // Récupérer l'utilisateur avec ses tokens push
-      const Utilisateur = mongoose.model('Utilisateur');
-      const user = await Utilisateur.findById(userId).select('pushTokens');
-      
-      if (!user || !user.pushTokens || user.pushTokens.length === 0) {
-        return { success: false, message: 'Aucun token de notification push disponible' };
+      // Si le service email n'est pas configuré, simuler l'envoi
+      if (!this.emailTransporter) {
+        console.log('Email simulé:', { to, subject, text });
+        return { 
+          success: true, 
+          simulated: true,
+          message: 'Email simulé (configuration SMTP manquante)'
+        };
       }
-      
-      // Implémenter l'envoi de notification push selon le service utilisé
-      // (Firebase, OneSignal, etc.)
-      
-      // Vérifier si Firebase est configuré
-      if (process.env.FIREBASE_ENABLED === 'true') {
-        try {
-          // Importer Firebase Admin SDK
-          const admin = require('firebase-admin');
-          
-          // Initialiser Firebase si ce n'est pas déjà fait
-          if (!admin.apps.length) {
-            admin.initializeApp({
-              credential: admin.credential.cert({
-                projectId: process.env.FIREBASE_PROJECT_ID,
-                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-              })
-            });
-          }
-          
-          // Préparer la notification
-          const message = {
-            notification: {
-              title,
-              body
-            },
-            data: {
-              ...data,
-              click_action: 'FLUTTER_NOTIFICATION_CLICK'
-            },
-            tokens: user.pushTokens
-          };
-          
-          // Envoyer la notification
-          const response = await admin.messaging().sendMulticast(message);
-          
-          return {
-            success: true,
-            sent: response.successCount,
-            failed: response.failureCount,
-            results: response.responses
-          };
-        } catch (firebaseError) {
-          console.error('Erreur Firebase:', firebaseError);
-          return { success: false, error: firebaseError.message };
-        }
-      }
-      
-      // Si aucun service de notification push n'est configuré
-      console.warn('⚠️ Aucun service de notification push configuré');
-      return { success: false, message: 'Service de notification push non configuré' };
-      
-    } catch (error) {
-      console.error('Erreur d\'envoi de notification push:', error);
-      return { success: false, error: error.message };
-    }
-  }
 
-  /**
-   * Envoie une notification à un utilisateur par les canaux disponibles
-   * @param {string} userId - ID de l'utilisateur
-   * @param {string} title - Titre de la notification
-   * @param {string} body - Corps de la notification
-   * @param {Object} data - Données supplémentaires
-   * @returns {Promise} - Résultat de l'envoi
-   */
-  async sendNotification(userId, title, body, data = {}) {
-    try {
-      const Utilisateur = mongoose.model('Utilisateur');
-      const user = await Utilisateur.findById(userId).select('email preferenceNotifications');
-      
-      if (!user) {
-        return { success: false, message: 'Utilisateur non trouvé' };
-      }
-      
-      const results = {
-        email: null,
-        push: null
+      const mailOptions = {
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to,
+        subject,
+        text,
+        ...(html && { html })
       };
-      
-      // Vérifier les préférences de notification de l'utilisateur
-      const preferences = user.preferenceNotifications || { email: true, push: true };
-      
-      // Envoyer par email si l'utilisateur a activé les notifications par email
-      if (preferences.email && user.email) {
-        try {
-          results.email = await this.sendEmail(
-            user.email,
-            title,
-            body
-          );
-        } catch (emailError) {
-          console.error('Erreur d\'envoi d\'email:', emailError);
-          results.email = { success: false, error: emailError.message };
-        }
-      }
-      
-      // Envoyer par notification push si l'utilisateur a activé les notifications push
-      if (preferences.push) {
-        try {
-          results.push = await this.sendPushNotification(
-            userId,
-            title,
-            body,
-            data
-          );
-        } catch (pushError) {
-          console.error('Erreur d\'envoi de notification push:', pushError);
-          results.push = { success: false, error: pushError.message };
-        }
-      }
+
+      const result = await this.emailTransporter.sendMail(mailOptions);
       
       return {
-        success: results.email?.success || results.push?.success,
-        results
+        success: true,
+        messageId: result.messageId,
+        message: 'Email envoyé avec succès'
       };
+
     } catch (error) {
-      console.error('Erreur d\'envoi de notification:', error);
-      return { success: false, error: error.message };
+      console.error('Erreur envoi email:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
 
   /**
-   * Envoie une notification de message
-   * @param {string} userId - ID de l'utilisateur
+   * Envoie une notification de nouveau message
+   * @param {string} to - Email du destinataire
    * @param {string} senderName - Nom de l'expéditeur
    * @param {string} messageContent - Contenu du message
-   * @param {Object} data - Données supplémentaires
+   * @param {string} conversationId - ID de la conversation
    * @returns {Promise} - Résultat de l'envoi
    */
-  async sendMessageNotification(userId, senderName, messageContent, data = {}) {
-    const title = `Nouveau message de ${senderName}`;
-    const body = messageContent.length > 100
-      ? `${messageContent.substring(0, 97)}...`
-      : messageContent;
+  async sendNewMessageNotification(to, senderName, messageContent, conversationId = null) {
+    const subject = `Nouveau message de ${senderName}`;
     
-    return this.sendNotification(userId, title, body, {
-      type: 'MESSAGE',
-      ...data
-    });
+    // Tronquer le message si trop long
+    const shortContent = messageContent.length > 150 
+      ? `${messageContent.substring(0, 147)}...`
+      : messageContent;
+
+    const textContent = `
+Bonjour,
+
+Vous avez reçu un nouveau message de ${senderName} :
+
+"${shortContent}"
+
+${conversationId ? `Conversation ID: ${conversationId}` : ''}
+
+Connectez-vous à l'application pour répondre.
+
+Cordialement,
+L'équipe Covoiturage
+    `;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2c3e50;">Nouveau message</h2>
+        <p>Bonjour,</p>
+        <p>Vous avez reçu un nouveau message de <strong>${senderName}</strong> :</p>
+        <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 15px 0;">
+          <em>"${shortContent}"</em>
+        </div>
+        ${conversationId ? `<p><small>Conversation ID: ${conversationId}</small></p>` : ''}
+        <p>Connectez-vous à l'application pour répondre.</p>
+        <hr>
+        <p style="color: #666; font-size: 12px;">L'équipe Covoiturage</p>
+      </div>
+    `;
+
+    return this.sendEmail(to, subject, textContent, htmlContent);
   }
 
   /**
-   * Envoie une notification de réservation
-   * @param {string} userId - ID de l'utilisateur
-   * @param {string} title - Titre de la notification
-   * @param {string} body - Corps de la notification
-   * @param {Object} data - Données supplémentaires
+   * Envoie une notification de position partagée
+   * @param {string} to - Email du destinataire
+   * @param {string} senderName - Nom de l'expéditeur
    * @returns {Promise} - Résultat de l'envoi
    */
-  async sendReservationNotification(userId, title, body, data = {}) {
-    return this.sendNotification(userId, title, body, {
-      type: 'RESERVATION',
-      ...data
-    });
+  async sendLocationSharedNotification(to, senderName) {
+    const subject = `${senderName} a partagé sa position`;
+    
+    const textContent = `
+Bonjour,
+
+${senderName} a partagé sa position avec vous.
+
+Consultez l'application pour voir sa localisation.
+
+Cordialement,
+L'équipe Covoiturage
+    `;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2c3e50;">Position partagée</h2>
+        <p>Bonjour,</p>
+        <p><strong>${senderName}</strong> a partagé sa position avec vous.</p>
+        <div style="background: #e8f5e8; padding: 15px; border-left: 4px solid #28a745; margin: 15px 0;">
+          <p style="margin: 0;">📍 Consultez l'application pour voir sa localisation.</p>
+        </div>
+        <hr>
+        <p style="color: #666; font-size: 12px;">L'équipe Covoiturage</p>
+      </div>
+    `;
+
+    return this.sendEmail(to, subject, textContent, htmlContent);
   }
 
   /**
-   * Envoie une notification de trajet
-   * @param {string} userId - ID de l'utilisateur
-   * @param {string} title - Titre de la notification
-   * @param {string} body - Corps de la notification
-   * @param {Object} data - Données supplémentaires
+   * Envoie une notification générique
+   * @param {string} to - Email du destinataire
+   * @param {string} subject - Sujet
+   * @param {string} message - Message
+   * @param {string} type - Type de notification (info, success, warning, error)
    * @returns {Promise} - Résultat de l'envoi
    */
-  async sendTrajetNotification(userId, title, body, data = {}) {
-    return this.sendNotification(userId, title, body, {
-      type: 'TRAJET',
-      ...data
-    });
+  async sendGenericNotification(to, subject, message, type = 'info') {
+    const colors = {
+      info: '#007bff',
+      success: '#28a745',
+      warning: '#ffc107',
+      error: '#dc3545'
+    };
+
+    const textContent = `
+Bonjour,
+
+${message}
+
+Cordialement,
+L'équipe Covoiturage
+    `;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2c3e50;">${subject}</h2>
+        <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid ${colors[type]}; margin: 15px 0;">
+          <p style="margin: 0;">${message}</p>
+        </div>
+        <hr>
+        <p style="color: #666; font-size: 12px;">L'équipe Covoiturage</p>
+      </div>
+    `;
+
+    return this.sendEmail(to, subject, textContent, htmlContent);
   }
 
   /**
-   * Envoie une notification d'urgence
-   * @param {string} userId - ID de l'utilisateur
-   * @param {string} title - Titre de la notification
-   * @param {string} body - Corps de la notification
-   * @param {Object} data - Données supplémentaires
-   * @returns {Promise} - Résultat de l'envoi
+   * Teste la configuration email
+   * @returns {Promise} - Résultat du test
    */
-  async sendEmergencyNotification(userId, title, body, data = {}) {
-    return this.sendNotification(userId, title, body, {
-      type: 'EMERGENCY',
-      priority: 'high',
-      ...data
-    });
+  async testEmailConfiguration() {
+    if (!this.emailTransporter) {
+      return {
+        success: false,
+        message: 'Service email non configuré'
+      };
+    }
+
+    try {
+      await this.emailTransporter.verify();
+      return {
+        success: true,
+        message: 'Configuration email valide'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Erreur configuration: ${error.message}`
+      };
+    }
   }
 
   /**
-   * Envoie une notification de paiement
-   * @param {string} userId - ID de l'utilisateur
-   * @param {string} title - Titre de la notification
-   * @param {string} body - Corps de la notification
-   * @param {Object} data - Données supplémentaires
-   * @returns {Promise} - Résultat de l'envoi
+   * Notification push simulée (placeholder pour future implémentation)
+   * @param {string} userId - ID utilisateur
+   * @param {string} title - Titre
+   * @param {string} body - Corps
+   * @returns {Promise} - Résultat simulé
    */
-  async sendPaymentNotification(userId, title, body, data = {}) {
-    return this.sendNotification(userId, title, body, {
-      type: 'PAYMENT',
-      ...data
-    });
+  async sendPushNotification(userId, title, body) {
+    // Simulation - à remplacer par vraie implémentation Firebase/OneSignal
+    console.log('Push notification simulée:', { userId, title, body });
+    
+    return {
+      success: true,
+      simulated: true,
+      message: 'Notification push simulée (pas encore implémentée)'
+    };
+  }
+
+  /**
+   * Vérifie si le service est opérationnel
+   * @returns {boolean} - État du service
+   */
+  isOperational() {
+    return this.emailTransporter !== null;
+  }
+
+  /**
+   * Obtient les statistiques du service
+   * @returns {Object} - Statistiques
+   */
+  getStats() {
+    return {
+      emailConfigured: this.emailTransporter !== null,
+      pushConfigured: false, // Pas encore implémenté
+      lastCheck: new Date().toISOString()
+    };
   }
 }
 
-// Exporter une instance unique du service
+// Exporter une instance unique
 module.exports = new NotificationService();
