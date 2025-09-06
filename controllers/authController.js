@@ -131,7 +131,13 @@ const inscription = async (req, res, next) => {
         prenom: newUser.prenom,
         email: newUser.email,
         role: newUser.role,
-        statutCompte: newUser.statutCompte
+        statutCompte: newUser.statutCompte,
+        // NOUVEAU : Informations portefeuille initial
+        portefeuille: {
+          solde: newUser.portefeuille.solde,
+          soldeDisponible: newUser.soldeDisponible,
+          peutRetirer: newUser.peutRetirer
+        }
       }
     });
 
@@ -544,7 +550,18 @@ const connexion = async (req, res, next) => {
         email: user.email,
         role: user.role,
         photo: user.photo,
-        statutCompte: user.statutCompte
+        statutCompte: user.statutCompte,
+        // NOUVEAU : Informations portefeuille
+        portefeuille: {
+          solde: user.portefeuille.solde,
+          soldeDisponible: user.soldeDisponible,
+          peutRetirer: user.peutRetirer,
+          parametresRetrait: user.portefeuille.parametresRetrait,
+          statistiques: {
+            nombreTransactions: user.portefeuille.statistiques.nombreTransactions,
+            totalCredite: user.portefeuille.statistiques.totalCredite
+          }
+        }
       }
     });
     
@@ -673,7 +690,15 @@ const verifierToken = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Token valide',
-      user
+      user: {
+        ...user.toObject(),
+        // NOUVEAU : Inclure les informations portefeuille
+        portefeuille: {
+          solde: user.portefeuille.solde,
+          soldeDisponible: user.soldeDisponible,
+          peutRetirer: user.peutRetirer
+        }
+      }
     });
     
   } catch (error) {
@@ -696,9 +721,20 @@ const obtenirUtilisateurConnecte = async (req, res, next) => {
       });
     }
 
+    // NOUVEAU : Enrichir avec les informations portefeuille
+    const userResponse = {
+      ...user.toObject(),
+      portefeuille: {
+        ...user.portefeuille,
+        soldeDisponible: user.soldeDisponible,
+        peutRetirer: user.peutRetirer,
+        portefeuilleActif: user.portefeuilleActif
+      }
+    };
+
     res.json({
       success: true,
-      user
+      user: userResponse
     });
     
   } catch (error) {
@@ -763,7 +799,15 @@ const rafraichirToken = async (req, res, next) => {
     logger.info('Token rafraîchi avec succès', { userId: user._id });
     res.json({
       success: true,
-      token: newAccessToken
+      token: newAccessToken,
+      // NOUVEAU : Inclure les infos portefeuille actualisées
+      user: {
+        portefeuille: {
+          solde: user.portefeuille.solde,
+          soldeDisponible: user.soldeDisponible,
+          peutRetirer: user.peutRetirer
+        }
+      }
     });
     
   } catch (error) {
@@ -936,6 +980,232 @@ const confirmerReinitialisationMotDePasse = async (req, res, next) => {
   }
 };
 
+// ===== NOUVELLES FONCTIONS PORTEFEUILLE =====
+
+/**
+ * Obtenir le statut du portefeuille lors de la connexion
+ */
+const obtenirStatutPortefeuille = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    const resumePortefeuille = user.obtenirResumePortefeuille();
+
+    res.json({
+      success: true,
+      data: resumePortefeuille
+    });
+    
+  } catch (error) {
+    logger.error('Erreur obtention statut portefeuille:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération du portefeuille', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Vérifier l'éligibilité pour les retraits
+ */
+const verifierEligibiliteRetrait = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    const eligibilite = {
+      peutRetirer: user.peutRetirer,
+      soldeDisponible: user.soldeDisponible,
+      parametresConfigures: !!user.portefeuille.parametresRetrait.numeroMobile,
+      compteVerifie: user.estDocumentVerifie,
+      limites: user.portefeuille.limites
+    };
+
+    // Vérifications supplémentaires
+    let blocages = [];
+    
+    if (!user.estDocumentVerifie) {
+      blocages.push('Document d\'identité non vérifié');
+    }
+    
+    if (!user.portefeuille.parametresRetrait.numeroMobile) {
+      blocages.push('Paramètres de retrait non configurés');
+    }
+    
+    if (user.soldeDisponible <= 0) {
+      blocages.push('Solde insuffisant');
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...eligibilite,
+        blocages,
+        message: blocages.length > 0 ? 
+          'Des étapes sont requises avant de pouvoir effectuer un retrait' : 
+          'Votre compte est éligible pour les retraits'
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Erreur vérification éligibilité retrait:', error);
+    return next(AppError.serverError('Erreur serveur lors de la vérification', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Initialiser le portefeuille pour les nouveaux utilisateurs
+ */
+const initialiserPortefeuille = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    // Vérifier si le portefeuille est déjà initialisé
+    if (user.portefeuille.statistiques.nombreTransactions > 0) {
+      return res.json({
+        success: true,
+        message: 'Portefeuille déjà initialisé',
+        data: user.obtenirResumePortefeuille()
+      });
+    }
+
+    // Bonus de bienvenue optionnel (à configurer selon vos besoins)
+    const bonusBienvenue = process.env.BONUS_BIENVENUE || 0;
+    
+    if (bonusBienvenue > 0) {
+      await user.crediterPortefeuille(
+        parseInt(bonusBienvenue), 
+        'Bonus de bienvenue WAYZ-ECO', 
+        'BONUS_WELCOME'
+      );
+      
+      logger.info('Bonus de bienvenue accordé', { 
+        userId, 
+        montant: bonusBienvenue 
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Portefeuille initialisé avec succès',
+      data: {
+        portefeuille: user.obtenirResumePortefeuille(),
+        bonusAccorde: bonusBienvenue > 0 ? parseInt(bonusBienvenue) : null
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Erreur initialisation portefeuille:', error);
+    return next(AppError.serverError('Erreur serveur lors de l\'initialisation', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Obtenir l'historique récent du portefeuille (pour le dashboard)
+ */
+const obtenirHistoriqueRecentPortefeuille = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const limit = parseInt(req.query.limit) || 10;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    const historiqueRecent = user.obtenirHistoriquePortefeuille({ limit });
+
+    res.json({
+      success: true,
+      data: historiqueRecent
+    });
+    
+  } catch (error) {
+    logger.error('Erreur historique récent portefeuille:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Notifier les changements importants du portefeuille
+ */
+const notifierChangementPortefeuille = async (userId, typeChangement, donnees) => {
+  try {
+    // Cette fonction peut être appelée par d'autres services
+    // pour notifier les changements importants du portefeuille
+    
+    logger.info('Changement portefeuille notifié', { 
+      userId, 
+      typeChangement, 
+      donnees 
+    });
+
+    // Ici vous pouvez ajouter la logique pour :
+    // - Envoyer des notifications push
+    // - Envoyer des emails
+    // - Mettre à jour des caches
+    // - Logger des événements pour analytics
+    
+    const user = await User.findById(userId);
+    if (user) {
+      // Exemple : envoyer un email pour les gros crédits
+      if (typeChangement === 'CREDIT' && donnees.montant >= 50000) {
+        try {
+          await sendEmail({
+            to: user.email,
+            subject: 'Crédit reçu sur votre portefeuille WAYZ-ECO',
+            html: `
+              <div style="font-family: Arial, sans-serif;">
+                <h2>Crédit reçu !</h2>
+                <p>Bonjour ${user.prenom},</p>
+                <p>Votre portefeuille a été crédité de <strong>${donnees.montant} FCFA</strong>.</p>
+                <p>Nouveau solde : ${user.portefeuille.solde} FCFA</p>
+                <p>Description : ${donnees.description}</p>
+              </div>
+            `
+          });
+        } catch (emailError) {
+          logger.error('Erreur envoi notification email portefeuille:', emailError);
+        }
+      }
+    }
+    
+  } catch (error) {
+    logger.error('Erreur notification changement portefeuille:', error);
+  }
+};
+
 module.exports = {
   inscription,
   connexion,
@@ -949,5 +1219,11 @@ module.exports = {
   demandeReinitialisationMotDePasse,
   confirmerReinitialisationMotDePasse,
   confirmerEmail,
-  renvoyerConfirmationEmail
+  renvoyerConfirmationEmail,
+  // NOUVELLES FONCTIONS PORTEFEUILLE
+  obtenirStatutPortefeuille,
+  verifierEligibiliteRetrait,
+  initialiserPortefeuille,
+  obtenirHistoriqueRecentPortefeuille,
+  notifierChangementPortefeuille
 };

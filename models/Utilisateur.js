@@ -347,6 +347,125 @@ const utilisateurSchema = new mongoose.Schema({
     type: String,
     enum: ['utilisateur', 'admin'],
     default: 'utilisateur'
+  },
+
+  // ===== NOUVEAU : PORTEFEUILLE CINETPAY =====
+  portefeuille: {
+    solde: { 
+      type: Number, 
+      default: 0,
+      min: [0, 'Le solde ne peut être négatif']
+    },
+    soldeBloquer: { 
+      type: Number, 
+      default: 0,
+      min: [0, 'Le solde bloqué ne peut être négatif']
+    }, // Argent en attente de retrait
+    
+    // Paramètres de retrait
+    parametresRetrait: {
+      numeroMobile: {
+        type: String,
+        validate: {
+          validator: function(v) {
+            return !v || /^(\+225)?[0-9]{8,10}$/.test(v);
+          },
+          message: 'Numéro de téléphone invalide'
+        }
+      },
+      operateur: { 
+        type: String, 
+        enum: {
+          values: ['ORANGE', 'MTN', 'MOOV'],
+          message: 'Opérateur non supporté'
+        }
+      },
+      nomTitulaire: {
+        type: String,
+        trim: true,
+        maxlength: [100, 'Le nom du titulaire ne peut dépasser 100 caractères']
+      }
+    },
+    
+    // Historique des transactions
+    historique: [{
+      type: { 
+        type: String, 
+        enum: ['CREDIT', 'DEBIT', 'RETRAIT', 'REMBOURSEMENT'],
+        required: true
+      },
+      montant: { 
+        type: Number, 
+        required: true,
+        min: [0, 'Le montant doit être positif']
+      },
+      description: {
+        type: String,
+        trim: true,
+        maxlength: [200, 'La description ne peut dépasser 200 caractères']
+      },
+      reference: {
+        type: String,
+        trim: true
+      },
+      statut: { 
+        type: String, 
+        enum: ['PENDING', 'COMPLETE', 'FAILED'],
+        default: 'COMPLETE'
+      },
+      date: { 
+        type: Date, 
+        default: Date.now 
+      },
+      metadata: {
+        type: Object,
+        default: {}
+      },
+      // Informations CinetPay pour les retraits
+      cinetpay: {
+        transactionId: String,
+        operatorTransactionId: String,
+        status: String
+      }
+    }],
+    
+    // Statistiques portefeuille
+    statistiques: {
+      totalCredite: {
+        type: Number,
+        default: 0
+      },
+      totalRetire: {
+        type: Number,
+        default: 0
+      },
+      nombreTransactions: {
+        type: Number,
+        default: 0
+      },
+      dernierMouvementLe: Date
+    },
+    
+    // Limites et sécurité
+    limites: {
+      retraitJournalier: {
+        type: Number,
+        default: 1000000 // 1 million FCFA
+      },
+      retraitMensuel: {
+        type: Number,
+        default: 5000000 // 5 millions FCFA
+      },
+      dernierRetraitLe: Date,
+      montantRetireAujourdhui: {
+        type: Number,
+        default: 0
+      },
+      montantRetireCeMois: {
+        type: Number,
+        default: 0
+      }
+    }
   }
 
 }, {
@@ -362,6 +481,11 @@ utilisateurSchema.index({ 'adresse.coordonnees': '2dsphere' }, { sparse: true })
 utilisateurSchema.index({ email: 1, statutCompte: 1 });
 utilisateurSchema.index({ telephone: 1, statutCompte: 1 });
 utilisateurSchema.index({ nom: 1, prenom: 1 });
+
+// NOUVEAUX INDEX PORTEFEUILLE
+utilisateurSchema.index({ 'portefeuille.solde': -1 });
+utilisateurSchema.index({ 'portefeuille.historique.date': -1 });
+utilisateurSchema.index({ 'portefeuille.historique.type': 1, 'portefeuille.historique.statut': 1 });
 
 // Virtuals (propriétés calculées)
 utilisateurSchema.virtual('nomComplet').get(function() {
@@ -382,6 +506,20 @@ utilisateurSchema.virtual('estDocumentVerifie').get(function() {
   return this.documentIdentite && this.documentIdentite.statutVerification === 'VERIFIE';
 });
 
+// NOUVEAUX VIRTUALS PORTEFEUILLE
+utilisateurSchema.virtual('soldeDisponible').get(function() {
+  return this.portefeuille.solde - this.portefeuille.soldeBloquer;
+});
+
+utilisateurSchema.virtual('peutRetirer').get(function() {
+  return this.soldeDisponible > 0 && 
+         this.portefeuille.parametresRetrait.numeroMobile &&
+         this.portefeuille.parametresRetrait.operateur;
+});
+
+utilisateurSchema.virtual('portefeuilleActif').get(function() {
+  return this.portefeuille.statistiques.nombreTransactions > 0;
+});
 
 // Middleware pour mettre à jour le statut de vérification
 utilisateurSchema.pre('save', function(next) {
@@ -393,6 +531,39 @@ utilisateurSchema.pre('save', function(next) {
       }
     }
   }
+
+  // NOUVEAU : Middleware pour portefeuille
+  if (this.isModified('portefeuille.historique')) {
+    this.portefeuille.statistiques.dernierMouvementLe = new Date();
+    this.portefeuille.statistiques.nombreTransactions = this.portefeuille.historique.length;
+    
+    // Calculer totaux
+    this.portefeuille.statistiques.totalCredite = this.portefeuille.historique
+      .filter(t => t.type === 'CREDIT' && t.statut === 'COMPLETE')
+      .reduce((sum, t) => sum + t.montant, 0);
+      
+    this.portefeuille.statistiques.totalRetire = this.portefeuille.historique
+      .filter(t => ['RETRAIT', 'DEBIT'].includes(t.type) && t.statut === 'COMPLETE')
+      .reduce((sum, t) => sum + t.montant, 0);
+  }
+
+  // Réinitialiser les limites quotidiennes et mensuelles
+  const maintenant = new Date();
+  const dernierRetrait = this.portefeuille.limites.dernierRetraitLe;
+  
+  if (dernierRetrait) {
+    // Réinitialiser quotidien
+    if (maintenant.toDateString() !== dernierRetrait.toDateString()) {
+      this.portefeuille.limites.montantRetireAujourdhui = 0;
+    }
+    
+    // Réinitialiser mensuel
+    if (maintenant.getMonth() !== dernierRetrait.getMonth() || 
+        maintenant.getFullYear() !== dernierRetrait.getFullYear()) {
+      this.portefeuille.limites.montantRetireCeMois = 0;
+    }
+  }
+
   next();
 });
 
@@ -571,6 +742,256 @@ utilisateurSchema.methods.confirmerEmail = function() {
   return this.save();
 };
 
+// ===== NOUVELLES MÉTHODES PORTEFEUILLE =====
+
+// Méthode pour créditer le portefeuille
+utilisateurSchema.methods.crediterPortefeuille = function(montant, description, reference = null) {
+  if (montant <= 0) {
+    throw new Error('Le montant doit être positif');
+  }
+
+  this.portefeuille.solde += montant;
+  this.portefeuille.historique.push({
+    type: 'CREDIT',
+    montant,
+    description,
+    reference,
+    statut: 'COMPLETE',
+    date: new Date()
+  });
+  
+  return this.save();
+};
+
+// Méthode pour débiter le portefeuille
+utilisateurSchema.methods.debiterPortefeuille = function(montant, description) {
+  if (montant <= 0) {
+    throw new Error('Le montant doit être positif');
+  }
+
+  if (this.soldeDisponible < montant) {
+    throw new Error('Solde insuffisant');
+  }
+  
+  this.portefeuille.solde -= montant;
+  this.portefeuille.historique.push({
+    type: 'DEBIT',
+    montant,
+    description,
+    statut: 'COMPLETE',
+    date: new Date()
+  });
+  
+  return this.save();
+};
+
+// Méthode pour bloquer un montant (avant retrait)
+utilisateurSchema.methods.bloquerMontant = function(montant, description) {
+  if (montant <= 0) {
+    throw new Error('Le montant doit être positif');
+  }
+
+  if (this.soldeDisponible < montant) {
+    throw new Error('Solde insuffisant pour bloquer ce montant');
+  }
+  
+  this.portefeuille.soldeBloquer += montant;
+  this.portefeuille.historique.push({
+    type: 'DEBIT',
+    montant,
+    description: description || 'Blocage pour retrait',
+    statut: 'PENDING',
+    date: new Date()
+  });
+  
+  return this.save();
+};
+
+// Méthode pour débloquer un montant (si retrait échoue)
+utilisateurSchema.methods.debloquerMontant = function(montant, _description) {
+  if (montant <= 0) {
+    throw new Error('Le montant doit être positif');
+  }
+
+  if (this.portefeuille.soldeBloquer < montant) {
+    throw new Error('Montant bloqué insuffisant');
+  }
+  
+  this.portefeuille.soldeBloquer -= montant;
+  
+  // Mettre à jour la transaction en attente
+  const transactionPending = this.portefeuille.historique
+    .find(t => t.type === 'DEBIT' && t.statut === 'PENDING' && t.montant === montant);
+  
+  if (transactionPending) {
+    transactionPending.statut = 'FAILED';
+    transactionPending.description += ' - Échec';
+  }
+  
+  return this.save();
+};
+
+// Méthode pour finaliser un retrait
+utilisateurSchema.methods.finaliserRetrait = function(montant, cinetpayData = {}) {
+  if (montant <= 0) {
+    throw new Error('Le montant doit être positif');
+  }
+
+  if (this.portefeuille.soldeBloquer < montant) {
+    throw new Error('Montant bloqué insuffisant');
+  }
+  
+  // Débloquer et ajouter aux statistiques
+  this.portefeuille.soldeBloquer -= montant;
+  this.portefeuille.limites.montantRetireAujourdhui += montant;
+  this.portefeuille.limites.montantRetireCeMois += montant;
+  this.portefeuille.limites.dernierRetraitLe = new Date();
+  
+  // Mettre à jour la transaction
+  const transactionPending = this.portefeuille.historique
+    .find(t => t.type === 'DEBIT' && t.statut === 'PENDING' && t.montant === montant);
+  
+  if (transactionPending) {
+    transactionPending.statut = 'COMPLETE';
+    transactionPending.cinetpay = cinetpayData;
+    transactionPending.description = 'Retrait effectué avec succès';
+  }
+  
+  // Ajouter une transaction de retrait spécifique
+  this.portefeuille.historique.push({
+    type: 'RETRAIT',
+    montant,
+    description: `Retrait vers ${this.portefeuille.parametresRetrait.operateur} - ${this.portefeuille.parametresRetrait.numeroMobile}`,
+    statut: 'COMPLETE',
+    date: new Date(),
+    cinetpay: cinetpayData
+  });
+  
+  return this.save();
+};
+
+// Méthode pour vérifier les limites de retrait
+utilisateurSchema.methods.verifierLimitesRetrait = function(montant) {
+  const limites = this.portefeuille.limites;
+  
+  // Vérifier limite quotidienne
+  if (limites.montantRetireAujourdhui + montant > limites.retraitJournalier) {
+    return {
+      autorise: false,
+      raison: 'Limite quotidienne dépassée',
+      limiteJournaliere: limites.retraitJournalier,
+      dejaRetireAujourdhui: limites.montantRetireAujourdhui,
+      montantMaxAutorise: limites.retraitJournalier - limites.montantRetireAujourdhui
+    };
+  }
+  
+  // Vérifier limite mensuelle
+  if (limites.montantRetireCeMois + montant > limites.retraitMensuel) {
+    return {
+      autorise: false,
+      raison: 'Limite mensuelle dépassée',
+      limiteMensuelle: limites.retraitMensuel,
+      dejaRetireCeMois: limites.montantRetireCeMois,
+      montantMaxAutorise: limites.retraitMensuel - limites.montantRetireCeMois
+    };
+  }
+  
+  return { autorise: true };
+};
+
+// Méthode pour configurer les paramètres de retrait
+utilisateurSchema.methods.configurerParametresRetrait = function(numeroMobile, operateur, nomTitulaire) {
+  // Validation du numéro selon l'opérateur
+  const regexOperateurs = {
+    'ORANGE': /^(\+225)?07[0-9]{8}$/,
+    'MTN': /^(\+225)?05[0-9]{8}$/,
+    'MOOV': /^(\+225)?01[0-9]{8}$/
+  };
+  
+  if (!regexOperateurs[operateur] || !regexOperateurs[operateur].test(numeroMobile)) {
+    throw new Error(`Numéro de téléphone invalide pour l'opérateur ${operateur}`);
+  }
+  
+  this.portefeuille.parametresRetrait = {
+    numeroMobile,
+    operateur,
+    nomTitulaire
+  };
+  
+  return this.save();
+};
+
+// Méthode pour obtenir l'historique du portefeuille
+utilisateurSchema.methods.obtenirHistoriquePortefeuille = function(options = {}) {
+  const {
+    type = null,
+    statut = null,
+    limit = 50,
+    dateDebut = null,
+    dateFin = null
+  } = options;
+  
+  let historique = [...this.portefeuille.historique];
+  
+  // Filtrer par type
+  if (type) {
+    historique = historique.filter(t => t.type === type);
+  }
+  
+  // Filtrer par statut
+  if (statut) {
+    historique = historique.filter(t => t.statut === statut);
+  }
+  
+  // Filtrer par date
+  if (dateDebut) {
+    historique = historique.filter(t => t.date >= new Date(dateDebut));
+  }
+  
+  if (dateFin) {
+    historique = historique.filter(t => t.date <= new Date(dateFin));
+  }
+  
+  // Trier par date décroissante et limiter
+  return historique
+    .sort((a, b) => b.date - a.date)
+    .slice(0, limit);
+};
+
+// Méthode pour obtenir le résumé du portefeuille
+utilisateurSchema.methods.obtenirResumePortefeuille = function() {
+  const maintenant = new Date();
+  const debutMois = new Date(maintenant.getFullYear(), maintenant.getMonth(), 1);
+  const debutJour = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate());
+  
+  const transactionsMois = this.portefeuille.historique.filter(t => 
+    t.date >= debutMois && t.statut === 'COMPLETE'
+  );
+  
+  const transactionsJour = this.portefeuille.historique.filter(t => 
+    t.date >= debutJour && t.statut === 'COMPLETE'
+  );
+  
+  return {
+    solde: this.portefeuille.solde,
+    soldeBloquer: this.portefeuille.soldeBloquer,
+    soldeDisponible: this.soldeDisponible,
+    statistiques: {
+      ...this.portefeuille.statistiques,
+      creditCeMois: transactionsMois
+        .filter(t => t.type === 'CREDIT')
+        .reduce((sum, t) => sum + t.montant, 0),
+      retraitCeMois: transactionsMois
+        .filter(t => ['RETRAIT', 'DEBIT'].includes(t.type))
+        .reduce((sum, t) => sum + t.montant, 0),
+      transactionsAujourdhui: transactionsJour.length
+    },
+    limites: this.portefeuille.limites,
+    parametresRetrait: this.portefeuille.parametresRetrait,
+    peutRetirer: this.peutRetirer
+  };
+};
+
 // Méthodes statiques
 utilisateurSchema.statics.rechercherParProximite = function(longitude, latitude, rayonKm = 10) {
   return this.find({
@@ -606,6 +1027,55 @@ utilisateurSchema.statics.statistiquesGlobales = async function() {
   ]);
   
   return stats[0] || {};
+};
+
+// NOUVELLES MÉTHODES STATIQUES PORTEFEUILLE
+
+// Obtenir les statistiques globales des portefeuilles
+utilisateurSchema.statics.statistiquesPortefeuillesGlobales = async function() {
+  return this.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalSolde: { $sum: '$portefeuille.solde' },
+        totalSoldeBloquer: { $sum: '$portefeuille.soldeBloquer' },
+        nombrePortefeuillesActifs: {
+          $sum: { $cond: [{ $gt: ['$portefeuille.solde', 0] }, 1, 0] }
+        },
+        soldeMoyen: { $avg: '$portefeuille.solde' },
+        totalTransactions: { $sum: '$portefeuille.statistiques.nombreTransactions' },
+        totalCredite: { $sum: '$portefeuille.statistiques.totalCredite' },
+        totalRetire: { $sum: '$portefeuille.statistiques.totalRetire' }
+      }
+    }
+  ]);
+};
+
+// Obtenir les utilisateurs avec solde élevé
+utilisateurSchema.statics.obtenirUtilisateursSoldeEleve = function(seuilSolde = 100000) {
+  return this.find({
+    'portefeuille.solde': { $gte: seuilSolde },
+    statutCompte: 'ACTIF'
+  })
+  .select('nom prenom email portefeuille.solde portefeuille.statistiques')
+  .sort({ 'portefeuille.solde': -1 });
+};
+
+// Obtenir les utilisateurs avec transactions suspectes
+utilisateurSchema.statics.obtenirTransactionsSuspectes = function() {
+  const maintenant = new Date();
+  const hier = new Date(maintenant.getTime() - 24 * 60 * 60 * 1000);
+  
+  return this.find({
+    'portefeuille.historique': {
+      $elemMatch: {
+        date: { $gte: hier },
+        montant: { $gte: 500000 }, // 500k FCFA
+        type: { $in: ['RETRAIT', 'DEBIT'] }
+      }
+    }
+  })
+  .select('nom prenom email portefeuille.historique portefeuille.solde');
 };
 
 // Export du modèle

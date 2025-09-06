@@ -15,7 +15,18 @@ const {
   rechercherUtilisateurs,
   supprimerCompte,
   obtenirTousLesUtilisateurs,
-  obtenirStatistiquesGlobales
+  obtenirStatistiquesGlobales,
+  // NOUVELLES FONCTIONS PORTEFEUILLE
+  obtenirPortefeuille,
+  obtenirHistoriquePortefeuille,
+  configurerParametresRetrait,
+  verifierLimitesRetrait,
+  crediterPortefeuilleManuel,
+  obtenirStatistiquesPortefeuillesGlobales,
+  obtenirUtilisateursSoldeEleve,
+  obtenirTransactionsSuspectes,
+  obtenirPortefeuilleUtilisateur,
+  gererMontantBloque
 } = require('../controllers/utilisateurController');
 
 const { protect, roleMiddleware } = require('../middlewares/authMiddleware');
@@ -122,6 +133,53 @@ const validateAdminFilters = [
   validateRequest
 ];
 
+// ===== NOUVELLES VALIDATIONS PORTEFEUILLE =====
+
+// Validation pour la configuration des paramètres de retrait
+const validateRetraitParams = [
+  body('numeroMobile').matches(/^(\+225)?[0-9]{8,10}$/).withMessage('Numéro de téléphone invalide'),
+  body('operateur').isIn(['ORANGE', 'MTN', 'MOOV']).withMessage('Opérateur doit être ORANGE, MTN ou MOOV'),
+  body('nomTitulaire').isLength({ min: 2, max: 100 }).withMessage('Nom du titulaire requis (2-100 caractères)').trim(),
+  validateRequest
+];
+
+// Validation pour vérifier les limites de retrait
+const validateRetraitLimits = [
+  query('montant').isFloat({ min: 0.01 }).withMessage('Montant doit être supérieur à 0'),
+  validateRequest
+];
+
+// Validation pour l'historique du portefeuille
+const validatePortefeuilleHistory = [
+  query('type').optional().isIn(['CREDIT', 'DEBIT', 'RETRAIT', 'REMBOURSEMENT']).withMessage('Type de transaction invalide'),
+  query('statut').optional().isIn(['PENDING', 'COMPLETE', 'FAILED']).withMessage('Statut de transaction invalide'),
+  query('limit').optional().isInt({ min: 1, max: 200 }).withMessage('Limite doit être entre 1 et 200'),
+  query('dateDebut').optional().isISO8601().withMessage('Date de début invalide'),
+  query('dateFin').optional().isISO8601().withMessage('Date de fin invalide'),
+  validateRequest
+];
+
+// Validation pour crédit manuel (admin)
+const validateCreditManuel = [
+  body('montant').isFloat({ min: 0.01 }).withMessage('Montant doit être supérieur à 0'),
+  body('description').isLength({ min: 5, max: 200 }).withMessage('Description requise (5-200 caractères)').trim(),
+  validateRequest
+];
+
+// Validation pour gestion montant bloqué (admin)
+const validateGestionMontantBloque = [
+  body('action').isIn(['bloquer', 'debloquer']).withMessage('Action doit être "bloquer" ou "debloquer"'),
+  body('montant').isFloat({ min: 0.01 }).withMessage('Montant doit être supérieur à 0'),
+  body('description').optional().isLength({ max: 200 }).withMessage('Description trop longue (max 200 caractères)').trim(),
+  validateRequest
+];
+
+// Validation pour les statistiques portefeuilles
+const validatePortefeuilleStats = [
+  query('seuilSolde').optional().isFloat({ min: 0 }).withMessage('Seuil de solde invalide'),
+  validateRequest
+];
+
 // ===== ROUTES PUBLIQUES =====
 // POST /api/utilisateurs - Créer un nouvel utilisateur (inscription)
 router.post('/', validateUserCreation, creerUtilisateur);
@@ -160,12 +218,46 @@ router.put('/coordonnees', protect, validateCoordinates, mettreAJourCoordonnees)
 // DELETE /api/utilisateurs/compte - Supprimer son compte
 router.delete('/compte', protect, validateAccountDeletion, supprimerCompte);
 
+// ===== NOUVELLES ROUTES PORTEFEUILLE (UTILISATEUR) =====
+
+// GET /api/utilisateurs/portefeuille - Obtenir son portefeuille
+router.get('/portefeuille', protect, obtenirPortefeuille);
+
+// GET /api/utilisateurs/portefeuille/historique - Obtenir l'historique de son portefeuille
+router.get('/portefeuille/historique', protect, validatePortefeuilleHistory, obtenirHistoriquePortefeuille);
+
+// POST /api/utilisateurs/portefeuille/parametres-retrait - Configurer les paramètres de retrait
+router.post('/portefeuille/parametres-retrait', protect, validateRetraitParams, configurerParametresRetrait);
+
+// GET /api/utilisateurs/portefeuille/verification-limites - Vérifier les limites de retrait
+router.get('/portefeuille/verification-limites', protect, validateRetraitLimits, verifierLimitesRetrait);
+
 // ===== ROUTES ADMINISTRATEUR =====
 // GET /api/utilisateurs/admin/tous - Obtenir tous les utilisateurs (admin)
 router.get('/admin/tous', protect, roleMiddleware(['admin', 'superadmin']), validateAdminFilters, obtenirTousLesUtilisateurs);
 
 // GET /api/utilisateurs/admin/statistiques-globales - Statistiques globales (admin)
 router.get('/admin/statistiques-globales', protect, roleMiddleware(['admin', 'superadmin']), obtenirStatistiquesGlobales);
+
+// ===== NOUVELLES ROUTES PORTEFEUILLE (ADMIN) =====
+
+// GET /api/utilisateurs/admin/portefeuilles/statistiques - Statistiques globales des portefeuilles (admin)
+router.get('/admin/portefeuilles/statistiques', protect, roleMiddleware(['admin', 'superadmin']), obtenirStatistiquesPortefeuillesGlobales);
+
+// GET /api/utilisateurs/admin/portefeuilles/solde-eleve - Utilisateurs avec solde élevé (admin)
+router.get('/admin/portefeuilles/solde-eleve', protect, roleMiddleware(['admin', 'superadmin']), validatePortefeuilleStats, obtenirUtilisateursSoldeEleve);
+
+// GET /api/utilisateurs/admin/portefeuilles/transactions-suspectes - Transactions suspectes (admin)
+router.get('/admin/portefeuilles/transactions-suspectes', protect, roleMiddleware(['admin', 'superadmin']), obtenirTransactionsSuspectes);
+
+// POST /api/utilisateurs/admin/:id/portefeuille/crediter - Créditer manuellement un portefeuille (admin)
+router.post('/admin/:id/portefeuille/crediter', protect, roleMiddleware(['admin', 'superadmin']), validateUserId, validateCreditManuel, crediterPortefeuilleManuel);
+
+// GET /api/utilisateurs/admin/:id/portefeuille - Obtenir le portefeuille d'un utilisateur (admin)
+router.get('/admin/:id/portefeuille', protect, roleMiddleware(['admin', 'superadmin']), validateUserId, obtenirPortefeuilleUtilisateur);
+
+// POST /api/utilisateurs/admin/:id/portefeuille/gerer-blocage - Bloquer/débloquer un montant (admin)
+router.post('/admin/:id/portefeuille/gerer-blocage', protect, roleMiddleware(['admin', 'superadmin']), validateUserId, validateGestionMontantBloque, gererMontantBloque);
 
 // ===== ROUTES DE GESTION UTILISATEUR =====
 // Routes pour les actions sur des utilisateurs spécifiques (admin uniquement)

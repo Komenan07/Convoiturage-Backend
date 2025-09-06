@@ -692,6 +692,425 @@ const obtenirStatistiquesGlobales = async (req, res, next) => {
   }
 };
 
+// =============== NOUVELLES FONCTIONNALITÉS PORTEFEUILLE ===============
+
+/**
+ * Obtenir le résumé du portefeuille de l'utilisateur connecté
+ */
+const obtenirPortefeuille = async (req, res, next) => {
+  try {
+    const userId = req.user?.userId;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ID utilisateur manquant' 
+      });
+    }
+
+    const utilisateur = await Utilisateur.findById(userId);
+    if (!utilisateur) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    const resume = utilisateur.obtenirResumePortefeuille();
+
+    res.status(200).json({ 
+      success: true, 
+      data: resume 
+    });
+  } catch (error) {
+    logger.error('Erreur récupération portefeuille:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération du portefeuille', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Obtenir l'historique des transactions du portefeuille
+ */
+const obtenirHistoriquePortefeuille = async (req, res, next) => {
+  try {
+    const userId = req.user?.userId;
+    const { 
+      type, 
+      statut, 
+      limit = 50, 
+      dateDebut, 
+      dateFin 
+    } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ID utilisateur manquant' 
+      });
+    }
+
+    const utilisateur = await Utilisateur.findById(userId);
+    if (!utilisateur) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    const historique = utilisateur.obtenirHistoriquePortefeuille({
+      type,
+      statut,
+      limit: parseInt(limit),
+      dateDebut,
+      dateFin
+    });
+
+    res.status(200).json({ 
+      success: true, 
+      data: historique 
+    });
+  } catch (error) {
+    logger.error('Erreur récupération historique portefeuille:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération de l\'historique', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Configurer les paramètres de retrait
+ */
+const configurerParametresRetrait = async (req, res, next) => {
+  try {
+    const userId = req.user?.userId;
+    const { numeroMobile, operateur, nomTitulaire } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ID utilisateur manquant' 
+      });
+    }
+
+    // Validation des données
+    if (!numeroMobile || !operateur || !nomTitulaire) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numéro mobile, opérateur et nom titulaire sont obligatoires'
+      });
+    }
+
+    const operateursValides = ['ORANGE', 'MTN', 'MOOV'];
+    if (!operateursValides.includes(operateur)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Opérateur non supporté. Utilisez ORANGE, MTN ou MOOV'
+      });
+    }
+
+    const utilisateur = await Utilisateur.findById(userId);
+    if (!utilisateur) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    await utilisateur.configurerParametresRetrait(numeroMobile, operateur, nomTitulaire);
+
+    logger.info('Paramètres de retrait configurés', { userId, operateur });
+
+    res.status(200).json({
+      success: true,
+      message: 'Paramètres de retrait configurés avec succès',
+      data: {
+        parametresRetrait: utilisateur.portefeuille.parametresRetrait
+      }
+    });
+  } catch (error) {
+    logger.error('Erreur configuration paramètres retrait:', error);
+    return next(AppError.serverError('Erreur serveur lors de la configuration', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Vérifier les limites de retrait pour un montant donné
+ */
+const verifierLimitesRetrait = async (req, res, next) => {
+  try {
+    const userId = req.user?.userId;
+    const { montant } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ID utilisateur manquant' 
+      });
+    }
+
+    if (!montant || isNaN(montant) || montant <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Montant valide requis'
+      });
+    }
+
+    const utilisateur = await Utilisateur.findById(userId);
+    if (!utilisateur) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    const verification = utilisateur.verifierLimitesRetrait(parseFloat(montant));
+
+    res.status(200).json({
+      success: true,
+      data: verification
+    });
+  } catch (error) {
+    logger.error('Erreur vérification limites retrait:', error);
+    return next(AppError.serverError('Erreur serveur lors de la vérification', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Créditer manuellement le portefeuille d'un utilisateur (admin uniquement)
+ */
+const crediterPortefeuilleManuel = async (req, res, next) => {
+  try {
+    // Vérifier les permissions admin
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès réservé aux administrateurs'
+      });
+    }
+
+    const { userId } = req.params;
+    const { montant, description } = req.body;
+
+    if (!montant || isNaN(montant) || montant <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Montant valide requis'
+      });
+    }
+
+    if (!description) {
+      return res.status(400).json({
+        success: false,
+        message: 'Description requise'
+      });
+    }
+
+    const utilisateur = await Utilisateur.findById(userId);
+    if (!utilisateur) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    const reference = `ADMIN_${Date.now()}_${req.user.userId}`;
+    await utilisateur.crediterPortefeuille(montant, description, reference);
+
+    logger.info('Portefeuille crédité manuellement', { 
+      userId, 
+      montant, 
+      adminId: req.user.userId 
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Portefeuille crédité avec succès',
+      data: {
+        nouveauSolde: utilisateur.portefeuille.solde,
+        montantCredite: montant
+      }
+    });
+  } catch (error) {
+    logger.error('Erreur crédit manuel portefeuille:', error);
+    return next(AppError.serverError('Erreur serveur lors du crédit manuel', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Obtenir les statistiques globales des portefeuilles (admin uniquement)
+ */
+const obtenirStatistiquesPortefeuillesGlobales = async (req, res, next) => {
+  try {
+    // Vérifier les permissions admin
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès réservé aux administrateurs'
+      });
+    }
+
+    const stats = await Utilisateur.statistiquesPortefeuillesGlobales();
+
+    res.status(200).json({
+      success: true,
+      data: stats[0] || {}
+    });
+  } catch (error) {
+    logger.error('Erreur récupération statistiques portefeuilles:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Obtenir les utilisateurs avec solde élevé (admin uniquement)
+ */
+const obtenirUtilisateursSoldeEleve = async (req, res, next) => {
+  try {
+    // Vérifier les permissions admin
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès réservé aux administrateurs'
+      });
+    }
+
+    const { seuilSolde = 100000 } = req.query;
+
+    const utilisateurs = await Utilisateur.obtenirUtilisateursSoldeEleve(parseFloat(seuilSolde));
+
+    res.status(200).json({
+      success: true,
+      data: utilisateurs
+    });
+  } catch (error) {
+    logger.error('Erreur récupération utilisateurs solde élevé:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Obtenir les transactions suspectes (admin uniquement)
+ */
+const obtenirTransactionsSuspectes = async (req, res, next) => {
+  try {
+    // Vérifier les permissions admin
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès réservé aux administrateurs'
+      });
+    }
+
+    const transactionsSuspectes = await Utilisateur.obtenirTransactionsSuspectes();
+
+    res.status(200).json({
+      success: true,
+      data: transactionsSuspectes
+    });
+  } catch (error) {
+    logger.error('Erreur récupération transactions suspectes:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Obtenir le portefeuille d'un utilisateur spécifique (admin uniquement)
+ */
+const obtenirPortefeuilleUtilisateur = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const utilisateurConnecte = req.user?.userId;
+
+    // Vérifier que l'utilisateur peut accéder à ce portefeuille
+    if (utilisateurConnecte !== userId && req.user?.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès non autorisé à ce portefeuille'
+      });
+    }
+
+    const utilisateur = await Utilisateur.findById(userId);
+    if (!utilisateur) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    const resume = utilisateur.obtenirResumePortefeuille();
+
+    res.status(200).json({
+      success: true,
+      data: resume
+    });
+  } catch (error) {
+    logger.error('Erreur récupération portefeuille utilisateur:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération du portefeuille', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Bloquer ou débloquer un montant dans le portefeuille (admin uniquement)
+ */
+const gererMontantBloque = async (req, res, next) => {
+  try {
+    // Vérifier les permissions admin
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès réservé aux administrateurs'
+      });
+    }
+
+    const { userId } = req.params;
+    const { action, montant, description } = req.body; // action: 'bloquer' ou 'debloquer'
+
+    if (!['bloquer', 'debloquer'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Action doit être "bloquer" ou "debloquer"'
+      });
+    }
+
+    if (!montant || isNaN(montant) || montant <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Montant valide requis'
+      });
+    }
+
+    const utilisateur = await Utilisateur.findById(userId);
+    if (!utilisateur) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    if (action === 'bloquer') {
+      await utilisateur.bloquerMontant(montant, description || 'Blocage administratif');
+    } else {
+      await utilisateur.debloquerMontant(montant, description || 'Déblocage administratif');
+    }
+
+    logger.info(`Montant ${action === 'bloquer' ? 'bloqué' : 'débloqué'} par admin`, { 
+      userId, 
+      montant, 
+      adminId: req.user.userId 
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Montant ${action === 'bloquer' ? 'bloqué' : 'débloqué'} avec succès`,
+      data: {
+        solde: utilisateur.portefeuille.solde,
+        soldeBloquer: utilisateur.portefeuille.soldeBloquer,
+        soldeDisponible: utilisateur.soldeDisponible
+      }
+    });
+  } catch (error) {
+    logger.error('Erreur gestion montant bloqué:', error);
+    return next(AppError.serverError('Erreur serveur lors de la gestion du montant', { 
+      originalError: error.message 
+    }));
+  }
+};
+
 module.exports = {
   creerUtilisateur,
   obtenirProfilComplet,
@@ -705,5 +1124,16 @@ module.exports = {
   rechercherUtilisateurs,
   supprimerCompte,
   obtenirTousLesUtilisateurs,
-  obtenirStatistiquesGlobales
+  obtenirStatistiquesGlobales,
+  // NOUVELLES MÉTHODES PORTEFEUILLE
+  obtenirPortefeuille,
+  obtenirHistoriquePortefeuille,
+  configurerParametresRetrait,
+  verifierLimitesRetrait,
+  crediterPortefeuilleManuel,
+  obtenirStatistiquesPortefeuillesGlobales,
+  obtenirUtilisateursSoldeEleve,
+  obtenirTransactionsSuspectes,
+  obtenirPortefeuilleUtilisateur,
+  gererMontantBloque
 };

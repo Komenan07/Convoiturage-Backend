@@ -16,7 +16,12 @@ const {
   demandeReinitialisationMotDePasse,
   confirmerReinitialisationMotDePasse,
   confirmerEmail, 
-  renvoyerConfirmationEmail 
+  renvoyerConfirmationEmail,
+  // NOUVELLES FONCTIONS PORTEFEUILLE
+  obtenirStatutPortefeuille,
+  verifierEligibiliteRetrait,
+  initialiserPortefeuille,
+  obtenirHistoriqueRecentPortefeuille
 } = require('../controllers/authController');
 
 const { authMiddleware } = require('../middlewares/authMiddleware');
@@ -134,6 +139,45 @@ router.get('/me', authMiddleware, obtenirUtilisateurConnecte);
 router.get('/profil', authMiddleware, obtenirUtilisateurConnecte);
 router.get('/user', authMiddleware, obtenirUtilisateurConnecte);
 
+// =============== NOUVELLES ROUTES PROTÉGÉES - PORTEFEUILLE ===============
+
+/**
+ * @route   GET /api/auth/portefeuille/statut
+ * @route   GET /api/auth/wallet/status (alias anglais)
+ * @desc    Obtenir le statut complet du portefeuille de l'utilisateur
+ * @access  Privé - Token requis
+ */
+router.get('/portefeuille/statut', authMiddleware, obtenirStatutPortefeuille);
+router.get('/wallet/status', authMiddleware, obtenirStatutPortefeuille);
+
+/**
+ * @route   GET /api/auth/portefeuille/eligibilite-retrait
+ * @route   GET /api/auth/wallet/withdrawal-eligibility (alias anglais)
+ * @desc    Vérifier l'éligibilité de l'utilisateur pour effectuer des retraits
+ * @access  Privé - Token requis
+ */
+router.get('/portefeuille/eligibilite-retrait', authMiddleware, verifierEligibiliteRetrait);
+router.get('/wallet/withdrawal-eligibility', authMiddleware, verifierEligibiliteRetrait);
+
+/**
+ * @route   POST /api/auth/portefeuille/initialiser
+ * @route   POST /api/auth/wallet/initialize (alias anglais)
+ * @desc    Initialiser le portefeuille pour les nouveaux utilisateurs
+ * @access  Privé - Token requis
+ */
+router.post('/portefeuille/initialiser', authMiddleware, initialiserPortefeuille);
+router.post('/wallet/initialize', authMiddleware, initialiserPortefeuille);
+
+/**
+ * @route   GET /api/auth/portefeuille/historique-recent
+ * @route   GET /api/auth/wallet/recent-history (alias anglais)
+ * @desc    Obtenir l'historique récent du portefeuille (pour dashboard)
+ * @query   ?limit=10 (nombre de transactions à récupérer, défaut: 10)
+ * @access  Privé - Token requis
+ */
+router.get('/portefeuille/historique-recent', authMiddleware, obtenirHistoriqueRecentPortefeuille);
+router.get('/wallet/recent-history', authMiddleware, obtenirHistoriqueRecentPortefeuille);
+
 // =============== ROUTES DE MONITORING ET DIAGNOSTICS ===============
 
 /**
@@ -146,12 +190,14 @@ router.get('/health', (req, res) => {
     success: true,
     message: 'Service d\'authentification opérationnel',
     timestamp: new Date().toISOString(),
-    version: '2.0.0',
+    version: '2.1.0',
     features: {
       emailConfirmation: true,
       passwordReset: true,
       refreshToken: true,
-      adminAccess: true
+      adminAccess: true,
+      walletIntegration: true,
+      withdrawalEligibility: true
     },
     routes: {
       publiques: [
@@ -168,7 +214,11 @@ router.get('/health', (req, res) => {
       protegees: [
         'POST /deconnexion | /logout',
         'GET /verify',
-        'GET /me | /profil | /user'
+        'GET /me | /profil | /user',
+        'GET /portefeuille/statut | /wallet/status',
+        'GET /portefeuille/eligibilite-retrait | /wallet/withdrawal-eligibility',
+        'POST /portefeuille/initialiser | /wallet/initialize',
+        'GET /portefeuille/historique-recent | /wallet/recent-history'
       ],
       monitoring: [
         'GET /health',
@@ -205,7 +255,8 @@ router.get('/status', (req, res) => {
     'EMAIL_HOST',
     'EMAIL_PORT',
     'EMAIL_USER',
-    'EMAIL_PASS'
+    'EMAIL_PASS',
+    'BONUS_BIENVENUE'
   ];
   
   const envStatus = requiredEnvVars.reduce((acc, varName) => {
@@ -220,12 +271,60 @@ router.get('/status', (req, res) => {
     configuration: {
       environment: process.env.NODE_ENV || 'development',
       frontendUrl: process.env.FRONTEND_URL || 'Non configuré',
+      baseUrl: process.env.BASE_URL || 'Non configuré',
+      bonusBienvenue: process.env.BONUS_BIENVENUE || 'Non configuré',
       variables: envStatus
     },
     services: {
       database: 'Opérationnel',
       email: process.env.EMAIL_HOST ? 'Configuré' : 'Non configuré',
-      jwt: process.env.JWT_SECRET ? 'Configuré' : 'Non configuré'
+      jwt: process.env.JWT_SECRET ? 'Configuré' : 'Non configuré',
+      wallet: 'Intégré'
+    },
+    newFeatures: {
+      walletStatus: 'Actif',
+      withdrawalEligibility: 'Actif',
+      walletInitialization: 'Actif',
+      recentHistory: 'Actif'
+    }
+  });
+});
+
+/**
+ * @route   GET /api/auth/portefeuille/info
+ * @desc    Informations générales sur les fonctionnalités portefeuille
+ * @access  Public
+ */
+router.get('/portefeuille/info', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Informations sur les fonctionnalités portefeuille',
+    fonctionnalites: {
+      statut: {
+        description: 'Obtenir le solde et les informations générales du portefeuille',
+        endpoint: 'GET /api/auth/portefeuille/statut',
+        authentification: 'Requise'
+      },
+      eligibiliteRetrait: {
+        description: 'Vérifier si l\'utilisateur peut effectuer des retraits',
+        endpoint: 'GET /api/auth/portefeuille/eligibilite-retrait',
+        authentification: 'Requise'
+      },
+      initialisation: {
+        description: 'Initialiser le portefeuille avec bonus de bienvenue éventuel',
+        endpoint: 'POST /api/auth/portefeuille/initialiser',
+        authentification: 'Requise'
+      },
+      historiqueRecent: {
+        description: 'Obtenir les dernières transactions du portefeuille',
+        endpoint: 'GET /api/auth/portefeuille/historique-recent?limit=10',
+        authentification: 'Requise'
+      }
+    },
+    integration: {
+      connexion: 'Les informations portefeuille sont automatiquement incluses lors de la connexion',
+      inscription: 'Le portefeuille est initialisé automatiquement à l\'inscription',
+      rafraichissement: 'Les données portefeuille sont mises à jour lors du refresh token'
     }
   });
 });
@@ -294,6 +393,16 @@ router.use((error, req, res, next) => {
       success: false,
       code: 'PAYLOAD_TOO_LARGE',
       message: 'Données trop volumineuses',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Gestion des erreurs spécifiques au portefeuille
+  if (error.message && error.message.includes('portefeuille')) {
+    return res.status(400).json({
+      success: false,
+      code: 'WALLET_ERROR',
+      message: error.message,
       timestamp: new Date().toISOString()
     });
   }
