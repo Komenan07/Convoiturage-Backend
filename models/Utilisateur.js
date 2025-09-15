@@ -62,10 +62,10 @@ const utilisateurSchema = new mongoose.Schema({
   
   dateNaissance: {
     type: Date,
-    required: false, // Rendre optionnel pour l'inscription
+    required: false,
     validate: {
       validator: function(date) {
-        if (!date) return true; // Permettre l'absence de date
+        if (!date) return true;
         const age = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24 * 365);
         return age >= 18 && age <= 80;
       },
@@ -75,7 +75,7 @@ const utilisateurSchema = new mongoose.Schema({
   
   sexe: {
     type: String,
-    required: false, // Rendre optionnel pour l'inscription
+    required: false,
     enum: {
       values: ['M', 'F'],
       message: 'Le sexe doit être M (Masculin) ou F (Féminin)'
@@ -84,7 +84,17 @@ const utilisateurSchema = new mongoose.Schema({
   
   photoProfil: {
     type: String,
-    default:null
+    default: null
+  },
+
+  // Rôle dans l'application de covoiturage
+  role: {
+    type: String,
+    enum: {
+      values: ['conducteur', 'passager', 'les_deux', 'admin'],
+      message: 'Rôle invalide'
+    },
+    default: 'passager'
   },
 
   // Vérification d'identité
@@ -100,13 +110,11 @@ const utilisateurSchema = new mongoose.Schema({
       type: String,
       validate: {
         validator: function(numero) {
-          if (!numero || !this.documentIdentite.type) return true;
+          if (!numero || !this.documentIdentite?.type) return true;
           
           if (this.documentIdentite.type === 'CNI') {
-            // Format CNI ivoirienne
             return /^[A-Z]{2}[0-9]{8}$/.test(numero);
           } else if (this.documentIdentite.type === 'PASSEPORT') {
-            // Format passeport
             return /^[A-Z0-9]{6,9}$/.test(numero);
           }
           return true;
@@ -128,19 +136,19 @@ const utilisateurSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Administrateur'
     },
-    raisonRejet: String // Ajouté pour expliquer le rejet
+    raisonRejet: String
   },
 
   // Localisation
   adresse: {
     commune: {
       type: String,
-      required: false, // Rendre optionnel pour l'inscription
+      required: false,
       trim: true
     },
     quartier: {
       type: String,
-      required: false, // Rendre optionnel pour l'inscription
+      required: false,
       trim: true
     },
     ville: {
@@ -156,15 +164,15 @@ const utilisateurSchema = new mongoose.Schema({
         default: 'Point'
       },
       coordinates: {
-        type: [Number], // [longitude, latitude]
-        required: false, // Rendre optionnel
-        default: undefined, // Pas de valeur par défaut
+        type: [Number],
+        required: false,
+        default: undefined,
         validate: {
           validator: function(coords) {
-            if (!coords || coords.length === 0) return true; // Permettre l'absence de coordonnées
+            if (!coords || coords.length === 0) return true;
             return coords.length === 2 && 
-                   coords[0] >= -180 && coords[0] <= 180 && // longitude
-                   coords[1] >= -90 && coords[1] <= 90;     // latitude
+                   coords[0] >= -180 && coords[0] <= 180 &&
+                   coords[1] >= -90 && coords[1] <= 90;
           },
           message: 'Coordonnées invalides'
         }
@@ -271,6 +279,199 @@ const utilisateurSchema = new mongoose.Schema({
     ]
   }],
 
+  // ===== NOUVEAU : SYSTÈME DE COMPTE COVOITURAGE (REMPLACEMENT DU PORTEFEUILLE) =====
+  compteCovoiturage: {
+    // Solde du compte rechargé (pour conducteurs)
+    solde: { 
+      type: Number, 
+      default: 0,
+      min: [0, 'Le solde ne peut être négatif']
+    },
+    
+    // Indique si le conducteur a rechargé son compte
+    estRecharge: { 
+      type: Boolean, 
+      default: false 
+    },
+    
+    // Seuil minimum pour accepter des courses
+    seuilMinimum: { 
+      type: Number, 
+      default: 0 
+    },
+    
+    // Historique des recharges
+    historiqueRecharges: [{
+      montant: {
+        type: Number,
+        required: true,
+        min: [0, 'Le montant doit être positif']
+      },
+      date: {
+        type: Date,
+        default: Date.now
+      },
+      methodePaiement: {
+        type: String,
+        enum: ['wave', 'orange_money', 'mtn_money', 'moov_money'],
+        required: true
+      },
+      referenceTransaction: {
+        type: String,
+        required: true
+      },
+      statut: {
+        type: String,
+        enum: ['reussi', 'echec', 'en_attente'],
+        default: 'en_attente'
+      },
+      fraisTransaction: {
+        type: Number,
+        default: 0
+      }
+    }],
+    
+    // Statistiques financières
+    totalCommissionsPayees: { 
+      type: Number, 
+      default: 0 
+    },
+    totalGagnes: { 
+      type: Number, 
+      default: 0 
+    },
+    dernierPaiementRecu: Date,
+    dernierPrelevementCommission: Date,
+    
+    // Paramètres de compte
+    modeAutoRecharge: {
+      active: { 
+        type: Boolean, 
+        default: false 
+      },
+      seuilAutoRecharge: {
+        type: Number,
+        min: [0, 'Le seuil doit être positif']
+      },
+      montantAutoRecharge: {
+        type: Number,
+        min: [1000, 'Le montant minimum est 1000 FCFA']
+      },
+      methodePaiementAuto: {
+        type: String,
+        enum: ['wave', 'orange_money', 'mtn_money', 'moov_money']
+      }
+    },
+    
+    // Historique des commissions prélevées
+    historiqueCommissions: [{
+      montant: Number,
+      date: Date,
+      trajetId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Trajet'
+      },
+      reservationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Reservation'
+      },
+      typePrelevement: {
+        type: String,
+        enum: ['compte_recharge', 'paiement_mobile']
+      },
+      statut: {
+        type: String,
+        enum: ['preleve', 'echec', 'rembourse'],
+        default: 'preleve'
+      }
+    }],
+    
+    // Paramètres de retrait des gains
+    parametresRetrait: {
+      numeroMobile: {
+        type: String,
+        validate: {
+          validator: function(v) {
+            return !v || /^(\+225)?[0-9]{8,10}$/.test(v);
+          },
+          message: 'Numéro de téléphone invalide'
+        }
+      },
+      operateur: { 
+        type: String, 
+        enum: {
+          values: ['ORANGE', 'MTN', 'MOOV'],
+          message: 'Opérateur non supporté'
+        }
+      },
+      nomTitulaire: {
+        type: String,
+        trim: true,
+        maxlength: [100, 'Le nom du titulaire ne peut dépasser 100 caractères']
+      }
+    },
+    
+    // Limites et sécurité
+    limites: {
+      retraitJournalier: {
+        type: Number,
+        default: 1000000 // 1 million FCFA
+      },
+      retraitMensuel: {
+        type: Number,
+        default: 5000000 // 5 millions FCFA
+      },
+      dernierRetraitLe: Date,
+      montantRetireAujourdhui: {
+        type: Number,
+        default: 0
+      },
+      montantRetireCeMois: {
+        type: Number,
+        default: 0
+      }
+    }
+  },
+
+  // Véhicule (pour conducteurs)
+  vehicule: {
+    marque: {
+      type: String,
+      trim: true
+    },
+    modele: {
+      type: String,
+      trim: true
+    },
+    couleur: {
+      type: String,
+      trim: true
+    },
+    immatriculation: {
+      type: String,
+      trim: true,
+      uppercase: true
+    },
+    nombrePlaces: {
+      type: Number,
+      min: [1, 'Le nombre de places doit être au moins 1'],
+      max: [8, 'Le nombre de places ne peut dépasser 8']
+    },
+    photoVehicule: {
+      type: String,
+      default: null
+    },
+    assurance: {
+      numeroPolice: String,
+      dateExpiration: Date,
+      compagnie: String
+    },
+    visiteTechnique: {
+      dateExpiration: Date,
+      certificatUrl: String
+    }
+  },
+
   // Statut du compte
   statutCompte: {
     type: String,
@@ -296,10 +497,10 @@ const utilisateurSchema = new mongoose.Schema({
     default: false
   },
 
-  // Confirmation d'email (NOUVEAUX CHAMPS)
+  // Confirmation d'email
   tokenConfirmationEmail: {
     type: String,
-    select: false // N'inclus pas ce champ par défaut dans les requêtes
+    select: false
   },
   expirationTokenConfirmation: {
     type: Date,
@@ -310,7 +511,7 @@ const utilisateurSchema = new mongoose.Schema({
     default: null
   },
 
-  // Champs pour reset password
+  // Reset password
   tokenResetMotDePasse: {
     type: String,
     select: false
@@ -340,154 +541,27 @@ const utilisateurSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Administrateur'
     }
-  }],
-
-  // Champ role ajouté
-  role: {
-    type: String,
-    enum: ['utilisateur', 'admin'],
-    default: 'utilisateur'
-  },
-
-  // ===== NOUVEAU : PORTEFEUILLE CINETPAY =====
-  portefeuille: {
-    solde: { 
-      type: Number, 
-      default: 0,
-      min: [0, 'Le solde ne peut être négatif']
-    },
-    soldeBloquer: { 
-      type: Number, 
-      default: 0,
-      min: [0, 'Le solde bloqué ne peut être négatif']
-    }, // Argent en attente de retrait
-    
-    // Paramètres de retrait
-    parametresRetrait: {
-      numeroMobile: {
-        type: String,
-        validate: {
-          validator: function(v) {
-            return !v || /^(\+225)?[0-9]{8,10}$/.test(v);
-          },
-          message: 'Numéro de téléphone invalide'
-        }
-      },
-      operateur: { 
-        type: String, 
-        enum: {
-          values: ['ORANGE', 'MTN', 'MOOV'],
-          message: 'Opérateur non supporté'
-        }
-      },
-      nomTitulaire: {
-        type: String,
-        trim: true,
-        maxlength: [100, 'Le nom du titulaire ne peut dépasser 100 caractères']
-      }
-    },
-    
-    // Historique des transactions
-    historique: [{
-      type: { 
-        type: String, 
-        enum: ['CREDIT', 'DEBIT', 'RETRAIT', 'REMBOURSEMENT'],
-        required: true
-      },
-      montant: { 
-        type: Number, 
-        required: true,
-        min: [0, 'Le montant doit être positif']
-      },
-      description: {
-        type: String,
-        trim: true,
-        maxlength: [200, 'La description ne peut dépasser 200 caractères']
-      },
-      reference: {
-        type: String,
-        trim: true
-      },
-      statut: { 
-        type: String, 
-        enum: ['PENDING', 'COMPLETE', 'FAILED'],
-        default: 'COMPLETE'
-      },
-      date: { 
-        type: Date, 
-        default: Date.now 
-      },
-      metadata: {
-        type: Object,
-        default: {}
-      },
-      // Informations CinetPay pour les retraits
-      cinetpay: {
-        transactionId: String,
-        operatorTransactionId: String,
-        status: String
-      }
-    }],
-    
-    // Statistiques portefeuille
-    statistiques: {
-      totalCredite: {
-        type: Number,
-        default: 0
-      },
-      totalRetire: {
-        type: Number,
-        default: 0
-      },
-      nombreTransactions: {
-        type: Number,
-        default: 0
-      },
-      dernierMouvementLe: Date
-    },
-    
-    // Limites et sécurité
-    limites: {
-      retraitJournalier: {
-        type: Number,
-        default: 1000000 // 1 million FCFA
-      },
-      retraitMensuel: {
-        type: Number,
-        default: 5000000 // 5 millions FCFA
-      },
-      dernierRetraitLe: Date,
-      montantRetireAujourdhui: {
-        type: Number,
-        default: 0
-      },
-      montantRetireCeMois: {
-        type: Number,
-        default: 0
-      }
-    }
-  }
+  }]
 
 }, {
-  timestamps: true, // Ajoute createdAt et updatedAt automatiquement
+  timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
-// Index géospatial pour les coordonnées (seulement si présentes)
+// INDEX
 utilisateurSchema.index({ 'adresse.coordonnees': '2dsphere' }, { sparse: true });
-
-// Index composé pour les recherches fréquentes
 utilisateurSchema.index({ email: 1, statutCompte: 1 });
 utilisateurSchema.index({ telephone: 1, statutCompte: 1 });
 utilisateurSchema.index({ nom: 1, prenom: 1 });
+utilisateurSchema.index({ role: 1 });
 
-// NOUVEAUX INDEX PORTEFEUILLE
-utilisateurSchema.index({ 'portefeuille.solde': -1 });
-utilisateurSchema.index({ 'portefeuille.historique.date': -1 });
-utilisateurSchema.index({ 'portefeuille.historique.type': 1, 'portefeuille.historique.statut': 1 });
+// INDEX COMPTE COVOITURAGE
+utilisateurSchema.index({ 'compteCovoiturage.estRecharge': 1 });
+utilisateurSchema.index({ 'compteCovoiturage.solde': -1 });
+utilisateurSchema.index({ 'compteCovoiturage.historiqueRecharges.date': -1 });
 
-// Virtuals (propriétés calculées)
+// VIRTUALS
 utilisateurSchema.virtual('nomComplet').get(function() {
   return `${this.prenom} ${this.nom}`;
 });
@@ -506,23 +580,28 @@ utilisateurSchema.virtual('estDocumentVerifie').get(function() {
   return this.documentIdentite && this.documentIdentite.statutVerification === 'VERIFIE';
 });
 
-// NOUVEAUX VIRTUALS PORTEFEUILLE
+// NOUVEAUX VIRTUALS COMPTE COVOITURAGE
+utilisateurSchema.virtual('peutAccepterCourses').get(function() {
+  return this.role === 'conducteur' || this.role === 'les_deux';
+});
+
+utilisateurSchema.virtual('compteRechargeActif').get(function() {
+  return this.compteCovoiturage.estRecharge && this.compteCovoiturage.solde >= this.compteCovoiturage.seuilMinimum;
+});
+
 utilisateurSchema.virtual('soldeDisponible').get(function() {
-  return this.portefeuille.solde - this.portefeuille.soldeBloquer;
+  return this.compteCovoiturage.solde;
 });
 
-utilisateurSchema.virtual('peutRetirer').get(function() {
-  return this.soldeDisponible > 0 && 
-         this.portefeuille.parametresRetrait.numeroMobile &&
-         this.portefeuille.parametresRetrait.operateur;
+utilisateurSchema.virtual('peutRetirerGains').get(function() {
+  return this.compteCovoiturage.totalGagnes > 0 && 
+         this.compteCovoiturage.parametresRetrait.numeroMobile &&
+         this.compteCovoiturage.parametresRetrait.operateur;
 });
 
-utilisateurSchema.virtual('portefeuilleActif').get(function() {
-  return this.portefeuille.statistiques.nombreTransactions > 0;
-});
-
-// Middleware pour mettre à jour le statut de vérification
+// MIDDLEWARE PRE-SAVE
 utilisateurSchema.pre('save', function(next) {
+  // Mettre à jour le statut de vérification
   if (this.isModified('documentIdentite.statutVerification')) {
     if (this.documentIdentite.statutVerification === 'VERIFIE') {
       this.estVerifie = true;
@@ -532,99 +611,72 @@ utilisateurSchema.pre('save', function(next) {
     }
   }
 
-  // NOUVEAU : Middleware pour portefeuille
-  if (this.isModified('portefeuille.historique')) {
-    this.portefeuille.statistiques.dernierMouvementLe = new Date();
-    this.portefeuille.statistiques.nombreTransactions = this.portefeuille.historique.length;
-    
-    // Calculer totaux
-    this.portefeuille.statistiques.totalCredite = this.portefeuille.historique
-      .filter(t => t.type === 'CREDIT' && t.statut === 'COMPLETE')
-      .reduce((sum, t) => sum + t.montant, 0);
-      
-    this.portefeuille.statistiques.totalRetire = this.portefeuille.historique
-      .filter(t => ['RETRAIT', 'DEBIT'].includes(t.type) && t.statut === 'COMPLETE')
-      .reduce((sum, t) => sum + t.montant, 0);
+  // Middleware pour compte covoiturage
+  if (this.isModified('compteCovoiturage.historiqueRecharges')) {
+    // Vérifier s'il y a une recharge réussie
+    const rechargeReussie = this.compteCovoiturage.historiqueRecharges.some(r => r.statut === 'reussi');
+    if (rechargeReussie && !this.compteCovoiturage.estRecharge) {
+      this.compteCovoiturage.estRecharge = true;
+    }
   }
 
   // Réinitialiser les limites quotidiennes et mensuelles
   const maintenant = new Date();
-  const dernierRetrait = this.portefeuille.limites.dernierRetraitLe;
+  const dernierRetrait = this.compteCovoiturage.limites.dernierRetraitLe;
   
   if (dernierRetrait) {
     // Réinitialiser quotidien
     if (maintenant.toDateString() !== dernierRetrait.toDateString()) {
-      this.portefeuille.limites.montantRetireAujourdhui = 0;
+      this.compteCovoiturage.limites.montantRetireAujourdhui = 0;
     }
     
     // Réinitialiser mensuel
     if (maintenant.getMonth() !== dernierRetrait.getMonth() || 
         maintenant.getFullYear() !== dernierRetrait.getFullYear()) {
-      this.portefeuille.limites.montantRetireCeMois = 0;
+      this.compteCovoiturage.limites.montantRetireCeMois = 0;
     }
   }
 
   next();
 });
 
-// Méthode pour vérifier si un utilisateur peut se connecter (MISE À JOUR)
+// MÉTHODES D'INSTANCE EXISTANTES
 utilisateurSchema.methods.peutSeConnecter = function() {
   const maintenant = new Date();
   
-  // Vérifier le statut du compte
   switch (this.statutCompte) {
     case 'BLOQUE':
-      return {
-        autorise: false,
-        raison: 'Compte bloqué définitivement'
-      };
+      return { autorise: false, raison: 'Compte bloqué définitivement' };
     
     case 'SUSPENDU':
-      return {
-        autorise: false,
-        raison: 'Compte suspendu'
-      };
+      return { autorise: false, raison: 'Compte suspendu' };
     
     case 'EN_ATTENTE_VERIFICATION':
-      return {
-        autorise: false,
-        raison: 'Email non confirmé',
-        action: 'CONFIRMER_EMAIL'
-      };
+      return { autorise: false, raison: 'Email non confirmé', action: 'CONFIRMER_EMAIL' };
     
     case 'ACTIF':
-      // Vérifier si le compte est temporairement bloqué
       if (this.compteBloqueLe && this.tentativesConnexionEchouees >= 5) {
         const tempsEcoule = maintenant - this.compteBloqueLe;
-        const dureeBloquage = 15 * 60 * 1000; // 15 minutes
+        const dureeBloquage = 15 * 60 * 1000;
         
         if (tempsEcoule < dureeBloquage) {
-          const tempsRestant = dureeBloquage - tempsEcoule;
           return {
             autorise: false,
             raison: 'Compte temporairement bloqué',
-            deblocageA: new Date(this.compteBloqueLe.getTime() + dureeBloquage),
-            tempsRestantMs: tempsRestant
+            deblocageA: new Date(this.compteBloqueLe.getTime() + dureeBloquage)
           };
         } else {
-          // Le temps de blocage est écoulé, réinitialiser
           this.tentativesConnexionEchouees = 0;
           this.compteBloqueLe = null;
-          this.derniereTentativeConnexion = null;
         }
       }
-      
       return { autorise: true };
     
     default:
-      return {
-        autorise: false,
-        raison: 'Statut de compte invalide'
-      };
+      return { autorise: false, raison: 'Statut de compte invalide' };
   }
 };
 
-// Méthode pour vérifier le mot de passe
 utilisateurSchema.methods.verifierMotDePasse = async function(motDePasseCandidat) {
   if (!this.motDePasse) {
     throw new Error('Mot de passe non défini pour cet utilisateur');
@@ -632,60 +684,12 @@ utilisateurSchema.methods.verifierMotDePasse = async function(motDePasseCandidat
   return await bcrypt.compare(motDePasseCandidat, this.motDePasse);
 };
 
-// Méthode pour incrémenter les tentatives échouées
-utilisateurSchema.methods.incrementerTentativesEchouees = async function() {
-  const maintenant = new Date();
-  this.tentativesConnexionEchouees += 1;
-  this.derniereTentativeConnexion = maintenant;
-  
-  // Bloquer temporairement après 5 tentatives
-  if (this.tentativesConnexionEchouees >= 5) {
-    this.compteBloqueLe = maintenant;
-  }
-  
-  await this.save();
-};
-
-// Méthode pour mettre à jour la dernière connexion
-utilisateurSchema.methods.mettreAJourDerniereConnexion = async function() {
-  this.derniereConnexion = new Date();
-  this.tentativesConnexionEchouees = 0;
-  return this.save({ validateBeforeSave: false });
-};
-
-utilisateurSchema.methods.ajouterBadge = function(badge) {
-  if (!this.badges.includes(badge)) {
-    this.badges.push(badge);
-    return this.save({ validateBeforeSave: false });
-  }
-  return Promise.resolve(this);
-};
-
-utilisateurSchema.methods.supprimerBadge = function(badge) {
-  this.badges = this.badges.filter(b => b !== badge);
-  return this.save({ validateBeforeSave: false });
-};
-
-utilisateurSchema.methods.changerStatut = function(nouveauStatut, raison, administrateurId) {
-  const ancienStatut = this.statutCompte;
-  
-  this.historiqueStatuts.push({
-    ancienStatut,
-    nouveauStatut,
-    raison,
-    administrateurId
-  });
-  
-  this.statutCompte = nouveauStatut;
-  return this.save();
-};
-
-// Méthode pour générer un token JWT
 utilisateurSchema.methods.getSignedJwtToken = function() {
   return jwt.sign(
     { 
       userId: this._id,
-      email: this.email 
+      email: this.email,
+      role: this.role
     },
     process.env.JWT_SECRET || 'votre-cle-secrete-super-longue-et-complexe',
     {
@@ -694,213 +698,156 @@ utilisateurSchema.methods.getSignedJwtToken = function() {
   );
 };
 
-// Méthode pour générer un token de réinitialisation du mot de passe
-utilisateurSchema.methods.getResetPasswordToken = function() {
-  // Générer le token
-  const resetToken = crypto.randomBytes(20).toString('hex');
-  
-  // Hash du token et sauvegarde dans la DB
-  this.tokenResetMotDePasse = crypto
-    .createHash('sha256')
-    .update(resetToken)
-    .digest('hex');
-    
-  // Définir l'expiration (10 minutes)
-  this.expirationTokenReset = Date.now() + 10 * 60 * 1000;
-  
-  return resetToken;
-};
-
-// Méthode pour générer un token de confirmation d'email (NOUVELLE)
 utilisateurSchema.methods.getEmailConfirmationToken = function() {
-  // Générer le token
   const confirmationToken = crypto.randomBytes(32).toString('hex');
   
-  // Hash du token et sauvegarde dans la DB
   this.tokenConfirmationEmail = crypto
     .createHash('sha256')
     .update(confirmationToken)
     .digest('hex');
     
-  // Définir l'expiration (24 heures)
   this.expirationTokenConfirmation = Date.now() + 24 * 60 * 60 * 1000;
   
   return confirmationToken;
 };
 
-// Méthode pour confirmer l'email (NOUVELLE)
-utilisateurSchema.methods.confirmerEmail = function() {
-  this.emailConfirmeLe = new Date();
-  this.tokenConfirmationEmail = undefined;
-  this.expirationTokenConfirmation = undefined;
-  
-  // Si le statut est EN_ATTENTE_VERIFICATION, passer à ACTIF
-  if (this.statutCompte === 'EN_ATTENTE_VERIFICATION') {
-    this.statutCompte = 'ACTIF';
-  }
-  
-  return this.save();
-};
+// ===== NOUVELLES MÉTHODES COMPTE COVOITURAGE =====
 
-// ===== NOUVELLES MÉTHODES PORTEFEUILLE =====
-
-// Méthode pour créditer le portefeuille
-utilisateurSchema.methods.crediterPortefeuille = function(montant, description, reference = null) {
+// Recharger le compte conducteur
+utilisateurSchema.methods.rechargerCompte = function(montant, methodePaiement, referenceTransaction, fraisTransaction = 0) {
   if (montant <= 0) {
     throw new Error('Le montant doit être positif');
   }
 
-  this.portefeuille.solde += montant;
-  this.portefeuille.historique.push({
-    type: 'CREDIT',
+  if (!['wave', 'orange_money', 'mtn_money', 'moov_money'].includes(methodePaiement)) {
+    throw new Error('Méthode de paiement non supportée');
+  }
+
+  // Ajouter la recharge à l'historique
+  this.compteCovoiturage.historiqueRecharges.push({
     montant,
-    description,
-    reference,
-    statut: 'COMPLETE',
-    date: new Date()
+    methodePaiement,
+    referenceTransaction,
+    fraisTransaction,
+    statut: 'en_attente'
   });
-  
+
   return this.save();
 };
 
-// Méthode pour débiter le portefeuille
-utilisateurSchema.methods.debiterPortefeuille = function(montant, description) {
-  if (montant <= 0) {
-    throw new Error('Le montant doit être positif');
+// Confirmer une recharge
+utilisateurSchema.methods.confirmerRecharge = function(referenceTransaction, statut = 'reussi') {
+  const recharge = this.compteCovoiturage.historiqueRecharges.find(
+    r => r.referenceTransaction === referenceTransaction && r.statut === 'en_attente'
+  );
+
+  if (!recharge) {
+    throw new Error('Recharge introuvable ou déjà traitée');
   }
 
-  if (this.soldeDisponible < montant) {
-    throw new Error('Solde insuffisant');
+  recharge.statut = statut;
+
+  if (statut === 'reussi') {
+    // Créditer le solde (montant net après frais)
+    const montantNet = recharge.montant - recharge.fraisTransaction;
+    this.compteCovoiturage.solde += montantNet;
+    this.compteCovoiturage.estRecharge = true;
   }
-  
-  this.portefeuille.solde -= montant;
-  this.portefeuille.historique.push({
-    type: 'DEBIT',
+
+  return this.save();
+};
+
+// Prélever commission du compte rechargé
+utilisateurSchema.methods.preleverCommission = function(montant, trajetId, reservationId) {
+  if (montant <= 0) {
+    throw new Error('Le montant de commission doit être positif');
+  }
+
+  if (!this.compteCovoiturage.estRecharge) {
+    throw new Error('Le compte n\'est pas rechargé');
+  }
+
+  if (this.compteCovoiturage.solde < montant) {
+    throw new Error('Solde insuffisant pour prélever la commission');
+  }
+
+  // Débiter le solde
+  this.compteCovoiturage.solde -= montant;
+  this.compteCovoiturage.totalCommissionsPayees += montant;
+  this.compteCovoiturage.dernierPrelevementCommission = new Date();
+
+  // Ajouter à l'historique des commissions
+  this.compteCovoiturage.historiqueCommissions.push({
     montant,
-    description,
-    statut: 'COMPLETE',
-    date: new Date()
-  });
-  
-  return this.save();
-};
-
-// Méthode pour bloquer un montant (avant retrait)
-utilisateurSchema.methods.bloquerMontant = function(montant, description) {
-  if (montant <= 0) {
-    throw new Error('Le montant doit être positif');
-  }
-
-  if (this.soldeDisponible < montant) {
-    throw new Error('Solde insuffisant pour bloquer ce montant');
-  }
-  
-  this.portefeuille.soldeBloquer += montant;
-  this.portefeuille.historique.push({
-    type: 'DEBIT',
-    montant,
-    description: description || 'Blocage pour retrait',
-    statut: 'PENDING',
-    date: new Date()
-  });
-  
-  return this.save();
-};
-
-// Méthode pour débloquer un montant (si retrait échoue)
-utilisateurSchema.methods.debloquerMontant = function(montant, _description) {
-  if (montant <= 0) {
-    throw new Error('Le montant doit être positif');
-  }
-
-  if (this.portefeuille.soldeBloquer < montant) {
-    throw new Error('Montant bloqué insuffisant');
-  }
-  
-  this.portefeuille.soldeBloquer -= montant;
-  
-  // Mettre à jour la transaction en attente
-  const transactionPending = this.portefeuille.historique
-    .find(t => t.type === 'DEBIT' && t.statut === 'PENDING' && t.montant === montant);
-  
-  if (transactionPending) {
-    transactionPending.statut = 'FAILED';
-    transactionPending.description += ' - Échec';
-  }
-  
-  return this.save();
-};
-
-// Méthode pour finaliser un retrait
-utilisateurSchema.methods.finaliserRetrait = function(montant, cinetpayData = {}) {
-  if (montant <= 0) {
-    throw new Error('Le montant doit être positif');
-  }
-
-  if (this.portefeuille.soldeBloquer < montant) {
-    throw new Error('Montant bloqué insuffisant');
-  }
-  
-  // Débloquer et ajouter aux statistiques
-  this.portefeuille.soldeBloquer -= montant;
-  this.portefeuille.limites.montantRetireAujourdhui += montant;
-  this.portefeuille.limites.montantRetireCeMois += montant;
-  this.portefeuille.limites.dernierRetraitLe = new Date();
-  
-  // Mettre à jour la transaction
-  const transactionPending = this.portefeuille.historique
-    .find(t => t.type === 'DEBIT' && t.statut === 'PENDING' && t.montant === montant);
-  
-  if (transactionPending) {
-    transactionPending.statut = 'COMPLETE';
-    transactionPending.cinetpay = cinetpayData;
-    transactionPending.description = 'Retrait effectué avec succès';
-  }
-  
-  // Ajouter une transaction de retrait spécifique
-  this.portefeuille.historique.push({
-    type: 'RETRAIT',
-    montant,
-    description: `Retrait vers ${this.portefeuille.parametresRetrait.operateur} - ${this.portefeuille.parametresRetrait.numeroMobile}`,
-    statut: 'COMPLETE',
     date: new Date(),
-    cinetpay: cinetpayData
+    trajetId,
+    reservationId,
+    typePrelevement: 'compte_recharge',
+    statut: 'preleve'
   });
-  
+
   return this.save();
 };
 
-// Méthode pour vérifier les limites de retrait
-utilisateurSchema.methods.verifierLimitesRetrait = function(montant) {
-  const limites = this.portefeuille.limites;
-  
-  // Vérifier limite quotidienne
-  if (limites.montantRetireAujourdhui + montant > limites.retraitJournalier) {
-    return {
-      autorise: false,
-      raison: 'Limite quotidienne dépassée',
-      limiteJournaliere: limites.retraitJournalier,
-      dejaRetireAujourdhui: limites.montantRetireAujourdhui,
-      montantMaxAutorise: limites.retraitJournalier - limites.montantRetireAujourdhui
-    };
+// Créditer les gains du conducteur
+utilisateurSchema.methods.crediterGains = function(montant, trajetId, reservationId) {
+  if (montant <= 0) {
+    throw new Error('Le montant des gains doit être positif');
   }
-  
-  // Vérifier limite mensuelle
-  if (limites.montantRetireCeMois + montant > limites.retraitMensuel) {
-    return {
-      autorise: false,
-      raison: 'Limite mensuelle dépassée',
-      limiteMensuelle: limites.retraitMensuel,
-      dejaRetireCeMois: limites.montantRetireCeMois,
-      montantMaxAutorise: limites.retraitMensuel - limites.montantRetireCeMois
-    };
-  }
-  
-  return { autorise: true };
+
+  this.compteCovoiturage.totalGagnes += montant;
+  this.compteCovoiturage.dernierPaiementRecu = new Date();
+
+  // Ajouter un historique des gains pour traçabilité
+  this.compteCovoiturage.historiqueCommissions.push({
+    montant,
+    date: new Date(),
+    trajetId,
+    reservationId,
+    typePrelevement: 'gain_course',
+    statut: 'complete'
+  });
+
+  return this.save();
 };
 
-// Méthode pour configurer les paramètres de retrait
-utilisateurSchema.methods.configurerParametresRetrait = function(numeroMobile, operateur, nomTitulaire) {
+// Vérifier si le conducteur peut accepter des courses
+utilisateurSchema.methods.peutAccepterCourse = function(modePaiementDemande) {
+  // Vérifier le rôle
+  if (this.role !== 'conducteur' && this.role !== 'les_deux') {
+    return {
+      autorise: false,
+      raison: 'Utilisateur non autorisé comme conducteur'
+    };
+  }
+
+  // Vérifier le statut du compte
+  if (this.statutCompte !== 'ACTIF') {
+    return {
+      autorise: false,
+      raison: 'Compte non actif'
+    };
+  }
+
+  // Règles selon le type de compte
+  if (this.compteCovoiturage.estRecharge) {
+    // Compte rechargé: tous modes acceptés
+    return { autorise: true, modesAcceptes: ['especes', 'wave', 'orange_money', 'mtn_money', 'moov_money'] };
+  } else {
+    // Compte non rechargé: seulement mobile money
+    if (modePaiementDemande === 'especes') {
+      return {
+        autorise: false,
+        raison: 'Paiement en espèces non autorisé pour les comptes non rechargés',
+        modesAcceptes: ['wave', 'orange_money', 'mtn_money', 'moov_money']
+      };
+    }
+    return { autorise: true, modesAcceptes: ['wave', 'orange_money', 'mtn_money', 'moov_money'] };
+  }
+};
+
+// Configurer les paramètres de retrait
+utilisateurSchema.methods.configurerRetraitGains = function(numeroMobile, operateur, nomTitulaire) {
   // Validation du numéro selon l'opérateur
   const regexOperateurs = {
     'ORANGE': /^(\+225)?07[0-9]{8}$/,
@@ -912,7 +859,7 @@ utilisateurSchema.methods.configurerParametresRetrait = function(numeroMobile, o
     throw new Error(`Numéro de téléphone invalide pour l'opérateur ${operateur}`);
   }
   
-  this.portefeuille.parametresRetrait = {
+  this.compteCovoiturage.parametresRetrait = {
     numeroMobile,
     operateur,
     nomTitulaire
@@ -921,35 +868,57 @@ utilisateurSchema.methods.configurerParametresRetrait = function(numeroMobile, o
   return this.save();
 };
 
-// Méthode pour obtenir l'historique du portefeuille
-utilisateurSchema.methods.obtenirHistoriquePortefeuille = function(options = {}) {
-  const {
-    type = null,
-    statut = null,
-    limit = 50,
-    dateDebut = null,
-    dateFin = null
-  } = options;
+// Obtenir le résumé du compte covoiturage
+utilisateurSchema.methods.obtenirResumeCompte = function() {
+  const maintenant = new Date();
+  const debutMois = new Date(maintenant.getFullYear(), maintenant.getMonth(), 1);
   
-  let historique = [...this.portefeuille.historique];
+  const rechargesCeMois = this.compteCovoiturage.historiqueRecharges.filter(r => 
+    r.date >= debutMois && r.statut === 'reussi'
+  );
   
-  // Filtrer par type
-  if (type) {
-    historique = historique.filter(t => t.type === type);
-  }
+  const commissionsCeMois = this.compteCovoiturage.historiqueCommissions.filter(c => 
+    c.date >= debutMois && c.statut === 'preleve'
+  );
+
+  return {
+    solde: this.compteCovoiturage.solde,
+    estRecharge: this.compteCovoiturage.estRecharge,
+    totalGagnes: this.compteCovoiturage.totalGagnes,
+    totalCommissionsPayees: this.compteCovoiturage.totalCommissionsPayees,
+    nombreRecharges: this.compteCovoiturage.historiqueRecharges.filter(r => r.statut === 'reussi').length,
+    nombreCommissions: this.compteCovoiturage.historiqueCommissions.length,
+    statistiquesMois: {
+      rechargesEffectuees: rechargesCeMois.length,
+      montantRecharge: rechargesCeMois.reduce((sum, r) => sum + r.montant, 0),
+      commissionsPayees: commissionsCeMois.reduce((sum, c) => sum + c.montant, 0),
+      nombreCoursesCommission: commissionsCeMois.length
+    },
+    parametresRetrait: this.compteCovoiturage.parametresRetrait,
+    peutRetirerGains: this.peutRetirerGains,
+    peutAccepterCourses: this.peutAccepterCourses,
+    compteRechargeActif: this.compteRechargeActif
+  };
+};
+
+// Obtenir l'historique des recharges
+utilisateurSchema.methods.obtenirHistoriqueRecharges = function(options = {}) {
+  const { statut = null, limit = 20, dateDebut = null, dateFin = null } = options;
+  
+  let historique = [...this.compteCovoiturage.historiqueRecharges];
   
   // Filtrer par statut
   if (statut) {
-    historique = historique.filter(t => t.statut === statut);
+    historique = historique.filter(r => r.statut === statut);
   }
   
   // Filtrer par date
   if (dateDebut) {
-    historique = historique.filter(t => t.date >= new Date(dateDebut));
+    historique = historique.filter(r => r.date >= new Date(dateDebut));
   }
   
   if (dateFin) {
-    historique = historique.filter(t => t.date <= new Date(dateFin));
+    historique = historique.filter(r => r.date <= new Date(dateFin));
   }
   
   // Trier par date décroissante et limiter
@@ -958,41 +927,87 @@ utilisateurSchema.methods.obtenirHistoriquePortefeuille = function(options = {})
     .slice(0, limit);
 };
 
-// Méthode pour obtenir le résumé du portefeuille
-utilisateurSchema.methods.obtenirResumePortefeuille = function() {
-  const maintenant = new Date();
-  const debutMois = new Date(maintenant.getFullYear(), maintenant.getMonth(), 1);
-  const debutJour = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate());
+// Obtenir l'historique des commissions
+utilisateurSchema.methods.obtenirHistoriqueCommissions = function(options = {}) {
+  const { statut = null, limit = 20, dateDebut = null, dateFin = null } = options;
   
-  const transactionsMois = this.portefeuille.historique.filter(t => 
-    t.date >= debutMois && t.statut === 'COMPLETE'
-  );
+  let historique = [...this.compteCovoiturage.historiqueCommissions];
   
-  const transactionsJour = this.portefeuille.historique.filter(t => 
-    t.date >= debutJour && t.statut === 'COMPLETE'
-  );
+  // Filtrer par statut
+  if (statut) {
+    historique = historique.filter(c => c.statut === statut);
+  }
   
-  return {
-    solde: this.portefeuille.solde,
-    soldeBloquer: this.portefeuille.soldeBloquer,
-    soldeDisponible: this.soldeDisponible,
-    statistiques: {
-      ...this.portefeuille.statistiques,
-      creditCeMois: transactionsMois
-        .filter(t => t.type === 'CREDIT')
-        .reduce((sum, t) => sum + t.montant, 0),
-      retraitCeMois: transactionsMois
-        .filter(t => ['RETRAIT', 'DEBIT'].includes(t.type))
-        .reduce((sum, t) => sum + t.montant, 0),
-      transactionsAujourdhui: transactionsJour.length
-    },
-    limites: this.portefeuille.limites,
-    parametresRetrait: this.portefeuille.parametresRetrait,
-    peutRetirer: this.peutRetirer
-  };
+  // Filtrer par date
+  if (dateDebut) {
+    historique = historique.filter(c => c.date >= new Date(dateDebut));
+  }
+  
+  if (dateFin) {
+    historique = historique.filter(c => c.date <= new Date(dateFin));
+  }
+  
+  // Trier par date décroissante et limiter
+  return historique
+    .sort((a, b) => b.date - a.date)
+    .slice(0, limit);
 };
 
-// Méthodes statiques
+// Configurer la recharge automatique
+utilisateurSchema.methods.configurerAutoRecharge = function(seuilAutoRecharge, montantAutoRecharge, methodePaiementAuto) {
+  // Validations
+  if (seuilAutoRecharge < 0) {
+    throw new Error('Le seuil de recharge automatique ne peut être négatif');
+  }
+  
+  if (montantAutoRecharge < 1000) {
+    throw new Error('Le montant minimum de recharge automatique est 1000 FCFA');
+  }
+  
+  if (!['wave', 'orange_money', 'mtn_money', 'moov_money'].includes(methodePaiementAuto)) {
+    throw new Error('Méthode de paiement automatique non supportée');
+  }
+  
+  this.compteCovoiturage.modeAutoRecharge = {
+    active: true,
+    seuilAutoRecharge,
+    montantAutoRecharge,
+    methodePaiementAuto
+  };
+  
+  return this.save();
+};
+
+// Désactiver la recharge automatique
+utilisateurSchema.methods.desactiverAutoRecharge = function() {
+  this.compteCovoiturage.modeAutoRecharge.active = false;
+  return this.save();
+};
+
+// Vérifier si une recharge automatique est nécessaire
+utilisateurSchema.methods.verifierAutoRecharge = function() {
+  const autoRecharge = this.compteCovoiturage.modeAutoRecharge;
+  
+  if (!autoRecharge.active) {
+    return { necessite: false };
+  }
+  
+  if (this.compteCovoiturage.solde <= autoRecharge.seuilAutoRecharge) {
+    return {
+      necessite: true,
+      montant: autoRecharge.montantAutoRecharge,
+      methodePaiement: autoRecharge.methodePaiementAuto,
+      soldeActuel: this.compteCovoiturage.solde,
+      seuil: autoRecharge.seuilAutoRecharge
+    };
+  }
+  
+  return { necessite: false };
+};
+
+// ===== MÉTHODES STATIQUES =====
+
+// Rechercher par proximité
 utilisateurSchema.statics.rechercherParProximite = function(longitude, latitude, rayonKm = 10) {
   return this.find({
     'adresse.coordonnees': {
@@ -1001,13 +1016,14 @@ utilisateurSchema.statics.rechercherParProximite = function(longitude, latitude,
           type: 'Point',
           coordinates: [longitude, latitude]
         },
-        $maxDistance: rayonKm * 1000 // Conversion en mètres
+        $maxDistance: rayonKm * 1000
       }
     },
     statutCompte: 'ACTIF'
   });
 };
 
+// Statistiques globales
 utilisateurSchema.statics.statistiquesGlobales = async function() {
   const stats = await this.aggregate([
     {
@@ -1020,7 +1036,12 @@ utilisateurSchema.statics.statistiquesGlobales = async function() {
         utilisateursVerifies: {
           $sum: { $cond: ['$estVerifie', 1, 0] }
         },
-        moyenneAge: { $avg: { $divide: [{ $subtract: [new Date(), '$dateNaissance'] }, 365.25 * 24 * 60 * 60 * 1000] } },
+        conducteurs: {
+          $sum: { $cond: [{ $in: ['$role', ['conducteur', 'les_deux']] }, 1, 0] }
+        },
+        passagers: {
+          $sum: { $cond: [{ $in: ['$role', ['passager', 'les_deux']] }, 1, 0] }
+        },
         scoreConfianceMoyen: { $avg: '$scoreConfiance' }
       }
     }
@@ -1029,54 +1050,119 @@ utilisateurSchema.statics.statistiquesGlobales = async function() {
   return stats[0] || {};
 };
 
-// NOUVELLES MÉTHODES STATIQUES PORTEFEUILLE
-
-// Obtenir les statistiques globales des portefeuilles
-utilisateurSchema.statics.statistiquesPortefeuillesGlobales = async function() {
+// Statistiques des comptes covoiturage
+utilisateurSchema.statics.statistiquesComptesCovoiturage = async function() {
   return this.aggregate([
+    {
+      $match: {
+        role: { $in: ['conducteur', 'les_deux'] }
+      }
+    },
     {
       $group: {
         _id: null,
-        totalSolde: { $sum: '$portefeuille.solde' },
-        totalSoldeBloquer: { $sum: '$portefeuille.soldeBloquer' },
-        nombrePortefeuillesActifs: {
-          $sum: { $cond: [{ $gt: ['$portefeuille.solde', 0] }, 1, 0] }
+        totalConducteurs: { $sum: 1 },
+        comptesRecharges: {
+          $sum: { $cond: ['$compteCovoiturage.estRecharge', 1, 0] }
         },
-        soldeMoyen: { $avg: '$portefeuille.solde' },
-        totalTransactions: { $sum: '$portefeuille.statistiques.nombreTransactions' },
-        totalCredite: { $sum: '$portefeuille.statistiques.totalCredite' },
-        totalRetire: { $sum: '$portefeuille.statistiques.totalRetire' }
+        soldeTotalComptes: { $sum: '$compteCovoiturage.solde' },
+        soldeMoyen: { $avg: '$compteCovoiturage.solde' },
+        totalGagnesGlobal: { $sum: '$compteCovoiturage.totalGagnes' },
+        totalCommissionsGlobal: { $sum: '$compteCovoiturage.totalCommissionsPayees' },
+        nombreTotalRecharges: { $sum: { $size: '$compteCovoiturage.historiqueRecharges' } }
       }
     }
   ]);
 };
 
-// Obtenir les utilisateurs avec solde élevé
-utilisateurSchema.statics.obtenirUtilisateursSoldeEleve = function(seuilSolde = 100000) {
+// Obtenir les conducteurs avec solde élevé
+utilisateurSchema.statics.obtenirConducteursSoldeEleve = function(seuilSolde = 100000) {
   return this.find({
-    'portefeuille.solde': { $gte: seuilSolde },
+    role: { $in: ['conducteur', 'les_deux'] },
+    'compteCovoiturage.solde': { $gte: seuilSolde },
     statutCompte: 'ACTIF'
   })
-  .select('nom prenom email portefeuille.solde portefeuille.statistiques')
-  .sort({ 'portefeuille.solde': -1 });
+  .select('nom prenom email compteCovoiturage.solde compteCovoiturage.totalGagnes')
+  .sort({ 'compteCovoiturage.solde': -1 });
 };
 
-// Obtenir les utilisateurs avec transactions suspectes
-utilisateurSchema.statics.obtenirTransactionsSuspectes = function() {
-  const maintenant = new Date();
-  const hier = new Date(maintenant.getTime() - 24 * 60 * 60 * 1000);
+// Obtenir les conducteurs avec commissions élevées
+utilisateurSchema.statics.obtenirConducteursCommissionsElevees = function(seuilCommissions = 50000) {
+  return this.find({
+    role: { $in: ['conducteur', 'les_deux'] },
+    'compteCovoiturage.totalCommissionsPayees': { $gte: seuilCommissions },
+    statutCompte: 'ACTIF'
+  })
+  .select('nom prenom email compteCovoiturage.totalCommissionsPayees compteCovoiturage.totalGagnes')
+  .sort({ 'compteCovoiturage.totalCommissionsPayees': -1 });
+};
+
+// Obtenir les conducteurs inactifs (sans recharge depuis X jours)
+utilisateurSchema.statics.obtenirConducteursInactifs = function(joursInactivite = 30) {
+  const dateLimit = new Date();
+  dateLimit.setDate(dateLimit.getDate() - joursInactivite);
   
   return this.find({
-    'portefeuille.historique': {
-      $elemMatch: {
-        date: { $gte: hier },
-        montant: { $gte: 500000 }, // 500k FCFA
-        type: { $in: ['RETRAIT', 'DEBIT'] }
+    role: { $in: ['conducteur', 'les_deux'] },
+    $or: [
+      { 'compteCovoiturage.historiqueRecharges': { $size: 0 } },
+      {
+        'compteCovoiturage.historiqueRecharges': {
+          $not: {
+            $elemMatch: {
+              date: { $gte: dateLimit },
+              statut: 'reussi'
+            }
+          }
+        }
+      }
+    ],
+    statutCompte: 'ACTIF'
+  })
+  .select('nom prenom email derniereConnexion compteCovoiturage.estRecharge');
+};
+
+// Hash password avant sauvegarde
+utilisateurSchema.pre('save', async function(next) {
+  // Hash password si modifié
+  if (this.isModified('motDePasse')) {
+    const salt = await bcrypt.genSalt(12);
+    this.motDePasse = await bcrypt.hash(this.motDePasse, salt);
+  }
+
+  // Autres middleware existants...
+  if (this.isModified('documentIdentite.statutVerification')) {
+    if (this.documentIdentite.statutVerification === 'VERIFIE') {
+      this.estVerifie = true;
+      if (this.statutCompte === 'EN_ATTENTE_VERIFICATION') {
+        this.statutCompte = 'ACTIF';
       }
     }
-  })
-  .select('nom prenom email portefeuille.historique portefeuille.solde');
-};
+  }
+
+  if (this.isModified('compteCovoiturage.historiqueRecharges')) {
+    const rechargeReussie = this.compteCovoiturage.historiqueRecharges.some(r => r.statut === 'reussi');
+    if (rechargeReussie && !this.compteCovoiturage.estRecharge) {
+      this.compteCovoiturage.estRecharge = true;
+    }
+  }
+
+  const maintenant = new Date();
+  const dernierRetrait = this.compteCovoiturage.limites.dernierRetraitLe;
+  
+  if (dernierRetrait) {
+    if (maintenant.toDateString() !== dernierRetrait.toDateString()) {
+      this.compteCovoiturage.limites.montantRetireAujourdhui = 0;
+    }
+    
+    if (maintenant.getMonth() !== dernierRetrait.getMonth() || 
+        maintenant.getFullYear() !== dernierRetrait.getFullYear()) {
+      this.compteCovoiturage.limites.montantRetireCeMois = 0;
+    }
+  }
+
+  next();
+});
 
 // Export du modèle
 module.exports = mongoose.model('Utilisateur', utilisateurSchema, 'utilisateurs');

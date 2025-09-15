@@ -1,35 +1,32 @@
-// =====================================================
-// MODEL - PAIEMENT SCHEMA COMPLET AVEC TOUTES LES FONCTIONNALITÉS
-// =====================================================
-
+// models/Paiement.js
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 
-// Schéma principal de l'entité Paiement avec toutes les fonctionnalités
+// Schéma principal de l'entité Paiement avec système de commission 10%
 const paiementSchema = new mongoose.Schema({
   // ===== RÉFÉRENCES =====
   reservationId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Reservation', 
-    required: true,
+    required: [true, 'La réservation est requise'],
     index: true
   },
   payeurId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Utilisateur', 
-    required: true,
+    required: [true, 'Le payeur est requis'],
     index: true
   },
   beneficiaireId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Utilisateur', 
-    required: true 
+    required: [true, 'Le bénéficiaire est requis']
   },
 
-  // ===== MONTANTS =====
+  // ===== MONTANTS DÉTAILLÉS =====
   montantTotal: { 
     type: Number, 
-    required: true, 
+    required: [true, 'Le montant total est requis'], 
     min: [0, 'Le montant total doit être positif'],
     validate: {
       validator: function(v) {
@@ -40,12 +37,12 @@ const paiementSchema = new mongoose.Schema({
   },
   montantConducteur: { 
     type: Number, 
-    required: true, 
+    required: [true, 'Le montant conducteur est requis'], 
     min: [0, 'Le montant conducteur doit être positif']
   },
   commissionPlateforme: { 
     type: Number, 
-    required: true, 
+    required: [true, 'La commission est requise'], 
     min: [0, 'La commission doit être positive']
   },
   fraisTransaction: { 
@@ -54,24 +51,41 @@ const paiementSchema = new mongoose.Schema({
     min: [0, 'Les frais de transaction doivent être positifs']
   },
 
-  // ===== COMMISSION ET FRAIS (10% + frais spécifiques) =====
-  detailsCommission: {
-    tauxCommission: {
+  // ===== NOUVEAU : SYSTÈME DE COMMISSION 10% =====
+  commission: {
+    taux: {
       type: Number,
       default: 0.10, // 10% par défaut
-      min: 0,
-      max: 1
+      min: [0, 'Le taux ne peut être négatif'],
+      max: [1, 'Le taux ne peut dépasser 100%']
     },
-    montantCommissionCalculee: Number,
-    compteApplication: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'CompteApplication'
+    montant: {
+      type: Number,
+      required: [true, 'Le montant de commission est requis'],
+      min: [0, 'Le montant de commission doit être positif']
     },
-    datePrelevementCommission: Date,
+    modePrelevement: {
+      type: String,
+      enum: {
+        values: ['compte_recharge', 'paiement_mobile'],
+        message: 'Mode de prélèvement invalide'
+      },
+      required: [true, 'Le mode de prélèvement est requis']
+    },
     statutPrelevement: {
       type: String,
-      enum: ['EN_ATTENTE', 'PRELEVE', 'ECHEC'],
-      default: 'EN_ATTENTE'
+      enum: {
+        values: ['preleve', 'en_attente', 'echec'],
+        message: 'Statut de prélèvement invalide'
+      },
+      default: 'en_attente'
+    },
+    datePrelevement: Date,
+    referencePrelevement: {
+      type: String,
+      default: function() {
+        return `COM_${Date.now()}_${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+      }
     }
   },
 
@@ -79,10 +93,34 @@ const paiementSchema = new mongoose.Schema({
   methodePaiement: {
     type: String,
     enum: {
-      values: ['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'VISA', 'MASTERCARD', 'PORTEFEUILLE_INTERNE'],
+      values: ['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'COMPTE_RECHARGE'],
       message: 'Méthode de paiement non supportée'
     },
     required: [true, 'La méthode de paiement est requise']
+  },
+
+  // ===== NOUVEAU : RÈGLES DE PAIEMENT APPLIQUÉES =====
+  reglesPaiement: {
+    conducteurCompteRecharge: {
+      type: Boolean,
+      required: [true, 'Le statut du compte conducteur est requis']
+    },
+    modesAutorises: [{
+      type: String,
+      enum: ['especes', 'wave', 'orange_money', 'mtn_money', 'moov_money', 'compte_recharge']
+    }],
+    raisonValidation: {
+      type: String,
+      maxlength: [500, 'La raison de validation ne peut dépasser 500 caractères']
+    },
+    verificationsPassees: {
+      type: Boolean,
+      default: false
+    },
+    dateValidation: {
+      type: Date,
+      default: Date.now
+    }
   },
 
   // ===== DÉTAILS TRANSACTION =====
@@ -100,81 +138,7 @@ const paiementSchema = new mongoose.Schema({
     index: true
   },
 
-  // ===== INTÉGRATION CINETPAY =====
-  cinetpay: {
-    // Identifiants CinetPay
-    transactionId: { 
-      type: String, 
-      sparse: true,
-      index: true
-    },
-    paymentToken: { 
-      type: String, 
-      sparse: true
-    },
-    siteId: String,
-    
-    // URLs et callbacks
-    paymentUrl: String,
-    returnUrl: String,
-    notifyUrl: String,
-    
-    // Informations client
-    customerPhone: {
-      type: String,
-      validate: {
-        validator: function(v) {
-          return !v || /^(\+225)?[0-9]{8,10}$/.test(v);
-        },
-        message: 'Numéro de téléphone invalide'
-      }
-    },
-    customerEmail: String,
-    customerName: String,
-    
-    // Détails de la transaction
-    operatorTransactionId: String,
-    paymentMethod: {
-      type: String,
-      enum: ['ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'WAVE', 'CARD']
-    },
-    currency: { 
-      type: String, 
-      default: 'XOF',
-      enum: ['XOF', 'USD', 'EUR']
-    },
-    
-    // Dates CinetPay
-    paymentDate: Date,
-    expirationDate: Date,
-    
-    // Statut CinetPay
-    status: {
-      type: String,
-      enum: ['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED', 'EXPIRED'],
-      default: 'PENDING'
-    },
-    
-    // Réponses et logs CinetPay
-    webhookResponse: {
-      type: Object,
-      default: {}
-    },
-    initiationResponse: {
-      type: Object,
-      default: {}
-    },
-    
-    // Tentatives et retry
-    tentatives: {
-      type: Number,
-      default: 0,
-      max: 5
-    },
-    derniereTentative: Date
-  },
-
-  // ===== RÉPARTITION DES FRAIS =====
+  // ===== RÉPARTITION DES FRAIS (OPTIONNEL) =====
   repartitionFrais: {
     peages: { 
       type: Number, 
@@ -197,141 +161,11 @@ const paiementSchema = new mongoose.Schema({
   statutPaiement: {
     type: String,
     enum: {
-      values: ['EN_ATTENTE', 'TRAITE', 'COMPLETE', 'ECHEC', 'REMBOURSE', 'EXPIRE', 'LITIGE'],
+      values: ['EN_ATTENTE', 'TRAITE', 'COMPLETE', 'ECHEC', 'REMBOURSE'],
       message: 'Statut de paiement invalide'
     },
     default: 'EN_ATTENTE',
     index: true
-  },
-
-  // ===== GESTION PORTEFEUILLE INTERNE =====
-  portefeuille: {
-    crediteDansPortefeuille: {
-      type: Boolean,
-      default: false
-    },
-    dateCreditPortefeuille: Date,
-    montantCreditePortefeuille: Number,
-    
-    // Solde minimum requis
-    soldeMinimumRequis: {
-      type: Number,
-      default: 5000 // 5000 FCFA
-    },
-    
-    // Pour les retraits
-    estRetrait: {
-      type: Boolean,
-      default: false
-    },
-    compteDestinataire: {
-      numeroMobile: String,
-      operateur: {
-        type: String,
-        enum: ['ORANGE', 'MTN', 'MOOV', 'WAVE']
-      },
-      nomTitulaire: String,
-      typeBanque: {
-        type: String,
-        enum: ['MOBILE_MONEY', 'BANQUE_TRADITIONNELLE']
-      }
-    },
-    statutRetrait: {
-      type: String,
-      enum: ['EN_ATTENTE', 'TRAITEMENT', 'COMPLETE', 'ECHEC'],
-      default: 'EN_ATTENTE'
-    },
-    fraisRetrait: {
-      type: Number,
-      default: 0
-    },
-    delaiRetrait: {
-      type: String,
-      enum: ['IMMEDIAT', '24H', '48H', '72H'],
-      default: '24H'
-    }
-  },
-
-  // ===== RECHARGE DE COMPTE =====
-  recharge: {
-    estRecharge: {
-      type: Boolean,
-      default: false
-    },
-    methodeRecharge: {
-      type: String,
-      enum: ['MOBILE_MONEY', 'CARTE_BANCAIRE', 'DEPOT_PARTENAIRE', 'VIREMENT_BANCAIRE']
-    },
-    partenaireAgree: {
-      nom: String,
-      code: String,
-      localisation: String
-    },
-    dateRecharge: Date,
-    statutRecharge: {
-      type: String,
-      enum: ['EN_ATTENTE', 'CONFIRME', 'ECHEC'],
-      default: 'EN_ATTENTE'
-    }
-  },
-
-  // ===== REMBOURSEMENTS ET ANNULATIONS =====
-  remboursement: {
-    estRemboursable: {
-      type: Boolean,
-      default: true
-    },
-    typeRemboursement: {
-      type: String,
-      enum: ['INTEGRAL', 'PARTIEL_50', 'PARTIEL_25', 'NON_REMBOURSABLE'],
-      default: 'INTEGRAL'
-    },
-    regleAnnulation: {
-      delaiAnnulationGratuite: {
-        type: Number,
-        default: 60 // minutes
-      },
-      fraisAnnulationTardive: {
-        type: Number,
-        default: 0.10 // 10%
-      }
-    },
-    motifRemboursement: String,
-    dateRemboursement: Date,
-    montantRembourse: Number,
-    fraisRemboursement: Number,
-    referenceRemboursement: String
-  },
-
-  // ===== SÉCURITÉ ET AUTHENTIFICATION =====
-  securite: {
-    otpRequis: {
-      type: Boolean,
-      default: function() {
-        return this.montantTotal > 10000; // OTP si > 10,000 FCFA
-      }
-    },
-    otpEnvoye: {
-      type: Boolean,
-      default: false
-    },
-    otpVerifie: {
-      type: Boolean,
-      default: false
-    },
-    codeOTP: String,
-    dateExpirationOTP: Date,
-    tentativesOTP: {
-      type: Number,
-      default: 0,
-      max: 3
-    },
-    codePIN: String,
-    authentificationRenforcee: {
-      type: Boolean,
-      default: false
-    },
-    empreinteTransaction: String // Hash unique pour éviter les doublons
   },
 
   // ===== DATES =====
@@ -368,143 +202,111 @@ const paiementSchema = new mongoose.Schema({
   urlRecu: { 
     type: String 
   },
-  factureNumerique: {
-    numeroFacture: String,
-    urlFacture: String,
-    formatFacture: {
+
+  // ===== NOUVEAU : TRAÇABILITÉ POUR AUDIT =====
+  historiqueStatuts: [{
+    ancienStatut: {
       type: String,
-      enum: ['PDF', 'HTML', 'JSON'],
-      default: 'PDF'
+      required: true
     },
-    estFactureGeneree: {
-      type: Boolean,
-      default: false
+    nouveauStatut: {
+      type: String,
+      required: true
+    },
+    dateChangement: {
+      type: Date,
+      default: Date.now
+    },
+    raisonChangement: {
+      type: String,
+      maxlength: [500, 'La raison ne peut dépasser 500 caractères']
+    },
+    utilisateurId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Utilisateur'
+    }
+  }],
+
+  // ===== INTÉGRATION MOBILE MONEY =====
+  mobileMoney: {
+    operateur: {
+      type: String,
+      enum: ['WAVE', 'ORANGE', 'MTN', 'MOOV']
+    },
+    numeroTelephone: {
+      type: String,
+      validate: {
+        validator: function(v) {
+          return !v || /^(\+225)?[0-9]{8,10}$/.test(v);
+        },
+        message: 'Numéro de téléphone invalide'
+      }
+    },
+    transactionId: String,
+    codeTransaction: String,
+    dateTransaction: Date,
+    fraisOperateur: {
+      type: Number,
+      default: 0,
+      min: [0, 'Les frais opérateur doivent être positifs']
+    },
+    statutMobileMoney: {
+      type: String,
+      enum: ['PENDING', 'SUCCESS', 'FAILED', 'TIMEOUT'],
+      default: 'PENDING'
     }
   },
 
-  // ===== GESTION DES LITIGES =====
-  litige: {
-    estEnLitige: {
-      type: Boolean,
-      default: false
-    },
-    numeroLitige: String,
-    motifLitige: {
+  // ===== SÉCURITÉ ET VÉRIFICATION =====
+  securite: {
+    empreinteTransaction: {
       type: String,
-      enum: ['MONTANT_INCORRECT', 'SERVICE_NON_RENDU', 'PROBLEME_TECHNIQUE', 'COMMISSION_CONTESTEE', 'AUTRE']
+      unique: true
     },
-    descriptionLitige: String,
-    dateOuvertureLitige: Date,
-    statutLitige: {
-      type: String,
-      enum: ['OUVERT', 'EN_COURS', 'RESOLU', 'FERME'],
-      default: 'OUVERT'
+    ipAddress: String,
+    userAgent: String,
+    deviceId: String,
+    tentativesEchec: {
+      type: Number,
+      default: 0,
+      max: [5, 'Nombre maximum de tentatives dépassé']
     },
-    resolutionLitige: {
-      dateResolution: Date,
-      typeResolution: {
-        type: String,
-        enum: ['REMBOURSEMENT', 'COMPENSATION', 'REJET', 'MEDIATION']
-      },
-      montantCompensation: Number,
-      commentaireResolution: String
-    },
-    documentsLitige: [{
-      nom: String,
-      url: String,
-      type: String,
-      dateAjout: Date
-    }]
-  },
-
-  // ===== MÉTADONNÉES =====
-  callbackData: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
-    default: new Map()
+    bloqueJusquA: Date
   },
 
   // ===== LOGS ET ERREURS =====
   logsTransaction: [{
-    date: { type: Date, default: Date.now },
-    action: String,
+    date: { 
+      type: Date, 
+      default: Date.now 
+    },
+    action: {
+      type: String,
+      required: true
+    },
     details: mongoose.Schema.Types.Mixed,
     source: {
       type: String,
-      enum: ['SYSTEM', 'CINETPAY', 'USER', 'ADMIN', 'MOBILE_MONEY', 'BANK'],
+      enum: ['SYSTEM', 'USER', 'ADMIN', 'MOBILE_MONEY', 'API'],
       default: 'SYSTEM'
     },
     niveau: {
       type: String,
-      enum: ['INFO', 'WARNING', 'ERROR', 'DEBUG', 'SECURITY'],
+      enum: ['INFO', 'WARNING', 'ERROR', 'DEBUG'],
       default: 'INFO'
     }
   }],
 
   erreurs: [{
-    date: { type: Date, default: Date.now },
+    date: { 
+      type: Date, 
+      default: Date.now 
+    },
     code: String,
     message: String,
     stack: String,
     contexte: Object
-  }],
-
-  // ===== NOTIFICATIONS AUTOMATIQUES =====
-  notifications: {
-    emailEnvoye: {
-      type: Boolean,
-      default: false
-    },
-    smsEnvoye: {
-      type: Boolean,
-      default: false
-    },
-    pushEnvoye: {
-      type: Boolean,
-      default: false
-    },
-    dateNotification: Date,
-    tentativesNotification: {
-      type: Number,
-      default: 0
-    },
-    typesNotifications: [{
-      type: {
-        type: String,
-        enum: ['CONFIRMATION_PAIEMENT', 'SOLDE_INSUFFISANT', 'RECHARGE_REQUISE', 'REMBOURSEMENT', 'LITIGE', 'COMMISSION_PRELEVEE']
-      },
-      destinataire: {
-        type: String,
-        enum: ['PAYEUR', 'BENEFICIAIRE', 'ADMIN', 'TOUS']
-      },
-      canal: {
-        type: String,
-        enum: ['EMAIL', 'SMS', 'PUSH', 'IN_APP']
-      },
-      envoye: Boolean,
-      dateEnvoi: Date
-    }]
-  },
-
-  // ===== TABLEAU DE BORD ADMIN =====
-  tracking: {
-    vueParAdmin: {
-      type: Boolean,
-      default: false
-    },
-    dateVueAdmin: Date,
-    prioriteAdmin: {
-      type: String,
-      enum: ['BASSE', 'NORMALE', 'HAUTE', 'CRITIQUE'],
-      default: 'NORMALE'
-    },
-    noteAdmin: String,
-    categorieTransaction: {
-      type: String,
-      enum: ['NORMALE', 'SUSPECTE', 'FRAUDULEUSE', 'A_SURVEILLER'],
-      default: 'NORMALE'
-    }
-  }
+  }]
 
 }, {
   timestamps: true,
@@ -512,20 +314,16 @@ const paiementSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// ===== INDEX COMPOSÉS ÉTENDUS =====
+// ===== INDEX COMPOSÉS =====
 paiementSchema.index({ reservationId: 1, payeurId: 1 });
 paiementSchema.index({ statutPaiement: 1, dateInitiation: -1 });
 paiementSchema.index({ methodePaiement: 1, statutPaiement: 1 });
 paiementSchema.index({ dateCompletion: -1 }, { sparse: true });
-paiementSchema.index({ 'cinetpay.transactionId': 1 }, { sparse: true });
-paiementSchema.index({ 'cinetpay.status': 1, 'cinetpay.paymentDate': -1 });
-paiementSchema.index({ 'portefeuille.crediteDansPortefeuille': 1 });
-paiementSchema.index({ 'litige.estEnLitige': 1, 'litige.statutLitige': 1 });
-paiementSchema.index({ 'tracking.categorieTransaction': 1 });
-paiementSchema.index({ 'detailsCommission.statutPrelevement': 1 });
-paiementSchema.index({ 'recharge.statutRecharge': 1 });
+paiementSchema.index({ 'commission.statutPrelevement': 1 });
+paiementSchema.index({ 'mobileMoney.transactionId': 1 }, { sparse: true });
+paiementSchema.index({ 'securite.empreinteTransaction': 1 });
 
-// ===== PROPRIÉTÉS VIRTUELLES ÉTENDUES =====
+// ===== PROPRIÉTÉS VIRTUELLES =====
 paiementSchema.virtual('estComplete').get(function() {
   return this.statutPaiement === 'COMPLETE';
 });
@@ -534,490 +332,257 @@ paiementSchema.virtual('estPaiementMobile').get(function() {
   return ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'].includes(this.methodePaiement);
 });
 
-paiementSchema.virtual('estPaiementCarte').get(function() {
-  return ['VISA', 'MASTERCARD'].includes(this.methodePaiement);
+paiementSchema.virtual('commissionPrelevee').get(function() {
+  return this.commission.statutPrelevement === 'preleve';
 });
 
-paiementSchema.virtual('estCinetPay').get(function() {
-  return !!this.cinetpay.transactionId;
+paiementSchema.virtual('montantNetConducteur').get(function() {
+  return this.montantTotal - this.commission.montant - this.fraisTransaction;
 });
 
-paiementSchema.virtual('estExpire').get(function() {
-  return this.cinetpay.expirationDate && new Date() > this.cinetpay.expirationDate;
+paiementSchema.virtual('tauxCommissionReel').get(function() {
+  return this.montantTotal > 0 ? (this.commission.montant / this.montantTotal) : 0;
 });
 
-paiementSchema.virtual('soldeInsuffisant').get(function() {
-  return this.portefeuille.montantCreditePortefeuille < this.portefeuille.soldeMinimumRequis;
-});
-
-paiementSchema.virtual('necessiteOTP').get(function() {
-  return this.securite.otpRequis && !this.securite.otpVerifie;
-});
-
-paiementSchema.virtual('enLitige').get(function() {
-  return this.litige.estEnLitige && ['OUVERT', 'EN_COURS'].includes(this.litige.statutLitige);
-});
-
-paiementSchema.virtual('statutDetailne').get(function() {
-  return {
-    general: this.statutPaiement,
-    cinetpay: this.cinetpay.status,
-    portefeuille: this.portefeuille.crediteDansPortefeuille ? 'CREDITE' : 'NON_CREDITE',
-    litige: this.litige.estEnLitige ? this.litige.statutLitige : 'AUCUN',
-    commission: this.detailsCommission.statutPrelevement
-  };
-});
-
-// ===== MIDDLEWARE PRE-SAVE ÉTENDU =====
+// ===== MIDDLEWARE PRE-SAVE =====
 paiementSchema.pre('save', function(next) {
-  // 1. Validation cohérence des montants
-  const totalCalcule = this.montantConducteur + this.commissionPlateforme + this.fraisTransaction;
-  const tolerance = 0.01;
-  
-  if (Math.abs(this.montantTotal - totalCalcule) > tolerance) {
-    const error = new Error('Incohérence dans la répartition des montants');
-    error.name = 'ValidationError';
-    return next(error);
-  }
-
-  // 2. Générer numéro de reçu si paiement complété
-  if (this.statutPaiement === 'COMPLETE' && !this.numeroRecu) {
-    this.numeroRecu = `REC_${Date.now()}_${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-  }
-
-  // 3. Gestion de l'expiration CinetPay
-  if (this.estCinetPay && !this.cinetpay.expirationDate) {
-    this.cinetpay.expirationDate = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
-  }
-
-  // 4. Calcul automatique commission (10%)
-  if (this.isModified('montantTotal') && !this.isModified('commissionPlateforme')) {
-    this.calculerCommission(this.detailsCommission.tauxCommission || 0.10);
-  }
-
-  // 5. Générer empreinte de transaction unique
-  if (!this.securite.empreinteTransaction) {
-    this.securite.empreinteTransaction = crypto
-      .createHash('sha256')
-      .update(`${this.payeurId}-${this.beneficiaireId}-${this.montantTotal}-${this.dateInitiation}`)
-      .digest('hex');
-  }
-
-  // 6. Vérifier OTP requis
-  if (this.montantTotal > 10000 && !this.securite.otpRequis) {
-    this.securite.otpRequis = true;
-  }
-
-  // 7. Mise à jour automatique des dates selon le statut
-  if (this.isModified('statutPaiement')) {
-    const maintenant = new Date();
+  try {
+    // 1. Validation cohérence des montants
+    const montantCalcule = this.montantConducteur + this.commission.montant + this.fraisTransaction;
+    const tolerance = 0.01;
     
-    switch (this.statutPaiement) {
-      case 'TRAITE':
-        if (!this.dateTraitement) {
-          this.dateTraitement = maintenant;
-        }
-        break;
-      case 'COMPLETE':
-        if (!this.dateCompletion) {
-          this.dateCompletion = maintenant;
-        }
-        if (!this.dateTraitement) {
-          this.dateTraitement = maintenant;
-        }
-        if (this.cinetpay.status === 'PENDING') {
-          this.cinetpay.status = 'COMPLETED';
-          this.cinetpay.paymentDate = maintenant;
-        }
-        // Marquer commission comme prélevée
-        this.detailsCommission.statutPrelevement = 'PRELEVE';
-        this.detailsCommission.datePrelevementCommission = maintenant;
-        break;
-      case 'ECHEC':
-        if (this.cinetpay.status === 'PENDING') {
-          this.cinetpay.status = 'FAILED';
-        }
-        break;
-      case 'EXPIRE':
-        this.cinetpay.status = 'EXPIRED';
-        break;
-      case 'LITIGE':
-        this.litige.estEnLitige = true;
-        if (!this.litige.dateOuvertureLitige) {
-          this.litige.dateOuvertureLitige = maintenant;
-          this.litige.numeroLitige = `LIT_${Date.now()}_${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
-        }
-        break;
+    if (Math.abs(this.montantTotal - montantCalcule) > tolerance) {
+      return next(new Error('Incohérence dans la répartition des montants'));
     }
-  }
 
-  next();
+    // 2. Générer numéro de reçu si paiement complété
+    if (this.statutPaiement === 'COMPLETE' && !this.numeroRecu) {
+      this.numeroRecu = `REC_${Date.now()}_${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    }
+
+    // 3. Générer empreinte de transaction unique
+    if (!this.securite.empreinteTransaction) {
+      this.securite.empreinteTransaction = crypto
+        .createHash('sha256')
+        .update(`${this.payeurId}-${this.beneficiaireId}-${this.montantTotal}-${this.dateInitiation}`)
+        .digest('hex');
+    }
+
+    // 4. Mise à jour automatique des dates selon le statut
+    if (this.isModified('statutPaiement')) {
+      const maintenant = new Date();
+      
+      // Ajouter à l'historique des statuts
+      if (!this.isNew) {
+        this.historiqueStatuts.push({
+          ancienStatut: this.constructor.schema.paths.statutPaiement.default,
+          nouveauStatut: this.statutPaiement,
+          dateChangement: maintenant,
+          raisonChangement: 'Changement automatique de statut'
+        });
+      }
+      
+      switch (this.statutPaiement) {
+        case 'TRAITE':
+          if (!this.dateTraitement) {
+            this.dateTraitement = maintenant;
+          }
+          break;
+        case 'COMPLETE':
+          if (!this.dateCompletion) {
+            this.dateCompletion = maintenant;
+          }
+          if (!this.dateTraitement) {
+            this.dateTraitement = maintenant;
+          }
+          // Marquer commission comme prélevée
+          if (this.commission.statutPrelevement === 'en_attente') {
+            this.commission.statutPrelevement = 'preleve';
+            this.commission.datePrelevement = maintenant;
+          }
+          break;
+        case 'ECHEC':
+          if (this.commission.statutPrelevement === 'en_attente') {
+            this.commission.statutPrelevement = 'echec';
+          }
+          break;
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
-// ===== MÉTHODES D'INSTANCE ÉTENDUES =====
+// ===== MIDDLEWARE POST-SAVE =====
+paiementSchema.post('save', async function(doc) {
+  try {
+    // Traiter les actions post-paiement
+    if (doc.isModified('statutPaiement') && doc.statutPaiement === 'COMPLETE') {
+      await doc.traiterCommissionApresPayement();
+    }
+  } catch (error) {
+    console.error('Erreur post-save paiement:', error);
+  }
+});
+
+// ===== MÉTHODES D'INSTANCE =====
 
 // Calculer la commission de la plateforme (10% par défaut)
-paiementSchema.methods.calculerCommission = function(tauxCommission = 0.10, tauxFraisCinetPay = 0.025) {
-  this.detailsCommission.tauxCommission = tauxCommission;
-  this.commissionPlateforme = Math.round(this.montantTotal * tauxCommission * 100) / 100;
-  this.detailsCommission.montantCommissionCalculee = this.commissionPlateforme;
+paiementSchema.methods.calculerCommission = function(tauxCommission = 0.10) {
+  this.commission.taux = tauxCommission;
+  this.commission.montant = Math.round(this.montantTotal * tauxCommission);
+  this.commissionPlateforme = this.commission.montant;
+  this.montantConducteur = this.montantTotal - this.commission.montant - this.fraisTransaction;
   
-  if (this.estPaiementMobile) {
-    this.fraisTransaction = Math.round(this.montantTotal * tauxFraisCinetPay * 100) / 100;
-  }
-  
-  this.montantConducteur = this.montantTotal - this.commissionPlateforme - this.fraisTransaction;
-  return this.commissionPlateforme;
-};
-
-// Vérifier le solde minimum
-paiementSchema.methods.verifierSoldeMinimum = function() {
-  return this.portefeuille.montantCreditePortefeuille >= this.portefeuille.soldeMinimumRequis;
-};
-
-// Générer et envoyer OTP
-paiementSchema.methods.genererOTP = function() {
-  if (this.securite.otpRequis) {
-    this.securite.codeOTP = Math.floor(100000 + Math.random() * 900000).toString();
-    this.securite.dateExpirationOTP = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-    this.securite.otpEnvoye = true;
-    
-    this.ajouterLog('OTP_GENERE', {
-      dateExpiration: this.securite.dateExpirationOTP
-    }, 'SYSTEM', 'SECURITY');
-    
-    return this.securite.codeOTP;
-  }
-  return null;
-};
-
-// Vérifier OTP
-paiementSchema.methods.verifierOTP = function(codeOTP) {
-  if (!this.securite.otpRequis) return true;
-  
-  if (this.securite.tentativesOTP >= 3) {
-    this.ajouterLog('OTP_TENTATIVES_DEPASSEES', {}, 'SYSTEM', 'SECURITY');
-    return false;
-  }
-  
-  if (new Date() > this.securite.dateExpirationOTP) {
-    this.ajouterLog('OTP_EXPIRE', {}, 'SYSTEM', 'SECURITY');
-    return false;
-  }
-  
-  if (this.securite.codeOTP === codeOTP) {
-    this.securite.otpVerifie = true;
-    this.ajouterLog('OTP_VERIFIE', {}, 'SYSTEM', 'SECURITY');
-    return true;
-  } else {
-    this.securite.tentativesOTP += 1;
-    this.ajouterLog('OTP_INVALIDE', { tentative: this.securite.tentativesOTP }, 'SYSTEM', 'SECURITY');
-    return false;
-  }
-};
-
-// Ouvrir un litige
-paiementSchema.methods.ouvrirLitige = function(motif, description) {
-  this.litige.estEnLitige = true;
-  this.litige.motifLitige = motif;
-  this.litige.descriptionLitige = description;
-  this.litige.dateOuvertureLitige = new Date();
-  this.litige.numeroLitige = `LIT_${Date.now()}_${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
-  this.statutPaiement = 'LITIGE';
-  
-  this.ajouterLog('LITIGE_OUVERT', {
-    numero: this.litige.numeroLitige,
-    motif,
-    description
-  }, 'USER');
-  
-  return this.litige.numeroLitige;
-};
-
-// Programmer une notification
-paiementSchema.methods.programmerNotification = function(type, destinataire, canal = 'PUSH') {
-  this.notifications.typesNotifications.push({
-    type,
-    destinataire,
-    canal,
-    envoye: false
+  this.ajouterLog('COMMISSION_CALCULEE', {
+    taux: tauxCommission,
+    montant: this.commission.montant,
+    montantConducteur: this.montantConducteur
   });
   
-  this.ajouterLog('NOTIFICATION_PROGRAMMEE', {
-    type,
-    destinataire,
-    canal
-  }, 'SYSTEM');
+  return this.commission.montant;
 };
 
-// Toutes les autres méthodes existantes restent identiques...
-// (initialiserCinetPay, traiterWebhookCinetPay, crediterPortefeuille, etc.)
-
-// ===== MÉTHODES STATIQUES ÉTENDUES =====
-
-// Obtenir les conducteurs avec solde insuffisant
-paiementSchema.statics.obtenirConducteursSoldeInsuffisant = async function() {
-  return this.aggregate([
-    {
-      $match: {
-        'portefeuille.crediteDansPortefeuille': true
-      }
-    },
-    {
-      $group: {
-        _id: '$beneficiaireId',
-        soldeActuel: { $sum: '$portefeuille.montantCreditePortefeuille' },
-        soldeMinimumRequis: { $first: '$portefeuille.soldeMinimumRequis' }
-      }
-    },
-    {
-      $match: {
-        $expr: { $lt: ['$soldeActuel', '$soldeMinimumRequis'] }
-      }
-    },
-    {
-      $lookup: {
-        from: 'utilisateurs',
-        localField: '_id',
-        foreignField: '_id',
-        as: 'conducteur'
-      }
+// Valider les règles de paiement selon le système de commission
+paiementSchema.methods.validerReglesPaiement = async function() {
+  try {
+    const Reservation = mongoose.model('Reservation');
+    
+    const reservation = await Reservation.findById(this.reservationId).populate('trajetId');
+    if (!reservation) {
+      throw new Error('Réservation introuvable');
     }
-  ]);
+
+    const trajet = reservation.trajetId;
+    const modeAccepte = trajet.accepteModePaiement(this.methodePaiement);
+    
+    this.reglesPaiement = {
+      conducteurCompteRecharge: trajet.conducteurId.compteCovoiturage?.estRecharge || false,
+      modesAutorises: Object.keys(trajet.modesPaiementAcceptes).filter(
+        mode => trajet.modesPaiementAcceptes[mode]
+      ),
+      raisonValidation: modeAccepte.accepte ? 'Mode de paiement autorisé' : modeAccepte.raison,
+      verificationsPassees: modeAccepte.accepte,
+      dateValidation: new Date()
+    };
+
+    this.ajouterLog('VALIDATION_REGLES', {
+      methodePaiement: this.methodePaiement,
+      resultat: modeAccepte.accepte,
+      raison: modeAccepte.raison
+    });
+
+    return modeAccepte.accepte;
+  } catch (error) {
+    this.ajouterErreur('VALIDATION_REGLES_ERREUR', error.message);
+    return false;
+  }
 };
 
-// Obtenir les transactions nécessitant OTP
-paiementSchema.statics.obtenirTransactionsOTPRequis = async function() {
-  return this.find({
-    'securite.otpRequis': true,
-    'securite.otpVerifie': false,
-    statutPaiement: 'EN_ATTENTE'
-  });
-};
+// Traiter la commission après paiement
+paiementSchema.methods.traiterCommissionApresPayement = async function() {
+  try {
+    if (this.commission.statutPrelevement === 'preleve') return;
 
-// Obtenir les litiges ouverts
-paiementSchema.statics.obtenirLitigesOuverts = async function() {
-  return this.find({
-    'litige.estEnLitige': true,
-    'litige.statutLitige': { $in: ['OUVERT', 'EN_COURS'] }
-  }).populate('payeurId beneficiaireId reservationId');
-};
+    const Utilisateur = mongoose.model('Utilisateur');
+    const conducteur = await Utilisateur.findById(this.beneficiaireId);
 
-// Obtenir le rapport financier pour admin
-paiementSchema.statics.obtenirRapportFinancierAdmin = async function(dateDebut, dateFin) {
-  return this.aggregate([
-    {
-      $match: {
-        dateCompletion: { $gte: dateDebut, $lte: dateFin },
-        statutPaiement: 'COMPLETE'
-      }
-    },
-    {
-      $group: {
-        _id: {
-          date: { $dateToString: { format: '%Y-%m-%d', date: '$dateCompletion' } },
-          methode: '$methodePaiement'
-        },
-        nombreTransactions: { $sum: 1 },
-        chiffreAffaires: { $sum: '$montantTotal' },
-        commissionsPerçues: { $sum: '$commissionPlateforme' },
-        montantVerseConducteurs: { $sum: '$montantConducteur' },
-        fraisTransactionTotal: { $sum: '$fraisTransaction' }
-      }
-    },
-    {
-      $sort: { '_id.date': -1, '_id.methode': 1 }
+    if (this.commission.modePrelevement === 'compte_recharge') {
+      // Prélever commission du compte rechargé
+      await conducteur.preleverCommission(
+        this.commission.montant,
+        this.reservationId,
+        this._id
+      );
+      
+      this.ajouterLog('COMMISSION_PRELEVEE_COMPTE', {
+        montant: this.commission.montant,
+        conducteurId: this.beneficiaireId
+      });
+      
+    } else if (this.commission.modePrelevement === 'paiement_mobile') {
+      // Commission déjà prélevée lors du paiement mobile money
+      this.ajouterLog('COMMISSION_PRELEVEE_MOBILE', {
+        montant: this.commission.montant,
+        operateur: this.mobileMoney.operateur
+      });
     }
-  ]);
+
+    // Créditer les gains au conducteur
+    await conducteur.crediterGains(
+      this.montantConducteur,
+      this.reservationId,
+      this._id
+    );
+
+    this.commission.statutPrelevement = 'preleve';
+    this.commission.datePrelevement = new Date();
+    
+    await this.save();
+
+  } catch (error) {
+    this.commission.statutPrelevement = 'echec';
+    this.ajouterErreur('TRAITEMENT_COMMISSION_ERREUR', error.message);
+    console.error('Erreur traitement commission:', error);
+  }
 };
 
-// ===== MÉTHODES D'INSTANCE EXISTANTES COMPLÉTÉES =====
-
-// Initialiser une transaction CinetPay
-paiementSchema.methods.initialiserCinetPay = function(donneesCinetPay) {
-  this.cinetpay = {
-    ...this.cinetpay,
-    ...donneesCinetPay,
-    status: 'PENDING',
-    tentatives: (this.cinetpay.tentatives || 0) + 1,
-    derniereTentative: new Date()
+// Initier un paiement mobile money
+paiementSchema.methods.initierPaiementMobile = function(numeroTelephone, operateur) {
+  this.mobileMoney = {
+    operateur: operateur.toUpperCase(),
+    numeroTelephone,
+    statutMobileMoney: 'PENDING',
+    dateTransaction: new Date()
   };
-  
-  this.ajouterLog('INIT_CINETPAY', {
-    transactionId: donneesCinetPay.transactionId,
-    montant: this.montantTotal,
-    telephone: donneesCinetPay.customerPhone
-  }, 'CINETPAY');
-  
+
+  // Déterminer le mode de prélèvement
+  this.commission.modePrelevement = 'paiement_mobile';
+
+  this.ajouterLog('PAIEMENT_MOBILE_INITIE', {
+    operateur,
+    numero: numeroTelephone.replace(/(.{3})(.*)(.{3})/, '$1***$3'),
+    montant: this.montantTotal
+  });
+
   return this;
 };
 
-// Traiter un webhook CinetPay
-paiementSchema.methods.traiterWebhookCinetPay = function(donneesWebhook) {
-  this.cinetpay.webhookResponse = donneesWebhook;
-  this.cinetpay.operatorTransactionId = donneesWebhook.operator_transaction_id;
-  this.cinetpay.paymentMethod = donneesWebhook.payment_method;
+// Traiter le callback mobile money
+paiementSchema.methods.traiterCallbackMobile = function(donneesCallback) {
+  this.mobileMoney.transactionId = donneesCallback.transactionId;
+  this.mobileMoney.codeTransaction = donneesCallback.codeTransaction;
+  this.referencePaiementMobile = donneesCallback.transactionId;
   
-  if (donneesWebhook.operator_transaction_id) {
-    this.referencePaiementMobile = donneesWebhook.operator_transaction_id;
-  }
-  
-  switch (donneesWebhook.status) {
-    case 'COMPLETED':
-      this.cinetpay.status = 'COMPLETED';
+  switch (donneesCallback.statut) {
+    case 'SUCCESS':
+      this.mobileMoney.statutMobileMoney = 'SUCCESS';
       this.statutPaiement = 'COMPLETE';
-      this.cinetpay.paymentDate = new Date();
       break;
     case 'FAILED':
-      this.cinetpay.status = 'FAILED';
+      this.mobileMoney.statutMobileMoney = 'FAILED';
       this.statutPaiement = 'ECHEC';
       break;
-    case 'CANCELLED':
-      this.cinetpay.status = 'CANCELLED';
+    case 'TIMEOUT':
+      this.mobileMoney.statutMobileMoney = 'TIMEOUT';
       this.statutPaiement = 'ECHEC';
       break;
   }
   
-  this.ajouterLog('WEBHOOK_RECU', donneesWebhook, 'CINETPAY');
+  this.ajouterLog('CALLBACK_MOBILE_RECU', donneesCallback);
   return this;
-};
-
-// Créditer dans le portefeuille
-paiementSchema.methods.crediterPortefeuille = function() {
-  if (this.statutPaiement === 'COMPLETE' && !this.portefeuille.crediteDansPortefeuille) {
-    this.portefeuille.crediteDansPortefeuille = true;
-    this.portefeuille.dateCreditPortefeuille = new Date();
-    this.portefeuille.montantCreditePortefeuille = this.montantConducteur;
-    
-    this.ajouterLog('CREDIT_PORTEFEUILLE', {
-      montant: this.montantConducteur,
-      beneficiaire: this.beneficiaireId
-    }, 'SYSTEM');
-    
-    // Vérifier si le solde est encore insuffisant après crédit
-    if (!this.verifierSoldeMinimum()) {
-      this.programmerNotification('SOLDE_INSUFFISANT', 'BENEFICIAIRE', 'SMS');
-    }
-    
-    return true;
-  }
-  return false;
-};
-
-// Initier un retrait avec frais
-paiementSchema.methods.initierRetrait = function(compteDestinataire, delai = '24H') {
-  // Calculer les frais de retrait
-  const fraisRetrait = this.calculerFraisRetrait(this.montantConducteur);
-  
-  this.portefeuille.estRetrait = true;
-  this.portefeuille.compteDestinataire = compteDestinataire;
-  this.portefeuille.statutRetrait = 'EN_ATTENTE';
-  this.portefeuille.fraisRetrait = fraisRetrait;
-  this.portefeuille.delaiRetrait = delai;
-  
-  this.ajouterLog('INIT_RETRAIT', {
-    compte: compteDestinataire,
-    montant: this.montantConducteur,
-    frais: fraisRetrait,
-    delai
-  }, 'USER');
-  
-  return this;
-};
-
-// Calculer les frais de retrait (2% min 100 FCFA)
-paiementSchema.methods.calculerFraisRetrait = function(montant) {
-  const fraisPercentage = montant * 0.02; // 2%
-  return Math.max(fraisPercentage, 100); // Minimum 100 FCFA
-};
-
-// Initier une recharge
-paiementSchema.methods.initierRecharge = function(methodeRecharge, partenaire = null) {
-  this.recharge.estRecharge = true;
-  this.recharge.methodeRecharge = methodeRecharge;
-  this.recharge.dateRecharge = new Date();
-  
-  if (partenaire) {
-    this.recharge.partenaireAgree = partenaire;
-  }
-  
-  this.ajouterLog('INIT_RECHARGE', {
-    methode: methodeRecharge,
-    montant: this.montantTotal,
-    partenaire: partenaire?.nom
-  }, 'USER');
-  
-  return this;
-};
-
-// Vérifier si le paiement peut être remboursé selon les règles
-paiementSchema.methods.peutEtreRembourse = function() {
-  if (!this.remboursement.estRemboursable) return false;
-  
-  const statutsRemboursables = ['COMPLETE', 'TRAITE'];
-  const methodesRemboursables = ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'VISA', 'MASTERCARD'];
-  
-  // Vérifier le délai d'annulation gratuite
-  const maintenant = new Date();
-  const delaiEcoule = (maintenant - this.dateInitiation) / (1000 * 60); // en minutes
-  
-  if (delaiEcoule > this.remboursement.regleAnnulation.delaiAnnulationGratuite) {
-    // Annulation tardive avec frais
-    return statutsRemboursables.includes(this.statutPaiement) && 
-           methodesRemboursables.includes(this.methodePaiement) &&
-           !this.portefeuille.crediteDansPortefeuille;
-  }
-  
-  // Annulation dans les délais
-  return statutsRemboursables.includes(this.statutPaiement) && 
-         methodesRemboursables.includes(this.methodePaiement);
-};
-
-// Calculer le montant de remboursement selon les règles
-paiementSchema.methods.calculerMontantRemboursement = function() {
-  if (!this.peutEtreRembourse()) return 0;
-  
-  let montantBase = this.montantTotal;
-  
-  // Appliquer les règles de remboursement
-  switch (this.remboursement.typeRemboursement) {
-    case 'INTEGRAL':
-      break; // Pas de réduction
-    case 'PARTIEL_50':
-      montantBase *= 0.5;
-      break;
-    case 'PARTIEL_25':
-      montantBase *= 0.25;
-      break;
-    case 'NON_REMBOURSABLE':
-      return 0;
-    default:
-      break;
-  }
-  
-  // Vérifier si c'est une annulation tardive
-  const maintenant = new Date();
-  const delaiEcoule = (maintenant - this.dateInitiation) / (1000 * 60);
-  
-  if (delaiEcoule > this.remboursement.regleAnnulation.delaiAnnulationGratuite) {
-    // Appliquer les frais d'annulation tardive
-    const fraisAnnulation = montantBase * this.remboursement.regleAnnulation.fraisAnnulationTardive;
-    montantBase -= fraisAnnulation;
-  }
-  
-  return Math.max(montantBase, 0);
 };
 
 // Vérifier si une transition de statut est valide
 paiementSchema.methods.peutChangerStatut = function(nouveauStatut) {
   const transitionsValides = {
-    'EN_ATTENTE': ['TRAITE', 'ECHEC', 'EXPIRE', 'LITIGE'],
-    'TRAITE': ['COMPLETE', 'ECHEC', 'LITIGE'],
-    'COMPLETE': ['REMBOURSE', 'LITIGE'],
+    'EN_ATTENTE': ['TRAITE', 'ECHEC', 'REMBOURSE'],
+    'TRAITE': ['COMPLETE', 'ECHEC', 'REMBOURSE'],
+    'COMPLETE': ['REMBOURSE'],
     'ECHEC': ['EN_ATTENTE'],
-    'REMBOURSE': [],
-    'EXPIRE': ['EN_ATTENTE'],
-    'LITIGE': ['COMPLETE', 'ECHEC', 'REMBOURSE']
+    'REMBOURSE': []
   };
   
   return transitionsValides[this.statutPaiement]?.includes(nouveauStatut) || false;
@@ -1033,9 +598,9 @@ paiementSchema.methods.ajouterLog = function(action, details, source = 'SYSTEM',
     niveau
   });
   
-  // Limiter à 100 logs max
-  if (this.logsTransaction.length > 100) {
-    this.logsTransaction = this.logsTransaction.slice(-100);
+  // Limiter à 50 logs max
+  if (this.logsTransaction.length > 50) {
+    this.logsTransaction = this.logsTransaction.slice(-50);
   }
 };
 
@@ -1051,68 +616,38 @@ paiementSchema.methods.ajouterErreur = function(code, message, stack = null, con
   
   this.ajouterLog('ERREUR', { code, message }, 'SYSTEM', 'ERROR');
   
-  if (this.erreurs.length > 20) {
-    this.erreurs = this.erreurs.slice(-20);
+  if (this.erreurs.length > 10) {
+    this.erreurs = this.erreurs.slice(-10);
   }
 };
 
-// Obtenir le résumé complet du paiement
+// Obtenir le résumé du paiement
 paiementSchema.methods.obtenirResume = function() {
   return {
     id: this._id,
     referenceTransaction: this.referenceTransaction,
     montantTotal: this.montantTotal,
     montantConducteur: this.montantConducteur,
-    commissionPlateforme: this.commissionPlateforme,
+    commission: {
+      montant: this.commission.montant,
+      taux: this.commission.taux,
+      statutPrelevement: this.commission.statutPrelevement,
+      modePrelevement: this.commission.modePrelevement
+    },
     methodePaiement: this.methodePaiement,
     statutPaiement: this.statutPaiement,
+    reglesPaiement: this.reglesPaiement,
     dateInitiation: this.dateInitiation,
     dateCompletion: this.dateCompletion,
-    cinetpay: {
-      transactionId: this.cinetpay.transactionId,
-      status: this.cinetpay.status,
-      paymentMethod: this.cinetpay.paymentMethod,
-      paymentDate: this.cinetpay.paymentDate
-    },
-    portefeuille: {
-      crediteDansPortefeuille: this.portefeuille.crediteDansPortefeuille,
-      dateCreditPortefeuille: this.portefeuille.dateCreditPortefeuille,
-      soldeInsuffisant: this.soldeInsuffisant
-    },
-    securite: {
-      otpRequis: this.securite.otpRequis,
-      otpVerifie: this.securite.otpVerifie
-    },
-    litige: {
-      estEnLitige: this.litige.estEnLitige,
-      statutLitige: this.litige.statutLitige,
-      numeroLitige: this.litige.numeroLitige
-    },
-    remboursement: {
-      peutEtreRembourse: this.peutEtreRembourse(),
-      montantRemboursable: this.calculerMontantRemboursement()
-    }
+    mobileMoney: this.estPaiementMobile ? {
+      operateur: this.mobileMoney.operateur,
+      statut: this.mobileMoney.statutMobileMoney,
+      transactionId: this.mobileMoney.transactionId
+    } : null
   };
 };
 
-// Vérifier l'expiration et marquer comme expiré
-paiementSchema.methods.verifierExpiration = function() {
-  if (this.estExpire && this.statutPaiement === 'EN_ATTENTE') {
-    this.statutPaiement = 'EXPIRE';
-    this.cinetpay.status = 'EXPIRED';
-    this.ajouterLog('EXPIRATION_AUTOMATIQUE', {
-      dateExpiration: this.cinetpay.expirationDate
-    }, 'SYSTEM', 'WARNING');
-    
-    // Programmer notification d'expiration
-    this.programmerNotification('EXPIRATION_PAIEMENT', 'PAYEUR', 'SMS');
-    
-    return true;
-  }
-  return false;
-};
-
-// ===== MÉTHODES STATIQUES COMPLÈTES =====
+// ===== MÉTHODES STATIQUES =====
 
 // Obtenir les statistiques des commissions
 paiementSchema.statics.obtenirStatistiquesCommissions = async function(dateDebut, dateFin) {
@@ -1126,57 +661,92 @@ paiementSchema.statics.obtenirStatistiquesCommissions = async function(dateDebut
     {
       $group: {
         _id: null,
-        totalCommissions: { $sum: '$commissionPlateforme' },
+        totalCommissions: { $sum: '$commission.montant' },
         nombreTransactions: { $sum: 1 },
         montantTotalTraite: { $sum: '$montantTotal' },
-        montantMoyenTransaction: { $avg: '$montantTotal' }
+        montantMoyenTransaction: { $avg: '$montantTotal' },
+        commissionsParMode: {
+          $push: {
+            mode: '$commission.modePrelevement',
+            montant: '$commission.montant'
+          }
+        }
       }
     }
   ]);
 };
 
-// Obtenir les paiements CinetPay en attente
-paiementSchema.statics.obtenirPaiementsCinetPayEnAttente = async function(limiteTempo = 30) {
-  const dateLimite = new Date(Date.now() - (limiteTempo * 60 * 1000));
-  
+// Obtenir les paiements avec commission en échec
+paiementSchema.statics.obtenirCommissionsEnEchec = function() {
   return this.find({
-    'cinetpay.transactionId': { $exists: true },
-    'cinetpay.status': 'PENDING',
-    statutPaiement: 'EN_ATTENTE',
-    dateInitiation: { $lte: dateLimite }
-  });
+    'commission.statutPrelevement': 'echec',
+    statutPaiement: 'COMPLETE'
+  })
+  .populate('beneficiaireId', 'nom prenom email')
+  .populate('reservationId');
 };
 
-// Obtenir les paiements expirés
-paiementSchema.statics.obtenirPaiementsExpires = async function() {
-  const maintenant = new Date();
-  
-  return this.find({
-    'cinetpay.expirationDate': { $lt: maintenant },
-    statutPaiement: 'EN_ATTENTE',
-    'cinetpay.status': 'PENDING'
-  });
-};
-
-// Obtenir les paiements à créditer dans le portefeuille
-paiementSchema.statics.obtenirPaiementsACrediter = async function() {
-  return this.find({
-    statutPaiement: 'COMPLETE',
-    'portefeuille.crediteDansPortefeuille': false,
-    dateCompletion: { $exists: true }
-  }).populate('reservationId beneficiaireId');
-};
-
-// Obtenir les notifications en attente d'envoi
-paiementSchema.statics.obtenirNotificationsEnAttente = async function() {
-  return this.find({
-    'notifications.typesNotifications': {
-      $elemMatch: { envoye: false }
+// Statistiques par mode de paiement
+paiementSchema.statics.statistiquesParModePaiement = async function() {
+  return this.aggregate([
+    {
+      $match: {
+        statutPaiement: 'COMPLETE'
+      }
+    },
+    {
+      $group: {
+        _id: '$methodePaiement',
+        nombre: { $sum: 1 },
+        montantTotal: { $sum: '$montantTotal' },
+        commissionsTotal: { $sum: '$commission.montant' },
+        montantMoyen: { $avg: '$montantTotal' }
+      }
+    },
+    {
+      $sort: { nombre: -1 }
     }
-  }).populate('payeurId beneficiaireId');
+  ]);
 };
 
-// Export du modèle
-const Paiement = mongoose.model('Paiement', paiementSchema);
+// Obtenir les paiements en attente de traitement
+paiementSchema.statics.obtenirPaiementsEnAttente = function() {
+  return this.find({
+    statutPaiement: 'EN_ATTENTE',
+    dateInitiation: { 
+      $lt: new Date(Date.now() - 15 * 60 * 1000) // Plus de 15 minutes
+    }
+  })
+  .populate('payeurId beneficiaireId', 'nom prenom email telephone');
+};
 
-module.exports = Paiement;
+// Analyse des revenus pour tableau de bord admin
+paiementSchema.statics.analyseRevenus = async function(periode = 30) {
+  const dateDebut = new Date();
+  dateDebut.setDate(dateDebut.getDate() - periode);
+
+  return this.aggregate([
+    {
+      $match: {
+        statutPaiement: 'COMPLETE',
+        dateCompletion: { $gte: dateDebut }
+      }
+    },
+    {
+      $group: {
+        _id: {
+          $dateToString: { format: '%Y-%m-%d', date: '$dateCompletion' }
+        },
+        chiffreAffaires: { $sum: '$montantTotal' },
+        commissionsPerçues: { $sum: '$commission.montant' },
+        nombreTransactions: { $sum: 1 },
+        montantMoyenTransaction: { $avg: '$montantTotal' }
+      }
+    },
+    {
+      $sort: { '_id': 1 }
+    }
+  ]);
+};
+
+module.exports = mongoose.model('Paiement', paiementSchema);
