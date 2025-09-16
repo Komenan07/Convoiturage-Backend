@@ -1,15 +1,20 @@
-// controllers/auth/authController.js
-const User = require('../../models/Utilisateur');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+// controllers/authController.js
+const User = require('../models/Utilisateur');
 const crypto = require('crypto');
-const sendEmail = require('../../utils/emailService');
-const { logger } = require('../../utils/logger');
-const AppError = require('../../utils/AppError');
+const sendEmail = require('../utils/emailService');
+const { sendSMS } = require('../../services/notification/smsService');
+const { logger } = require('../utils/logger');
+const AppError = require('../utils/constants/errorConstants');
 const fs = require('fs');
 const path = require('path');
 
-// Fonction utilitaire pour charger et remplacer les variables dans un template
+// ===================================
+// FONCTIONS UTILITAIRES
+// ===================================
+
+/**
+ * Fonction utilitaire pour charger et remplacer les variables dans un template
+ */
 const chargerTemplate = (nomTemplate, variables = {}) => {
   try {
     const templatePath = path.join(process.cwd(), 'views', nomTemplate);
@@ -28,6 +33,13 @@ const chargerTemplate = (nomTemplate, variables = {}) => {
   }
 };
 
+// ===================================
+// CONTRÔLEURS D'INSCRIPTION
+// ===================================
+
+/**
+ * Inscription avec vérification EMAIL (système actuel)
+ */
 const inscription = async (req, res, next) => {
   try {
     logger.info('Tentative d\'inscription', { email: req.body.email });
@@ -40,8 +52,8 @@ const inscription = async (req, res, next) => {
       telephone,
       dateNaissance,
       sexe,
-      adresse,
-      role = 'passager'
+      role = 'passager',
+      adresse
     } = req.body;
 
     // Validation des champs requis
@@ -59,25 +71,29 @@ const inscription = async (req, res, next) => {
     }).maxTimeMS(30000);
     
     if (existingUser) {
-      logger.warn('Inscription échouée - Utilisateur existe déjà', { email, telephone });
-      const champ = existingUser.email === email ? 'email' : 'telephone';
+      logger.warn('Inscription échouée - Email ou téléphone déjà utilisé', { email, telephone });
       return res.status(409).json({
         success: false,
-        message: `Un compte avec ce ${champ} existe déjà`,
-        champ
+        message: 'Un compte avec cet email ou ce numéro existe déjà'
       });
     }
 
+    // Générer un token de confirmation d'email
+    const confirmationToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
+
     // Créer un nouvel utilisateur
     const userData = {
-      nom: nom.trim(),
-      prenom: prenom.trim(),
-      email: email.toLowerCase().trim(),
+      nom,
+      prenom,
+      email,
       motDePasse, // Sera hashé par le middleware pre-save
-      telephone: telephone.trim(),
-      role,
+      telephone,
+      role: ['conducteur', 'passager', 'les_deux'].includes(role) ? role : 'passager',
       statutCompte: 'EN_ATTENTE_VERIFICATION',
       tentativesConnexionEchouees: 0,
+      tokenConfirmationEmail: hashedToken,
+      expirationTokenConfirmation: Date.now() + 24 * 60 * 60 * 1000, // 24 heures
       // Initialiser le compte covoiturage
       compteCovoiturage: {
         solde: 0,
@@ -92,8 +108,8 @@ const inscription = async (req, res, next) => {
         historiqueCommissions: [],
         parametresRetrait: {},
         limites: {
-          retraitJournalier: 1000000, // 1M FCFA
-          retraitMensuel: 5000000,    // 5M FCFA
+          retraitJournalier: 1000000,
+          retraitMensuel: 5000000,
           montantRetireAujourdhui: 0,
           montantRetireCeMois: 0
         }
@@ -106,11 +122,6 @@ const inscription = async (req, res, next) => {
     if (adresse) userData.adresse = adresse;
 
     const newUser = new User(userData);
-
-    // Générer token de confirmation
-    const confirmationToken = newUser.getEmailConfirmationToken();
-    
-    // Sauvegarder l'utilisateur
     await newUser.save({ maxTimeMS: 30000 });
 
     // Envoyer l'email de confirmation
@@ -146,12 +157,9 @@ const inscription = async (req, res, next) => {
         telephone: newUser.telephone,
         role: newUser.role,
         statutCompte: newUser.statutCompte,
-        // Informations compte covoiturage initial
         compteCovoiturage: {
           solde: newUser.compteCovoiturage.solde,
-          estRecharge: newUser.compteCovoiturage.estRecharge,
-          peutAccepterCourses: newUser.peutAccepterCourses,
-          compteRechargeActif: newUser.compteRechargeActif
+          estRecharge: newUser.compteCovoiturage.estRecharge
         }
       }
     });
@@ -159,16 +167,6 @@ const inscription = async (req, res, next) => {
   } catch (error) {
     logger.error('Erreur inscription:', error);
 
-    // Gestion des erreurs MongoDB
-    if (error.name === 'MongoTimeoutError' || 
-        (error.name === 'MongoError' && error.message.includes('timed out'))) {
-      return next(AppError.serverError('Délai d\'attente de la base de données dépassé', { 
-        originalError: error.message,
-        isTimeout: true
-      }));
-    }
-
-    // Gestion des erreurs de validation
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
@@ -178,14 +176,10 @@ const inscription = async (req, res, next) => {
       });
     }
 
-    // Gestion des erreurs de duplication
     if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern)[0];
-      const fieldName = field === 'email' ? 'email' : 'numéro de téléphone';
       return res.status(409).json({
         success: false,
-        message: `Un compte avec ce ${fieldName} existe déjà`,
-        champ: field
+        message: 'Un compte avec cet email ou ce numéro existe déjà'
       });
     }
 
@@ -195,13 +189,531 @@ const inscription = async (req, res, next) => {
   }
 };
 
+/**
+ * Inscription avec vérification SMS
+ */
+const inscriptionSMS = async (req, res, next) => {
+  try {
+    logger.info('Tentative d\'inscription SMS', { telephone: req.body.telephone });
+
+    const { 
+      nom, 
+      prenom, 
+      email,
+      motDePasse, 
+      telephone,
+      dateNaissance,
+      sexe,
+      role = 'passager',
+      adresse
+    } = req.body;
+
+    // Validation des champs requis
+    if (!nom || !prenom || !telephone || !motDePasse) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tous les champs obligatoires doivent être renseignés',
+        champsRequis: ['nom', 'prenom', 'telephone', 'motDePasse']
+      });
+    }
+
+    // Vérifier si l'utilisateur existe déjà par téléphone
+    const existingUser = await User.findOne({ telephone }).maxTimeMS(30000);
+    if (existingUser) {
+      logger.warn('Inscription SMS échouée - Téléphone déjà utilisé', { telephone });
+      return res.status(409).json({
+        success: false,
+        message: 'Un compte avec ce numéro de téléphone existe déjà'
+      });
+    }
+
+    // Vérifier l'email s'il est fourni
+    if (email) {
+      const existingEmailUser = await User.findOne({ email }).maxTimeMS(30000);
+      if (existingEmailUser) {
+        logger.warn('Inscription SMS échouée - Email déjà utilisé', { email });
+        return res.status(409).json({
+          success: false,
+          message: 'Un compte avec cet email existe déjà'
+        });
+      }
+    }
+
+    // Générer un code de vérification SMS (6 chiffres)
+    const codeSMS = Math.floor(100000 + Math.random() * 900000).toString();
+    const expirationCodeSMS = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    // Créer un nouvel utilisateur
+    const userData = {
+      nom,
+      prenom,
+      telephone,
+      motDePasse, // Sera hashé par le middleware pre-save
+      role: ['conducteur', 'passager', 'les_deux'].includes(role) ? role : 'passager',
+      statutCompte: 'EN_ATTENTE_VERIFICATION',
+      tentativesConnexionEchouees: 0,
+      codeSMS: codeSMS,
+      expirationCodeSMS: expirationCodeSMS,
+      // Initialiser le compte covoiturage
+      compteCovoiturage: {
+        solde: 0,
+        estRecharge: false,
+        seuilMinimum: 0,
+        historiqueRecharges: [],
+        totalCommissionsPayees: 0,
+        totalGagnes: 0,
+        modeAutoRecharge: {
+          active: false
+        },
+        historiqueCommissions: [],
+        parametresRetrait: {},
+        limites: {
+          retraitJournalier: 1000000,
+          retraitMensuel: 5000000,
+          montantRetireAujourdhui: 0,
+          montantRetireCeMois: 0
+        }
+      }
+    };
+
+    // Ajouter les champs optionnels
+    if (email) userData.email = email;
+    if (dateNaissance) userData.dateNaissance = dateNaissance;
+    if (sexe) userData.sexe = sexe;
+    if (adresse) userData.adresse = adresse;
+
+    const newUser = new User(userData);
+    await newUser.save({ maxTimeMS: 30000 });
+
+    // Envoyer le SMS de vérification
+    try {
+      await sendSMS({
+        to: newUser.telephone,
+        message: `Votre code de vérification WAYZ-ECO est: ${codeSMS}. Ce code expire dans 10 minutes.`
+      });
+
+      logger.info('SMS de vérification envoyé', { userId: newUser._id, telephone: newUser.telephone });
+      
+    } catch (smsError) {
+      logger.error('Erreur envoi SMS:', smsError);
+      await User.findByIdAndDelete(newUser._id);
+      return res.status(500).json({
+        success: false,
+        message: 'Impossible d\'envoyer le SMS de vérification. Veuillez réessayer.',
+        debug: process.env.NODE_ENV === 'development' ? smsError.message : undefined
+      });
+    }
+
+    logger.info('Inscription SMS réussie', { userId: newUser._id });
+    res.status(201).json({
+      success: true,
+      message: 'Compte créé avec succès. Un code de vérification a été envoyé par SMS.',
+      user: {
+        id: newUser._id,
+        nom: newUser.nom,
+        prenom: newUser.prenom,
+        telephone: newUser.telephone,
+        email: newUser.email || null,
+        role: newUser.role,
+        statutCompte: newUser.statutCompte,
+        compteCovoiturage: {
+          solde: newUser.compteCovoiturage.solde,
+          estRecharge: newUser.compteCovoiturage.estRecharge
+        }
+      },
+      nextStep: {
+        action: 'VERIFIER_SMS',
+        message: 'Veuillez saisir le code reçu par SMS pour activer votre compte'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur inscription SMS:', error);
+    return next(AppError.serverError('Erreur serveur lors de l\'inscription SMS', { 
+      originalError: error.message
+    }));
+  }
+};
+
+// ===================================
+// CONTRÔLEURS DE CONFIRMATION
+// ===================================
+
+/**
+ * Confirmer l'email
+ */
+const confirmerEmail = async (req, res, next) => {
+  try {
+    let token;
+    
+    if (req.params.token) {
+      token = req.params.token;
+    } else if (req.query.token) {
+      token = req.query.token;
+    }
+    
+    if (!token) {
+      logger.warn('Confirmation email - Token manquant');
+      return res.status(400).json({
+        success: false,
+        message: 'Token de confirmation manquant'
+      });
+    }
+    
+    logger.info('Tentative de confirmation d\'email', { token: token.substring(0, 10) + '...' });
+    
+    // Hash le token pour comparer avec celui en base
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    
+    const user = await User.findOne({
+      tokenConfirmationEmail: hashedToken,
+      expirationTokenConfirmation: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      logger.warn('Confirmation email - Token invalide ou expiré', { token: token.substring(0, 10) + '...' });
+      return res.status(400).json({
+        success: false,
+        message: 'Lien de confirmation invalide ou expiré'
+      });
+    }
+
+    if (user.statutCompte === 'ACTIF') {
+      logger.info('Confirmation email - Compte déjà confirmé', { userId: user._id });
+      return res.json({
+        success: true,
+        message: 'Votre compte est déjà confirmé'
+      });
+    }
+
+    // Confirmer le compte
+    user.statutCompte = 'ACTIF';
+    user.tokenConfirmationEmail = undefined;
+    user.expirationTokenConfirmation = undefined;
+    user.emailConfirmeLe = new Date();
+    user.estVerifie = true;
+    
+    await user.save();
+
+    logger.info('Email confirmé avec succès', { userId: user._id });
+    
+    // Envoyer un email de bienvenue
+    try {
+      const welcomeHtml = chargerTemplate('welcome-template.html', {
+        'user.prenom': user.prenom,
+        'dashboardUrl': `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard`
+      });
+
+      await sendEmail({
+        to: user.email,
+        subject: 'Bienvenue ! Votre compte WAYZ-ECO est activé',
+        html: welcomeHtml
+      });
+    } catch (emailError) {
+      logger.error('Erreur envoi email bienvenue:', emailError);
+    }
+
+    // Charger et afficher le template de validation
+    try {
+      const validationHtml = chargerTemplate('validation-template.html', {
+        'user.prenom': user.prenom,
+        'user.email': user.email
+      });
+      
+      res.setHeader('Content-Type', 'text/html');
+      res.send(validationHtml);
+    } catch (templateError) {
+      logger.error('Erreur chargement template validation:', templateError);
+      res.setHeader('Content-Type', 'text/html');
+      res.send(`
+        <html>
+          <head><title>Email confirmé - WAYZ-ECO</title></head>
+          <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+            <h1 style="color: #28a745;">Email confirmé avec succès !</h1>
+            <p>Bonjour ${user.prenom}, votre compte WAYZ-ECO est maintenant actif.</p>
+            <p>Vous pouvez fermer cette fenêtre et vous connecter à l'application.</p>
+          </body>
+        </html>
+      `);
+    }
+    
+  } catch (error) {
+    logger.error('Erreur confirmation email:', error);
+    return next(AppError.serverError('Erreur serveur lors de la confirmation de l\'email', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Vérifier le code SMS
+ */
+const verifierCodeSMS = async (req, res, next) => {
+  try {
+    const { telephone, codeSMS } = req.body;
+
+    if (!telephone || !codeSMS) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le téléphone et le code SMS sont requis'
+      });
+    }
+
+    if (!/^[0-9]{6}$/.test(codeSMS)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le code SMS doit contenir exactement 6 chiffres'
+      });
+    }
+
+    const user = await User.findOne({ telephone })
+      .select('+codeSMS +expirationCodeSMS')
+      .maxTimeMS(30000);
+
+    if (!user) {
+      logger.warn('Vérification SMS échouée - Utilisateur non trouvé', { telephone });
+      return res.status(404).json({
+        success: false,
+        message: 'Aucun utilisateur trouvé avec ce numéro de téléphone'
+      });
+    }
+
+    if (user.statutCompte === 'ACTIF') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce compte est déjà vérifié'
+      });
+    }
+
+    // Vérifier le code SMS
+    if (!user.codeSMS || user.codeSMS !== codeSMS) {
+      logger.warn('Vérification SMS échouée - Code incorrect', { userId: user._id, telephone });
+      return res.status(400).json({
+        success: false,
+        message: 'Code SMS incorrect'
+      });
+    }
+
+    // Vérifier l'expiration
+    if (!user.expirationCodeSMS || user.expirationCodeSMS < Date.now()) {
+      logger.warn('Vérification SMS échouée - Code expiré', { userId: user._id, telephone });
+      return res.status(400).json({
+        success: false,
+        message: 'Code SMS expiré'
+      });
+    }
+
+    // Code valide - confirmer le téléphone
+    user.statutCompte = 'ACTIF';
+    user.codeSMS = undefined;
+    user.expirationCodeSMS = undefined;
+    user.estVerifie = true;
+    await user.save();
+
+    // Générer le token JWT
+    const token = user.getSignedJwtToken();
+
+    logger.info('Vérification SMS réussie', { userId: user._id, telephone });
+
+    res.status(200).json({
+      success: true,
+      message: 'Téléphone vérifié avec succès. Votre compte est maintenant actif.',
+      token,
+      user: {
+        id: user._id,
+        nom: user.nom,
+        prenom: user.prenom,
+        telephone: user.telephone,
+        email: user.email || null,
+        role: user.role,
+        statutCompte: user.statutCompte,
+        compteCovoiturage: {
+          solde: user.compteCovoiturage.solde,
+          estRecharge: user.compteCovoiturage.estRecharge,
+          peutAccepterCourses: user.peutAccepterCourses
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur vérification SMS:', error);
+    return next(AppError.serverError('Erreur serveur lors de la vérification SMS', { 
+      originalError: error.message
+    }));
+  }
+};
+
+/**
+ * Renvoyer l'email de confirmation
+ */
+const renvoyerConfirmationEmail = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email requis'
+      });
+    }
+    
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.json({
+        success: true,
+        message: 'Si un compte existe avec cet email, un nouveau lien de confirmation a été envoyé'
+      });
+    }
+    
+    if (user.statutCompte === 'ACTIF') {
+      return res.json({
+        success: true,
+        message: 'Votre compte est déjà confirmé'
+      });
+    }
+    
+    // Générer un nouveau token
+    const confirmationToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
+    
+    user.tokenConfirmationEmail = hashedToken;
+    user.expirationTokenConfirmation = Date.now() + 24 * 60 * 60 * 1000;
+    
+    await user.save();
+    
+    const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
+    
+    try {
+      const emailHtml = chargerTemplate('envoiEmail-template.html', {
+        'newUser.prenom': user.prenom,
+        'confirmationUrl': confirmationUrl
+      });
+
+      await sendEmail({
+        to: user.email,
+        subject: 'Confirmez votre adresse email - WAYZ-ECO',
+        html: emailHtml
+      });
+    } catch (emailError) {
+      logger.error('Erreur renvoi email confirmation:', emailError);
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'envoi de l\'email'
+      });
+    }
+    
+    logger.info('Email de confirmation renvoyé', { userId: user._id });
+    
+    res.json({
+      success: true,
+      message: 'Un nouveau lien de confirmation a été envoyé'
+    });
+    
+  } catch (error) {
+    logger.error('Erreur renvoi confirmation email:', error);
+    return next(AppError.serverError('Erreur serveur lors du renvoi de l\'email', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Renvoyer un code SMS
+ */
+const renvoyerCodeSMS = async (req, res, next) => {
+  try {
+    const { telephone } = req.body;
+
+    if (!telephone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone est requis'
+      });
+    }
+
+    const user = await User.findOne({ telephone })
+      .select('+codeSMS +expirationCodeSMS')
+      .maxTimeMS(30000);
+
+    if (!user) {
+      logger.warn('Renvoi SMS échoué - Utilisateur non trouvé', { telephone });
+      return res.status(404).json({
+        success: false,
+        message: 'Aucun utilisateur trouvé avec ce numéro de téléphone'
+      });
+    }
+
+    if (user.statutCompte === 'ACTIF') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce compte est déjà vérifié'
+      });
+    }
+
+    // Limiter les renvois (2 minutes)
+    const maintenant = new Date();
+    const tempsEcoule = user.expirationCodeSMS ? 
+      maintenant - (user.expirationCodeSMS - 10 * 60 * 1000) : 
+      Infinity;
+    
+    if (tempsEcoule < 2 * 60 * 1000) {
+      const tempsRestant = Math.ceil((2 * 60 * 1000 - tempsEcoule) / 1000);
+      return res.status(429).json({
+        success: false,
+        message: `Veuillez attendre ${tempsRestant} secondes avant de demander un nouveau code`
+      });
+    }
+
+    // Générer un nouveau code
+    const nouveauCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.codeSMS = nouveauCode;
+    user.expirationCodeSMS = Date.now() + 10 * 60 * 1000;
+    await user.save();
+
+    // Envoyer le SMS
+    try {
+      await sendSMS({
+        to: user.telephone,
+        message: `Votre nouveau code de vérification WAYZ-ECO est: ${nouveauCode}. Ce code expire dans 10 minutes.`
+      });
+
+      logger.info('Nouveau SMS envoyé', { userId: user._id, telephone });
+      
+      res.status(200).json({
+        success: true,
+        message: 'Un nouveau code de vérification a été envoyé par SMS'
+      });
+
+    } catch (smsError) {
+      logger.error('Erreur envoi SMS:', smsError);
+      return res.status(500).json({
+        success: false,
+        message: 'Impossible d\'envoyer le SMS. Veuillez réessayer plus tard.'
+      });
+    }
+
+  } catch (error) {
+    logger.error('Erreur renvoi SMS:', error);
+    return next(AppError.serverError('Erreur serveur lors du renvoi SMS', { 
+      originalError: error.message
+    }));
+  }
+};
+
+// ===================================
+// CONTRÔLEURS DE CONNEXION
+// ===================================
+
+/**
+ * Connexion utilisateur
+ */
 const connexion = async (req, res, next) => {
   try {
     logger.info('Tentative de connexion', { email: req.body.email });
     
     const { email, motDePasse } = req.body;
 
-    // Validation des champs requis
     if (!email || !motDePasse) {
       return res.status(400).json({
         success: false,
@@ -210,10 +722,8 @@ const connexion = async (req, res, next) => {
       });
     }
 
-    // Récupérer l'utilisateur avec le mot de passe
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+motDePasse');
+    const user = await User.findOne({ email }).select('+motDePasse');
     
-    // EMAIL INCORRECT
     if (!user) {
       logger.warn('Connexion échouée - Email incorrect', { email });
       return res.status(401).json({
@@ -233,7 +743,6 @@ const connexion = async (req, res, next) => {
         raison: statutAutorise.raison 
       });
       
-      // Messages spécifiques selon le statut
       let messageStatut = '';
       let codeErreurStatut = '';
 
@@ -267,11 +776,21 @@ const connexion = async (req, res, next) => {
       });
     }
 
-    // VÉRIFICATION MOT DE PASSE
+    // Vérifier le mot de passe
     let isMatch = false;
     
     try {
+      if (!user.motDePasse.startsWith('$2')) {
+        logger.warn('Hash corrompu détecté', { userId: user._id });
+        return res.status(500).json({
+          success: false,
+          message: 'Erreur de sécurité du compte. Veuillez réinitialiser votre mot de passe.',
+          codeErreur: 'CORRUPTED_HASH'
+        });
+      }
+      
       isMatch = await user.verifierMotDePasse(motDePasse.trim());
+      
     } catch (bcryptError) {
       logger.error('Erreur vérification mot de passe', { error: bcryptError.message, userId: user._id });
       return res.status(500).json({
@@ -281,13 +800,11 @@ const connexion = async (req, res, next) => {
       });
     }
 
-    // MOT DE PASSE INCORRECT
     if (!isMatch) {
       // Incrémenter les tentatives échouées
       user.tentativesConnexionEchouees += 1;
       user.derniereTentativeConnexion = new Date();
       
-      // Bloquer temporairement après 5 tentatives
       if (user.tentativesConnexionEchouees >= 5) {
         user.compteBloqueLe = new Date();
       }
@@ -339,35 +856,23 @@ const connexion = async (req, res, next) => {
         id: user._id,
         nom: user.nom,
         prenom: user.prenom,
-        nomComplet: user.nomComplet,
         email: user.email,
         telephone: user.telephone,
         role: user.role,
         photoProfil: user.photoProfil,
         statutCompte: user.statutCompte,
-        estVerifie: user.estVerifie,
+        dateInscription: user.dateInscription,
         scoreConfiance: user.scoreConfiance,
         noteGenerale: user.noteGenerale,
         badges: user.badges,
-        // Informations compte covoiturage
+        estVerifie: user.estVerifie,
         compteCovoiturage: {
           solde: user.compteCovoiturage.solde,
           estRecharge: user.compteCovoiturage.estRecharge,
-          seuilMinimum: user.compteCovoiturage.seuilMinimum,
           totalGagnes: user.compteCovoiturage.totalGagnes,
-          totalCommissionsPayees: user.compteCovoiturage.totalCommissionsPayees,
-          // Virtuals
           peutAccepterCourses: user.peutAccepterCourses,
-          compteRechargeActif: user.compteRechargeActif,
-          soldeDisponible: user.soldeDisponible,
-          peutRetirerGains: user.peutRetirerGains
-        },
-        // Informations conducteur si applicable
-        ...(user.role === 'conducteur' || user.role === 'les_deux' ? {
-          vehicule: user.vehicule
-        } : {}),
-        preferences: user.preferences,
-        adresse: user.adresse
+          compteRechargeActif: user.compteRechargeActif
+        }
       }
     });
     
@@ -377,6 +882,9 @@ const connexion = async (req, res, next) => {
   }
 };
 
+/**
+ * Connexion administrateur
+ */
 const connexionAdmin = async (req, res, next) => {
   try {
     logger.info('Tentative de connexion admin', { email: req.body.email });
@@ -391,14 +899,10 @@ const connexionAdmin = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({ 
-      email: email.toLowerCase(), 
-      role: 'admin' 
-    }).select('+motDePasse');
+    const user = await User.findOne({ email, role: 'admin' }).select('+motDePasse');
     
     if (!user) {
-      // Vérifier s'il existe un utilisateur avec cet email mais pas admin
-      const userExists = await User.findOne({ email: email.toLowerCase() });
+      const userExists = await User.findOne({ email });
       
       if (userExists) {
         return res.status(403).json({
@@ -439,16 +943,6 @@ const connexionAdmin = async (req, res, next) => {
       });
     }
 
-    // Réinitialiser les tentatives échouées
-    if (user.tentativesConnexionEchouees > 0) {
-      user.tentativesConnexionEchouees = 0;
-      user.derniereTentativeConnexion = null;
-      user.compteBloqueLe = null;
-    }
-    
-    user.derniereConnexion = new Date();
-    await user.save();
-
     const token = user.getSignedJwtToken();
 
     logger.info('Connexion admin réussie', { userId: user._id });
@@ -461,10 +955,8 @@ const connexionAdmin = async (req, res, next) => {
         id: user._id,
         nom: user.nom,
         prenom: user.prenom,
-        nomComplet: user.nomComplet,
         email: user.email,
-        role: user.role,
-        photoProfil: user.photoProfil
+        role: user.role
       }
     });
     
@@ -474,6 +966,13 @@ const connexionAdmin = async (req, res, next) => {
   }
 };
 
+// ===================================
+// CONTRÔLEURS DE SESSION
+// ===================================
+
+/**
+ * Déconnexion utilisateur
+ */
 const deconnexion = async (req, res, next) => {
   try {
     const userId = req.user.userId;
@@ -490,9 +989,13 @@ const deconnexion = async (req, res, next) => {
   }
 };
 
+/**
+ * Vérification de token
+ */
 const verifierToken = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(req.user.userId)
+      .select('-motDePasse -tokenResetMotDePasse -expirationTokenReset -tokenConfirmationEmail -expirationTokenConfirmation -codeSMS -expirationCodeSMS');
     
     if (!user) {
       logger.warn('Vérification token - Utilisateur non trouvé', { userId: req.user.userId });
@@ -509,13 +1012,15 @@ const verifierToken = async (req, res, next) => {
         id: user._id,
         nom: user.nom,
         prenom: user.prenom,
-        nomComplet: user.nomComplet,
         email: user.email,
+        telephone: user.telephone,
         role: user.role,
+        photoProfil: user.photoProfil,
         statutCompte: user.statutCompte,
         compteCovoiturage: {
           solde: user.compteCovoiturage.solde,
           estRecharge: user.compteCovoiturage.estRecharge,
+          totalGagnes: user.compteCovoiturage.totalGagnes,
           peutAccepterCourses: user.peutAccepterCourses,
           compteRechargeActif: user.compteRechargeActif
         }
@@ -528,9 +1033,13 @@ const verifierToken = async (req, res, next) => {
   }
 };
 
+/**
+ * Obtenir utilisateur connecté
+ */
 const obtenirUtilisateurConnecte = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(req.user.userId)
+      .select('-motDePasse -tokenResetMotDePasse -expirationTokenReset -tokenConfirmationEmail -expirationTokenConfirmation -codeSMS -expirationCodeSMS');
     
     if (!user) {
       logger.warn('Profil utilisateur non trouvé', { userId: req.user.userId });
@@ -540,7 +1049,8 @@ const obtenirUtilisateurConnecte = async (req, res, next) => {
       });
     }
 
-    const userResponse = {
+    // Enrichir les données avec les informations virtuelles
+    const userData = {
       id: user._id,
       nom: user.nom,
       prenom: user.prenom,
@@ -548,38 +1058,38 @@ const obtenirUtilisateurConnecte = async (req, res, next) => {
       email: user.email,
       telephone: user.telephone,
       dateNaissance: user.dateNaissance,
+      age: user.age,
       sexe: user.sexe,
       photoProfil: user.photoProfil,
       role: user.role,
-      statutCompte: user.statutCompte,
-      dateInscription: user.dateInscription,
-      derniereConnexion: user.derniereConnexion,
-      estVerifie: user.estVerifie,
-      age: user.age,
+      adresse: user.adresse,
+      preferences: user.preferences,
+      contactsUrgence: user.contactsUrgence,
       scoreConfiance: user.scoreConfiance,
       nombreTrajetsEffectues: user.nombreTrajetsEffectues,
       nombreTrajetsAnnules: user.nombreTrajetsAnnules,
       tauxAnnulation: user.tauxAnnulation,
       noteGenerale: user.noteGenerale,
       badges: user.badges,
-      documentIdentite: {
-        statutVerification: user.documentIdentite?.statutVerification || 'EN_ATTENTE',
-        estVerifie: user.estDocumentVerifie
-      },
-      adresse: user.adresse,
-      preferences: user.preferences,
-      contactsUrgence: user.contactsUrgence,
-      // Compte covoiturage complet
-      compteCovoiturage: user.obtenirResumeCompte(),
-      // Véhicule si conducteur
-      ...(user.role === 'conducteur' || user.role === 'les_deux' ? {
-        vehicule: user.vehicule
-      } : {})
+      statutCompte: user.statutCompte,
+      dateInscription: user.dateInscription,
+      derniereConnexion: user.derniereConnexion,
+      estVerifie: user.estVerifie,
+      estDocumentVerifie: user.estDocumentVerifie,
+      vehicule: user.vehicule,
+      documentIdentite: user.documentIdentite ? {
+        type: user.documentIdentite.type,
+        statutVerification: user.documentIdentite.statutVerification,
+        dateVerification: user.documentIdentite.dateVerification
+      } : null,
+      compteCovoiturage: {
+        ...user.obtenirResumeCompte()
+      }
     };
 
     res.json({
       success: true,
-      user: userResponse
+      user: userData
     });
     
   } catch (error) {
@@ -588,169 +1098,13 @@ const obtenirUtilisateurConnecte = async (req, res, next) => {
   }
 };
 
-// Confirmation d'email
-const confirmerEmail = async (req, res, next) => {
-  try {
-    let token;
-    
-    if (req.params.token) {
-      token = req.params.token;
-    } else if (req.query.token) {
-      token = req.query.token;
-    }
-    
-    if (!token) {
-      logger.warn('Confirmation email - Token manquant');
-      return res.status(400).json({
-        success: false,
-        message: 'Token de confirmation manquant'
-      });
-    }
-    
-    logger.info('Tentative de confirmation d\'email', { token: token.substring(0, 10) + '...' });
-    
-    // Hasher le token reçu pour comparaison
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
-    
-    // Trouver l'utilisateur avec ce token
-    const user = await User.findOne({
-      tokenConfirmationEmail: hashedToken,
-      expirationTokenConfirmation: { $gt: Date.now() }
-    });
+// ===================================
+// RÉINITIALISATION MOT DE PASSE
+// ===================================
 
-    if (!user) {
-      logger.warn('Confirmation email - Token invalide ou expiré', { token: token.substring(0, 10) + '...' });
-      return res.status(400).json({
-        success: false,
-        message: 'Lien de confirmation invalide ou expiré'
-      });
-    }
-
-    // Vérifier si le compte est déjà confirmé
-    if (user.statutCompte === 'ACTIF') {
-      logger.info('Confirmation email - Compte déjà confirmé', { userId: user._id });
-      return res.json({
-        success: true,
-        message: 'Votre compte est déjà confirmé'
-      });
-    }
-
-    // Confirmer le compte
-    user.statutCompte = 'ACTIF';
-    user.tokenConfirmationEmail = undefined;
-    user.expirationTokenConfirmation = undefined;
-    user.emailConfirmeLe = new Date();
-    
-    await user.save();
-
-    logger.info('Email confirmé avec succès', { userId: user._id });
-    
-    // Afficher le template de validation
-    try {
-      const validationHtml = chargerTemplate('validation-template.html', {
-        'user.prenom': user.prenom,
-        'user.email': user.email
-      });
-      
-      res.setHeader('Content-Type', 'text/html');
-      res.send(validationHtml);
-    } catch (templateError) {
-      logger.error('Erreur chargement template validation:', templateError);
-      // Fallback
-      res.setHeader('Content-Type', 'text/html');
-      res.send(`
-        <html>
-          <head><title>Email confirmé - WAYZ-ECO</title></head>
-          <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-            <h1 style="color: #28a745;">Email confirmé avec succès !</h1>
-            <p>Bonjour ${user.prenom}, votre compte WAYZ-ECO est maintenant actif.</p>
-            <p>Vous pouvez fermer cette fenêtre et vous connecter à l'application.</p>
-          </body>
-        </html>
-      `);
-    }
-    
-  } catch (error) {
-    logger.error('Erreur confirmation email:', error);
-    return next(AppError.serverError('Erreur serveur lors de la confirmation de l\'email', { 
-      originalError: error.message 
-    }));
-  }
-};
-
-// Renvoyer l'email de confirmation
-const renvoyerConfirmationEmail = async (req, res, next) => {
-  try {
-    const { email } = req.body;
-    
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email requis'
-      });
-    }
-    
-    const user = await User.findOne({ email: email.toLowerCase() });
-    
-    if (!user) {
-      return res.json({
-        success: true,
-        message: 'Si un compte existe avec cet email, un nouveau lien de confirmation a été envoyé'
-      });
-    }
-    
-    if (user.statutCompte === 'ACTIF') {
-      return res.json({
-        success: true,
-        message: 'Votre compte est déjà confirmé'
-      });
-    }
-    
-    // Générer un nouveau token
-    const confirmationToken = user.getEmailConfirmationToken();
-    await user.save();
-    
-    // Renvoyer l'email
-    const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
-    
-    try {
-      const emailHtml = chargerTemplate('envoiEmail-template.html', {
-        'newUser.prenom': user.prenom,
-        'confirmationUrl': confirmationUrl
-      });
-
-      await sendEmail({
-        to: user.email,
-        subject: 'Confirmez votre adresse email - WAYZ-ECO',
-        html: emailHtml
-      });
-    } catch (emailError) {
-      logger.error('Erreur renvoi email confirmation:', emailError);
-      return res.status(500).json({
-        success: false,
-        message: 'Erreur lors de l\'envoi de l\'email'
-      });
-    }
-    
-    logger.info('Email de confirmation renvoyé', { userId: user._id });
-    
-    res.json({
-      success: true,
-      message: 'Un nouveau lien de confirmation a été envoyé'
-    });
-    
-  } catch (error) {
-    logger.error('Erreur renvoi confirmation email:', error);
-    return next(AppError.serverError('Erreur serveur lors du renvoi de l\'email', { 
-      originalError: error.message 
-    }));
-  }
-};
-
-// Mot de passe oublié
+/**
+ * Mot de passe oublié par EMAIL
+ */
 const motDePasseOublie = async (req, res, next) => {
   try {
     const { email } = req.body;
@@ -764,7 +1118,7 @@ const motDePasseOublie = async (req, res, next) => {
 
     logger.info('Demande mot de passe oublié', { email });
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email });
     if (!user) {
       logger.info('Demande réinitialisation - Email non trouvé (masqué)', { email });
       return res.json({
@@ -775,10 +1129,9 @@ const motDePasseOublie = async (req, res, next) => {
 
     // Générer un token de réinitialisation
     const resetToken = crypto.randomBytes(32).toString('hex');
-    user.tokenResetMotDePasse = crypto
-      .createHash('sha256')
-      .update(resetToken)
-      .digest('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    
+    user.tokenResetMotDePasse = hashedToken;
     user.expirationTokenReset = Date.now() + 3600000; // 1 heure
     await user.save();
 
@@ -820,13 +1173,161 @@ const motDePasseOublie = async (req, res, next) => {
   }
 };
 
-// Réinitialiser mot de passe
+/**
+ * Demande de réinitialisation par SMS
+ */
+const motDePasseOublieSMS = async (req, res, next) => {
+  try {
+    const { telephone } = req.body;
+
+    if (!telephone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numéro de téléphone requis'
+      });
+    }
+
+    logger.info('Demande mot de passe oublié SMS', { telephone });
+
+    const user = await User.findOne({ telephone });
+    if (!user) {
+      logger.info('Demande réinitialisation SMS - Téléphone non trouvé (masqué)', { telephone });
+      return res.json({
+        success: true,
+        message: 'Si un compte existe avec ce numéro, un code de réinitialisation a été envoyé'
+      });
+    }
+
+    // Vérifier les tentatives récentes
+    const maintenant = new Date();
+    if (user.expirationTokenReset && user.expirationTokenReset > maintenant) {
+      const tempsRestant = Math.ceil((user.expirationTokenReset - maintenant) / 60000);
+      return res.status(429).json({
+        success: false,
+        message: `Un code a déjà été envoyé. Attendez ${tempsRestant} minutes avant d'en demander un nouveau.`
+      });
+    }
+
+    // Générer un code OTP de réinitialisation
+    const codeOTPReset = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedCode = crypto.createHash('sha256').update(codeOTPReset).digest('hex');
+    
+    user.tokenResetMotDePasse = hashedCode;
+    user.expirationTokenReset = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save();
+
+    try {
+      await sendSMS({
+        to: user.telephone,
+        message: `Votre code de réinitialisation WAYZ-ECO est: ${codeOTPReset}. Ce code expire dans 10 minutes.`
+      });
+
+      logger.info('SMS réinitialisation envoyé', { userId: user._id, telephone });
+      
+      res.json({
+        success: true,
+        message: 'Un code de réinitialisation a été envoyé par SMS',
+        nextStep: {
+          action: 'SAISIR_CODE_OTP',
+          message: 'Veuillez saisir le code reçu par SMS'
+        }
+      });
+      
+    } catch (smsError) {
+      logger.error('Erreur envoi SMS réinitialisation:', smsError);
+      user.tokenResetMotDePasse = undefined;
+      user.expirationTokenReset = undefined;
+      await user.save();
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'envoi du SMS'
+      });
+    }
+
+  } catch (error) {
+    logger.error('Erreur mot de passe oublié SMS:', error);
+    return next(AppError.serverError('Erreur serveur lors de la demande de réinitialisation SMS', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Vérifier le code OTP pour réinitialisation
+ */
+const verifierCodeOTPReset = async (req, res, next) => {
+  try {
+    const { telephone, codeOTP } = req.body;
+
+    if (!telephone || !codeOTP) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numéro de téléphone et code OTP requis'
+      });
+    }
+
+    if (!/^[0-9]{6}$/.test(codeOTP)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le code OTP doit contenir exactement 6 chiffres'
+      });
+    }
+
+    logger.info('Vérification code OTP reset', { telephone });
+
+    const hashedCode = crypto.createHash('sha256').update(codeOTP).digest('hex');
+    
+    const user = await User.findOne({ 
+      telephone,
+      tokenResetMotDePasse: hashedCode,
+      expirationTokenReset: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      logger.warn('Vérification OTP reset échouée', { telephone });
+      return res.status(400).json({
+        success: false,
+        message: 'Code OTP invalide ou expiré'
+      });
+    }
+
+    // Code valide - générer un token temporaire pour la réinitialisation
+    const tempResetToken = crypto.randomBytes(32).toString('hex');
+    const hashedTempToken = crypto.createHash('sha256').update(tempResetToken).digest('hex');
+    
+    user.tokenResetMotDePasse = hashedTempToken;
+    user.expirationTokenReset = Date.now() + 15 * 60 * 1000; // 15 minutes
+    await user.save();
+
+    logger.info('Code OTP reset vérifié avec succès', { userId: user._id });
+
+    res.json({
+      success: true,
+      message: 'Code OTP vérifié avec succès',
+      resetToken: tempResetToken,
+      nextStep: {
+        action: 'NOUVEAU_MOT_DE_PASSE',
+        message: 'Vous pouvez maintenant définir un nouveau mot de passe'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur vérification code OTP reset:', error);
+    return next(AppError.serverError('Erreur serveur lors de la vérification OTP', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * Réinitialiser mot de passe
+ */
 const reinitialiserMotDePasse = async (req, res, next) => {
   try {
     const { token } = req.params;
-    const { password } = req.body;
+    const { motDePasse } = req.body;
     
-    if (!password) {
+    if (!motDePasse) {
       return res.status(400).json({
         success: false,
         message: 'Nouveau mot de passe requis'
@@ -835,11 +1336,7 @@ const reinitialiserMotDePasse = async (req, res, next) => {
     
     logger.info('Réinitialisation mot de passe', { token: token ? 'présent' : 'absent' });
     
-    // Hasher le token reçu pour comparaison
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     
     const user = await User.findOne({
       tokenResetMotDePasse: hashedToken,
@@ -850,12 +1347,12 @@ const reinitialiserMotDePasse = async (req, res, next) => {
       logger.warn('Réinitialisation mot de passe - Token invalide ou expiré', { token });
       return res.status(400).json({
         success: false,
-        message: 'Lien de réinitialisation invalide ou expiré'
+        message: 'Token de réinitialisation invalide ou expiré'
       });
     }
 
-    // Le mot de passe sera hashé par le middleware pre-save
-    user.motDePasse = password;
+    // Le nouveau mot de passe sera hashé par le middleware pre-save
+    user.motDePasse = motDePasse;
     user.tokenResetMotDePasse = undefined;
     user.expirationTokenReset = undefined;
     
@@ -878,16 +1375,56 @@ const reinitialiserMotDePasse = async (req, res, next) => {
   }
 };
 
-// ===== NOUVELLES FONCTIONS COMPTE COVOITURAGE =====
+/**
+ * Confirmer validité token de réinitialisation
+ */
+const confirmerReinitialisationMotDePasse = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token manquant'
+      });
+    }
+    
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    
+    const user = await User.findOne({
+      tokenResetMotDePasse: hashedToken,
+      expirationTokenReset: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token de réinitialisation invalide ou expiré'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Token valide pour réinitialisation'
+    });
+    
+  } catch (error) {
+    logger.error('Erreur confirmation réinitialisation:', error);
+    return next(AppError.serverError('Erreur serveur lors de la confirmation', { originalError: error.message }));
+  }
+};
+
+// ===================================
+// NOUVEAUX CONTRÔLEURS COMPTE COVOITURAGE
+// ===================================
 
 /**
- * Obtenir le statut du compte covoiturage
+ * Obtenir le résumé du compte covoiturage
  */
-const obtenirStatutCompteCovoiturage = async (req, res, next) => {
+const obtenirResumeCompteCovoiturage = async (req, res, next) => {
   try {
-    const userId = req.user.userId;
+    const user = await User.findById(req.user.userId);
     
-    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -899,43 +1436,12 @@ const obtenirStatutCompteCovoiturage = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: resumeCompte
+      compteCovoiturage: resumeCompte
     });
-    
+
   } catch (error) {
-    logger.error('Erreur obtention statut compte covoiturage:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération du compte', { 
-      originalError: error.message 
-    }));
-  }
-};
-
-/**
- * Vérifier l'éligibilité pour accepter des courses
- */
-const verifierEligibiliteCourses = async (req, res, next) => {
-  try {
-    const userId = req.user.userId;
-    const { modePaiementDemande } = req.query;
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Utilisateur non trouvé'
-      });
-    }
-
-    const eligibilite = user.peutAccepterCourse(modePaiementDemande);
-
-    res.json({
-      success: true,
-      data: eligibilite
-    });
-    
-  } catch (error) {
-    logger.error('Erreur vérification éligibilité courses:', error);
-    return next(AppError.serverError('Erreur serveur lors de la vérification', { 
+    logger.error('Erreur obtention résumé compte:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération du résumé du compte', { 
       originalError: error.message 
     }));
   }
@@ -946,10 +1452,10 @@ const verifierEligibiliteCourses = async (req, res, next) => {
  */
 const obtenirHistoriqueRecharges = async (req, res, next) => {
   try {
-    const userId = req.user.userId;
-    const { statut, limit, dateDebut, dateFin } = req.query;
+    const { statut, limit = 20, dateDebut, dateFin } = req.query;
     
-    const user = await User.findById(userId);
+    const user = await User.findById(req.user.userId);
+    
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -957,27 +1463,22 @@ const obtenirHistoriqueRecharges = async (req, res, next) => {
       });
     }
 
-    const options = {
+    const historique = user.obtenirHistoriqueRecharges({
       statut,
-      limit: parseInt(limit) || 20,
+      limit: parseInt(limit),
       dateDebut,
       dateFin
-    };
-
-    const historique = user.obtenirHistoriqueRecharges(options);
+    });
 
     res.json({
       success: true,
-      data: {
-        historique,
-        total: user.compteCovoiturage.historiqueRecharges.length,
-        filtres: options
-      }
+      historiqueRecharges: historique,
+      total: user.compteCovoiturage.historiqueRecharges.length
     });
-    
+
   } catch (error) {
-    logger.error('Erreur historique recharges:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération', { 
+    logger.error('Erreur obtention historique recharges:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération de l\'historique', { 
       originalError: error.message 
     }));
   }
@@ -988,10 +1489,10 @@ const obtenirHistoriqueRecharges = async (req, res, next) => {
  */
 const obtenirHistoriqueCommissions = async (req, res, next) => {
   try {
-    const userId = req.user.userId;
-    const { statut, limit, dateDebut, dateFin } = req.query;
+    const { statut, limit = 20, dateDebut, dateFin } = req.query;
     
-    const user = await User.findById(userId);
+    const user = await User.findById(req.user.userId);
+    
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -999,40 +1500,36 @@ const obtenirHistoriqueCommissions = async (req, res, next) => {
       });
     }
 
-    const options = {
+    const historique = user.obtenirHistoriqueCommissions({
       statut,
-      limit: parseInt(limit) || 20,
+      limit: parseInt(limit),
       dateDebut,
       dateFin
-    };
-
-    const historique = user.obtenirHistoriqueCommissions(options);
+    });
 
     res.json({
       success: true,
-      data: {
-        historique,
-        total: user.compteCovoiturage.historiqueCommissions.length,
-        filtres: options
-      }
+      historiqueCommissions: historique,
+      total: user.compteCovoiturage.historiqueCommissions.length
     });
-    
+
   } catch (error) {
-    logger.error('Erreur historique commissions:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération', { 
+    logger.error('Erreur obtention historique commissions:', error);
+    return next(AppError.serverError('Erreur serveur lors de la récupération de l\'historique des commissions', { 
       originalError: error.message 
     }));
   }
 };
 
 /**
- * Vérifier si une recharge automatique est nécessaire
+ * Vérifier si le conducteur peut accepter une course
  */
-const verifierAutoRecharge = async (req, res, next) => {
+const verifierCapaciteAcceptationCourse = async (req, res, next) => {
   try {
-    const userId = req.user.userId;
+    const { modePaiementDemande } = req.query;
     
-    const user = await User.findById(userId);
+    const user = await User.findById(req.user.userId);
+    
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -1040,165 +1537,64 @@ const verifierAutoRecharge = async (req, res, next) => {
       });
     }
 
-    const verificationAutoRecharge = user.verifierAutoRecharge();
+    const capaciteAcceptation = user.peutAccepterCourse(modePaiementDemande);
 
     res.json({
       success: true,
-      data: verificationAutoRecharge
+      peutAccepterCourse: capaciteAcceptation.autorise,
+      raison: capaciteAcceptation.raison || null,
+      modesAcceptes: capaciteAcceptation.modesAcceptes || [],
+      compteCovoiturage: {
+        solde: user.compteCovoiturage.solde,
+        estRecharge: user.compteCovoiturage.estRecharge,
+        compteRechargeActif: user.compteRechargeActif
+      }
     });
-    
+
   } catch (error) {
-    logger.error('Erreur vérification auto-recharge:', error);
+    logger.error('Erreur vérification capacité acceptation course:', error);
     return next(AppError.serverError('Erreur serveur lors de la vérification', { 
       originalError: error.message 
     }));
   }
 };
 
-/**
- * Initialiser le compte covoiturage pour les nouveaux conducteurs
- */
-const initialiserCompteCovoiturage = async (req, res, next) => {
-  try {
-    const userId = req.user.userId;
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Utilisateur non trouvé'
-      });
-    }
+// Alias pour compatibilité
+const demandeReinitialisationMotDePasse = motDePasseOublie;
 
-    // Vérifier que l'utilisateur peut être conducteur
-    if (user.role !== 'conducteur' && user.role !== 'les_deux') {
-      return res.status(403).json({
-        success: false,
-        message: 'Seuls les conducteurs peuvent initialiser un compte covoiturage'
-      });
-    }
-
-    // Vérifier si le compte est déjà initialisé
-    if (user.compteCovoiturage.historiqueRecharges.length > 0 || 
-        user.compteCovoiturage.historiqueCommissions.length > 0) {
-      return res.json({
-        success: true,
-        message: 'Compte covoiturage déjà initialisé',
-        data: user.obtenirResumeCompte()
-      });
-    }
-
-    // Le compte est déjà initialisé par défaut dans le modèle
-    const resumeCompte = user.obtenirResumeCompte();
-
-    logger.info('Compte covoiturage consulté', { userId });
-
-    res.json({
-      success: true,
-      message: 'Compte covoiturage prêt à l\'utilisation',
-      data: resumeCompte
-    });
-    
-  } catch (error) {
-    logger.error('Erreur initialisation compte covoiturage:', error);
-    return next(AppError.serverError('Erreur serveur lors de l\'initialisation', { 
-      originalError: error.message 
-    }));
-  }
-};
-
-/**
- * Obtenir les statistiques du compte covoiturage
- */
-const obtenirStatistiquesCompte = async (req, res, next) => {
-  try {
-    const userId = req.user.userId;
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Utilisateur non trouvé'
-      });
-    }
-
-    const maintenant = new Date();
-    const debutMois = new Date(maintenant.getFullYear(), maintenant.getMonth(), 1);
-    const debutAnnee = new Date(maintenant.getFullYear(), 0, 1);
-
-    // Statistiques personnalisées
-    const rechargesReussies = user.compteCovoiturage.historiqueRecharges.filter(r => r.statut === 'reussi');
-    const commissions = user.compteCovoiturage.historiqueCommissions.filter(c => c.statut === 'preleve');
-    
-    const rechargesCeMois = rechargesReussies.filter(r => r.date >= debutMois);
-    const rechargesCetteAnnee = rechargesReussies.filter(r => r.date >= debutAnnee);
-    
-    const commissionsCeMois = commissions.filter(c => c.date >= debutMois);
-    const commissionsCetteAnnee = commissions.filter(c => c.date >= debutAnnee);
-
-    const statistiques = {
-      general: {
-        soldeActuel: user.compteCovoiturage.solde,
-        estRecharge: user.compteCovoiturage.estRecharge,
-        totalGagnes: user.compteCovoiturage.totalGagnes,
-        totalCommissions: user.compteCovoiturage.totalCommissionsPayees,
-        beneficeNet: user.compteCovoiturage.totalGagnes - user.compteCovoiturage.totalCommissionsPayees
-      },
-      recharges: {
-        nombreTotal: rechargesReussies.length,
-        montantTotal: rechargesReussies.reduce((sum, r) => sum + r.montant, 0),
-        nombreCeMois: rechargesCeMois.length,
-        montantCeMois: rechargesCeMois.reduce((sum, r) => sum + r.montant, 0),
-        nombreCetteAnnee: rechargesCetteAnnee.length,
-        montantCetteAnnee: rechargesCetteAnnee.reduce((sum, r) => sum + r.montant, 0)
-      },
-      commissions: {
-        nombreTotal: commissions.length,
-        montantTotal: user.compteCovoiturage.totalCommissionsPayees,
-        nombreCeMois: commissionsCeMois.length,
-        montantCeMois: commissionsCeMois.reduce((sum, c) => sum + c.montant, 0),
-        nombreCetteAnnee: commissionsCetteAnnee.length,
-        montantCetteAnnee: commissionsCetteAnnee.reduce((sum, c) => sum + c.montant, 0)
-      },
-      moyennes: {
-        rechargeParMois: rechargesReussies.length > 0 ? 
-          Math.round(rechargesReussies.reduce((sum, r) => sum + r.montant, 0) / 
-          Math.max(1, Math.ceil((maintenant - new Date(user.dateInscription)) / (30 * 24 * 60 * 60 * 1000)))) : 0,
-        commissionParCourse: commissions.length > 0 ? 
-          Math.round(user.compteCovoiturage.totalCommissionsPayees / commissions.length) : 0
-      }
-    };
-
-    res.json({
-      success: true,
-      data: statistiques
-    });
-    
-  } catch (error) {
-    logger.error('Erreur statistiques compte:', error);
-    return next(AppError.serverError('Erreur serveur lors du calcul des statistiques', { 
-      originalError: error.message 
-    }));
-  }
-};
+// ===================================
+// EXPORTS DU MODULE
+// ===================================
 
 module.exports = {
+  // Inscription
   inscription,
+  inscriptionSMS,
+  
+  // Confirmation
+  confirmerEmail,
+  verifierCodeSMS,
+  renvoyerConfirmationEmail,
+  renvoyerCodeSMS,
+  
+  // Connexion
   connexion,
   connexionAdmin,
   deconnexion,
   verifierToken,
   obtenirUtilisateurConnecte,
-  confirmerEmail,
-  renvoyerConfirmationEmail,
+  
+  // Réinitialisation mot de passe
   motDePasseOublie,
+  motDePasseOublieSMS,
+  verifierCodeOTPReset,
   reinitialiserMotDePasse,
-  // NOUVELLES FONCTIONS COMPTE COVOITURAGE
-  obtenirStatutCompteCovoiturage,
-  verifierEligibiliteCourses,
+  demandeReinitialisationMotDePasse,
+  confirmerReinitialisationMotDePasse,
+  
+  // Nouveaux contrôleurs compte covoiturage
+  obtenirResumeCompteCovoiturage,
   obtenirHistoriqueRecharges,
   obtenirHistoriqueCommissions,
-  verifierAutoRecharge,
-  initialiserCompteCovoiturage,
-  obtenirStatistiquesCompte
+  verifierCapaciteAcceptationCourse
 };

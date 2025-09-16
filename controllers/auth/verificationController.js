@@ -3,7 +3,7 @@
 
 const User = require('../../models/Utilisateur');
 const { logger } = require('../../utils/logger');
-const AppError = require('../../utils/AppError');
+const AppError = require('../../utils/constants/errorConstants');
 const sendEmail = require('../../utils/emailService');
 
 /**

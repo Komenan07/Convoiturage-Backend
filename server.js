@@ -6,6 +6,8 @@ const connectDB = require('./config/db');
 const { errorHandler } = require('./middlewares/errorHandler');
 const http = require('http');
 const { globalRateLimit, smartRateLimit } = require('./middlewares/rateLimiter');
+const { adminMiddleware } = require('./middlewares/auth/authMiddleware');
+const { authMiddleware } = require('./middlewares/auth/adminMiddleware');
 const helmet = require('helmet');
 require('dotenv').config();
 
@@ -82,8 +84,8 @@ const chargerRouteSecurisee = (cheminRoute, nomRoute, urlBase) => {
 // Configuration des routes
 console.log('🚀 Chargement des routes...\n');
 const routesConfig = [
-  { nom: 'authentification', chemins: ['./routes/authRoute.js'], url: '/api/auth' },
-  { nom: 'utilisateurs', chemins: ['./routes/utilisateur.js'], url: '/api/utilisateurs' },
+  { nom: 'authentification', chemins: ['./routes/auth/authRoute.js'], url: '/api/auth' },
+  { nom: 'utilisateurs', chemins: ['./routes/auth/utilisateur.js'], url: '/api/utilisateurs' },
   { nom: 'véhicules', chemins: ['./routes/vehicules.js'], url: '/api/vehicules' },
   { nom: 'trajets', chemins: ['./routes/trajets.js'], url: '/api/trajets' },
   { nom: 'réservations', chemins: ['./routes/reservations.js'], url: '/api/reservations' },
