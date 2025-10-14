@@ -1,0 +1,30 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 90
+    },
+    "auditLog": "C:\\Projet perso\\Convoiturage-Backend2\\logs\\security-audit.json",
+    "files": [
+        {
+            "date": 1754754788837,
+            "name": "C:\\Projet perso\\Convoiturage-Backend2\\logs\\security-2025-08-09.log",
+            "hash": "dd99d5ab156f5b71f83f7d7cdff4a4424f84d348f897f1628bf517b02d18c02a"
+        },
+        {
+            "date": 1754784657286,
+            "name": "C:\\Projet perso\\Convoiturage-Backend2\\logs\\security-2025-08-10.log",
+            "hash": "03bdeedea84f0ffd1ff3e520e13214af225928362479068c9c15f428cc251e77"
+        },
+        {
+            "date": 1754786980051,
+            "name": "C:\\Projet perso\\convoiturage-backend2\\logs\\security-2025-08-10.log",
+            "hash": "bb35f5f1d18832283ef3023a2dcbe74f32c865fa275a83025832299befac45bf"
+        },
+        {
+            "date": 1754871669594,
+            "name": "C:\\Projet perso\\Convoiturage-Backend2\\logs\\security-2025-08-11.log",
+            "hash": "926267d794f7d8cff965d3fe61ef74a6f4aceee6948278d2adc176a675cf69b9"
+        }
+    ],
+    "hashType": "sha256"
+}

@@ -1,0 +1,1377 @@
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 00:07:32'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 00:37:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 00:45:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 00:50:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 00:53:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 09:13:24'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: undefined,
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 09:49:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 09:49:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-12 09:49:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 09:50:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689b0e4eda89b4db4be0c9c8"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-12 09:50:07'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 10:18:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 10:23:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 10:27:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 10:54:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'warn',
+  message: 'Inscription échouée - Email déjà utilisé',
+  timestamp: '2025-08-12 10:54:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'olivier.kouadio.dev@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 10:55:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689b1d98e8347134c3a245c7"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-12 10:55:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 11:00:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 11:14:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 11:38:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 11:57:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'siriki.bamba@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 11:59:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 11:59:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 11:59:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'siriki.bamba@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 11:59:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 12:00:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 12:00:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'siriki.bamba@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 12:00:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 12:00:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 12:15:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 12:21:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'siriki.bamba@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 12:21:42'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 12:21:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-12 12:21:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'siriki.bamba@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 12:22:46'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689b3217743e1d5043e6e438"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-12 12:22:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 16:44:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur connexion: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at utilisateurSchema.methods.verifierMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\models\\Utilisateur.js:396:23)\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:153:32)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-12 16:44:18'
+}
+{
+  error: ReferenceError: next is not defined
+      at connexion (C:\Projet perso\Convoiturage-Backend\controllers\authController.js:207:5),
+  level: 'error',
+  message: 'unhandledRejection: next is not defined\n' +
+    'ReferenceError: next is not defined\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:207:5)',
+  stack: 'ReferenceError: next is not defined\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:207:5)',
+  rejection: true,
+  date: 'Tue Aug 12 2025 16:44:18 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 3956,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server'
+    ],
+    memoryUsage: {
+      rss: 105017344,
+      heapTotal: 50778112,
+      heapUsed: 48058288,
+      external: 40378370,
+      arrayBuffers: 37918539
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 33423.687 },
+  trace: [
+    {
+      column: 5,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js',
+      function: 'connexion',
+      line: 207,
+      method: null,
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-08-12 16:44:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 16:49:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 16:49:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur connexion: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at utilisateurSchema.methods.verifierMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\models\\Utilisateur.js:396:23)\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:153:32)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-12 16:49:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 16:52:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur connexion: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at utilisateurSchema.methods.verifierMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\models\\Utilisateur.js:396:23)\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:153:32)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-12 16:52:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 16:54:09'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 16:54:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur connexion: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at utilisateurSchema.methods.verifierMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\models\\Utilisateur.js:396:23)\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:153:32)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-12 16:54:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 16:54:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur connexion: Illegal arguments: string, undefined',
+  stack: 'Error: Illegal arguments: string, undefined\n' +
+    '    at _async (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:286:46)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:307:17\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at bcrypt.compare (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\bcryptjs\\dist\\bcrypt.js:306:20)\n' +
+    '    at utilisateurSchema.methods.verifierMotDePasse (C:\\Projet perso\\Convoiturage-Backend\\models\\Utilisateur.js:396:23)\n' +
+    '    at connexion (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:153:32)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  timestamp: '2025-08-12 16:54:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 16:59:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 17:00:10'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 17:04:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 17:10:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 17:10:11'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'warn',
+  message: 'Connexion échouée - Utilisateur sans mot de passe',
+  timestamp: '2025-08-12 17:10:11'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'marie.konan@example.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 17:15:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'marie.konan@example.com',
+  level: 'warn',
+  message: 'Connexion échouée - Utilisateur non trouvé',
+  timestamp: '2025-08-12 17:15:16'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'olivier.12@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 17:27:36'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 17:27:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-12 17:27:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouadio12@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 17:28:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 17:28:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-12 17:28:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouadio12@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 17:28:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-12 17:28:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-12 17:28:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 17:29:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'amina.diallo.dev@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 17:40:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689b7ca6dfb1ddf57a02d86f"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-12 17:40:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'ACCOUNT_DISABLED',
+  status: 403,
+  message: 'Erreur traitée (AppError utilitaire) Compte désactivé. Contactez le support.',
+  context: {
+    userId: new ObjectId("689b7ca6dfb1ddf57a02d86f"),
+    statut: undefined
+  },
+  url: '/api/utilisateurs/profil',
+  method: 'GET',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: undefined,
+  query: {},
+  params: {},
+  timestamp: '2025-08-12 17:48:58',
+  level: 'warn'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 17:54:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'ACCOUNT_DISABLED',
+  status: 403,
+  message: 'Erreur traitée (AppError utilitaire) Compte désactivé. Contactez le support.',
+  context: {
+    userId: new ObjectId("689b7ca6dfb1ddf57a02d86f"),
+    statut: undefined
+  },
+  url: '/api/utilisateurs/profil',
+  method: 'GET',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: undefined,
+  query: {},
+  params: {},
+  timestamp: '2025-08-12 17:54:35',
+  level: 'warn'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'ACCOUNT_DISABLED',
+  status: 403,
+  message: 'Erreur traitée (AppError utilitaire) Compte désactivé. Contactez le support.',
+  context: {
+    userId: new ObjectId("689b7ca6dfb1ddf57a02d86f"),
+    statut: undefined
+  },
+  url: '/api/utilisateurs/profil',
+  method: 'GET',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: undefined,
+  query: {},
+  params: {},
+  timestamp: '2025-08-12 17:54:38',
+  level: 'warn'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'ACCOUNT_DISABLED',
+  status: 403,
+  message: 'Erreur traitée (AppError utilitaire) Compte désactivé. Contactez le support.',
+  context: {
+    userId: new ObjectId("689b7ca6dfb1ddf57a02d86f"),
+    statut: undefined
+  },
+  url: '/api/utilisateurs/profil',
+  method: 'GET',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: undefined,
+  query: {},
+  params: {},
+  timestamp: '2025-08-12 17:54:40',
+  level: 'warn'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 17:56:11'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'ACCOUNT_DISABLED',
+  status: 403,
+  message: 'Erreur traitée (AppError utilitaire) Compte désactivé. Contactez le support.',
+  context: {
+    userId: new ObjectId("689b7ca6dfb1ddf57a02d86f"),
+    statut: undefined
+  },
+  url: '/api/utilisateurs/profil',
+  method: 'GET',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: undefined,
+  query: {},
+  params: {},
+  timestamp: '2025-08-12 18:13:07',
+  level: 'warn'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 18:13:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'ACCOUNT_DISABLED',
+  status: 403,
+  message: 'Erreur traitée (AppError utilitaire) Compte désactivé. Contactez le support.',
+  context: {
+    userId: new ObjectId("689b7ca6dfb1ddf57a02d86f"),
+    statut: undefined
+  },
+  url: '/api/utilisateurs/profil',
+  method: 'GET',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: undefined,
+  query: {},
+  params: {},
+  timestamp: '2025-08-12 18:13:28',
+  level: 'warn'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'ACCOUNT_DISABLED',
+  status: 403,
+  message: 'Erreur traitée (AppError utilitaire) Compte désactivé. Contactez le support.',
+  context: {
+    userId: new ObjectId("689b7ca6dfb1ddf57a02d86f"),
+    statut: undefined
+  },
+  url: '/api/utilisateurs/profil',
+  method: 'GET',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: undefined,
+  query: {},
+  params: {},
+  timestamp: '2025-08-12 18:13:31',
+  level: 'warn'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'ACCOUNT_DISABLED',
+  status: 403,
+  message: 'Erreur traitée (AppError utilitaire) Compte désactivé. Contactez le support.',
+  context: {
+    userId: new ObjectId("689b7ca6dfb1ddf57a02d86f"),
+    statut: undefined
+  },
+  url: '/api/utilisateurs/profil',
+  method: 'GET',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: undefined,
+  query: {},
+  params: {},
+  timestamp: '2025-08-12 18:13:37',
+  level: 'warn'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'ACCOUNT_DISABLED',
+  status: 403,
+  message: 'Erreur traitée (AppError utilitaire) Compte désactivé. Contactez le support.',
+  context: {
+    userId: new ObjectId("689b7ca6dfb1ddf57a02d86f"),
+    statut: undefined
+  },
+  url: '/api/utilisateurs/profil',
+  method: 'GET',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: undefined,
+  query: {},
+  params: {},
+  timestamp: '2025-08-12 18:13:52',
+  level: 'warn'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'ACCOUNT_DISABLED',
+  status: 403,
+  message: 'Erreur traitée (AppError utilitaire) Compte désactivé. Contactez le support.',
+  context: {
+    userId: new ObjectId("689b7ca6dfb1ddf57a02d86f"),
+    statut: undefined
+  },
+  url: '/api/utilisateurs/profil/',
+  method: 'GET',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: undefined,
+  query: {},
+  params: {},
+  timestamp: '2025-08-12 18:27:58',
+  level: 'warn'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  errors: {
+    'preferences.conversation': ValidatorError: Préférence de conversation invalide
+        at validate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1365:13)
+        at SchemaType.doValidate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1349:7)
+        at C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\document.js:3004:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:85:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Préférence de conversation invalide',
+        type: 'enum',
+        enumValues: [ 'BAVARD', 'CALME', 'NEUTRE' ],
+        path: 'preferences.conversation',
+        fullPath: undefined,
+        value: 'PROFESSIONNELLE'
+      },
+      kind: 'enum',
+      path: 'preferences.conversation',
+      value: 'PROFESSIONNELLE',
+      reason: undefined,
+      [Symbol(mongoose:validatorError)]: true
+    }
+  },
+  _message: 'Utilisateur validation failed',
+  level: 'error',
+  message: 'Erreur création utilisateur: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide',
+  stack: 'ValidationError: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide\n' +
+    '    at Document.invalidate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3219:32)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3012:17\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\schematype.js:1368:9\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)',
+  timestamp: '2025-08-12 18:42:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  errors: {
+    'preferences.conversation': ValidatorError: Préférence de conversation invalide
+        at validate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1365:13)
+        at SchemaType.doValidate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1349:7)
+        at C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\document.js:3004:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:85:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Préférence de conversation invalide',
+        type: 'enum',
+        enumValues: [ 'BAVARD', 'CALME', 'NEUTRE' ],
+        path: 'preferences.conversation',
+        fullPath: undefined,
+        value: 'SILENCIEUX'
+      },
+      kind: 'enum',
+      path: 'preferences.conversation',
+      value: 'SILENCIEUX',
+      reason: undefined,
+      [Symbol(mongoose:validatorError)]: true
+    }
+  },
+  _message: 'Utilisateur validation failed',
+  level: 'error',
+  message: 'Erreur création utilisateur: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide',
+  stack: 'ValidationError: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide\n' +
+    '    at Document.invalidate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3219:32)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3012:17\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\schematype.js:1368:9\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)',
+  timestamp: '2025-08-12 18:45:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  errors: {
+    'preferences.conversation': ValidatorError: Préférence de conversation invalide
+        at validate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1365:13)
+        at SchemaType.doValidate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1349:7)
+        at C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\document.js:3004:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:85:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Préférence de conversation invalide',
+        type: 'enum',
+        enumValues: [ 'BAVARD', 'CALME', 'NEUTRE' ],
+        path: 'preferences.conversation',
+        fullPath: undefined,
+        value: 'SILENCIEUX'
+      },
+      kind: 'enum',
+      path: 'preferences.conversation',
+      value: 'SILENCIEUX',
+      reason: undefined,
+      [Symbol(mongoose:validatorError)]: true
+    }
+  },
+  _message: 'Utilisateur validation failed',
+  level: 'error',
+  message: 'Erreur création utilisateur: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide',
+  stack: 'ValidationError: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide\n' +
+    '    at Document.invalidate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3219:32)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3012:17\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\schematype.js:1368:9\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)',
+  timestamp: '2025-08-12 18:45:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  errors: {
+    'preferences.conversation': ValidatorError: Préférence de conversation invalide
+        at validate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1365:13)
+        at SchemaType.doValidate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1349:7)
+        at C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\document.js:3004:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:85:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Préférence de conversation invalide',
+        type: 'enum',
+        enumValues: [ 'BAVARD', 'CALME', 'NEUTRE' ],
+        path: 'preferences.conversation',
+        fullPath: undefined,
+        value: 'PROFESSIONNELLE'
+      },
+      kind: 'enum',
+      path: 'preferences.conversation',
+      value: 'PROFESSIONNELLE',
+      reason: undefined,
+      [Symbol(mongoose:validatorError)]: true
+    }
+  },
+  _message: 'Utilisateur validation failed',
+  level: 'error',
+  message: 'Erreur création utilisateur: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide',
+  stack: 'ValidationError: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide\n' +
+    '    at Document.invalidate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3219:32)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3012:17\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\schematype.js:1368:9\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)',
+  timestamp: '2025-08-12 18:46:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 18:48:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-12 18:49:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689b8ca92554156cef8096f6"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-12 18:49:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'ACCOUNT_DISABLED',
+  status: 403,
+  message: 'Erreur traitée (AppError utilitaire) Compte désactivé. Contactez le support.',
+  context: {
+    userId: new ObjectId("689b8ca92554156cef8096f6"),
+    statut: undefined
+  },
+  url: '/api/trajets/ponctuel',
+  method: 'POST',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: {
+    conducteurId: '66b9a1e2d7dff23ad4c3b8e9',
+    pointDepart: {
+      nom: 'Gare centrale',
+      adresse: '12 Rue de la Gare',
+      commune: 'Abidjan',
+      quartier: 'Plateau',
+      coordonnees: { type: 'Point', coordinates: [ -4.008256, 5.336698 ] }
+    },
+    pointArrivee: {
+      nom: 'Université',
+      adresse: 'Boulevard Université',
+      commune: 'Abidjan',
+      quartier: 'Cocody',
+      coordonnees: { type: 'Point', coordinates: [ -4.009214, 5.354912 ] }
+    },
+    arretsIntermediaires: [
+      {
+        nom: 'Carrefour Mermoz',
+        adresse: 'Rue Mermoz',
+        commune: 'Abidjan',
+        quartier: 'Cocody',
+        coordonnees: { type: 'Point', coordinates: [ -4.005321, 5.345876 ] },
+        ordreArret: 1
+      }
+    ],
+    dateDepart: '2025-08-20T08:30:00.000Z',
+    heureDepart: '08:30',
+    heureArriveePrevue: '09:15',
+    dureeEstimee: 45,
+    distance: 12.5,
+    prixParPassager: 1500,
+    nombrePlacesDisponibles: 3,
+    nombrePlacesTotal: 4,
+    typeTrajet: 'PONCTUEL',
+    vehiculeUtilise: {
+      marque: 'Toyota',
+      modele: 'Corolla',
+      couleur: 'Blanc',
+      immatriculation: 'AB123CD',
+      nombrePlaces: 4
+    },
+    preferences: {
+      accepteFemmesSeulement: false,
+      accepteHommesSeuleument: false,
+      accepteBagages: true,
+      typeBagages: 'MOYEN',
+      musique: true,
+      conversation: 'LIBRE',
+      fumeur: false
+    },
+    statutTrajet: 'PROGRAMME',
+    validationAutomatique: false,
+    commentaireConducteur: "Départ à l'heure, merci d'être ponctuel"
+  },
+  query: {},
+  params: {},
+  timestamp: '2025-08-12 18:49:49',
+  level: 'warn'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 19:12:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 19:23:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 19:24:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  level: 'warn',
+  message: 'Connexion échouée - Utilisateur sans mot de passe',
+  timestamp: '2025-08-12 19:24:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 19:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 19:34:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-12 19:34:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 19:37:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-12 19:37:30'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 19:37:32'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-12 19:37:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'olivier.kouadio.dev@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 19:39:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'olivier.kouadio.dev@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-12 19:39:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-12 19:46:50'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 19:46:53'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  tentativesEchouees: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-12 19:46:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 19:47:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  tentativesEchouees: 4,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-12 19:47:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 19:47:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  tentativesEchouees: 5,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-12 19:47:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 19:47:07'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  tentativesEchouees: 6,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-12 19:47:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou12oli@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-12 19:47:10'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689b8ca92554156cef8096f6"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Compte temporairement bloqué',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-12 19:47:10'
+}

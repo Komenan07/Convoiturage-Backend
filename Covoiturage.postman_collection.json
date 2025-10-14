@@ -1,0 +1,959 @@
+{
+	"info": {
+		"_postman_id": "72c5b1a1-fff8-4949-bf0d-1530852289b8",
+		"name": "Convoiturage",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "34735682",
+		"_collection_link": "https://winner-2487.postman.co/workspace/winner-Workspace~7198c752-0e50-4b5c-a4b5-95d0a27131fc/collection/34735682-72c5b1a1-fff8-4949-bf0d-1530852289b8?action=share&source=collection_link&creator=34735682"
+	},
+	"item": [
+		{
+			"name": "User",
+			"item": [
+				{
+					"name": "Auth",
+					"item": [
+						{
+							"name": "Connexion Utilisateur",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"email\": \"kouamekevin@gmail.com\",\r\n  \"motDePasse\": \"$2a$12$dJnT7aGAuGA/qN.5tKQA0.kVZu20ONa.QS1Maf9BZTWBLZ6aS3Qp6\"\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/auth/connexion",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"connexion"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "obtenir Utilisateur Connecte",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"email\": \"marie.konan@example.com\",\r\n  \"motDePasse\": \"$2b$12$OUmt07/rF2Diar6QP/XOA.OVoVMKriDc23rcqLw6N5jbmGs9NisQ2\"\r\n}\r\n"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/auth/me",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"me"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "auth inscription",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"email\": \"smart12center@gmail.com\",\r\n  \"telephone\": \"0555528835\",\r\n  \"motDePasse\": \"JM12345\",\r\n  \"nom\": \"KOUAKOU\",\r\n  \"prenom\": \"KOUADIO OLIVIER\",\r\n  \"dateNaissance\": \"2002-12-22\",\r\n  \"sexe\": \"M\",\r\n  \"adresse\": {\r\n    \"commune\": \"Bouaké\",\r\n    \"quartier\": \"koko\",\r\n    \"ville\": \"zone\",\r\n    \"coordonnees\": {\r\n      \"type\": \"Point\",\r\n      \"coordinates\": [-4.0614, 5.3397]\r\n    }\r\n  },\r\n  \"preferences\": {\r\n    \"conversation\": \"AMICALE\",\r\n    \"languePreferee\": \"FR\",\r\n    \"musique\": false,\r\n    \"climatisation\": true\r\n  },\r\n  \"contactsUrgence\": [\r\n    {\r\n      \"nom\": \"yao carine\",\r\n      \"telephone\": \"0767211838\",\r\n      \"relation\": \"NIECE\"\r\n    }\r\n  ]\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/auth/inscription",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"inscription"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Demander un lien de réinitialisation",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "Confirmer l'email de l'utilisateur via un token",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "Confirmer l'email",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"email\": \"marie.konan@example.com\",\r\n  \"motDePasse\": \"$2b$12$OUmt07/rF2Diar6QP/XOA.OVoVMKriDc23rcqLw6N5jbmGs9NisQ2\"\r\n}\r\n"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/auth/confirm-email",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"confirm-email"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "mot de passe oublié",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "Rafraîchir le token d'accès avec le refresh token",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "Renvoyer l'email de confirmation",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Inscription",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/utilisateurs",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"utilisateurs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Voir le profil",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODhmOTQ3ZDczMDA4ZDUwZTdhNDczMjEiLCJpYXQiOjE3NTQyOTkwMzgsImV4cCI6MTc1NDM4NTQzOH0.yEPGR60iU-YwhLzGxXY2wu2Qw1xCchzbaKI68vPIvrs",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/Utilisateur/Profile",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"Utilisateur",
+								"Profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "SupprimerUser",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:5000/api/Utilisateurs/supprimer/ID_DU_UTILISATEUR",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "5000",
+							"path": [
+								"api",
+								"Utilisateurs",
+								"supprimer",
+								"ID_DU_UTILISATEUR"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Statistiques d’un utilisateur",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "Voir les utilisateurs à proximité",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "New Request",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "obtenir le profil utilisateur",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "Supprimer un utilisateur",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "Changer son mot de passe",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Administrateur",
+			"item": [
+				{
+					"name": "Connexion administrateur",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/admin/auth/login",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Obtenir le profil de l'admin connecté",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/admin/auth/profil",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"auth",
+								"profil"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Créer un nouvel administrateur",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"nouveladmin@example.com\",\r\n  \"motDePasse\": \"nouveauMotDePasse123\",\r\n  \"nom\": \"Nouvel\",\r\n  \"prenom\": \"Admin\",\r\n  \"role\": \"GESTIONNAIRE\",\r\n  \"permissions\": [\"GESTION_UTILISATEURS\"]\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/admin/admins",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"admins"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Obtenir la liste des administrateurs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/admin/admins",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"admins"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Obtenir un Admin par ID",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/admin/admins/65a1b2c3d4e5f6g7h8i9j1 ",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"admins",
+								"65a1b2c3d4e5f6g7h8i9j1 "
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Modifier un Admin",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"nom\": \"Admin Modifié\",\r\n  \"role\": \"SUPER_ADMIN\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/admin/admins/65a1b2c3d4e5f6g7h8i9j1",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"admins",
+								"65a1b2c3d4e5f6g7h8i9j1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Changer le Statut d’un Admin",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/admin/admins/65a1b2c3d4e5f6g7h8i9j1/statut",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"admins",
+								"65a1b2c3d4e5f6g7h8i9j1",
+								"statut"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Désactiver un Admin",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/admin/admins/65a1b2c3d4e5f6g7h8i9j1",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"admins",
+								"65a1b2c3d4e5f6g7h8i9j1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Obtenir le Dashboard",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:5000/api/admin/dashboard",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "5000",
+							"path": [
+								"api",
+								"admin",
+								"dashboard"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Obtenir les Statistiques",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Trajet",
+			"item": [
+				{
+					"name": "Créer un trajet",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"conducteurId\": \"66b9a1e2d7dff23ad4c3b8e9\",\r\n  \"pointDepart\": {\r\n    \"nom\": \"Gare centrale\",\r\n    \"adresse\": \"12 Rue de la Gare\",\r\n    \"commune\": \"Abidjan\",\r\n    \"quartier\": \"Plateau\",\r\n    \"coordonnees\": {\r\n      \"type\": \"Point\",\r\n      \"coordinates\": [-4.008256, 5.336698]\r\n    }\r\n  },\r\n  \"pointArrivee\": {\r\n    \"nom\": \"Université\",\r\n    \"adresse\": \"Boulevard Université\",\r\n    \"commune\": \"Abidjan\",\r\n    \"quartier\": \"Cocody\",\r\n    \"coordonnees\": {\r\n      \"type\": \"Point\",\r\n      \"coordinates\": [-4.009214, 5.354912]\r\n    }\r\n  },\r\n  \"arretsIntermediaires\": [\r\n    {\r\n      \"nom\": \"Carrefour Mermoz\",\r\n      \"adresse\": \"Rue Mermoz\",\r\n      \"commune\": \"Abidjan\",\r\n      \"quartier\": \"Cocody\",\r\n      \"coordonnees\": {\r\n        \"type\": \"Point\",\r\n        \"coordinates\": [-4.005321, 5.345876]\r\n      },\r\n      \"ordreArret\": 1\r\n    }\r\n  ],\r\n  \"dateDepart\": \"2025-08-20T08:30:00.000Z\",\r\n  \"heureDepart\": \"08:30\",\r\n  \"heureArriveePrevue\": \"09:15\",\r\n  \"dureeEstimee\": 45,\r\n  \"distance\": 12.5,\r\n  \"prixParPassager\": 1500,\r\n  \"nombrePlacesDisponibles\": 3,\r\n  \"nombrePlacesTotal\": 4,\r\n  \"typeTrajet\": \"PONCTUEL\",\r\n  \"vehiculeUtilise\": {\r\n    \"marque\": \"Toyota\",\r\n    \"modele\": \"Corolla\",\r\n    \"couleur\": \"Blanc\",\r\n    \"immatriculation\": \"AB123CD\",\r\n    \"nombrePlaces\": 4\r\n  },\r\n  \"preferences\": {\r\n    \"accepteFemmesSeulement\": false,\r\n    \"accepteHommesSeuleument\": false,\r\n    \"accepteBagages\": true,\r\n    \"typeBagages\": \"MOYEN\",\r\n    \"musique\": true,\r\n    \"conversation\": \"LIBRE\",\r\n    \"fumeur\": false\r\n  },\r\n  \"statutTrajet\": \"PROGRAMME\",\r\n  \"validationAutomatique\": false,\r\n  \"commentaireConducteur\": \"Départ à l'heure, merci d'être ponctuel\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/trajets/ponctuel",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"trajets",
+								"ponctuel"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rechercher trajets disponibles",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "Historique trajets utilisateur connecté",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "Créer un trajet récurrent",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "Filtrer trajets",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "Obtenir tous les trajets d'un conducteur spécifique",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "Modifier détails trajet",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/trajets/",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"trajets",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Obtenir détails complets d'un trajet",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "AlerteUrgence",
+			"item": [
+				{
+					"name": "Créer une nouvelle alerte d'urgence",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/alertes-urgence",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"alertes-urgence"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Obtenir toutes les alertes d'urgence",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"kouamekevin@gmail.com\",\r\n  \"motDePasse\": \"$2a$12$dJnT7aGAuGA/qN.5tKQA0.kVZu20ONa.QS1Maf9BZTWBLZ6aS3Qp6\"\r\n}\r\n"
+						},
+						"url": {
+							"raw": "{{baseURL}}//api/alertes-urgence",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"",
+								"api",
+								"alertes-urgence"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Obtenir une alerte d'urgence spécifique",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"kouamekevin@gmail.com\",\r\n  \"motDePasse\": \"$2a$12$dJnT7aGAuGA/qN.5tKQA0.kVZu20ONa.QS1Maf9BZTWBLZ6aS3Qp6\"\r\n}\r\n"
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/alertes-urgence/:alerteId",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"alertes-urgence",
+								":alerteId"
+							],
+							"variable": [
+								{
+									"key": "alerteId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mettre à jour une alerte d'urgence",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"kouamekevin@gmail.com\",\r\n  \"motDePasse\": \"$2a$12$dJnT7aGAuGA/qN.5tKQA0.kVZu20ONa.QS1Maf9BZTWBLZ6aS3Qp6\"\r\n}\r\n"
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/alertes-urgence/:alerteId",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"alertes-urgence",
+								":alerteId"
+							],
+							"variable": [
+								{
+									"key": "alerteId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Supprimer une alerte d'urgence",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/alertes-urgence/:alerteId",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"alertes-urgence",
+								":alerteId"
+							],
+							"variable": [
+								{
+									"key": "alerteId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Déclencher une alerte d'urgence immédiate",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/alertes-urgence/declencher",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"alertes-urgence",
+								"declencher"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mettre à jour le statut d'une alerte d'urgence",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/alertes-urgence/:alerteId/statut",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"alertes-urgence",
+								":alerteId",
+								"statut"
+							],
+							"variable": [
+								{
+									"key": "alerteId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Ajouter un contact à une alerte d'urgence",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/alertes-urgence/:alerteId/contacts",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"alertes-urgence",
+								":alerteId",
+								"contacts"
+							],
+							"variable": [
+								{
+									"key": "alerteId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Conversation",
+			"item": []
+		},
+		{
+			"name": "Message",
+			"item": []
+		},
+		{
+			"name": "Signalement",
+			"item": []
+		},
+		{
+			"name": "Reservation",
+			"item": []
+		},
+		{
+			"name": "Evenement",
+			"item": []
+		},
+		{
+			"name": "Evaluation",
+			"item": []
+		},
+		{
+			"name": "Paiement",
+			"item": []
+		},
+		{
+			"name": "Vehicule",
+			"item": []
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": "",
+			"type": "default"
+		}
+	]
+}

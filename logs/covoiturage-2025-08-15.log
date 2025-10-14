@@ -1,0 +1,2112 @@
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 10:24:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 10:55:43'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Erreur déclenchement alerte urgence: Cannot read properties of undefined (reading 'userId')",
+  stack: "TypeError: Cannot read properties of undefined (reading 'userId')\n" +
+    '    at declencherAlerte (C:\\Projet perso\\Convoiturage-Backend\\controllers\\alerteUrgenceController.js:191:78)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\routes\\alertes-urgence.js:75:5\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:659:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+    '    at async C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:576:5',
+  timestamp: '2025-08-15 10:55:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: "Erreur traitée (AppError utilitaire) Erreur serveur lors du déclenchement de l'alerte urgence",
+  context: {
+    originalError: "Cannot read properties of undefined (reading 'userId')"
+  },
+  url: '/api/alertes-urgence',
+  method: 'POST',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: {
+    description: "Accident de voiture sur l'autoroute A1",
+    position: { type: 'Point', coordinates: [ -4.032, 5.345 ] },
+    contactsAlertes: [
+      {
+        nom: 'Jean Dupont',
+        telephone: '+225070123456',
+        relation: 'Famille'
+      }
+    ],
+    personnesPresentes: [ { nom: 'Marie Martin', telephone: '+225080654321' } ]
+  },
+  query: {},
+  params: {},
+  timestamp: '2025-08-15 10:55:51',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 11:02:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Erreur déclenchement alerte urgence: Cannot read properties of undefined (reading 'userId')",
+  stack: "TypeError: Cannot read properties of undefined (reading 'userId')\n" +
+    '    at declencherAlerte (C:\\Projet perso\\Convoiturage-Backend\\controllers\\alerteUrgenceController.js:191:78)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\routes\\alertes-urgence.js:75:5\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:659:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+    '    at async C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:576:5',
+  timestamp: '2025-08-15 11:07:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: "Erreur traitée (AppError utilitaire) Erreur serveur lors du déclenchement de l'alerte urgence",
+  context: {
+    originalError: "Cannot read properties of undefined (reading 'userId')"
+  },
+  url: '/api/alertes-urgence',
+  method: 'POST',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: {
+    description: "Accident de voiture sur l'autoroute A1",
+    position: { type: 'Point', coordinates: [ -4.032, 5.345 ] },
+    contactsAlertes: [
+      {
+        nom: 'Jean Dupont',
+        telephone: '+225070123456',
+        relation: 'Famille'
+      }
+    ],
+    personnesPresentes: [ { nom: 'Marie Martin', telephone: '+225080654321' } ]
+  },
+  query: {},
+  params: {},
+  timestamp: '2025-08-15 11:07:25',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 11:08:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  tentativesEchouees: 6,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 11:08:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'smart12center@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 11:09:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689e22c03ac536040f88cb15"),
+  statut: 'ACTIF',
+  raison: 'Compte temporairement bloqué',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-15 11:09:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Erreur déclenchement alerte urgence: Cannot read properties of undefined (reading 'userId')",
+  stack: "TypeError: Cannot read properties of undefined (reading 'userId')\n" +
+    '    at declencherAlerte (C:\\Projet perso\\Convoiturage-Backend\\controllers\\alerteUrgenceController.js:191:78)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\routes\\alertes-urgence.js:75:5\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:659:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+    '    at async C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-rate-limit\\dist\\index.cjs:576:5',
+  timestamp: '2025-08-15 11:15:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: "Erreur traitée (AppError utilitaire) Erreur serveur lors du déclenchement de l'alerte urgence",
+  context: {
+    originalError: "Cannot read properties of undefined (reading 'userId')"
+  },
+  url: '/api/alertes-urgence',
+  method: 'POST',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: {},
+  query: {},
+  params: {},
+  timestamp: '2025-08-15 11:15:00',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 11:52:09'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 11:57:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 11:57:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 11:57:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 11:57:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 14:15:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-15 14:15:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 14:15:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-15 14:15:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 14:52:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 14:59:09'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 15:34:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'warn',
+  message: 'Inscription échouée - Email déjà utilisé',
+  timestamp: '2025-08-15 15:34:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 15:37:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'warn',
+  message: 'Inscription échouée - Email déjà utilisé',
+  timestamp: '2025-08-15 15:37:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 15:38:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouakou01marc@gmail.com',
+  level: 'warn',
+  message: 'Inscription échouée - Email déjà utilisé',
+  timestamp: '2025-08-15 15:38:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 15:42:10'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 15:42:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f5553bda8b5df592bd9d8"),
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 15:42:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f5553bda8b5df592bd9d8"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 15:42:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 15:44:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '60645bb66d...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 15:50:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f5553bda8b5df592bd9d8"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-15 15:50:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 15:50:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 15:57:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-15 15:57:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 15:57:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-15 15:57:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 15:57:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-15 15:57:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '950046de44...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 15:59:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-15 15:59:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 15:59:07'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 15:59:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 15:59:28'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 15:59:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  tentativesEchouees: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 15:59:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 16:01:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 16:01:09'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 16:01:11'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  tentativesEchouees: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 16:01:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 16:16:11'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  tentativesEchouees: 4,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 16:16:12'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f5e6dbda8b5df592bd9ee"),
+  email: 'davidassohoun2004@gmail.com',
+  level: 'info',
+  message: 'Nouvel utilisateur créé',
+  timestamp: '2025-08-15 16:21:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 16:21:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 16:21:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f5e8dbda8b5df592bd9f2"),
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 16:21:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f5e8dbda8b5df592bd9f2"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 16:21:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 16:34:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 16:34:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 16:34:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f6198e68d034fff403642"),
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 16:34:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f6198e68d034fff403642"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 16:34:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 16:35:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f6198e68d034fff403642"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-15 16:35:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '73d0218f99...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 16:36:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '73d0218f99...',
+  level: 'warn',
+  message: 'Confirmation email - Token invalide ou expiré',
+  timestamp: '2025-08-15 16:36:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: 'ad124389ee...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 16:37:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f6198e68d034fff403642"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-15 16:37:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 16:38:01'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 16:38:10'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  tentativesEchouees: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 16:38:11'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 17:05:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 17:32:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  error: {
+    message: 'Expected double-quoted property name in JSON at position 42 (line 3 column 1)',
+    stack: 'Error: Expected double-quoted property name in JSON at position 42 (line 3 column 1)\n' +
+      '    at errorHandler (C:\\Projet perso\\Convoiturage-Backend\\middlewares\\errorHandler.js:664:17)\n' +
+      '    at Layer.handle_error (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:71:5)\n' +
+      '    at trim_prefix (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:326:13)\n' +
+      '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:286:9\n' +
+      '    at Function.process_params (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:346:12)\n' +
+      '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:280:10)\n' +
+      '    at Layer.handle_error (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:67:12)\n' +
+      '    at trim_prefix (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:326:13)\n' +
+      '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:286:9\n' +
+      '    at param (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:365:14)',
+    statusCode: 400,
+    errorCode: 'SYSTEM_001'
+  },
+  context: {
+    url: '/api/auth/resend-confirmation',
+    method: 'POST',
+    ip: '::1',
+    userAgent: 'PostmanRuntime/7.45.0',
+    user: undefined,
+    body: {},
+    query: {},
+    params: {},
+    timestamp: '2025-08-15T17:51:19.987Z'
+  },
+  level: 'error',
+  message: 'Erreur système',
+  timestamp: '2025-08-15 17:51:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 17:52:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  tentativesEchouees: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 17:52:57'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 18:11:46'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 18:17:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  tentativesEchouees: 4,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 18:17:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 18:18:02'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  tentativesEchouees: 5,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 18:18:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 18:28:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 18:28:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  tentativesEchouees: 6,
+  tentativesRestantes: 0,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 18:28:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 18:29:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f6198e68d034fff403642"),
+  statut: 'ACTIF',
+  raison: 'Compte temporairement bloqué',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-15 18:29:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 18:30:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 18:30:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f7cbcaeb1ea52cdb7d04c"),
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 18:30:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f7cbcaeb1ea52cdb7d04c"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 18:30:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 18:30:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f7cbcaeb1ea52cdb7d04c"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-15 18:30:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '40d8ad051b...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 18:32:19'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f7cbcaeb1ea52cdb7d04c"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-15 18:32:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 18:32:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 18:32:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  tentativesEchouees: 2,
+  tentativesRestantes: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 18:32:40'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 18:37:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 18:38:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  tentativesEchouees: 3,
+  tentativesRestantes: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 18:38:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 18:42:04'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 18:53:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 18:53:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f7cbcaeb1ea52cdb7d04c"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-15 18:53:26'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 18:55:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'warn',
+  message: 'Connexion échouée - Email incorrect',
+  timestamp: '2025-08-15 18:55:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 18:55:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'warn',
+  message: 'Connexion échouée - Email incorrect',
+  timestamp: '2025-08-15 18:55:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 18:56:05'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 18:56:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f82c506b293d4ae05133f"),
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 18:56:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f82c506b293d4ae05133f"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 18:56:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 18:56:36'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f82c506b293d4ae05133f"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  level: 'warn',
+  message: 'Connexion échouée - Compte non autorisé',
+  timestamp: '2025-08-15 18:56:37'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '5cbcbfbb31...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 19:01:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f82c506b293d4ae05133f"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-15 19:01:57'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 19:02:00'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 19:03:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  tentativesEchouees: 2,
+  tentativesRestantes: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 19:03:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 19:03:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  tentativesEchouees: 3,
+  tentativesRestantes: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 19:03:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'jean07marc12@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 19:04:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689f7cbcaeb1ea52cdb7d04c"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-15 19:04:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+<<<<<<< HEAD
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-02.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 19:07:38'
+=======
+  message: 'MongoDB connecté: localhost',
+  timestamp: '2025-08-15 22:39:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: localhost',
+  timestamp: '2025-08-15 22:41:21'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouamekevin@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 22:42:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'kouamekevin@gmail.com',
+  level: 'warn',
+  message: 'Connexion échouée - Email incorrect',
+  timestamp: '2025-08-15 22:42:47'
+>>>>>>> a1116a4e775022b19c0865b784f18970dda786ca
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+<<<<<<< HEAD
+  timestamp: '2025-08-15 19:08:38'
+=======
+  timestamp: '2025-08-15 22:44:38'
+>>>>>>> a1116a4e775022b19c0865b784f18970dda786ca
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+<<<<<<< HEAD
+  tentativesEchouees: 4,
+  tentativesRestantes: 1,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 19:08:39'
+=======
+  level: 'warn',
+  message: 'Connexion échouée - Email incorrect',
+  timestamp: '2025-08-15 22:44:38'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 22:45:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'warn',
+  message: 'Connexion échouée - Email incorrect',
+  timestamp: '2025-08-15 22:45:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: localhost',
+  timestamp: '2025-08-15 22:48:58'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: localhost',
+  timestamp: '2025-08-15 22:50:15'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 22:50:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'warn',
+  message: 'Connexion échouée - Email incorrect',
+  timestamp: '2025-08-15 22:50:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: localhost',
+  timestamp: '2025-08-15 22:51:32'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 22:51:41'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'gerardyeboua35@gmail.com',
+  level: 'warn',
+  message: 'Connexion échouée - Email incorrect',
+  timestamp: '2025-08-15 22:51:41'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: localhost',
+  timestamp: '2025-08-15 22:52:56'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'johnsnow@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 22:54:02'
+>>>>>>> a1116a4e775022b19c0865b784f18970dda786ca
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+<<<<<<< HEAD
+  message: 'Erreur de connexion MongoDB: queryTxt ETIMEOUT covoiturage-app.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 23:12:58'
+=======
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-15 22:54:02'
+>>>>>>> a1116a4e775022b19c0865b784f18970dda786ca
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+<<<<<<< HEAD
+  message: 'Erreur de connexion MongoDB: queryTxt ETIMEOUT covoiturage-app.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 23:36:22'
+=======
+  message: 'Stack trace :',
+  timestamp: '2025-08-15 22:54:03'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'johnsnow@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 22:54:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-15 22:54:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-15 22:54:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'johnsnow@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 22:54:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'EAUTH',
+  command: 'API',
+  level: 'error',
+  message: `Erreur lors de l'envoi de l'email: Missing credentials for "PLAIN"`,
+  stack: 'Error: Missing credentials for "PLAIN"\n' +
+    '    at SMTPConnection._formatError (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:809:19)\n' +
+    '    at SMTPConnection.login (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:454:38)\n' +
+    '    at C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-transport\\index.js:272:32\n' +
+    '    at SMTPConnection.<anonymous> (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:215:17)\n' +
+    '    at Object.onceWrapper (node:events:632:28)\n' +
+    '    at SMTPConnection.emit (node:events:518:28)\n' +
+    '    at SMTPConnection._actionEHLO (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:1371:14)\n' +
+    '    at SMTPConnection._processResponse (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:993:20)\n' +
+    '    at SMTPConnection._onData (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:774:14)\n' +
+    '    at SMTPConnection._onSocketData (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:195:44)',
+  timestamp: '2025-08-15 22:54:41'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Erreur envoi email confirmation: Erreur lors de l'envoi de l'email",
+  stack: "Error: Erreur lors de l'envoi de l'email\n" +
+    '    at sendEmail (C:\\new\\covoiturage\\Convoiturage-Backend\\utils\\emailService.js:27:11)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n' +
+    '    at async inscription (C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\authController.js:83:7)',
+  timestamp: '2025-08-15 22:54:41'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fbab07f91be60f100ee6d"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 22:54:41'
+>>>>>>> a1116a4e775022b19c0865b784f18970dda786ca
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+<<<<<<< HEAD
+  timestamp: '2025-08-15 23:37:58'
+=======
+  timestamp: '2025-08-15 22:59:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'johnsnow@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 23:00:14'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'johnsnow@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 23:00:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fbbff809f8bf28de27bb9"),
+  email: 'johnsnow@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 23:00:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fbbff809f8bf28de27bb9"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 23:00:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 23:05:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 23:05:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fbd53809f8bf28de27bbc"),
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 23:05:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fbd53809f8bf28de27bbc"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 23:05:59'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '49f83389a2...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 23:09:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fbd53809f8bf28de27bbc"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-15 23:09:31'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 23:09:33'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 23:10:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  tentativesEchouees: 2,
+  tentativesRestantes: 3,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 23:10:10'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 23:13:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  tentativesEchouees: 3,
+  tentativesRestantes: 2,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 23:13:35'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 23:17:11'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 23:17:34'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  tentativesEchouees: 4,
+  tentativesRestantes: 1,
+  level: 'warn',
+  message: 'Connexion échouée - Mot de passe incorrect',
+  timestamp: '2025-08-15 23:17:36'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-00.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 23:18:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'info',
+  message: 'MongoDB connecté: ac-fo3bwlv-shard-00-01.hsp25l7.mongodb.net',
+  timestamp: '2025-08-15 23:22:10'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 23:23:11'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  level: 'warn',
+  message: 'Inscription échouée - Email déjà utilisé',
+  timestamp: '2025-08-15 23:23:11'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 23:23:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 23:23:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fc18134f8e4f850624549"),
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 23:23:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fc18134f8e4f850624549"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 23:23:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45m@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 23:25:52'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'fffantome45m@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 23:25:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fc20034f8e4f85062454c"),
+  email: 'fffantome45m@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 23:25:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fc20034f8e4f85062454c"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 23:25:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45m@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 23:26:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'fffantome45m@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 23:26:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fc23b34f8e4f85062454f"),
+  email: 'fffantome45m@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 23:26:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fc23b34f8e4f85062454f"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 23:26:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '07ea81cc23...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 23:28:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '07ea81cc23...',
+  level: 'warn',
+  message: 'Confirmation email - Token invalide ou expiré',
+  timestamp: '2025-08-15 23:28:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '07ea81cc23...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 23:28:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '07ea81cc23...',
+  level: 'warn',
+  message: 'Confirmation email - Token invalide ou expiré',
+  timestamp: '2025-08-15 23:28:47'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '07ea81cc23...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 23:29:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '07ea81cc23...',
+  level: 'warn',
+  message: 'Confirmation email - Token invalide ou expiré',
+  timestamp: '2025-08-15 23:29:27'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '07ea81cc23...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 23:29:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '07ea81cc23...',
+  level: 'warn',
+  message: 'Confirmation email - Token invalide ou expiré',
+  timestamp: '2025-08-15 23:29:48'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '07ea81cc23...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 23:34:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '07ea81cc23...',
+  level: 'warn',
+  message: 'Confirmation email - Token invalide ou expiré',
+  timestamp: '2025-08-15 23:34:08'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'fffantome45m@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 23:40:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fc23b34f8e4f85062454f"),
+  level: 'info',
+  message: 'Email de confirmation renvoyé',
+  timestamp: '2025-08-15 23:40:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  error: {
+    message: 'Expected double-quoted property name in JSON at position 100',
+    stack: 'Error: Expected double-quoted property name in JSON at position 100\n' +
+      '    at errorHandler (C:\\new\\covoiturage\\Convoiturage-Backend\\middlewares\\errorHandler.js:664:17)\n' +
+      '    at Layer.handle_error (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:71:5)\n' +
+      '    at trim_prefix (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:326:13)\n' +
+      '    at C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:286:9\n' +
+      '    at Function.process_params (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:346:12)\n' +
+      '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:280:10)\n' +
+      '    at Layer.handle_error (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:67:12)\n' +
+      '    at trim_prefix (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:326:13)\n' +
+      '    at C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:286:9\n' +
+      '    at param (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\index.js:365:14)',
+    statusCode: 400,
+    errorCode: 'SYSTEM_001'
+  },
+  context: {
+    url: '/api/auth/inscription',
+    method: 'POST',
+    ip: '::1',
+    userAgent: 'PostmanRuntime/7.39.1',
+    user: undefined,
+    body: {},
+    query: {},
+    params: {},
+    timestamp: '2025-08-15T23:41:49.083Z'
+  },
+  level: 'error',
+  message: 'Erreur système',
+  timestamp: '2025-08-15 23:41:49'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: "Tentative d'inscription",
+  timestamp: '2025-08-15 23:42:13'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 23:42:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fc5d634f8e4f85062455b"),
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Email de confirmation envoyé',
+  timestamp: '2025-08-15 23:42:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fc5d634f8e4f85062455b"),
+  level: 'info',
+  message: 'Inscription réussie',
+  timestamp: '2025-08-15 23:42:17'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  token: '4ed13f80df...',
+  level: 'info',
+  message: "Tentative de confirmation d'email",
+  timestamp: '2025-08-15 23:42:40'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fc5d634f8e4f85062455b"),
+  level: 'info',
+  message: 'Email confirmé avec succès',
+  timestamp: '2025-08-15 23:42:40'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  to: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Email envoyé avec succès',
+  timestamp: '2025-08-15 23:42:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  email: 'fffantome45@gmail.com',
+  level: 'info',
+  message: 'Tentative de connexion',
+  timestamp: '2025-08-15 23:43:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  userId: new ObjectId("689fc5d634f8e4f85062455b"),
+  level: 'info',
+  message: 'Connexion réussie',
+  timestamp: '2025-08-15 23:43:20'
+>>>>>>> a1116a4e775022b19c0865b784f18970dda786ca
+}

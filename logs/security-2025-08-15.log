@@ -1,0 +1,91 @@
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'login_blocked',
+  userId: new ObjectId("689e22c03ac536040f88cb15"),
+  statut: 'ACTIF',
+  raison: 'Compte temporairement bloqué',
+  deblocageA: 2025-08-15T11:23:04.153Z,
+  ip: '::1',
+  level: 'warn',
+  message: 'Connexion refusée - Compte non autorisé',
+  timestamp: '2025-08-15 11:09:02'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'login_blocked',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  deblocageA: undefined,
+  ip: '::1',
+  level: 'warn',
+  message: 'Connexion refusée - Compte non autorisé',
+  timestamp: '2025-08-15 14:15:55'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'login_blocked',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  deblocageA: undefined,
+  ip: '::1',
+  level: 'warn',
+  message: 'Connexion refusée - Compte non autorisé',
+  timestamp: '2025-08-15 14:15:58'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'login_blocked',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  deblocageA: undefined,
+  ip: '::1',
+  level: 'warn',
+  message: 'Connexion refusée - Compte non autorisé',
+  timestamp: '2025-08-15 15:57:03'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'login_blocked',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  deblocageA: undefined,
+  ip: '::1',
+  level: 'warn',
+  message: 'Connexion refusée - Compte non autorisé',
+  timestamp: '2025-08-15 15:57:05'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'login_blocked',
+  userId: new ObjectId("689f20abbda8b5df592bd9d0"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  deblocageA: undefined,
+  ip: '::1',
+  level: 'warn',
+  message: 'Connexion refusée - Compte non autorisé',
+  timestamp: '2025-08-15 15:57:08'
+}
+{
+  service: 'security-service',
+  environment: 'development',
+  event: 'login_blocked',
+  userId: new ObjectId("689f6198e68d034fff403642"),
+  statut: 'EN_ATTENTE_VERIFICATION',
+  raison: 'Email non confirmé',
+  deblocageA: undefined,
+  ip: '::1',
+  level: 'warn',
+  message: 'Connexion refusée - Compte non autorisé',
+  timestamp: '2025-08-15 16:35:21'
+}

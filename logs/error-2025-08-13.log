@@ -1,0 +1,437 @@
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: 'Erreur traitée (AppError utilitaire) Erreur serveur lors de la récupération du profil',
+  context: {
+    originalError: "Cannot read properties of undefined (reading 'id')"
+  },
+  url: '/api/admin/auth/profil',
+  method: 'GET',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: undefined,
+  query: {},
+  params: {},
+  timestamp: '2025-08-13 11:48:07',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: "Erreur traitée (AppError utilitaire) Erreur serveur lors de la création de l'administrateur",
+  context: {
+    originalError: "Cannot read properties of undefined (reading 'id')"
+  },
+  url: '/api/admin/admins',
+  method: 'POST',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: {
+    email: 'nouveladmin@example.com',
+    motDePasse: 'NouveauMotDePasse123!',
+    nom: 'Nouvel',
+    prenom: 'Admin',
+    role: 'SUPER_ADMIN',
+    permissions: [ 'GESTION_UTILISATEURS' ]
+  },
+  query: {},
+  params: {},
+  timestamp: '2025-08-13 12:34:09',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: "Erreur traitée (AppError utilitaire) Erreur serveur lors de la création de l'administrateur",
+  context: {
+    originalError: "Cannot read properties of undefined (reading 'id')"
+  },
+  url: '/api/admin/admins',
+  method: 'POST',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: {
+    email: 'nouveladmin@example.com',
+    motDePasse: 'NouveauMotDePasse123!',
+    nom: 'Nouvel',
+    prenom: 'Admin',
+    role: 'SUPER_ADMIN',
+    permissions: [ 'GESTION_UTILISATEURS' ]
+  },
+  query: {},
+  params: {},
+  timestamp: '2025-08-13 14:39:42',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'SERVER_ERROR',
+  status: 500,
+  message: "Erreur traitée (AppError utilitaire) Erreur serveur lors de la création de l'administrateur",
+  context: { originalError: 'AppError.unauthorized is not a function' },
+  url: '/api/admin/admins',
+  method: 'POST',
+  ip: '::1',
+  userAgent: 'PostmanRuntime/7.45.0',
+  user: undefined,
+  body: {
+    email: 'nouveladmin@example.com',
+    motDePasse: 'NouveauMotDePasse123!',
+    nom: 'Nouvel',
+    prenom: 'Admin',
+    role: 'SUPER_ADMIN',
+    permissions: [ 'GESTION_UTILISATEURS' ]
+  },
+  query: {},
+  params: {},
+  timestamp: '2025-08-13 14:56:40',
+  level: 'error'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  errors: {
+    'preferences.conversation': ValidatorError: Préférence de conversation invalide
+        at validate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1365:13)
+        at SchemaType.doValidate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\schematype.js:1349:7)
+        at C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\document.js:3004:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:85:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Préférence de conversation invalide',
+        type: 'enum',
+        enumValues: [ 'BAVARD', 'CALME', 'NEUTRE' ],
+        path: 'preferences.conversation',
+        fullPath: undefined,
+        value: 'PROFESSIONNELLE'
+      },
+      kind: 'enum',
+      path: 'preferences.conversation',
+      value: 'PROFESSIONNELLE',
+      reason: undefined,
+      [Symbol(mongoose:validatorError)]: true
+    }
+  },
+  _message: 'Utilisateur validation failed',
+  level: 'error',
+  message: 'Erreur création utilisateur: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide',
+  stack: 'ValidationError: Utilisateur validation failed: preferences.conversation: Préférence de conversation invalide\n' +
+    '    at Document.invalidate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3219:32)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\document.js:3012:17\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\schematype.js:1368:9\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)',
+  timestamp: '2025-08-13 15:06:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'EAUTH',
+  response: '535-5.7.8 Username and Password not accepted. For more information, go to\n' +
+    '535 5.7.8  https://support.google.com/mail/?p=BadCredentials 5b1f17b1804b1-45a1a58fc69sm5935505e9.22 - gsmtp',
+  responseCode: 535,
+  command: 'AUTH PLAIN',
+  level: 'error',
+  message: "Erreur lors de l'envoi de l'email: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n" +
+    '535 5.7.8  https://support.google.com/mail/?p=BadCredentials 5b1f17b1804b1-45a1a58fc69sm5935505e9.22 - gsmtp',
+  stack: 'Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n' +
+    '535 5.7.8  https://support.google.com/mail/?p=BadCredentials 5b1f17b1804b1-45a1a58fc69sm5935505e9.22 - gsmtp\n' +
+    '    at SMTPConnection._formatError (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:809:19)\n' +
+    '    at SMTPConnection._actionAUTHComplete (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:1588:34)\n' +
+    '    at SMTPConnection.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:556:26)\n' +
+    '    at SMTPConnection._processResponse (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:993:20)\n' +
+    '    at SMTPConnection._onData (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:774:14)\n' +
+    '    at SMTPConnection._onSocketData (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:195:44)\n' +
+    '    at TLSSocket.emit (node:events:518:28)\n' +
+    '    at addChunk (node:internal/streams/readable:561:12)\n' +
+    '    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)\n' +
+    '    at Readable.push (node:internal/streams/readable:392:5)',
+  timestamp: '2025-08-13 15:29:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Erreur envoi email réinitialisation: Erreur lors de l'envoi de l'email",
+  stack: "Error: Erreur lors de l'envoi de l'email\n" +
+    '    at sendEmail (C:\\Projet perso\\Convoiturage-Backend\\utils\\emailService.js:27:11)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+    '    at async motDePasseOublie (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:513:7)',
+  timestamp: '2025-08-13 15:29:18'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'EAUTH',
+  response: '535-5.7.8 Username and Password not accepted. For more information, go to\n' +
+    '535 5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3b915deec6bsm4279834f8f.7 - gsmtp',
+  responseCode: 535,
+  command: 'AUTH PLAIN',
+  level: 'error',
+  message: "Erreur lors de l'envoi de l'email: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n" +
+    '535 5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3b915deec6bsm4279834f8f.7 - gsmtp',
+  stack: 'Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n' +
+    '535 5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3b915deec6bsm4279834f8f.7 - gsmtp\n' +
+    '    at SMTPConnection._formatError (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:809:19)\n' +
+    '    at SMTPConnection._actionAUTHComplete (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:1588:34)\n' +
+    '    at SMTPConnection.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:556:26)\n' +
+    '    at SMTPConnection._processResponse (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:993:20)\n' +
+    '    at SMTPConnection._onData (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:774:14)\n' +
+    '    at SMTPConnection._onSocketData (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:195:44)\n' +
+    '    at TLSSocket.emit (node:events:518:28)\n' +
+    '    at addChunk (node:internal/streams/readable:561:12)\n' +
+    '    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)\n' +
+    '    at Readable.push (node:internal/streams/readable:392:5)',
+  timestamp: '2025-08-13 15:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Erreur envoi email réinitialisation: Erreur lors de l'envoi de l'email",
+  stack: "Error: Erreur lors de l'envoi de l'email\n" +
+    '    at sendEmail (C:\\Projet perso\\Convoiturage-Backend\\utils\\emailService.js:27:11)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+    '    at async motDePasseOublie (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:513:7)',
+  timestamp: '2025-08-13 15:32:44'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  code: 'EAUTH',
+  response: '535-5.7.8 Username and Password not accepted. For more information, go to\n' +
+    '535 5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3b79c475067sm47486828f8f.58 - gsmtp',
+  responseCode: 535,
+  command: 'AUTH PLAIN',
+  level: 'error',
+  message: "Erreur lors de l'envoi de l'email: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n" +
+    '535 5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3b79c475067sm47486828f8f.58 - gsmtp',
+  stack: 'Error: Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n' +
+    '535 5.7.8  https://support.google.com/mail/?p=BadCredentials ffacd0b85a97d-3b79c475067sm47486828f8f.58 - gsmtp\n' +
+    '    at SMTPConnection._formatError (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:809:19)\n' +
+    '    at SMTPConnection._actionAUTHComplete (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:1588:34)\n' +
+    '    at SMTPConnection.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:556:26)\n' +
+    '    at SMTPConnection._processResponse (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:993:20)\n' +
+    '    at SMTPConnection._onData (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:774:14)\n' +
+    '    at SMTPConnection._onSocketData (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\nodemailer\\lib\\smtp-connection\\index.js:195:44)\n' +
+    '    at TLSSocket.emit (node:events:518:28)\n' +
+    '    at addChunk (node:internal/streams/readable:561:12)\n' +
+    '    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)\n' +
+    '    at Readable.push (node:internal/streams/readable:392:5)',
+  timestamp: '2025-08-13 15:33:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: "Erreur envoi email réinitialisation: Erreur lors de l'envoi de l'email",
+  stack: "Error: Erreur lors de l'envoi de l'email\n" +
+    '    at sendEmail (C:\\Projet perso\\Convoiturage-Backend\\utils\\emailService.js:27:11)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+    '    at async motDePasseOublie (C:\\Projet perso\\Convoiturage-Backend\\controllers\\authController.js:513:7)',
+  timestamp: '2025-08-13 15:33:51'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-13 17:53:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-13 17:53:55'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-13 17:56:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-13 17:56:54'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-13 17:58:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-13 17:58:39'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-13 17:59:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-13 17:59:29'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-13 23:11:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-13 23:11:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-13 23:13:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-13 23:13:20'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-13 23:13:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-13 23:13:22'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-13 23:13:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-13 23:13:23'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-13 23:13:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-13 23:13:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur détaillée :',
+  timestamp: '2025-08-13 23:13:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Stack trace :',
+  timestamp: '2025-08-13 23:13:25'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur de connexion MongoDB: queryTxt ETIMEOUT covoiturage-app.hsp25l7.mongodb.net',
+  timestamp: '2025-08-13 23:43:45'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur de connexion MongoDB: queryTxt ETIMEOUT covoiturage-app.hsp25l7.mongodb.net',
+  timestamp: '2025-08-13 23:45:06'
+}
+{
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  level: 'error',
+  message: 'Erreur de connexion MongoDB: queryTxt ETIMEOUT covoiturage-app.hsp25l7.mongodb.net',
+  timestamp: '2025-08-13 23:46:58'
+}
