@@ -18,7 +18,7 @@ class NotificationService {
   initEmailTransporter() {
     try {
       // Vérifier si les variables d'environnement sont définies
-      if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
         console.warn('⚠️ Configuration email incomplète - les notifications par email sont désactivées');
         return;
       }
@@ -29,7 +29,7 @@ class NotificationService {
         secure: process.env.EMAIL_SECURE === 'true',
         auth: {
           user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD
+          pass: process.env.EMAIL_PASS
         }
       });
       

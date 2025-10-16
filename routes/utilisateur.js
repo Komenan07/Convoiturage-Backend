@@ -396,18 +396,18 @@ const getUpdateFunction = () => {
 };
 
 // =============== DEBUG ET LOGGING ===============
-if (process.env.NODE_ENV === 'development') {
-  console.log('🔍 État du contrôleur utilisateursController:', {
-    loaded: Object.keys(utilisateursController).length > 0,
-    functionsCount: Object.keys(utilisateursController).filter(key => 
-      typeof utilisateursController[key] === 'function'
-    ).length,
-    availableFunctions: Object.keys(utilisateursController).filter(key => 
-      typeof utilisateursController[key] === 'function'
-    ).slice(0, 10), // Affiche les 10 premières fonctions
-    updateFunctionAvailable: !!getUpdateFunction()
-  });
-}
+// if (process.env.NODE_ENV === 'development') {
+//   console.log('🔍 État du contrôleur utilisateursController:', {
+//     loaded: Object.keys(utilisateursController).length > 0,
+//     functionsCount: Object.keys(utilisateursController).filter(key => 
+//       typeof utilisateursController[key] === 'function'
+//     ).length,
+//     availableFunctions: Object.keys(utilisateursController).filter(key => 
+//       typeof utilisateursController[key] === 'function'
+//     ).slice(0, 10), // Affiche les 10 premières fonctions
+//     updateFunctionAvailable: !!getUpdateFunction()
+//   });
+// }
 
 // =============== ROUTES PRINCIPALES ===============
 
@@ -580,7 +580,7 @@ router.get('/recents',
  */
 router.put('/profil', 
   adminActionLimiter,
-  authMiddleware, // Seulement auth, pas besoin d'être admin
+  authMiddleware,
   [
     body('nom')
       .optional()
@@ -749,8 +749,8 @@ router.put('/profil/mot-de-passe',
       .notEmpty()
       .withMessage('Mot de passe actuel requis'),
     body('nouveauMotDePasse')
-      .isLength({ min: 8 })
-      .withMessage('Le nouveau mot de passe doit contenir au moins 8 caractères')
+      .isLength({ min: 4 })
+      .withMessage('Le nouveau mot de passe doit contenir au moins 4 caractères')
       .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
       .withMessage('Le nouveau mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre')
   ],

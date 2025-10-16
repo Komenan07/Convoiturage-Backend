@@ -4,23 +4,22 @@
  */
 const Joi = require('joi');
 
+// ========================================
+// IMPORTS CORRIGÉS
+// ========================================
 const {
   SEXE,
   TYPE_DOCUMENT_IDENTITE,
-  STATUT_VERIFICATION,
-  TYPE_CONVERSATION,
-  LANGUE_PREFEREE,
+  PREFERENCE_CONVERSATION, 
+  LANGUES, 
   RELATION_CONTACT_URGENCE,
   BADGES_UTILISATEUR,
   STATUT_COMPTE,
   TYPE_TRAJET,
   JOURS_SEMAINE,
   TYPE_BAGAGES,
-  STATUT_TRAJET,
   STATUT_RESERVATION,
-  STATUT_PAIEMENT,
   METHODE_PAIEMENT,
-  TYPE_NOTIFICATION,
   TYPE_MESSAGE,
   TYPE_PIECE_JOINTE,
   TYPE_EVALUATEUR,
@@ -28,13 +27,11 @@ const {
   ASPECTS_A_AMELIORER,
   GRAVITE_SIGNALEMENT,
   TYPE_EVENEMENT,
-  STATUT_EVENEMENT,
   SOURCE_DETECTION,
   TYPE_ALERTE,
   NIVEAU_GRAVITE,
   STATUT_ALERTE,
-  STATUT_NOTIFICATION_URGENCE,
-  STATUT_PAIEMENT_DETAILLE,
+  STATUT_PAIEMENT, 
   ROLE_ADMIN,
   PERMISSIONS,
   TYPE_SIGNALEMENT,
@@ -48,6 +45,11 @@ const {
   LIMITES
 } = require('./constants');
 
+// Note: STATUT_PAIEMENT_DETAILLE n'existe pas dans constants.js
+// Vous devez soit :
+// 1. L'ajouter dans constants.js
+// 2. Ou utiliser STATUT_PAIEMENT à la place
+
 // ========================================
 // SCHÉMAS DE BASE RÉUTILISABLES
 // ========================================
@@ -55,7 +57,7 @@ const objectIdSchema = Joi.string().pattern(/^[0-9a-fA-F]{24}$/).message('Doit �
 
 const coordonneesSchema = Joi.object({
   type: Joi.string().valid('Point').required(),
-  coordinates: Joi.array().items(Joi.number()).length(2).required() // [longitude, latitude]
+  coordinates: Joi.array().items(Joi.number()).length(2).required()
 });
 
 const adresseSchema = Joi.object({
@@ -77,7 +79,6 @@ const pointSchema = Joi.object({
 // VALIDATEURS UTILISATEUR
 // ========================================
 const utilisateurSchema = {
-  // Inscription
   inscription: Joi.object({
     email: Joi.string().email().lowercase().required().messages({
       'string.email': 'Format email invalide',
@@ -97,12 +98,12 @@ const utilisateurSchema = {
     dateNaissance: Joi.date().max('now').min('1930-01-01').required(),
     sexe: Joi.string().valid(...Object.values(SEXE)).required()
   }),
-  // Connexion
+
   connexion: Joi.object({
     email: Joi.string().email().lowercase().required(),
     motDePasse: Joi.string().required()
   }),
-  // Mise à jour profil
+
   miseAJourProfil: Joi.object({
     nom: Joi.string().trim().min(2).max(50),
     prenom: Joi.string().trim().min(2).max(50),
@@ -113,11 +114,11 @@ const utilisateurSchema = {
     preferences: Joi.object({
       musique: Joi.boolean().default(false),
       climatisation: Joi.boolean().default(false),
-      conversation: Joi.string().valid(...Object.values(TYPE_CONVERSATION)).default('NEUTRE'),
-      languePreferee: Joi.string().valid(...Object.values(LANGUE_PREFEREE)).default('FR')
+      conversation: Joi.string().valid(...Object.values(PREFERENCE_CONVERSATION)).default('NEUTRE'), // ✅ CORRIGÉ
+      languePreferee: Joi.string().valid(...Object.values(LANGUES)).default('FR') // ✅ CORRIGÉ
     })
   }),
-  // Document d'identité
+
   documentIdentite: Joi.object({
     type: Joi.string().valid(...Object.values(TYPE_DOCUMENT_IDENTITE)).required(),
     numero: Joi.string().when('type', {
@@ -127,13 +128,13 @@ const utilisateurSchema = {
     }),
     photoDocument: Joi.string().uri().required()
   }),
-  // Contact d'urgence
+
   contactUrgence: Joi.object({
     nom: Joi.string().trim().min(2).max(100).required(),
     telephone: Joi.string().pattern(REGEX_PATTERNS.TELEPHONE_CI).required(),
     relation: Joi.string().valid(...Object.values(RELATION_CONTACT_URGENCE)).required()
   }),
-  // Véhicule
+
   vehicule: Joi.object({
     marque: Joi.string().valid(...Object.values(MARQUES_VEHICULES)).required(),
     modele: Joi.string().trim().min(2).max(50).required(),
@@ -157,7 +158,6 @@ const utilisateurSchema = {
 // VALIDATEURS TRAJET
 // ========================================
 const trajetSchema = {
-  // Création de trajet
   creation: Joi.object({
     pointDepart: pointSchema.required(),
     pointArrivee: pointSchema.required(),
@@ -185,14 +185,14 @@ const trajetSchema = {
       accepteBagages: Joi.boolean().default(true),
       typeBagages: Joi.string().valid(...Object.values(TYPE_BAGAGES)).default('MOYEN'),
       musique: Joi.boolean().default(false),
-      conversation: Joi.string().valid(...Object.values(TYPE_CONVERSATION)).default('NEUTRE'),
+      conversation: Joi.string().valid(...Object.values(PREFERENCE_CONVERSATION)).default('NEUTRE'), // ✅ CORRIGÉ
       fumeur: Joi.boolean().default(false)
     }),
     validationAutomatique: Joi.boolean().default(false),
     commentaireConducteur: Joi.string().max(LIMITES.MAX_CARACTERES_COMMENTAIRE),
     evenementAssocie: objectIdSchema
   }),
-  // Mise à jour trajet
+
   miseAJour: Joi.object({
     heureDepart: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
     prixParPassager: Joi.number().integer().min(LIMITES.MIN_PRIX_TRAJET).max(LIMITES.MAX_PRIX_TRAJET),
@@ -203,17 +203,17 @@ const trajetSchema = {
       accepteBagages: Joi.boolean(),
       typeBagages: Joi.string().valid(...Object.values(TYPE_BAGAGES)),
       musique: Joi.boolean(),
-      conversation: Joi.string().valid(...Object.values(TYPE_CONVERSATION)),
+      conversation: Joi.string().valid(...Object.values(PREFERENCE_CONVERSATION)), // ✅ CORRIGÉ
       fumeur: Joi.boolean()
     }),
     commentaireConducteur: Joi.string().max(LIMITES.MAX_CARACTERES_COMMENTAIRE)
   }),
-  // Recherche de trajets
+
   recherche: Joi.object({
     pointDepart: coordonneesSchema.required(),
     pointArrivee: coordonneesSchema.required(),
     dateDepart: Joi.date().greater('now'),
-    rayonRecherche: Joi.number().min(1).max(50).default(10), // km
+    rayonRecherche: Joi.number().min(1).max(50).default(10),
     prixMax: Joi.number().integer().min(LIMITES.MIN_PRIX_TRAJET).max(LIMITES.MAX_PRIX_TRAJET),
     nombrePlacesMin: Joi.number().integer().min(1).max(LIMITES.MAX_PLACES_VEHICULE).default(1),
     preferences: Joi.object({
@@ -230,7 +230,6 @@ const trajetSchema = {
 // VALIDATEURS RÉSERVATION
 // ========================================
 const reservationSchema = {
-  // Création de réservation
   creation: Joi.object({
     trajetId: objectIdSchema.required(),
     nombrePlacesReservees: Joi.number().integer().min(1).max(LIMITES.MAX_PLACES_VEHICULE).required(),
@@ -240,10 +239,10 @@ const reservationSchema = {
     bagages: Joi.object({
       quantite: Joi.number().integer().min(0).max(10).default(0),
       description: Joi.string().max(200),
-      poids: Joi.number().min(0).max(50) // kg
+      poids: Joi.number().min(0).max(50)
     })
   }),
-  // Mise à jour statut
+
   miseAJourStatut: Joi.object({
     statutReservation: Joi.string().valid(...Object.values(STATUT_RESERVATION)).required(),
     motifRefus: Joi.when('statutReservation', {
@@ -258,7 +257,6 @@ const reservationSchema = {
 // VALIDATEURS MESSAGE
 // ========================================
 const messageSchema = {
-  // Envoi de message
   envoi: Joi.object({
     conversationId: objectIdSchema.required(),
     destinataireId: objectIdSchema.required(),
@@ -283,7 +281,7 @@ const messageSchema = {
       })
     })
   }),
-  // Signalement de message
+
   signalement: Joi.object({
     messageId: objectIdSchema.required(),
     motifSignalement: Joi.string().valid('SPAM', 'HARCELEMENT', 'CONTENU_INAPPROPRIE', 'AUTRE').required(),
@@ -321,6 +319,7 @@ const evaluationSchema = {
       otherwise: Joi.forbidden()
     })
   }),
+
   reponse: Joi.object({
     evaluationId: objectIdSchema.required(),
     reponseEvalue: Joi.string().min(5).max(300).required()
@@ -346,6 +345,7 @@ const evenementSchema = {
     capaciteEstimee: Joi.number().integer().min(10).max(100000),
     sourceDetection: Joi.string().valid(...Object.values(SOURCE_DETECTION)).default('MANUEL')
   }),
+
   groupeCovoiturage: Joi.object({
     evenementId: objectIdSchema.required(),
     nom: Joi.string().trim().min(3).max(100).required(),
@@ -371,6 +371,7 @@ const alerteUrgenceSchema = {
       telephone: Joi.string().pattern(REGEX_PATTERNS.TELEPHONE_CI).required()
     })).min(1).required()
   }),
+
   miseAJour: Joi.object({
     alerteId: objectIdSchema.required(),
     statutAlerte: Joi.string().valid(...Object.values(STATUT_ALERTE)).required(),
@@ -398,10 +399,13 @@ const paiementSchema = {
       otherwise: Joi.forbidden()
     })
   }),
+
   confirmation: Joi.object({
     paiementId: objectIdSchema.required(),
     referenceTransaction: Joi.string().required(),
-    statutPaiement: Joi.string().valid(...Object.values(STATUT_PAIEMENT_DETAILLE)).required()
+    // ⚠️ ATTENTION: STATUT_PAIEMENT_DETAILLE n'existe pas dans constants.js
+    // Utilisation de STATUT_PAIEMENT à la place
+    statutPaiement: Joi.string().valid(...Object.values(STATUT_PAIEMENT)).required()
   })
 };
 
@@ -409,7 +413,6 @@ const paiementSchema = {
 // VALIDATEURS ADMINISTRATION
 // ========================================
 const adminSchema = {
-  // Création administrateur
   creation: Joi.object({
     email: Joi.string().email().lowercase().required(),
     motDePasse: Joi.string().min(8).max(128).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/).required(),
@@ -418,12 +421,12 @@ const adminSchema = {
     role: Joi.string().valid(...Object.values(ROLE_ADMIN)).default('MODERATEUR'),
     permissions: Joi.array().items(Joi.string().valid(...Object.values(PERMISSIONS))).default(['ALL'])
   }),
-  // Connexion admin
+
   connexion: Joi.object({
     email: Joi.string().email().lowercase().required(),
     motDePasse: Joi.string().required()
   }),
-  // Mise à jour utilisateur
+
   miseAJourUtilisateur: Joi.object({
     utilisateurId: objectIdSchema.required(),
     statutCompte: Joi.string().valid(...Object.values(STATUT_COMPTE)),
@@ -446,6 +449,7 @@ const signalementSchema = {
     description: Joi.string().min(10).max(500).required(),
     preuves: Joi.array().items(Joi.string().uri()).max(5)
   }),
+
   traitement: Joi.object({
     signalementId: objectIdSchema.required(),
     statutTraitement: Joi.string().valid(...Object.values(STATUT_TRAITEMENT)).required(),
@@ -458,46 +462,39 @@ const signalementSchema = {
 // VALIDATEURS GÉNÉRAUX
 // ========================================
 const generalSchema = {
-  // Pagination
   pagination: Joi.object({
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(LIMITES.PAGINATION_LIMIT_MAX || 100).default(20),
     sort: Joi.string().valid('createdAt', '-createdAt', 'nom', '-nom', 'dateDepart', '-dateDepart'),
     search: Joi.string().trim().min(2).max(100)
   }),
-  // Paramètres ID
+
   paramsId: Joi.object({
     id: objectIdSchema.required()
   }),
-  // Upload de fichier
+
   upload: Joi.object({
     fieldname: Joi.string().valid('photoProfil', 'photoDocument', 'photoVehicule', 'certificat', 'preuve').required(),
     mimetype: Joi.string().valid('image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf').required(),
     size: Joi.number().max(LIMITES.MAX_TAILLE_PHOTO || 5 * 1024 * 1024).required()
   }),
-  // Coordonnées géographiques
+
   coordonnees: Joi.object({
     latitude: Joi.number().min(-90).max(90).required(),
     longitude: Joi.number().min(-180).max(180).required(),
-    rayon: Joi.number().min(1).max(100).default(10) // km
+    rayon: Joi.number().min(1).max(100).default(10)
   })
 };
 
 // ========================================
 // MIDDLEWARE DE VALIDATION
 // ========================================
-/**
- * Middleware de validation Joi
- * @param {object} schema - Schéma Joi à utiliser
- * @param {string} property - Propriété à valider ('body', 'params', 'query')
- * @returns {function} Middleware Express
- */
 const validate = (schema, property = 'body') => {
   return (req, res, next) => {
     const { error, value } = schema.validate(req[property], {
-      abortEarly: false, // Retourne toutes les erreurs
-      allowUnknown: false, // Rejette les champs non définis
-      stripUnknown: true // Supprime les champs non définis
+      abortEarly: false,
+      allowUnknown: false,
+      stripUnknown: true
     });
 
     if (error) {
@@ -512,7 +509,6 @@ const validate = (schema, property = 'body') => {
         errors: errors
       });
     }
-    // Remplace la propriété validée par la valeur nettoyée
     req[property] = value;
     next();
   };
@@ -522,7 +518,6 @@ const validate = (schema, property = 'body') => {
 // EXPORTS
 // ========================================
 module.exports = {
-  // Schémas de validation
   utilisateurSchema,
   trajetSchema,
   reservationSchema,
@@ -534,14 +529,11 @@ module.exports = {
   adminSchema,
   signalementSchema,
   generalSchema,
-  // Schémas de base
   objectIdSchema,
   coordonneesSchema,
   adresseSchema,
   pointSchema,
-  // Middleware de validation
   validate,
-  // Validations spécifiques couramment utilisées
   validateObjectId: validate(generalSchema.paramsId, 'params'),
   validatePagination: validate(generalSchema.pagination, 'query'),
   validateCoordonnees: validate(generalSchema.coordonnees, 'body')

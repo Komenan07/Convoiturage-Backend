@@ -3,45 +3,46 @@ const User = require('../models/Utilisateur');
 const { logger } = require('../utils/logger');
 const AppError = require('../utils/AppError');
 const fs = require('fs');
-const path = require('path');
 const multer = require('multer');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
+const { uploadProfilPhoto } = require('../middlewares/uploadMiddleware');
 
-// Configuration multer pour l'upload de fichiers
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadPath = path.join(process.cwd(), 'uploads', 'users');
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const extension = path.extname(file.originalname);
-    const prefix = file.fieldname === 'photoProfil' ? 'profil' : 'document';
-    cb(null, `${prefix}-${req.user.userId}-${uniqueSuffix}${extension}`);
-  }
-});
+// // Configuration multer pour l'upload de fichiers
+// const storage = multer.diskStorage({
+//   destination: function (req, file, cb) {
+//     const uploadPath = path.join(process.cwd(), 'uploads', 'users');
+//     if (!fs.existsSync(uploadPath)) {
+//       fs.mkdirSync(uploadPath, { recursive: true });
+//     }
+//     cb(null, uploadPath);
+//   },
+//   filename: function (req, file, cb) {
+//     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//     const extension = path.extname(file.originalname);
+//     const prefix = file.fieldname === 'photoProfil' ? 'profil' : 'document';
+//     cb(null, `${prefix}-${req.user.userId}-${uniqueSuffix}${extension}`);
+//   }
+// });
 
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Type de fichier non autorisé. Seuls JPEG, PNG et GIF sont acceptés.'), false);
-  }
-};
+// const fileFilter = (req, file, cb) => {
+//   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+//   if (allowedTypes.includes(file.mimetype)) {
+//     cb(null, true);
+//   } else {
+//     cb(new Error('Type de fichier non autorisé. Seuls JPEG, PNG et GIF sont acceptés.'), false);
+//   }
+// };
 
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
-  }
-});
-// Helper pour construire l'URL complète des images
+// const upload = multer({
+//   storage: storage,
+//   fileFilter: fileFilter,
+//   limits: {
+//     fileSize: 5 * 1024 * 1024 // 5MB
+//   }
+// });
+
+// // Helper pour construire l'URL complète des images
 const buildFullImageUrl = (imagePath, req) => {
   if (!imagePath) return null;
   
@@ -54,7 +55,7 @@ const buildFullImageUrl = (imagePath, req) => {
   const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
   return `${baseUrl}${imagePath}`;
 };
-// =============== FONCTIONS CRUD DE BASE ===============
+//=============== FONCTIONS CRUD DE BASE ===============
 
 /**
  * Obtenir la liste paginée des utilisateurs
@@ -2136,9 +2137,11 @@ const mettreAJourProfil = async (req, res, next) => {
 /**
  * Upload photo de profil
  */
+// En haut de votre fichier contrôleur, importez le bon uploader
+
 const uploadPhotoProfil = async (req, res, next) => {
   try {
-    const uploadSingle = upload.single('photoProfil');
+    const uploadSingle = uploadProfilPhoto.single('photoProfil');
     
     uploadSingle(req, res, async (err) => {
       if (err instanceof multer.MulterError) {
@@ -2168,8 +2171,7 @@ const uploadPhotoProfil = async (req, res, next) => {
 
       try {
         const userId = req.user.userId;
-        // ✅ Chemin relatif pour stocker dans la DB (correspond au dossier multer)
-        const photoUrl = `/uploads/users/${req.file.filename}`;
+        const photoUrl = `/uploads/profils/${req.file.filename}`;
 
         const user = await User.findByIdAndUpdate(
           userId,
@@ -2178,7 +2180,6 @@ const uploadPhotoProfil = async (req, res, next) => {
         );
 
         if (!user) {
-          // Supprimer le fichier uploadé si l'utilisateur n'existe pas
           fs.unlinkSync(req.file.path);
           return res.status(404).json({
             success: false,
@@ -2186,18 +2187,15 @@ const uploadPhotoProfil = async (req, res, next) => {
           });
         }
 
-        // // ✅ URL complète pour renvoyer au client
-        // const fullPhotoUrl = buildFullImageUrl(photoUrl, req);
         logger.info('Photo de profil uploadée', { userId, filename: req.file.filename });
 
         res.json({
           success: true,
           message: 'Photo de profil mise à jour avec succès',
-          photoProfil: photoUrl  // ✅ URL complète uniquement
+          photoProfil: photoUrl
         });
 
       } catch (dbError) {
-        // Supprimer le fichier en cas d'erreur de base de données
         if (req.file) {
           fs.unlinkSync(req.file.path);
         }
@@ -2339,18 +2337,23 @@ const changerMotDePasse = async (req, res, next) => {
       });
     }
 
-    // Récupérer l'utilisateur avec le mot de passe
+    // Vérifier que les mots de passe sont différents
+    if (motDePasseActuel === nouveauMotDePasse) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le nouveau mot de passe doit être différent de l\'ancien'
+      });
+    }
+
     const user = await User.findById(userId).select('+motDePasse');
     
     if (!user) {
-      // Supprimer le fichier uploadé si l'utilisateur n'existe pas
       return res.status(404).json({
         success: false,
         message: 'Utilisateur non trouvé'
       });
     }
     
-    // Vérifier le mot de passe actuel
     const isMatch = await user.verifierMotDePasse(motDePasseActuel);
     if (!isMatch) {
       logger.warn('Changement mot de passe - Mot de passe actuel incorrect', { userId });
@@ -2361,7 +2364,6 @@ const changerMotDePasse = async (req, res, next) => {
       });
     }
 
-    // Le nouveau mot de passe sera hashé par le middleware pre-save
     user.motDePasse = nouveauMotDePasse;
     await user.save();
 

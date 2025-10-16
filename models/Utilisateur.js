@@ -33,7 +33,7 @@ const utilisateurSchema = new mongoose.Schema({
   motDePasse: {
     type: String,
     required: [true, 'Le mot de passe est requis'],
-    minlength: [8, 'Le mot de passe doit contenir au moins 8 caractères'],
+    minlength: [4, 'Le mot de passe doit contenir au moins 4 caractères'],
     validate: {
       validator: function(password) {
         // Au moins 1 majuscule, 1 minuscule, 1 chiffre

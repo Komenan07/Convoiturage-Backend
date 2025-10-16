@@ -63,9 +63,12 @@ app.set('trust proxy', 1);
 // CRÉATION DES RÉPERTOIRES
 // ====================================
 const uploadDirs = [
-  path.join(__dirname, 'public', 'uploads', 'photos'),
-  path.join(__dirname, 'public', 'uploads', 'documents'),
-  path.join(__dirname, 'public', 'uploads', 'vehicules'),
+  path.join(__dirname, 'uploads', 'photos'),
+  path.join(__dirname, 'uploads', 'documents'), 
+  path.join(__dirname, 'uploads', 'profils'),
+  path.join(__dirname, 'uploads', 'vehicules'), 
+  path.join(__dirname, 'uploads', 'users'),
+   path.join(__dirname, 'uploads', 'temp'), 
   path.join(__dirname, 'logs'), 
   path.join(__dirname, 'backups')
 ];
@@ -73,14 +76,14 @@ const uploadDirs = [
 uploadDirs.forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
-    console.log(`📁 Répertoire créé: ${dir}`);
+    //console.log(`📁 Répertoire créé: ${dir}`);
   }
 });
 
 // ====================================
 // FICHIERS STATIQUES
 // ====================================
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // ====================================
@@ -110,7 +113,7 @@ const chargerRouteSecurisee = (cheminRoute, nomRoute, urlBase) => {
   try {
     const cheminComplet = path.resolve(__dirname, cheminRoute);
     if (!fs.existsSync(cheminComplet)) {
-      console.warn(`⚠️ Fichier route non trouvé: ${cheminComplet}`);
+      //console.warn(`⚠️ Fichier route non trouvé: ${cheminComplet}`);
       return false;
     }
     delete require.cache[require.resolve(cheminRoute)];
@@ -124,7 +127,7 @@ const chargerRouteSecurisee = (cheminRoute, nomRoute, urlBase) => {
       return false;
     }
     app.use(urlBase, route);
-    console.log(`✅ Route ${nomRoute} chargée avec succès (${urlBase})`);
+    //console.log(`✅ Route ${nomRoute} chargée avec succès (${urlBase})`);
     return true;
   } catch (error) {
     console.error(`❌ Erreur lors du chargement de la route ${nomRoute}:`, error.message);
@@ -132,7 +135,7 @@ const chargerRouteSecurisee = (cheminRoute, nomRoute, urlBase) => {
   }
 };
 
-console.log('🚀 Chargement des routes...\n');
+//console.log('🚀 Chargement des routes...\n');
 
 const routesConfig = [
   { nom: 'authentification', chemins: ['./routes/authRoute.js'], url: '/api/auth' },
@@ -170,13 +173,13 @@ routesConfig.forEach(config => {
   });
 });
 
-console.log(`\n📊 Résumé du chargement des routes:`);
-console.log(`   ✅ Chargées: ${routesChargees}`);
-console.log(`   ❌ Échouées: ${routesConfig.length - routesChargees}`);
-console.log(`   📁 Total: ${routesConfig.length}`);
+//console.log(`\n📊 Résumé du chargement des routes:`);
+//console.log(`   ✅ Chargées: ${routesChargees}`);
+//console.log(`   ❌ Échouées: ${routesConfig.length - routesChargees}`);
+//console.log(`   📁 Total: ${routesConfig.length}`);
 
 if (process.env.NODE_ENV === 'development') {
-  console.log(`\n📋 Détail des routes:`);
+  //console.log(`\n📋 Détail des routes:`);
   routesDetails.forEach(route => {
     const status = route.status === 'Chargée' ? '✅' : '❌';
     console.log(`   ${status} ${route.nom} → ${route.url}`);
@@ -269,7 +272,7 @@ const demarrerServeur = async () => {
         console.log(`🔌 Socket connecté: ${socket.id}`);
       });
     } catch (e) {
-      console.warn('⚠️ Socket.io non initialisé:', e.message);
+      //console.warn('⚠️ Socket.io non initialisé:', e.message);
     }
 
     // Tâches planifiées (CRON)
@@ -286,7 +289,7 @@ const demarrerServeur = async () => {
 
       console.log('✅ Tâches planifiées configurées');
     } catch (e) {
-      console.warn('⚠️ Tâches planifiées non configurées:', e.message);
+      //console.warn('⚠️ Tâches planifiées non configurées:', e.message);
     }
 
     server.listen(PORT, HOST, () => {

@@ -106,9 +106,10 @@ const profilStorage = multer.diskStorage({
   filename: (req, file, cb) => {
     const filename = generateUniqueFilename(file.originalname);
     logger.info('Upload profil', { 
-      originalName: file.originalname,
-      newFilename: filename,
-      userId: req.user?.userId 
+    originalName: file.originalname,
+    newFilename: filename,
+    destination: UPLOAD_PATHS.profils, 
+    userId: req.user?.userId 
     });
     cb(null, filename);
   }

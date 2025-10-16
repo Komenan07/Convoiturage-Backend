@@ -15,8 +15,8 @@ if (!authenticateToken) {
 }  
 
 // Debug
-console.log('🔍 Vérification des dépendances placesV2Routes...');
-console.log('   authMiddleware keys:', Object.keys(authMiddleware));
+//console.log('🔍 Vérification des dépendances placesV2Routes...');
+//console.log('   authMiddleware keys:', Object.keys(authMiddleware));
 console.log('   authenticateToken:', typeof authenticateToken);
 
 const requiredMethods = [
