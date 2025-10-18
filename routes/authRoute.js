@@ -8,7 +8,10 @@ const rateLimit = require('express-rate-limit');
 const {
   // Inscription
   inscription,              
-  inscriptionSMS,           
+  inscriptionSMS, 
+  register,
+  verifyCode,
+  resendCode,          
   
   // Confirmation
   confirmerEmail,           
@@ -152,6 +155,25 @@ const handleValidationErrors = (req, res, next) => {
 
 // =============== ROUTES PUBLIQUES - INSCRIPTION ===============
 
+// Inscription avec WhatsApp (nouvelle méthode)
+/**
+ * @desc    Inscription d'un nouvel utilisateur avec vérification WhatsApp
+ * @route   POST /api/auth/register
+ * @access  Public
+ */
+router.post('/register', register);
+/**
+ * @desc    Vérifier le code WhatsApp
+ * @route   POST /api/auth/verify-code
+ * @access  Public
+ */
+router.post('/verify-code', verifyCode);
+/**
+ * @desc    Renvoyer le code de vérification WhatsApp
+ * @route   POST /api/auth/resend-code
+ * @access  Public
+ */
+router.post('/resend-code', resendCode);
 /**
  * @route   POST /api/auth/inscription
  * @desc    Inscription d'un nouvel utilisateur avec envoi d'email de confirmation

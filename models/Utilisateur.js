@@ -496,7 +496,20 @@ const utilisateurSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-
+  whatsappVerifie: {
+    type: Boolean,
+    default: false
+  },
+  
+  codeVerificationWhatsApp: {
+    type: String,
+    select: false
+  },
+  
+  codeVerificationWhatsAppExpire: {
+    type: Date,
+    select: false
+  },
   // Confirmation d'email
   tokenConfirmationEmail: {
     type: String,
@@ -1003,6 +1016,30 @@ utilisateurSchema.methods.verifierAutoRecharge = function() {
   }
   
   return { necessite: false };
+};
+// Générer un code de vérification WhatsApp
+utilisateurSchema.methods.genererCodeWhatsApp = function() {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  this.codeVerificationWhatsApp = code;
+  this.codeVerificationWhatsAppExpire = Date.now() + 10 * 60 * 1000;
+  return code;
+};
+
+// Vérifier le code WhatsApp
+utilisateurSchema.methods.verifierCodeWhatsApp = function(code) {
+  if (!this.codeVerificationWhatsApp) {
+    return { valide: false, raison: 'Aucun code de vérification généré' };
+  }
+  if (Date.now() > this.codeVerificationWhatsAppExpire) {
+    return { valide: false, raison: 'Code expiré' };
+  }
+  if (this.codeVerificationWhatsApp !== code) {
+    return { valide: false, raison: 'Code incorrect' };
+  }
+  this.whatsappVerifie = true;
+  this.codeVerificationWhatsApp = undefined;
+  this.codeVerificationWhatsAppExpire = undefined;
+  return { valide: true };
 };
 
 // ===== MÉTHODES STATIQUES =====

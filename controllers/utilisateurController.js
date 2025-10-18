@@ -8,6 +8,7 @@ const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const { uploadProfilPhoto } = require('../middlewares/uploadMiddleware');
 
+
 // // Configuration multer pour l'upload de fichiers
 // const storage = multer.diskStorage({
 //   destination: function (req, file, cb) {

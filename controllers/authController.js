@@ -5,8 +5,10 @@ const sendEmail = require('../utils/emailService');
 const { sendSMS } = require('../services/smsService');
 const { logger } = require('../utils/logger');
 const AppError = require('../utils/AppError');
+const greenApiService = require('../services/greenApiService');
 const fs = require('fs');
 const path = require('path');
+
 
 // ===================================
 // FONCTIONS UTILITAIRES
@@ -32,7 +34,332 @@ const chargerTemplate = (nomTemplate, variables = {}) => {
     throw new Error(`Impossible de charger le template ${nomTemplate}`);
   }
 };
+// ===================================
+// INSCRIPTION AVEC WHATSAPP
+// ===================================
 
+/**
+ * @desc    Inscription d'un nouvel utilisateur avec vérification WhatsApp
+ * @route   POST /api/auth/register
+ * @access  Public
+ */
+const register = async (req, res, next) => {
+  try {
+    logger.info('Tentative d\'inscription WhatsApp', { telephone: req.body.telephone });
+
+    const { nom, prenom, telephone, email, motDePasse } = req.body;
+
+    // Validation des champs requis
+    if (!nom || !prenom || !telephone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Veuillez fournir le nom, prénom et numéro de téléphone',
+        champsRequis: ['nom', 'prenom', 'telephone']
+      });
+    }
+
+    // Vérifier si l'utilisateur existe déjà
+    const utilisateurExiste = await User.findOne({
+      $or: [
+        { telephone: telephone },
+        ...(email ? [{ email: email }] : [])
+      ]
+    }).maxTimeMS(30000);
+
+    if (utilisateurExiste) {
+      if (utilisateurExiste.telephone === telephone) {
+        logger.warn('Inscription échouée - Téléphone déjà utilisé', { telephone });
+        return res.status(409).json({
+          success: false,
+          message: 'Ce numéro de téléphone est déjà utilisé',
+          champ: 'telephone'
+        });
+      }
+      if (email && utilisateurExiste.email === email) {
+        logger.warn('Inscription échouée - Email déjà utilisé', { email });
+        return res.status(409).json({
+          success: false,
+          message: 'Cet email est déjà utilisé',
+          champ: 'email'
+        });
+      }
+    }
+
+    // Créer l'utilisateur
+    const donneesUtilisateur = {
+      nom,
+      prenom,
+      telephone,
+      email: email || `${telephone}@temp.covoiturage.ci`,
+      motDePasse: motDePasse || `Temp${Math.random().toString(36).slice(-8)}!1`,
+      statutCompte: 'EN_ATTENTE_VERIFICATION',
+      role: 'passager',
+      compteCovoiturage: {
+        solde: 0,
+        estRecharge: false,
+        seuilMinimum: 0,
+        historiqueRecharges: [],
+        totalCommissionsPayees: 0,
+        totalGagnes: 0,
+        modeAutoRecharge: { active: false },
+        historiqueCommissions: [],
+        parametresRetrait: {},
+        limites: {
+          retraitJournalier: 1000000,
+          retraitMensuel: 5000000,
+          montantRetireAujourdhui: 0,
+          montantRetireCeMois: 0
+        }
+      }
+    };
+
+    const utilisateur = await User.create(donneesUtilisateur);
+
+    // Générer le code de vérification WhatsApp
+    const code = utilisateur.genererCodeWhatsApp();
+    await utilisateur.save({ validateBeforeSave: false });
+
+    // Envoyer le code via WhatsApp
+    const nomComplet = `${prenom} ${nom}`;
+    const resultatEnvoi = await greenApiService.envoyerCodeVerification(
+      telephone,
+      code,
+      nomComplet
+    );
+
+    if (!resultatEnvoi.success) {
+      // Si l'envoi échoue, supprimer l'utilisateur créé
+      await User.findByIdAndDelete(utilisateur._id);
+      
+      logger.error('Échec envoi WhatsApp', { telephone, error: resultatEnvoi.error });
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'envoi du code de vérification',
+        details: 'Impossible d\'envoyer le message WhatsApp. Vérifiez votre numéro.',
+        erreurTechnique: resultatEnvoi.error
+      });
+    }
+
+    logger.info('Inscription WhatsApp réussie', { userId: utilisateur._id });
+    
+    // En développement, logger le code
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📱 Code envoyé à ${telephone}: ${code}`);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Inscription réussie ! Un code de vérification a été envoyé sur WhatsApp.',
+      data: {
+        utilisateurId: utilisateur._id,
+        telephone: utilisateur.telephone,
+        nomComplet: utilisateur.nomComplet,
+        expiration: utilisateur.codeVerificationWhatsApp.expiration
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur inscription WhatsApp:', error);
+
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation',
+        erreurs: messages
+      });
+    }
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Un compte avec ces informations existe déjà'
+      });
+    }
+
+    return next(AppError.serverError('Erreur serveur lors de l\'inscription', { 
+      originalError: error.message
+    }));
+  }
+};
+
+/**
+ * @desc    Vérifier le code WhatsApp
+ * @route   POST /api/auth/verify-code
+ * @access  Public
+ */
+const verifyCode = async (req, res, next) => {
+  try {
+    const { telephone, code } = req.body;
+
+    if (!telephone || !code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Veuillez fournir le numéro de téléphone et le code'
+      });
+    }
+
+    const utilisateur = await User.findOne({ telephone })
+      .select('+codeVerificationWhatsApp');
+
+    if (!utilisateur) {
+      return res.status(404).json({
+        success: false,
+        message: 'Aucun compte trouvé avec ce numéro de téléphone'
+      });
+    }
+
+    if (utilisateur.whatsappVerifieLe) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce compte est déjà vérifié',
+        data: { deja_verifie: true }
+      });
+    }
+
+    const resultatVerification = utilisateur.verifierCodeWhatsApp(code);
+
+    if (!resultatVerification.valide) {
+      await utilisateur.save({ validateBeforeSave: false });
+
+      const statusCode = resultatVerification.raison === 'CODE_EXPIRE' ? 410 : 400;
+
+      return res.status(statusCode).json({
+        success: false,
+        message: resultatVerification.message,
+        raison: resultatVerification.raison,
+        tentativesRestantes: resultatVerification.tentativesRestantes
+      });
+    }
+
+    // Code valide : activer le compte
+    utilisateur.whatsappVerifieLe = Date.now();
+    utilisateur.statutCompte = 'ACTIF';
+    utilisateur.estVerifie = true;
+    utilisateur.codeVerificationWhatsApp = undefined;
+
+    await utilisateur.save({ validateBeforeSave: false });
+
+    // Envoyer message de bienvenue
+    await greenApiService.envoyerMessageBienvenue(
+      telephone,
+      utilisateur.prenom
+    );
+
+    // Générer le token JWT
+    const token = utilisateur.getSignedJwtToken();
+
+    logger.info('Vérification WhatsApp réussie', { userId: utilisateur._id });
+
+    res.status(200).json({
+      success: true,
+      message: '✅ Compte vérifié avec succès !',
+      data: {
+        token,
+        utilisateur: {
+          id: utilisateur._id,
+          nom: utilisateur.nom,
+          prenom: utilisateur.prenom,
+          telephone: utilisateur.telephone,
+          email: utilisateur.email,
+          role: utilisateur.role,
+          statutCompte: utilisateur.statutCompte,
+          nomComplet: utilisateur.nomComplet
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur vérification code WhatsApp:', error);
+    return next(AppError.serverError('Erreur lors de la vérification du code', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Renvoyer le code de vérification WhatsApp
+ * @route   POST /api/auth/resend-code
+ * @access  Public
+ */
+const resendCode = async (req, res, next) => {
+  try {
+    const { telephone } = req.body;
+
+    if (!telephone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Veuillez fournir le numéro de téléphone'
+      });
+    }
+
+    const utilisateur = await User.findOne({ telephone })
+      .select('+codeVerificationWhatsApp');
+
+    if (!utilisateur) {
+      return res.status(404).json({
+        success: false,
+        message: 'Aucun compte trouvé avec ce numéro de téléphone'
+      });
+    }
+
+    if (utilisateur.whatsappVerifieLe) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce compte est déjà vérifié'
+      });
+    }
+
+    const verification = utilisateur.peutRenvoyerCode();
+    if (!verification.autorise) {
+      return res.status(429).json({
+        success: false,
+        message: verification.message,
+        raison: verification.raison,
+        tempsRestant: verification.tempsRestant
+      });
+    }
+
+    const code = utilisateur.genererCodeWhatsApp();
+    await utilisateur.save({ validateBeforeSave: false });
+
+    const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
+    const resultatEnvoi = await greenApiService.envoyerCodeVerification(
+      telephone,
+      code,
+      nomComplet
+    );
+
+    if (!resultatEnvoi.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'envoi du code',
+        details: 'Impossible d\'envoyer le message WhatsApp'
+      });
+    }
+
+    logger.info('Nouveau code WhatsApp envoyé', { userId: utilisateur._id });
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📱 Nouveau code envoyé à ${telephone}: ${code}`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Un nouveau code a été envoyé sur WhatsApp',
+      data: {
+        telephone: utilisateur.telephone,
+        expiration: utilisateur.codeVerificationWhatsApp.expiration
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur renvoi code WhatsApp:', error);
+    return next(AppError.serverError('Erreur lors du renvoi du code', { 
+      originalError: error.message 
+    }));
+  }
+};
 // ===================================
 // CONTRÔLEURS D'INSCRIPTION
 // ===================================
@@ -1805,6 +2132,9 @@ module.exports = {
   // Inscription
   inscription,
   inscriptionSMS,
+  register,
+  verifyCode,
+  resendCode,
   
   // Confirmation
   confirmerEmail,
