@@ -58,6 +58,11 @@ router.post('/gares', authenticateToken, placesV2Controller.searchGaresRoutieres
 router.post('/poi', authenticateToken, placesV2Controller.searchPOI);
 router.get('/types/list', placesV2Controller.getPlaceTypes);
 router.get('/:placeId', authenticateToken, placesV2Controller.getPlaceDetails);
+router.post('/stations-proches', placesV2Controller.searchStationsProches);
+router.post('/polices', placesV2Controller.searchPolices);
+router.post('/stations', placesV2Controller.searchStations);
+router.get('/totalenergies/all', placesV2Controller.getAllTotalEnergies);
+router.post('/totalenergies/nearby', placesV2Controller.getNearbyTotalEnergies);
 
 console.log(`✅ ${router.stack.length} routes places enregistrées`);
 

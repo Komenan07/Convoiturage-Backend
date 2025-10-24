@@ -134,6 +134,76 @@ Bon voyage ! 🛣️`;
   }
 
   /**
+   * 🔐 NOUVEAU - Envoyer un code de réinitialisation de mot de passe
+   * @param {string} telephone - Numéro de téléphone
+   * @param {string} code - Code de réinitialisation (6 chiffres)
+   * @param {string} nomComplet - Nom complet de l'utilisateur
+   * @returns {Promise<Object>}
+   */
+  async envoyerCodeResetMotDePasse(telephone, code, nomComplet) {
+    const message = `🔐 *Réinitialisation de mot de passe*
+
+Bonjour ${nomComplet},
+
+Votre code de réinitialisation Covoiturage est :
+
+🔑 *${code}*
+
+Ce code est valide pendant *10 minutes*.
+
+⚠️ Si vous n'avez pas demandé cette réinitialisation, ignorez ce message et contactez le support.
+
+Sécurité avant tout ! 🛡️`;
+
+    const resultat = await this.envoyerMessage(telephone, message);
+
+    if (resultat.success) {
+      console.log('✅ Code réinitialisation envoyé:', {
+        telephone: telephone,
+        code: code.substring(0, 2) + '****' // Masquer partiellement le code dans les logs
+      });
+    }
+
+    return resultat;
+  }
+
+  /**
+   * 🔐 NOUVEAU - Envoyer une confirmation de réinitialisation réussie
+   * @param {string} telephone - Numéro de téléphone
+   * @param {string} prenom - Prénom de l'utilisateur
+   * @returns {Promise<Object>}
+   */
+  async envoyerConfirmationResetMotDePasse(telephone, prenom) {
+    const message = `✅ *Mot de passe réinitialisé avec succès !*
+
+Bonjour ${prenom},
+
+Votre mot de passe Covoiturage a été modifié avec succès. 🎉
+
+Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
+
+🔒 *Conseils de sécurité :*
+- Ne partagez jamais votre mot de passe
+- Utilisez un mot de passe unique et complexe
+- Changez-le régulièrement
+
+Si vous n'êtes pas à l'origine de cette modification, contactez immédiatement notre support.
+
+Bon covoiturage ! 🚗`;
+
+    const resultat = await this.envoyerMessage(telephone, message);
+
+    if (resultat.success) {
+      console.log('✅ Confirmation réinitialisation envoyée:', {
+        telephone: telephone,
+        prenom: prenom
+      });
+    }
+
+    return resultat;
+  }
+
+  /**
    * Vérifier l'état de l'instance Green-API
    * @returns {Promise<Object>}
    */

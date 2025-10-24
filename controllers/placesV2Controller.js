@@ -270,7 +270,133 @@ const searchGaresRoutieres = async (req, res) => {
     });
   }
 };
+/**
+ * RECHERCHE DE STATIONS PROCHES (bus, train, etc.)
+ * POST /api/places/stations-proches
+ */
+const searchStationsProches = async (req, res) => {
+  try {
+    const { latitude, longitude, radius } = req.body;
 
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        error: 'Les coordonnées sont requises',
+      });
+    }
+
+    const result = await placesV2Service.searchStationsProches(
+      latitude,
+      longitude,
+      radius || 5000
+    );
+
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        count: result.data.length,
+        data: result.data,
+      });
+    }
+
+    return res.status(404).json(result);
+  } catch (error) {
+    console.error('Erreur searchStationsProches:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la recherche de stations proches',
+    });
+  }
+};
+
+/**
+ * RECHERCHE DE STATIONS DE POLICE
+ * POST /api/places/polices
+ */
+const searchPolices = async (req, res) => {
+  try {
+    const { latitude, longitude, radius } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        error: 'Les coordonnées sont requises',
+      });
+    }
+
+    const result = await placesV2Service.searchPolices(
+      latitude,
+      longitude,
+      radius || 10000
+    );
+
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        count: result.data.length,
+        data: result.data,
+      });
+    }
+
+    return res.status(404).json(result);
+  } catch (error) {
+    console.error('Erreur searchPolices:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la recherche de stations de police',
+    });
+  }
+};
+
+/**
+ * RECHERCHE GÉNÉRALE DE STATIONS
+ * POST /api/places/stations
+ */
+const searchStations = async (req, res) => {
+  try {
+    const { latitude, longitude, radius, type } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        error: 'Les coordonnées sont requises',
+      });
+    }
+
+    const validTypes = ['bus', 'train', 'transit', 'taxi', 'all'];
+    const stationType = type || 'all';
+
+    if (!validTypes.includes(stationType)) {
+      return res.status(400).json({
+        success: false,
+        error: `Type invalide. Types autorisés: ${validTypes.join(', ')}`,
+      });
+    }
+
+    const result = await placesV2Service.searchStations(
+      latitude,
+      longitude,
+      stationType,
+      radius || 5000
+    );
+
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        count: result.data.length,
+        data: result.data,
+      });
+    }
+
+    return res.status(404).json(result);
+  } catch (error) {
+    console.error('Erreur searchStations:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la recherche de stations',
+    });
+  }
+};
 /**
  * RECHERCHE DE POINTS D'INTÉRÊT
  * POST /api/places/poi
@@ -328,6 +454,72 @@ const searchPOI = async (req, res) => {
 };
 
 /**
+ * RECHERCHE DE TOUTES LES STATIONS TOTALENERGIES
+ * GET /api/places/totalenergies/all
+ */
+const getAllTotalEnergies = async (req, res) => {
+  try {
+    const result = await placesV2Service.searchAllTotalEnergies();
+
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        count: result.data.length,
+        data: result.data,
+      });
+    }
+
+    return res.status(404).json(result);
+  } catch (error) {
+    console.error('Erreur getAllTotalEnergies:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la recherche des stations TotalEnergies',
+    });
+  }
+};
+
+/**
+ * RECHERCHE DE STATIONS TOTALENERGIES À PROXIMITÉ
+ * POST /api/places/totalenergies/nearby
+ */
+const getNearbyTotalEnergies = async (req, res) => {
+  try {
+    const { latitude, longitude, radius } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        error: 'Les coordonnées (latitude, longitude) sont requises',
+      });
+    }
+
+    const result = await placesV2Service.searchNearbyTotalEnergies(
+      latitude,
+      longitude,
+      radius || 10000
+    );
+
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        count: result.data.length,
+        data: result.data,
+        userLocation: { latitude, longitude },
+      });
+    }
+
+    return res.status(404).json(result);
+  } catch (error) {
+    console.error('Erreur getNearbyTotalEnergies:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la recherche de stations TotalEnergies à proximité',
+    });
+  }
+};
+
+/**
  * LISTE DES TYPES DE LIEUX
  * GET /api/places/types/list
  */
@@ -366,6 +558,11 @@ module.exports = {
   getPlaceDetails,
   searchCommunes,
   searchGaresRoutieres,
+  searchStationsProches,
+  searchPolices,
+  searchStations,
   searchPOI,
+  getAllTotalEnergies,      
+  getNearbyTotalEnergies,
   getPlaceTypes,
 };

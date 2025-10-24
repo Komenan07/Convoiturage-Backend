@@ -533,6 +533,25 @@ const utilisateurSchema = new mongoose.Schema({
     type: Date,
     select: false
   },
+  codeResetWhatsApp: {
+  code: {
+    type: String
+  },
+  expiration: {
+    type: Date
+  },
+  tentativesRestantes: {
+    type: Number,
+    default: 5
+  },
+  dernierEnvoi: {
+    type: Date
+  },
+  verifie: {
+    type: Boolean,
+    default: false
+  }
+},
   
   tentativesConnexionEchouees: {
     type: Number,
@@ -1024,7 +1043,100 @@ utilisateurSchema.methods.genererCodeWhatsApp = function() {
   this.codeVerificationWhatsAppExpire = Date.now() + 10 * 60 * 1000;
   return code;
 };
+// ============================================================
+// MÉTHODES POUR RÉINITIALISATION MOT DE PASSE WHATSAPP
+// ============================================================
 
+/**
+ * Générer un code de réinitialisation WhatsApp (6 chiffres)
+ */
+utilisateurSchema.methods.genererCodeResetWhatsApp = function() {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  this.codeResetWhatsApp = {
+    code: code,
+    expiration: Date.now() + 10 * 60 * 1000, // 10 minutes
+    tentativesRestantes: 5,
+    dernierEnvoi: Date.now(),
+    verifie: false
+  };
+  
+  return code;
+};
+
+/**
+ * Vérifier si l'utilisateur peut renvoyer un code reset
+ */
+utilisateurSchema.methods.peutRenvoyerCodeReset = function() {
+  if (!this.codeResetWhatsApp || !this.codeResetWhatsApp.dernierEnvoi) {
+    return { autorise: true };
+  }
+
+  const tempsEcoule = Date.now() - this.codeResetWhatsApp.dernierEnvoi;
+  const delaiMinimum = 2 * 60 * 1000; // 2 minutes
+
+  if (tempsEcoule < delaiMinimum) {
+    const tempsRestant = Math.ceil((delaiMinimum - tempsEcoule) / 1000);
+    return {
+      autorise: false,
+      raison: 'DELAI_NON_ECOULE',
+      message: `Veuillez attendre ${tempsRestant} secondes avant de demander un nouveau code`,
+      tempsRestant: tempsRestant
+    };
+  }
+
+  return { autorise: true };
+};
+
+/**
+ * Vérifier un code de réinitialisation WhatsApp
+ */
+utilisateurSchema.methods.verifierCodeResetWhatsApp = function(code) {
+  if (!this.codeResetWhatsApp || !this.codeResetWhatsApp.code) {
+    return {
+      valide: false,
+      raison: 'AUCUN_CODE',
+      message: 'Aucun code de réinitialisation actif'
+    };
+  }
+
+  // Vérifier l'expiration
+  if (this.codeResetWhatsApp.expiration < Date.now()) {
+    this.codeResetWhatsApp = undefined;
+    return {
+      valide: false,
+      raison: 'CODE_EXPIRE',
+      message: 'Le code de réinitialisation a expiré'
+    };
+  }
+
+  // Vérifier le code
+  if (this.codeResetWhatsApp.code !== code) {
+    this.codeResetWhatsApp.tentativesRestantes -= 1;
+
+    if (this.codeResetWhatsApp.tentativesRestantes <= 0) {
+      this.codeResetWhatsApp = undefined;
+      return {
+        valide: false,
+        raison: 'TROP_DE_TENTATIVES',
+        message: 'Trop de tentatives incorrectes'
+      };
+    }
+
+    return {
+      valide: false,
+      raison: 'CODE_INCORRECT',
+      message: 'Code incorrect',
+      tentativesRestantes: this.codeResetWhatsApp.tentativesRestantes
+    };
+  }
+
+  // Code valide
+  return {
+    valide: true,
+    message: 'Code vérifié avec succès'
+  };
+};
 // Vérifier le code WhatsApp
 utilisateurSchema.methods.verifierCodeWhatsApp = function(code) {
   if (!this.codeVerificationWhatsApp) {

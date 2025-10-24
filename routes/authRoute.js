@@ -33,6 +33,10 @@ const {
   reinitialiserMotDePasse,
   demandeReinitialisationMotDePasse,
   confirmerReinitialisationMotDePasse,
+  forgotPassword,           // Demander code reset WhatsApp
+  resetPassword,            // Réinitialiser avec code WhatsApp
+  resendResetCode,    
+  verifyResetCode,      // Renvoyer code reset WhatsApp
   
   // Nouveaux contrôleurs compte covoiturage
   obtenirResumeCompteCovoiturage,
@@ -81,7 +85,15 @@ const connexionLimiter = rateLimit({
     message: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.'
   }
 });
-
+// ⭐ Rate limiter spécifique pour réinitialisation WhatsApp
+const whatsappResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3, // 3 demandes max par IP
+  message: {
+    success: false,
+    message: 'Trop de demandes de réinitialisation WhatsApp. Réessayez dans 15 minutes.'
+  }
+});
 // =============== VALIDATIONS ===============
 
 const validateEmail = [
@@ -135,7 +147,20 @@ const validateRole = [
     .isIn(['conducteur', 'passager', 'les_deux'])
     .withMessage('Rôle invalide. Doit être: conducteur, passager ou les_deux')
 ];
+// ⭐ Validation code WhatsApp (6 chiffres)
+const validateWhatsAppCode = [
+  body('code')
+    .trim()
+    .matches(/^[0-9]{6}$/)
+    .withMessage('Le code doit contenir exactement 6 chiffres')
+];
 
+// ⭐ Validation nouveau mot de passe WhatsApp
+const validateNewPassword = [
+  body('new_password')
+    .isLength({ min: 4 })
+    .withMessage('Le mot de passe doit contenir au moins 4 caractères')
+];
 // Middleware de gestion des erreurs de validation
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
@@ -334,6 +359,20 @@ router.post('/mot-de-passe-oublie',
   handleValidationErrors,
   demandeReinitialisationMotDePasse
 );
+/**
+ * @route   POST /api/auth/verify-reset-code
+ * @desc    Vérifier le code de réinitialisation (Étape 2)
+ * @access  Public
+ */
+router.post('/verify-reset-code', 
+  resetLimiter,
+  [
+    ...validatePhone,
+    ...validateWhatsAppCode
+  ],
+  handleValidationErrors,
+  verifyResetCode
+);
 
 /**
  * @route   POST /api/auth/mot-de-passe-oublie-sms
@@ -384,6 +423,49 @@ router.put('/reset-password/:token',
   validateResetPassword,
   handleValidationErrors,
   reinitialiserMotDePasse
+);
+// ============================================================
+// ⭐ ROUTES PUBLIQUES - RÉINITIALISATION WHATSAPP (NOUVEAU)
+// ============================================================
+
+/**
+ * @route   POST /api/auth/forgot-password-whatsapp
+ * @desc    Demander réinitialisation via WhatsApp
+ * @access  Public
+ */
+router.post('/forgot-password-whatsapp', 
+  whatsappResetLimiter,
+  validatePhone,
+  handleValidationErrors,
+  forgotPassword
+);
+
+/**
+ * @route   POST /api/auth/reset-password-whatsapp
+ * @desc    Réinitialiser avec code WhatsApp
+ * @access  Public
+ */
+router.post('/reset-password-whatsapp', 
+  resetLimiter,
+  [
+    ...validatePhone,
+    ...validateWhatsAppCode,
+    ...validateNewPassword
+  ],
+  handleValidationErrors,
+  resetPassword
+);
+
+/**
+ * @route   POST /api/auth/resend-reset-code-whatsapp
+ * @desc    Renvoyer code reset WhatsApp
+ * @access  Public
+ */
+router.post('/resend-reset-code-whatsapp', 
+  whatsappResetLimiter,
+  validatePhone,
+  handleValidationErrors,
+  resendResetCode
 );
 
 // =============== ROUTES PROTÉGÉES - DÉCONNEXION ===============
@@ -459,22 +541,30 @@ router.get('/health', (req, res) => {
     success: true,
     message: 'Service d\'authentification opérationnel',
     timestamp: new Date().toISOString(),
-    version: '2.2.0',
+    version: '2.3.0',
     features: {
       emailConfirmation: true,
       smsConfirmation: true,
+      whatsappConfirmation: true,
       passwordReset: true,
       smsPasswordReset: true,
+      whatsappPasswordReset: true, 
       adminAccess: true,
       compteCovoiturage: true // NOUVEAU
     },
     routes: {
       publiques: [
+        'POST /register (WhatsApp)',                    
+        'POST /verify-code (WhatsApp)',                 
+        'POST /resend-code (WhatsApp)',
         'POST /inscription',
         'POST /inscription-sms',
         'POST /connexion | /login',
         'POST /admin/connexion | /admin/login',
         'POST /forgot-password | /mot-de-passe-oublie',
+        'POST /forgot-password-whatsapp (WhatsApp)',    
+        'POST /reset-password-whatsapp (WhatsApp)',     
+        'POST /resend-reset-code-whatsapp (WhatsApp)',
         'POST /mot-de-passe-oublie-sms',
         'POST /verifier-code-otp-reset',
         'GET /reset-password/:token',
@@ -531,7 +621,9 @@ router.get('/status', (req, res) => {
     'TWILIO_ACCOUNT_SID',
     'TWILIO_AUTH_TOKEN',
     'TWILIO_PHONE_NUMBER',
-    'SMS_PROVIDER'
+    'SMS_PROVIDER',
+    'GREEN_API_INSTANCE_ID',  
+    'GREEN_API_TOKEN'   
   ];
   
   const envStatus = requiredEnvVars.reduce((acc, varName) => {
@@ -553,13 +645,16 @@ router.get('/status', (req, res) => {
       database: 'Opérationnel',
       email: process.env.EMAIL_HOST ? 'Configuré' : 'Non configuré',
       sms: process.env.TWILIO_ACCOUNT_SID ? 'Configuré' : 'Non configuré',
+      whatsapp: process.env.GREEN_API_INSTANCE_ID ? 'Configuré' : 'Non configuré',  
       jwt: process.env.JWT_SECRET ? 'Configuré' : 'Non configuré'
     },
     features: {
       compteCovoiturage: true,
       rechargeCompte: true,
       commissions: true,
-      autoRecharge: true
+      autoRecharge: true,
+      whatsappVerification: true,      
+      whatsappPasswordReset: true      
     }
   });
 });

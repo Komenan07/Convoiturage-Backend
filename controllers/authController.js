@@ -1660,6 +1660,537 @@ const obtenirUtilisateurConnecte = async (req, res, next) => {
   }
 };
 
+// ============================================================
+// RÉINITIALISATION MOT DE PASSE VIA WHATSAPP (NOUVEAU)
+// ============================================================
+
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { telephone } = req.body;
+
+    if (!telephone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numéro de téléphone requis',
+        errorType: 'MISSING_PHONE'
+      });
+    }
+
+    logger.info('Demande réinitialisation mot de passe WhatsApp', { telephone });
+
+    // ✅ CORRECTION : Sélectionner explicitement codeResetWhatsApp
+    const utilisateur = await User.findOne({ telephone })
+      .select('+codeResetWhatsApp');
+
+    if (!utilisateur) {
+      logger.info('Demande réinitialisation WhatsApp - Téléphone non trouvé (masqué)', { telephone });
+      // Pour la sécurité, on renvoie le même message même si le compte n'existe pas
+      return res.json({
+        success: true,
+        message: 'Si un compte existe avec ce numéro, un code de réinitialisation a été envoyé sur WhatsApp.',
+        nextStep: {
+          action: 'VERIFY_CODE',
+          message: 'Veuillez saisir le code reçu sur WhatsApp'
+        }
+      });
+    }
+
+    // Vérifier si l'utilisateur peut recevoir un nouveau code (limite de 2 minutes entre chaque demande)
+    const verification = utilisateur.peutRenvoyerCodeReset ? utilisateur.peutRenvoyerCodeReset() : { autorise: true };
+    
+    if (!verification.autorise) {
+      return res.status(429).json({
+        success: false,
+        message: verification.message || 'Veuillez attendre avant de demander un nouveau code',
+        raison: verification.raison,
+        tempsRestant: verification.tempsRestant,
+        errorType: 'TOO_MANY_REQUESTS'
+      });
+    }
+
+    // Générer le code de vérification WhatsApp pour reset
+    const codeReset = utilisateur.genererCodeResetWhatsApp ? 
+      utilisateur.genererCodeResetWhatsApp() : 
+      Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Si la méthode n'existe pas, on stocke manuellement
+    if (!utilisateur.genererCodeResetWhatsApp) {
+      utilisateur.codeResetWhatsApp = {
+        code: codeReset,
+        expiration: Date.now() + 10 * 60 * 1000, // 10 minutes
+        tentativesRestantes: 5,
+        dernierEnvoi: Date.now(),
+        verifie: false
+      };
+    }
+
+    await utilisateur.save({ validateBeforeSave: false });
+
+    // Envoyer le code via WhatsApp
+    const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
+    const resultatEnvoi = await greenApiService.envoyerCodeResetMotDePasse(
+      telephone,
+      codeReset,
+      nomComplet
+    );
+
+    if (!resultatEnvoi.success) {
+      logger.error('Échec envoi WhatsApp reset', { 
+        telephone, 
+        error: resultatEnvoi.error 
+      });
+
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'envoi du code de réinitialisation',
+        details: 'Impossible d\'envoyer le message WhatsApp. Vérifiez votre numéro.',
+        errorType: 'WHATSAPP_SEND_FAILED',
+        erreurTechnique: resultatEnvoi.error
+      });
+    }
+
+    logger.info('Code réinitialisation WhatsApp envoyé', { 
+      userId: utilisateur._id, 
+      telephone 
+    });
+
+    // En développement, afficher le code dans les logs
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔐 Code réinitialisation envoyé à ${telephone}: ${codeReset}`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Un code de réinitialisation a été envoyé sur WhatsApp',
+      data: {
+        telephone: utilisateur.telephone,
+        expiration: utilisateur.codeResetWhatsApp?.expiration || Date.now() + 10 * 60 * 1000
+      },
+      nextStep: {
+        action: 'VERIFY_CODE',
+        message: 'Veuillez saisir le code reçu sur WhatsApp',
+        route: '/api/auth/verify-reset-code'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur demande réinitialisation WhatsApp:', error);
+    return next(AppError.serverError('Erreur serveur lors de la demande de réinitialisation', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Étape 2 - Vérifier le code de réinitialisation WhatsApp
+ * @route   POST /api/auth/verify-reset-code
+ * @access  Public
+ */
+const verifyResetCode = async (req, res, next) => {
+  try {
+    const { telephone, code } = req.body;
+
+    if (!telephone || !code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numéro de téléphone et code requis',
+        errorType: 'MISSING_FIELDS'
+      });
+    }
+
+    if (!/^[0-9]{6}$/.test(code)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le code doit contenir exactement 6 chiffres',
+        errorType: 'INVALID_CODE_FORMAT'
+      });
+    }
+
+    logger.info('Vérification code réinitialisation WhatsApp', { telephone });
+
+    // ✅ CORRECTION : Sélectionner explicitement codeResetWhatsApp
+    const utilisateur = await User.findOne({ telephone })
+      .select('+codeResetWhatsApp');
+
+    if (!utilisateur) {
+      return res.status(404).json({
+        success: false,
+        message: 'Aucun compte trouvé avec ce numéro de téléphone',
+        errorType: 'USER_NOT_FOUND'
+      });
+    }
+
+    // Log de debug en développement
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Debug - Vérification code:', {
+        userId: utilisateur._id,
+        telephone: utilisateur.telephone,
+        codeResetExists: !!utilisateur.codeResetWhatsApp,
+        codeStocke: utilisateur.codeResetWhatsApp?.code,
+        codeSaisi: code,
+        expiration: utilisateur.codeResetWhatsApp?.expiration,
+        expirationDate: utilisateur.codeResetWhatsApp?.expiration ? new Date(utilisateur.codeResetWhatsApp.expiration) : null,
+        maintenant: Date.now(),
+        maintenantDate: new Date(),
+        estExpire: utilisateur.codeResetWhatsApp?.expiration ? (utilisateur.codeResetWhatsApp.expiration < Date.now()) : null,
+        tentativesRestantes: utilisateur.codeResetWhatsApp?.tentativesRestantes
+      });
+    }
+
+    // Vérifier si un code de reset existe
+    if (!utilisateur.codeResetWhatsApp || !utilisateur.codeResetWhatsApp.code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucun code de réinitialisation actif. Veuillez en demander un nouveau.',
+        errorType: 'NO_ACTIVE_CODE',
+        nextStep: {
+          action: 'REQUEST_NEW_CODE',
+          route: '/api/auth/forgot-password-whatsapp'
+        }
+      });
+    }
+
+    // Vérifier l'expiration
+    if (utilisateur.codeResetWhatsApp.expiration < Date.now()) {
+      utilisateur.codeResetWhatsApp = undefined;
+      await utilisateur.save({ validateBeforeSave: false });
+
+      logger.warn('Code réinitialisation WhatsApp expiré', { userId: utilisateur._id });
+
+      return res.status(410).json({
+        success: false,
+        message: 'Le code de réinitialisation a expiré',
+        errorType: 'CODE_EXPIRED',
+        nextStep: {
+          action: 'REQUEST_NEW_CODE',
+          message: 'Veuillez demander un nouveau code',
+          route: '/api/auth/forgot-password-whatsapp'
+        }
+      });
+    }
+
+    // Comparer les codes (conversion en string et trim pour éviter les erreurs)
+    const codeStocke = String(utilisateur.codeResetWhatsApp.code).trim();
+    const codeSaisi = String(code).trim();
+
+    if (codeStocke !== codeSaisi) {
+      // Décrémenter les tentatives
+      utilisateur.codeResetWhatsApp.tentativesRestantes = 
+        (utilisateur.codeResetWhatsApp.tentativesRestantes || 5) - 1;
+
+      if (utilisateur.codeResetWhatsApp.tentativesRestantes <= 0) {
+        utilisateur.codeResetWhatsApp = undefined;
+        await utilisateur.save({ validateBeforeSave: false });
+
+        logger.warn('Code réinitialisation WhatsApp - Trop de tentatives', { userId: utilisateur._id });
+
+        return res.status(429).json({
+          success: false,
+          message: 'Trop de tentatives incorrectes. Veuillez demander un nouveau code.',
+          errorType: 'TOO_MANY_ATTEMPTS',
+          nextStep: {
+            action: 'REQUEST_NEW_CODE',
+            route: '/api/auth/forgot-password-whatsapp'
+          }
+        });
+      }
+
+      await utilisateur.save({ validateBeforeSave: false });
+
+      logger.warn('Code réinitialisation WhatsApp incorrect', { 
+        userId: utilisateur._id,
+        tentativesRestantes: utilisateur.codeResetWhatsApp.tentativesRestantes
+      });
+
+      return res.status(400).json({
+        success: false,
+        message: 'Code incorrect',
+        errorType: 'INVALID_CODE',
+        tentativesRestantes: utilisateur.codeResetWhatsApp.tentativesRestantes
+      });
+    }
+
+    // ✅ Code valide - marquer comme vérifié
+    utilisateur.codeResetWhatsApp.verifie = true;
+    await utilisateur.save({ validateBeforeSave: false });
+
+    logger.info('Code réinitialisation WhatsApp vérifié avec succès', { userId: utilisateur._id });
+
+    res.status(200).json({
+      success: true,
+      message: '✅ Code vérifié avec succès',
+      data: {
+        telephone: utilisateur.telephone,
+        codeVerifie: true
+      },
+      nextStep: {
+        action: 'SET_NEW_PASSWORD',
+        message: 'Vous pouvez maintenant définir un nouveau mot de passe',
+        route: '/api/auth/reset-password-whatsapp'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur vérification code réinitialisation WhatsApp:', error);
+    return next(AppError.serverError('Erreur lors de la vérification du code', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Étape 3 - Réinitialiser le mot de passe avec le code WhatsApp
+ * @route   POST /api/auth/reset-password-whatsapp
+ * @access  Public
+ */
+const resetPassword = async (req, res, next) => {
+  try {
+    const { telephone, code, new_password } = req.body;
+
+    if (!telephone || !code || !new_password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numéro de téléphone, code et nouveau mot de passe requis',
+        errorType: 'MISSING_FIELDS',
+        champsRequis: ['telephone', 'code', 'new_password']
+      });
+    }
+
+    // Validation du nouveau mot de passe
+    if (new_password.length < 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le mot de passe doit contenir au moins 4 caractères',
+        errorType: 'WEAK_PASSWORD',
+        field: 'new_password'
+      });
+    }
+
+    logger.info('Réinitialisation mot de passe WhatsApp', { telephone });
+
+    // ✅ CORRECTION : Sélectionner explicitement codeResetWhatsApp et motDePasse
+    const utilisateur = await User.findOne({ telephone })
+      .select('+codeResetWhatsApp +motDePasse');
+
+    if (!utilisateur) {
+      return res.status(404).json({
+        success: false,
+        message: 'Aucun compte trouvé avec ce numéro de téléphone',
+        errorType: 'USER_NOT_FOUND'
+      });
+    }
+
+    // Log de debug en développement
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Debug - Réinitialisation:', {
+        userId: utilisateur._id,
+        codeResetExists: !!utilisateur.codeResetWhatsApp,
+        codeVerifie: utilisateur.codeResetWhatsApp?.verifie,
+        codeStocke: utilisateur.codeResetWhatsApp?.code,
+        codeSaisi: code
+      });
+    }
+
+    // Vérifier si le code a été vérifié
+    if (!utilisateur.codeResetWhatsApp || !utilisateur.codeResetWhatsApp.verifie) {
+      return res.status(400).json({
+        success: false,
+        message: 'Veuillez d\'abord vérifier le code de réinitialisation',
+        errorType: 'CODE_NOT_VERIFIED',
+        nextStep: {
+          action: 'VERIFY_CODE',
+          route: '/api/auth/verify-reset-code'
+        }
+      });
+    }
+
+    // Vérifier que le code correspond toujours
+    const codeStocke = String(utilisateur.codeResetWhatsApp.code).trim();
+    const codeSaisi = String(code).trim();
+
+    if (codeStocke !== codeSaisi) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code de réinitialisation invalide',
+        errorType: 'INVALID_CODE'
+      });
+    }
+
+    // Vérifier l'expiration
+    if (utilisateur.codeResetWhatsApp.expiration < Date.now()) {
+      utilisateur.codeResetWhatsApp = undefined;
+      await utilisateur.save({ validateBeforeSave: false });
+
+      return res.status(410).json({
+        success: false,
+        message: 'Le code de réinitialisation a expiré',
+        errorType: 'CODE_EXPIRED',
+        nextStep: {
+          action: 'REQUEST_NEW_CODE',
+          route: '/api/auth/forgot-password-whatsapp'
+        }
+      });
+    }
+
+    // Réinitialiser le mot de passe (sera hashé par le middleware pre-save)
+    utilisateur.motDePasse = new_password;
+    utilisateur.codeResetWhatsApp = undefined;
+    
+    // Réinitialiser les tentatives de connexion échouées
+    utilisateur.tentativesConnexionEchouees = 0;
+    utilisateur.derniereTentativeConnexion = null;
+    utilisateur.compteBloqueLe = null;
+
+    await utilisateur.save();
+
+    logger.info('Mot de passe réinitialisé via WhatsApp avec succès', { userId: utilisateur._id });
+
+    // Envoyer un message de confirmation WhatsApp
+    try {
+      await greenApiService.envoyerConfirmationResetMotDePasse(
+        telephone,
+        utilisateur.prenom
+      );
+    } catch (whatsappError) {
+      logger.error('Erreur envoi confirmation WhatsApp:', whatsappError);
+      // Ne pas bloquer le processus si l'envoi échoue
+    }
+
+    res.status(200).json({
+      success: true,
+      message: '✅ Mot de passe réinitialisé avec succès !',
+      data: {
+        telephone: utilisateur.telephone,
+        utilisateurId: utilisateur._id
+      },
+      nextStep: {
+        action: 'LOGIN',
+        message: 'Vous pouvez maintenant vous connecter avec votre nouveau mot de passe',
+        route: '/api/auth/connexion'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur réinitialisation mot de passe WhatsApp:', error);
+
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation',
+        errorType: 'VALIDATION_ERROR',
+        erreurs: messages
+      });
+    }
+
+    return next(AppError.serverError('Erreur lors de la réinitialisation du mot de passe', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Renvoyer le code de réinitialisation WhatsApp
+ * @route   POST /api/auth/resend-reset-code-whatsapp
+ * @access  Public
+ */
+const resendResetCode = async (req, res, next) => {
+  try {
+    const { telephone } = req.body;
+
+    if (!telephone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numéro de téléphone requis',
+        errorType: 'MISSING_PHONE'
+      });
+    }
+
+    logger.info('Renvoi code réinitialisation WhatsApp', { telephone });
+
+    // ✅ CORRECTION : Sélectionner explicitement codeResetWhatsApp
+    const utilisateur = await User.findOne({ telephone })
+      .select('+codeResetWhatsApp');
+
+    if (!utilisateur) {
+      logger.info('Renvoi code reset - Téléphone non trouvé (masqué)', { telephone });
+      return res.json({
+        success: true,
+        message: 'Si un compte existe avec ce numéro, un nouveau code a été envoyé sur WhatsApp.'
+      });
+    }
+
+    // Vérifier la limite de temps entre les renvois (2 minutes)
+    const verification = utilisateur.peutRenvoyerCodeReset ? utilisateur.peutRenvoyerCodeReset() : { autorise: true };
+    
+    if (!verification.autorise) {
+      return res.status(429).json({
+        success: false,
+        message: verification.message || 'Veuillez attendre avant de demander un nouveau code',
+        raison: verification.raison,
+        tempsRestant: verification.tempsRestant,
+        errorType: 'TOO_MANY_REQUESTS'
+      });
+    }
+
+    // Générer un nouveau code
+    const nouveauCode = utilisateur.genererCodeResetWhatsApp ? 
+      utilisateur.genererCodeResetWhatsApp() : 
+      Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Si la méthode n'existe pas, on stocke manuellement
+    if (!utilisateur.genererCodeResetWhatsApp) {
+      utilisateur.codeResetWhatsApp = {
+        code: nouveauCode,
+        expiration: Date.now() + 10 * 60 * 1000, // 10 minutes
+        tentativesRestantes: 5,
+        dernierEnvoi: Date.now(),
+        verifie: false
+      };
+    }
+
+    await utilisateur.save({ validateBeforeSave: false });
+
+    // Envoyer le nouveau code via WhatsApp
+    const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
+    const resultatEnvoi = await greenApiService.envoyerCodeResetMotDePasse(
+      telephone,
+      nouveauCode,
+      nomComplet
+    );
+
+    if (!resultatEnvoi.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'envoi du nouveau code',
+        details: 'Impossible d\'envoyer le message WhatsApp',
+        errorType: 'WHATSAPP_SEND_FAILED'
+      });
+    }
+
+    logger.info('Nouveau code réinitialisation WhatsApp envoyé', { userId: utilisateur._id });
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔐 Nouveau code reset envoyé à ${telephone}: ${nouveauCode}`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Un nouveau code de réinitialisation a été envoyé sur WhatsApp',
+      data: {
+        telephone: utilisateur.telephone,
+        expiration: utilisateur.codeResetWhatsApp?.expiration || Date.now() + 10 * 60 * 1000
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur renvoi code réinitialisation WhatsApp:', error);
+    return next(AppError.serverError('Erreur lors du renvoi du code', { 
+      originalError: error.message 
+    }));
+  }
+};
+
 // ===================================
 // RÉINITIALISATION MOT DE PASSE
 // ===================================
@@ -2156,6 +2687,11 @@ module.exports = {
   reinitialiserMotDePasse,
   demandeReinitialisationMotDePasse,
   confirmerReinitialisationMotDePasse,
+  // Réinitialisation mot de passe WhatsApp (NOUVEAU)
+  forgotPassword,
+  verifyResetCode,
+  resetPassword,
+  resendResetCode,
   
   // Nouveaux contrôleurs compte covoiturage
   obtenirResumeCompteCovoiturage,
