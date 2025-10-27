@@ -6,7 +6,7 @@ const fs = require('fs');
 const multer = require('multer');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
-const { uploadProfilPhoto } = require('../middlewares/uploadMiddleware');
+const { uploadProfilPhoto, uploadDocument } = require('../middlewares/uploadMiddleware');
 
 
 // // Configuration multer pour l'upload de fichiers
@@ -2217,7 +2217,7 @@ const uploadPhotoProfil = async (req, res, next) => {
  */
 const uploadDocumentIdentite = async (req, res, next) => {
   try {
-    const uploadSingle = upload.single('documentIdentite');
+    const uploadSingle = uploadDocument.single('documentIdentite');
     
     uploadSingle(req, res, async (err) => {
       if (err instanceof multer.MulterError) {
@@ -2266,7 +2266,7 @@ const uploadDocumentIdentite = async (req, res, next) => {
 
       try {
         const userId = req.user.userId;
-        const documentUrl = `/uploads/users/${req.file.filename}`;
+        const documentUrl = `/uploads/documents/${req.file.filename}`;
 
         const user = await User.findById(userId);
         if (!user) {

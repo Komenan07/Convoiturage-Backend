@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
+const { loginFlexibleValidation } = require('../validators/authValidator');
 const rateLimit = require('express-rate-limit');
 
 // =============== IMPORTS ===============
@@ -247,10 +248,7 @@ router.post('/inscription-sms',
  */
 router.post('/connexion', 
   connexionLimiter,
-  [
-    ...validateEmail,
-    body('motDePasse').notEmpty().withMessage('Le mot de passe est requis')
-  ],
+  loginFlexibleValidation,  
   handleValidationErrors,
   connexion
 );

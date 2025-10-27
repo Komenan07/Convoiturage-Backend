@@ -1270,29 +1270,219 @@ const renvoyerCodeSMS = async (req, res, next) => {
 /**
  * Connexion utilisateur
  */
+// const connexion = async (req, res, next) => {
+//   try {
+//     logger.info('Tentative de connexion', { email: req.body.email });
+    
+//     const { email, motDePasse } = req.body;
+
+//     if (!email || !motDePasse) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Email et mot de passe sont requis',
+//         codeErreur: 'MISSING_FIELDS'
+//       });
+//     }
+
+//     const user = await User.findOne({ email }).select('+motDePasse');
+    
+//     if (!user) {
+//       logger.warn('Connexion échouée - Email incorrect', { email });
+//       return res.status(401).json({
+//         success: false,
+//         message: 'Adresse email incorrecte',
+//         codeErreur: 'INVALID_EMAIL',
+//         champ: 'email'
+//       });
+//     }
+
+//     // Vérifier le statut du compte
+//     const statutAutorise = user.peutSeConnecter();
+//     if (!statutAutorise.autorise) {
+//       logger.warn('Connexion échouée - Compte non autorisé', { 
+//         userId: user._id, 
+//         statut: user.statutCompte,
+//         raison: statutAutorise.raison 
+//       });
+      
+//       let messageStatut = '';
+//       let codeErreurStatut = '';
+
+//       switch (user.statutCompte) {
+//         case 'EN_ATTENTE_VERIFICATION':
+//           messageStatut = 'Votre compte n\'est pas encore vérifié. Vérifiez votre email.';
+//           codeErreurStatut = 'ACCOUNT_NOT_VERIFIED';
+//           break;
+//         case 'BLOQUE':
+//           messageStatut = 'Votre compte a été bloqué définitivement.';
+//           codeErreurStatut = 'ACCOUNT_BLOCKED';
+//           break;
+//         case 'SUSPENDU':
+//           messageStatut = 'Votre compte est temporairement suspendu.';
+//           codeErreurStatut = 'ACCOUNT_SUSPENDED';
+//           break;
+//         default:
+//           if (statutAutorise.raison === 'Compte temporairement bloqué') {
+//             messageStatut = 'Votre compte est temporairement bloqué suite à plusieurs tentatives de connexion échouées.';
+//             codeErreurStatut = 'ACCOUNT_TEMP_BLOCKED';
+//           } else {
+//             messageStatut = 'Votre compte est désactivé.';
+//             codeErreurStatut = 'ACCOUNT_DISABLED';
+//           }
+//       }
+
+//       return res.status(403).json({
+//         success: false,
+//         message: messageStatut,
+//         codeErreur: codeErreurStatut
+//       });
+//     }
+
+//     // Vérifier le mot de passe
+//     let isMatch = false;
+    
+//     try {
+//       if (!user.motDePasse.startsWith('$2')) {
+//         logger.warn('Hash corrompu détecté', { userId: user._id });
+//         return res.status(500).json({
+//           success: false,
+//           message: 'Erreur de sécurité du compte. Veuillez réinitialiser votre mot de passe.',
+//           codeErreur: 'CORRUPTED_HASH'
+//         });
+//       }
+      
+//       isMatch = await user.verifierMotDePasse(motDePasse.trim());
+      
+//     } catch (bcryptError) {
+//       logger.error('Erreur vérification mot de passe', { error: bcryptError.message, userId: user._id });
+//       return res.status(500).json({
+//         success: false,
+//         message: 'Erreur de vérification du mot de passe',
+//         codeErreur: 'PASSWORD_VERIFICATION_ERROR'
+//       });
+//     }
+
+//     if (!isMatch) {
+//       // Incrémenter les tentatives échouées
+//       user.tentativesConnexionEchouees += 1;
+//       user.derniereTentativeConnexion = new Date();
+      
+//       if (user.tentativesConnexionEchouees >= 5) {
+//         user.compteBloqueLe = new Date();
+//       }
+      
+//       await user.save();
+      
+//       const tentativesRestantes = Math.max(0, 5 - user.tentativesConnexionEchouees);
+      
+//       logger.warn('Connexion échouée - Mot de passe incorrect', { 
+//         email, 
+//         tentativesEchouees: user.tentativesConnexionEchouees,
+//         tentativesRestantes
+//       });
+      
+//       return res.status(401).json({
+//         success: false,
+//         message: 'Mot de passe incorrect',
+//         codeErreur: 'INVALID_PASSWORD',
+//         champ: 'motDePasse',
+//         tentativesRestantes,
+//         avertissement: tentativesRestantes <= 2 ? 
+//           `Attention : il vous reste ${tentativesRestantes} tentative(s) avant blocage temporaire` : 
+//           null
+//       });
+//     }
+
+//     // CONNEXION RÉUSSIE
+//     // Réinitialiser les tentatives échouées
+//     if (user.tentativesConnexionEchouees > 0) {
+//       user.tentativesConnexionEchouees = 0;
+//       user.derniereTentativeConnexion = null;
+//       user.compteBloqueLe = null;
+//     }
+
+//     // Mettre à jour la dernière connexion
+//     user.derniereConnexion = new Date();
+//     await user.save();
+
+//     // Générer le token JWT
+//     const token = user.getSignedJwtToken();
+
+//     logger.info('Connexion réussie', { userId: user._id });
+    
+//     res.json({
+//       success: true,
+//       message: 'Connexion réussie',
+//       token,
+//       user: {
+//         id: user._id,
+//         nom: user.nom,
+//         prenom: user.prenom,
+//         email: user.email,
+//         telephone: user.telephone,
+//         role: user.role,
+//         photoProfil: user.photoProfil,
+//         statutCompte: user.statutCompte,
+//         dateInscription: user.dateInscription,
+//         scoreConfiance: user.scoreConfiance,
+//         noteGenerale: user.noteGenerale,
+//         badges: user.badges,
+//         estVerifie: user.estVerifie,
+//         compteCovoiturage: {
+//           solde: user.compteCovoiturage.solde,
+//           estRecharge: user.compteCovoiturage.estRecharge,
+//           totalGagnes: user.compteCovoiturage.totalGagnes,
+//           peutAccepterCourses: user.peutAccepterCourses,
+//           compteRechargeActif: user.compteRechargeActif
+//         }
+//       }
+//     });
+    
+//   } catch (error) {
+//     logger.error('Erreur connexion:', error);
+//     return next(AppError.serverError('Erreur serveur lors de la connexion', { originalError: error.message }));
+//   }
+// };
 const connexion = async (req, res, next) => {
   try {
-    logger.info('Tentative de connexion', { email: req.body.email });
+    const { email, telephone, motDePasse } = req.body;
     
-    const { email, motDePasse } = req.body;
+    // Accepter soit email soit telephone comme identifiant
+    const identifiant = email || telephone;
 
-    if (!email || !motDePasse) {
+    logger.info('Tentative de connexion', { 
+      identifiant,
+      type: email ? 'email' : 'telephone' 
+    });
+
+    if (!identifiant || !motDePasse) {
       return res.status(400).json({
         success: false,
-        message: 'Email et mot de passe sont requis',
+        message: 'Email/Téléphone et mot de passe sont requis',
         codeErreur: 'MISSING_FIELDS'
       });
     }
 
-    const user = await User.findOne({ email }).select('+motDePasse');
+    // Déterminer si c'est un email ou un téléphone
+    const isEmail = identifiant.includes('@');
+    const champRecherche = isEmail ? 'email' : 'telephone';
+
+    // Rechercher l'utilisateur par email OU téléphone
+    const user = await User.findOne({ [champRecherche]: identifiant }).select('+motDePasse');
     
     if (!user) {
-      logger.warn('Connexion échouée - Email incorrect', { email });
+      logger.warn('Connexion échouée - Identifiant incorrect', { 
+        identifiant,
+        champRecherche 
+      });
+      
       return res.status(401).json({
         success: false,
-        message: 'Adresse email incorrecte',
-        codeErreur: 'INVALID_EMAIL',
-        champ: 'email'
+        message: isEmail 
+          ? 'Adresse email incorrecte' 
+          : 'Numéro de téléphone incorrect',
+        codeErreur: isEmail ? 'INVALID_EMAIL' : 'INVALID_PHONE',
+        champ: champRecherche
       });
     }
 
@@ -1334,7 +1524,8 @@ const connexion = async (req, res, next) => {
       return res.status(403).json({
         success: false,
         message: messageStatut,
-        codeErreur: codeErreurStatut
+        codeErreur: codeErreurStatut,
+        champ: 'statutCompte'
       });
     }
 
@@ -1347,18 +1538,23 @@ const connexion = async (req, res, next) => {
         return res.status(500).json({
           success: false,
           message: 'Erreur de sécurité du compte. Veuillez réinitialiser votre mot de passe.',
-          codeErreur: 'CORRUPTED_HASH'
+          codeErreur: 'CORRUPTED_HASH',
+          champ: 'motDePasse'
         });
       }
       
       isMatch = await user.verifierMotDePasse(motDePasse.trim());
       
     } catch (bcryptError) {
-      logger.error('Erreur vérification mot de passe', { error: bcryptError.message, userId: user._id });
+      logger.error('Erreur vérification mot de passe', { 
+        error: bcryptError.message, 
+        userId: user._id 
+      });
       return res.status(500).json({
         success: false,
         message: 'Erreur de vérification du mot de passe',
-        codeErreur: 'PASSWORD_VERIFICATION_ERROR'
+        codeErreur: 'PASSWORD_VERIFICATION_ERROR',
+        champ: 'motDePasse'
       });
     }
 
@@ -1376,7 +1572,7 @@ const connexion = async (req, res, next) => {
       const tentativesRestantes = Math.max(0, 5 - user.tentativesConnexionEchouees);
       
       logger.warn('Connexion échouée - Mot de passe incorrect', { 
-        email, 
+        identifiant, 
         tentativesEchouees: user.tentativesConnexionEchouees,
         tentativesRestantes
       });
@@ -1443,7 +1639,6 @@ const connexion = async (req, res, next) => {
     return next(AppError.serverError('Erreur serveur lors de la connexion', { originalError: error.message }));
   }
 };
-
 /**
  * Connexion administrateur
  */

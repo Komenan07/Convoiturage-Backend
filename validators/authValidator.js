@@ -115,10 +115,43 @@ const loginValidation = [
   body('password').notEmpty().withMessage('Le mot de passe est requis')
 ];
 
-// NOUVEAU: Validation pour connexion par téléphone
+// Validation pour connexion par téléphone
 const loginPhoneValidation = [
   ...validatePhone,
   body('motDePasse').notEmpty().withMessage('Le mot de passe est requis')
+];
+
+//  Validation flexible pour connexion (email OU téléphone)
+const loginFlexibleValidation = [
+  // Vérifier qu'au moins email OU telephone est présent
+  body()
+    .custom((value, { req }) => {
+      const { email, telephone } = req.body;
+      if (!email && !telephone) {
+        throw new Error('Email ou numéro de téléphone requis');
+      }
+      return true;
+    }),
+  
+  // Valider l'email seulement s'il est fourni
+  body('email')
+    .optional()
+    .trim()
+    .isEmail()
+    .withMessage('Email invalide')
+    .normalizeEmail(),
+  
+  // Valider le téléphone seulement s'il est fourni
+  body('telephone')
+    .optional()
+    .trim()
+    .matches(/^(\+225)?[0-9]{8,10}$/)
+    .withMessage('Numéro de téléphone ivoirien invalide'),
+  
+  // Mot de passe toujours requis
+  body('motDePasse')
+    .notEmpty()
+    .withMessage('Le mot de passe est requis')
 ];
 
 // =============== VALIDATIONS POUR VÉRIFICATION ===============
@@ -359,6 +392,7 @@ module.exports = {
   
   // Validations système
   loginPhoneValidation,
+  loginFlexibleValidation,
   adminLoginValidation,
   refreshTokenValidation,
   updateProfileValidation,
