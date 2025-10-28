@@ -9,193 +9,401 @@ class TrajetController {
   /**
    * Créer un trajet ponctuel
    */
-  /**
- * Créer un trajet ponctuel - VERSION SIMPLIFIÉE POUR DEBUG
- */
-async creerTrajetPonctuel(req, res, next) {
-  try {
-    console.log('=== DÉBUT DEBUG CRÉATION TRAJET ===');
-    
-    // 1. Vérifier l'utilisateur
-    console.log('1. Vérification utilisateur...');
-    console.log('req.user:', req.user);
-    
-    if (!req.user || !req.user.id) {
-      console.log('ERREUR: Utilisateur non authentifié');
-      return res.status(401).json({
-        success: false,
-        message: 'Utilisateur non authentifié'
-      });
-    }
-    console.log('✓ Utilisateur OK:', req.user.id);
-
-    // 2. Vérifier les données reçues
-    console.log('2. Vérification données...');
-    console.log('req.body:', JSON.stringify(req.body, null, 2));
-
-    // 3. Validation express-validator
-    console.log('3. Validation express-validator...');
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      console.log('ERREUR: Validation failed:', errors.array());
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Erreurs de validation', 
-        errors: errors.array() 
-      });
-    }
-    console.log('✓ Validation OK');
-
-    // 4. Préparer les données minimales
-    console.log('4. Préparation données minimales...');
-    const trajetData = {
-      conducteurId: req.user.id,
-      typeTrajet: 'PONCTUEL',
-      pointDepart: req.body.pointDepart,
-      pointArrivee: req.body.pointArrivee,
-      dateDepart: req.body.dateDepart,
-      heureDepart: req.body.heureDepart,
-      prixParPassager: req.body.prixParPassager,
-      nombrePlacesDisponibles: req.body.nombrePlacesDisponibles,
-      nombrePlacesTotal: req.body.nombrePlacesTotal,
-      vehiculeUtilise: req.body.vehiculeUtilise,
-      distance: 50, // Valeur fixe pour test
-      dureeEstimee: 60, // Valeur fixe pour test
-      heureArriveePrevue: "09:00" // Valeur fixe pour test
-    };
-
-    console.log('Données préparées:', JSON.stringify(trajetData, null, 2));
-
-    // 5. Test de création en mémoire
-    console.log('5. Test création en mémoire...');
-    const nouveauTrajet = new Trajet(trajetData);
-    console.log('✓ Trajet créé en mémoire');
-
-    // 6. Test de validation
-    console.log('6. Test validation...');
-    await nouveauTrajet.validate();
-    console.log('✓ Validation réussie');
-
-    // 7. Test de sauvegarde
-    console.log('7. Test sauvegarde...');
-    await nouveauTrajet.save();
-    console.log('✓ Sauvegarde réussie, ID:', nouveauTrajet._id);
-
-    // 8. Test de population (optionnel pour debug)
-    console.log('8. Test population...');
+  async creerTrajetPonctuel(req, res, next) {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Erreurs de validation', 
+          errors: errors.array() 
+        });
+      }
+
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({
+          success: false,
+          message: 'Utilisateur non authentifié'
+        });
+      }
+
+      const trajetData = {
+        ...req.body,
+        conducteurId: req.user.id,
+        typeTrajet: 'PONCTUEL'
+      };
+
+      // ⭐ NOUVEAU: Validation que la date n'est pas déjà passée
+      const dateDepart = new Date(trajetData.dateDepart);
+      if (dateDepart < new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: 'La date de départ doit être dans le futur'
+        });
+      }
+
+      // Calculs par défaut si non fournis
+      if (!trajetData.distance) {
+        trajetData.distance = 15;
+      }
+      if (!trajetData.dureeEstimee) {
+        trajetData.dureeEstimee = Math.round(trajetData.distance * 2);
+      }
+      if (!trajetData.heureArriveePrevue) {
+        const [heures, minutes] = trajetData.heureDepart.split(':').map(Number);
+        const totalMinutes = heures * 60 + minutes + trajetData.dureeEstimee;
+        const nouvellesHeures = Math.floor(totalMinutes / 60) % 24;
+        const nouvellesMinutes = totalMinutes % 60;
+        trajetData.heureArriveePrevue = `${nouvellesHeures.toString().padStart(2, '0')}:${nouvellesMinutes.toString().padStart(2, '0')}`;
+      }
+
+      const nouveauTrajet = new Trajet(trajetData);
+      await nouveauTrajet.save();
+
       await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
-      console.log('✓ Population réussie');
-    } catch (popError) {
-      console.log('⚠️ Erreur population (non critique):', popError.message);
-    }
 
-    console.log('=== FIN DEBUG - SUCCÈS ===');
-
-    res.status(201).json({
-      success: true,
-      message: 'Trajet ponctuel créé avec succès',
-      data: nouveauTrajet
-    });
-
-  } catch (error) {
-    console.log('=== ERREUR DANS DEBUG ===');
-    console.error('Type d\'erreur:', error.name);
-    console.error('Message:', error.message);
-    console.error('Stack:', error.stack);
-    
-    if (error.name === 'ValidationError') {
-      console.error('Erreurs de validation:', error.errors);
-      return res.status(400).json({
-        success: false,
-        message: 'Erreur de validation des données',
-        errors: Object.values(error.errors).map(err => ({
-          field: err.path,
-          message: err.message,
-          value: err.value
-        }))
+      res.status(201).json({
+        success: true,
+        message: 'Trajet ponctuel créé avec succès',
+        data: nouveauTrajet
       });
-    }
-    
-    if (error.code === 11000) {
-      console.error('Erreur de duplication:', error.keyValue);
-      return res.status(400).json({
-        success: false,
-        message: 'Données en conflit',
-        details: error.keyValue
-      });
-    }
 
-    console.log('=== FIN DEBUG - ERREUR ===');
-    return next(AppError.serverError('Erreur serveur lors de la création du trajet', { 
-      originalError: error.message,
-      errorType: error.name 
-    }));
+    } catch (error) {
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Erreur de validation des données',
+          errors: Object.values(error.errors).map(err => ({
+            field: err.path,
+            message: err.message,
+            value: err.value
+          }))
+        });
+      }
+      
+      return next(AppError.serverError('Erreur serveur lors de la création du trajet', { 
+        originalError: error.message 
+      }));
+    }
   }
-}
 
   /**
    * Créer un trajet récurrent
    */
- async creerTrajetRecurrent(req, res, next) {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Erreurs de validation', 
-        errors: errors.array() 
-      });
-    }
+  async creerTrajetRecurrent(req, res, next) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Erreurs de validation', 
+          errors: errors.array() 
+        });
+      }
 
-    const trajetData = {
-      ...req.body,
-      conducteurId: req.user.id,
-      typeTrajet: 'RECURRENT'
+      const trajetData = {
+        ...req.body,
+        conducteurId: req.user.id,
+        typeTrajet: 'RECURRENT'
+      };
+
+      // Validation de la récurrence
+      if (!trajetData.recurrence || !trajetData.recurrence.jours || trajetData.recurrence.jours.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'La récurrence est requise pour un trajet récurrent'
+        });
+      }
+
+      // ⭐ NOUVEAU: Validation que la date de fin n'est pas déjà passée
+      if (trajetData.recurrence.dateFinRecurrence) {
+        const dateFin = new Date(trajetData.recurrence.dateFinRecurrence);
+        if (dateFin < new Date()) {
+          return res.status(400).json({
+            success: false,
+            message: 'La date de fin de récurrence ne peut pas être dans le passé'
+          });
+        }
+      }
+
+      // Calculs par défaut
+      if (!trajetData.distance) {
+        trajetData.distance = 15;
+      }
+      if (!trajetData.dureeEstimee) {
+        trajetData.dureeEstimee = Math.round(trajetData.distance * 2);
+      }
+      if (!trajetData.heureArriveePrevue) {
+        const [heures, minutes] = trajetData.heureDepart.split(':').map(Number);
+        const totalMinutes = heures * 60 + minutes + trajetData.dureeEstimee;
+        const nouvellesHeures = Math.floor(totalMinutes / 60) % 24;
+        const nouvellesMinutes = totalMinutes % 60;
+        trajetData.heureArriveePrevue = `${nouvellesHeures.toString().padStart(2, '0')}:${nouvellesMinutes.toString().padStart(2, '0')}`;
+      }
+
+      const nouveauTrajet = new Trajet(trajetData);
+      await nouveauTrajet.save();
+
+      await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
+
+      res.status(201).json({
+        success: true,
+        message: 'Trajet récurrent créé avec succès',
+        data: nouveauTrajet
+      });
+
+    } catch (error) {
+      console.error('Erreur création trajet récurrent:', error);
+      return next(AppError.serverError('Erreur serveur lors de la création du trajet récurrent', { 
+        originalError: error.message 
+      }));
+    }
+  }
+
+  // ==================== READ ====================
+
+  /**
+ * Obtenir les détails d'un trajet (alias pour obtenirTrajetParId)
+ */
+async obtenirDetailsTrajet(req, res, next) {
+  return this.obtenirTrajetParId(req, res, next);
+}
+
+/**
+ * Obtenir les trajets d'un conducteur spécifique
+ */
+async obtenirTrajetsConducteur(req, res, next) {
+  return this.obtenirTrajetsParConducteur(req, res, next);
+}
+
+/**
+ * Filtrer les trajets avec des critères avancés
+ */
+async filtrerTrajets(req, res, next) {
+  try {
+    const {
+      dateDepart,
+      dateFin,
+      prixMin,
+      prixMax,
+      typeTrajet,
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    let query = {
+      statutTrajet: 'PROGRAMME',
+      dateDepart: { $gte: new Date() }
     };
 
-    // Validation de la récurrence
-    if (!trajetData.recurrence || !trajetData.recurrence.jours || trajetData.recurrence.jours.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'La récurrence est requise pour un trajet récurrent'
-      });
+    // Filtre par date
+    if (dateDepart) {
+      query.dateDepart = { $gte: new Date(dateDepart) };
+      if (dateFin) {
+        query.dateDepart.$lte = new Date(dateFin);
+      }
     }
 
-    // Calculs par défaut (remplace l'API Google Maps)
-    if (!trajetData.distance) {
-      trajetData.distance = 15; // km par défaut
-    }
-    if (!trajetData.dureeEstimee) {
-      trajetData.dureeEstimee = Math.round(trajetData.distance * 2); // 2 min/km estimation
-    }
-    if (!trajetData.heureArriveePrevue) {
-      // Calcul de l'heure d'arrivée basé sur l'heure de départ + durée
-      const [heures, minutes] = trajetData.heureDepart.split(':').map(Number);
-      const totalMinutes = heures * 60 + minutes + trajetData.dureeEstimee;
-      const nouvellesHeures = Math.floor(totalMinutes / 60) % 24;
-      const nouvellesMinutes = totalMinutes % 60;
-      trajetData.heureArriveePrevue = `${nouvellesHeures.toString().padStart(2, '0')}:${nouvellesMinutes.toString().padStart(2, '0')}`;
+    // Filtre par prix
+    if (prixMin || prixMax) {
+      query.prixParPassager = {};
+      if (prixMin) query.prixParPassager.$gte = parseInt(prixMin);
+      if (prixMax) query.prixParPassager.$lte = parseInt(prixMax);
     }
 
-    const nouveauTrajet = new Trajet(trajetData);
-    await nouveauTrajet.save();
+    // Filtre par type
+    if (typeTrajet) {
+      query.typeTrajet = typeTrajet;
+    }
 
-    await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { dateDepart: 1 },
+      populate: { path: 'conducteurId', select: 'nom prenom photo note' }
+    };
 
-    res.status(201).json({
+    const result = await Trajet.paginate(query, options);
+
+    res.json({
       success: true,
-      message: 'Trajet récurrent créé avec succès',
-      data: nouveauTrajet
+      count: result.docs.length,
+      pagination: {
+        total: result.totalDocs,
+        page: result.page,
+        pages: result.totalPages,
+        limit: result.limit
+      },
+      data: result.docs
     });
 
   } catch (error) {
-    console.error('Erreur création trajet récurrent:', error);
-    return next(AppError.serverError('Erreur serveur lors de la création du trajet récurrent', { originalError: error.message }));
+    return next(AppError.serverError('Erreur lors du filtrage des trajets', { 
+      originalError: error.message 
+    }));
   }
 }
-  // ==================== READ ====================
 
+/**
+ * Obtenir l'historique des trajets de l'utilisateur connecté
+ */
+async obtenirHistoriqueTrajets(req, res, next) {
+  try {
+    const { type = 'tous', statut, page = 1, limit = 20 } = req.query;
+
+    let query = {};
+
+    if (type === 'conduits') {
+      query.conducteurId = req.user.id;
+    } else if (type === 'reserves') {
+      // TODO: Implémenter quand le modèle Reservation sera prêt
+      return res.status(501).json({
+        success: false,
+        message: 'Fonction non implémentée - nécessite le modèle Reservation'
+      });
+    } else {
+      query.conducteurId = req.user.id;
+    }
+
+    if (statut) {
+      query.statutTrajet = statut;
+    }
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { dateDepart: -1 },
+      populate: { path: 'conducteurId', select: 'nom prenom photo' }
+    };
+
+    const result = await Trajet.paginate(query, options);
+
+    res.json({
+      success: true,
+      count: result.docs.length,
+      pagination: {
+        total: result.totalDocs,
+        page: result.page,
+        pages: result.totalPages,
+        limit: result.limit
+      },
+      data: result.docs
+    });
+
+  } catch (error) {
+    return next(AppError.serverError('Erreur lors de la récupération de l\'historique', { 
+      originalError: error.message 
+    }));
+  }
+}
+
+/**
+ * Modifier les détails d'un trajet (alias pour modifierTrajet)
+ */
+async modifierDetailsTrajet(req, res, next) {
+  return this.modifierTrajet(req, res, next);
+}
+
+/**
+ * Changer le nombre de places disponibles
+ */
+async changerNombrePlaces(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { nombrePlacesDisponibles } = req.body;
+
+    const trajet = await Trajet.findById(id);
+    if (!trajet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trajet non trouvé'
+      });
+    }
+
+    if (trajet.conducteurId.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Non autorisé'
+      });
+    }
+
+    if (trajet.statutTrajet !== 'PROGRAMME') {
+      return res.status(400).json({
+        success: false,
+        message: 'Seuls les trajets programmés peuvent être modifiés'
+      });
+    }
+
+    trajet.nombrePlacesDisponibles = nombrePlacesDisponibles;
+    await trajet.save();
+
+    res.json({
+      success: true,
+      message: 'Nombre de places mis à jour',
+      data: { nombrePlacesDisponibles: trajet.nombrePlacesDisponibles }
+    });
+
+  } catch (error) {
+    return next(AppError.serverError('Erreur lors de la modification des places', { 
+      originalError: error.message 
+    }));
+  }
+}
+
+/**
+ * Modifier les préférences d'un trajet
+ */
+async modifierPreferences(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const trajet = await Trajet.findById(id);
+    if (!trajet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trajet non trouvé'
+      });
+    }
+
+    if (trajet.conducteurId.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Non autorisé'
+      });
+    }
+
+    const preferencesModifiables = [
+      'accepteFemmesSeulement',
+      'accepteHommesSeuleument',
+      'accepteBagages',
+      'typeBagages',
+      'musique',
+      'conversation',
+      'fumeur',
+      'animauxAcceptes',        
+      'climatisationActive'      
+    ];
+
+    preferencesModifiables.forEach(pref => {
+      if (req.body[pref] !== undefined) {
+        trajet.preferences[pref] = req.body[pref];
+      }
+    });
+
+    await trajet.save();
+
+    res.json({
+      success: true,
+      message: 'Préférences mises à jour',
+      data: { preferences: trajet.preferences }
+    });
+
+  } catch (error) {
+    return next(AppError.serverError('Erreur lors de la modification des préférences', { 
+      originalError: error.message 
+    }));
+  }
+}
   /**
    * Rechercher trajets disponibles (géospatial)
    */
@@ -208,12 +416,15 @@ async creerTrajetPonctuel(req, res, next) {
         dateDepart,
         dateFin,
         prixMax,
-        nombrePlacesMin = 1
+        nombrePlacesMin = 1,
+        page = 1,
+        limit = 20
       } = req.query;
 
       let query = {
         statutTrajet: 'PROGRAMME',
-        nombrePlacesDisponibles: { $gte: parseInt(nombrePlacesMin) }
+        nombrePlacesDisponibles: { $gte: parseInt(nombrePlacesMin) },
+        dateDepart: { $gte: new Date() } // ⭐ NOUVEAU: Exclure les dates passées
       };
 
       // Filtre par date
@@ -229,50 +440,85 @@ async creerTrajetPonctuel(req, res, next) {
         query.prixParPassager = { $lte: parseInt(prixMax) };
       }
 
-      let trajets;
+      // ⭐ NOUVEAU: Pagination
+      const options = {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        sort: { dateDepart: 1 },
+        populate: { path: 'conducteurId', select: 'nom prenom photo note' }
+      };
+
+      let result;
 
       // Recherche géospatiale si coordonnées fournies
       if (longitude && latitude) {
-        trajets = await Trajet.findTrajetsProches(
+        // Pour géospatial, on ne peut pas utiliser paginate directement
+        const trajets = await Trajet.findTrajetsProches(
           parseFloat(longitude), 
           parseFloat(latitude), 
           parseInt(rayonKm)
         ).where(query)
           .populate('conducteurId', 'nom prenom photo note')
-          .sort({ dateDepart: 1 });
+          .sort({ dateDepart: 1 })
+          .limit(parseInt(limit))
+          .skip((parseInt(page) - 1) * parseInt(limit));
+
+        const total = await Trajet.findTrajetsProches(
+          parseFloat(longitude), 
+          parseFloat(latitude), 
+          parseInt(rayonKm)
+        ).where(query).countDocuments();
+
+        result = {
+          docs: trajets,
+          totalDocs: total,
+          limit: parseInt(limit),
+          page: parseInt(page),
+          totalPages: Math.ceil(total / parseInt(limit))
+        };
       } else {
-        trajets = await Trajet.find(query)
-          .populate('conducteurId', 'nom prenom photo note')
-          .sort({ dateDepart: 1 });
+        result = await Trajet.paginate(query, options);
       }
 
       res.json({
         success: true,
-        count: trajets.length,
-        data: trajets
+        count: result.docs.length,
+        pagination: {
+          total: result.totalDocs,
+          page: result.page,
+          pages: result.totalPages,
+          limit: result.limit
+        },
+        data: result.docs
       });
 
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la récupération des trajets', { originalError: error.message }));
+      return next(AppError.serverError('Erreur serveur lors de la recherche de trajets', { 
+        originalError: error.message 
+      }));
     }
   }
 
   /**
-   * Obtenir détails complets d'un trajet
+   * Obtenir un trajet par ID
    */
-  async obtenirDetailsTrajet(req, res, next) {
+  async obtenirTrajetParId(req, res, next) {
     try {
       const { id } = req.params;
 
       const trajet = await Trajet.findById(id)
-        .populate('conducteurId', 'nom prenom photo telephone note avis')
-        .populate('evenementAssocie', 'nom description');
+        .populate('conducteurId', 'nom prenom photo note telephone');
 
       if (!trajet) {
         return res.status(404).json({
           success: false,
           message: 'Trajet non trouvé'
         });
+      }
+
+      // ⭐ NOUVEAU: Vérifier et marquer comme expiré si nécessaire
+      if (trajet.estExpire() && trajet.statutTrajet === 'PROGRAMME') {
+        await trajet.marquerCommeExpire();
       }
 
       res.json({
@@ -281,176 +527,74 @@ async creerTrajetPonctuel(req, res, next) {
       });
 
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la récupération du trajet', { originalError: error.message }));
+      return next(AppError.serverError('Erreur serveur lors de la récupération du trajet', { 
+        originalError: error.message 
+      }));
     }
   }
 
   /**
-   * Obtenir tous les trajets d'un conducteur
+   * Obtenir mes trajets (conducteur)
    */
-  async obtenirTrajetsConducteur(req, res, next) {
+  async obtenirMesTrajets(req, res, next) {
     try {
-      const { conducteurId } = req.params;
-      const { statut, type, page = 1, limit = 10 } = req.query;
+      const { statut, page = 1, limit = 20 } = req.query;
 
-      let query = { conducteurId };
+      let query = {
+        conducteurId: req.user.id
+      };
 
       if (statut) {
         query.statutTrajet = statut;
       }
 
-      if (type) {
-        query.typeTrajet = type;
-      }
-
       const options = {
         page: parseInt(page),
         limit: parseInt(limit),
-        sort: { dateDepart: -1 },
-        populate: 'evenementAssocie'
+        sort: { dateDepart: -1 }
       };
 
       const trajets = await Trajet.paginate(query, options);
 
+      // ⭐ NOUVEAU: Vérifier l'expiration de chaque trajet PROGRAMME
+      for (let trajet of trajets.docs) {
+        if (trajet.statutTrajet === 'PROGRAMME' && trajet.estExpire()) {
+          await trajet.marquerCommeExpire();
+        }
+      }
+
       res.json({
         success: true,
-        data: trajets.docs,
+        count: trajets.docs.length,
         pagination: {
+          total: trajets.totalDocs,
           page: trajets.page,
-          totalPages: trajets.totalPages,
-          totalDocs: trajets.totalDocs,
-          hasNextPage: trajets.hasNextPage,
-          hasPrevPage: trajets.hasPrevPage
-        }
+          pages: trajets.totalPages,
+          limit: trajets.limit
+        },
+        data: trajets.docs
       });
 
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la récupération des trajets du conducteur', { originalError: error.message }));
+      return next(AppError.serverError('Erreur serveur lors de la récupération des trajets', { 
+        originalError: error.message 
+      }));
     }
   }
 
   /**
-   * Obtenir l'historique des trajets (pour un utilisateur connecté)
+   * Obtenir les trajets d'un conducteur
    */
-  async obtenirHistoriqueTrajets(req, res, next) {
+  async obtenirTrajetsParConducteur(req, res, next) {
     try {
-      const { type = 'tous', page = 1, limit = 10 } = req.query;
-      const userId = req.user.id;
+      const { conducteurId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
 
-      let query = {};
-
-      switch (type) {
-        case 'conduits':
-          query.conducteurId = userId;
-          break;
-        case 'tous':
-        default:
-          query = {
-            $or: [
-              { conducteurId: userId },
-              // TODO: Ajouter la référence aux réservations quand disponible
-              // { 'reservations.passagerId': userId }
-            ]
-          };
-          break;
-      }
-
-      const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        sort: { dateDepart: -1 },
-        populate: [
-          { path: 'conducteurId', select: 'nom prenom photo' },
-          { path: 'evenementAssocie', select: 'nom' }
-        ]
+      const query = {
+        conducteurId,
+        statutTrajet: { $in: ['PROGRAMME', 'EN_COURS'] },
+        dateDepart: { $gte: new Date() } // ⭐ NOUVEAU: Seulement les trajets futurs
       };
-
-      const historique = await Trajet.paginate(query, options);
-
-      res.json({
-        success: true,
-        data: historique.docs,
-        pagination: {
-          page: historique.page,
-          totalPages: historique.totalPages,
-          totalDocs: historique.totalDocs
-        }
-      });
-
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la récupération de l\'historique', { originalError: error.message }));
-    }
-  }
-
-  /**
-   * Filtrer les trajets avec critères avancés
-   */
-  async filtrerTrajets(req, res, next) {
-    try {
-      const {
-        dateDepart,
-        dateFin,
-        prixMin,
-        prixMax,
-        typeTrajet,
-        accepteFemmesSeulement,
-        accepteHommesSeuleument,
-        accepteBagages,
-        musique,
-        fumeur,
-        commune,
-        page = 1,
-        limit = 10
-      } = req.query;
-
-      let query = {
-        statutTrajet: 'PROGRAMME',
-        nombrePlacesDisponibles: { $gt: 0 }
-      };
-
-      // Filtres de date
-      if (dateDepart || dateFin) {
-        query.dateDepart = {};
-        if (dateDepart) query.dateDepart.$gte = new Date(dateDepart);
-        if (dateFin) query.dateDepart.$lte = new Date(dateFin);
-      }
-
-      // Filtres de prix
-      if (prixMin || prixMax) {
-        query.prixParPassager = {};
-        if (prixMin) query.prixParPassager.$gte = parseInt(prixMin);
-        if (prixMax) query.prixParPassager.$lte = parseInt(prixMax);
-      }
-
-      // Type de trajet
-      if (typeTrajet) {
-        query.typeTrajet = typeTrajet;
-      }
-
-      // Filtres de préférences
-      if (accepteFemmesSeulement === 'true') {
-        query['preferences.accepteFemmesSeulement'] = true;
-      }
-      if (accepteHommesSeuleument === 'true') {
-        query['preferences.accepteHommesSeuleument'] = true;
-      }
-      if (accepteBagages === 'false') {
-        query['preferences.accepteBagages'] = false;
-      }
-      if (musique === 'true') {
-        query['preferences.musique'] = true;
-      }
-      if (fumeur === 'true') {
-        query['preferences.fumeur'] = true;
-      }
-
-      // Filtre par commune (départ ou arrivée)
-      if (commune) {
-        query.$or = [
-          { 'pointDepart.commune': new RegExp(commune, 'i') },
-          { 'pointArrivee.commune': new RegExp(commune, 'i') }
-        ];
-      }
 
       const options = {
         page: parseInt(page),
@@ -459,36 +603,84 @@ async creerTrajetPonctuel(req, res, next) {
         populate: { path: 'conducteurId', select: 'nom prenom photo note' }
       };
 
-      const resultat = await Trajet.paginate(query, options);
+      const trajets = await Trajet.paginate(query, options);
 
       res.json({
         success: true,
-        data: resultat.docs,
+        count: trajets.docs.length,
         pagination: {
-          page: resultat.page,
-          totalPages: resultat.totalPages,
-          totalDocs: resultat.totalDocs,
-          count: resultat.docs.length
+          total: trajets.totalDocs,
+          page: trajets.page,
+          pages: trajets.totalPages,
+          limit: trajets.limit
         },
-        filters: req.query
+        data: trajets.docs
       });
 
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors du filtrage des trajets', { originalError: error.message }));
+      return next(AppError.serverError('Erreur serveur lors de la récupération des trajets', { 
+        originalError: error.message 
+      }));
+    }
+  }
+
+  /**
+   * Obtenir les trajets récurrents d'un conducteur
+   */
+  async obtenirTrajetsRecurrents(req, res, next) {
+    try {
+      const { conducteurId } = req.query;
+      const { page = 1, limit = 20 } = req.query;
+
+      const query = conducteurId 
+        ? { typeTrajet: 'RECURRENT', conducteurId }
+        : { typeTrajet: 'RECURRENT' };
+
+      const options = {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        sort: { createdAt: -1 }
+      };
+
+      const trajets = await Trajet.paginate(query, options);
+
+      res.json({
+        success: true,
+        count: trajets.docs.length,
+        pagination: {
+          total: trajets.totalDocs,
+          page: trajets.page,
+          pages: trajets.totalPages,
+          limit: trajets.limit
+        },
+        data: trajets.docs
+      });
+
+    } catch (error) {
+      return next(AppError.serverError('Erreur serveur lors de la récupération des trajets récurrents', { 
+        originalError: error.message 
+      }));
     }
   }
 
   // ==================== UPDATE ====================
 
   /**
-   * Modifier les détails d'un trajet
+   * Modifier un trajet
    */
-  async modifierDetailsTrajet(req, res, next) {
+  async modifierTrajet(req, res, next) {
     try {
       const { id } = req.params;
-      const updates = req.body;
+      const errors = validationResult(req);
+      
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Erreurs de validation', 
+          errors: errors.array() 
+        });
+      }
 
-      // Vérifier que l'utilisateur est le conducteur
       const trajet = await Trajet.findById(id);
       if (!trajet) {
         return res.status(404).json({
@@ -504,138 +696,85 @@ async creerTrajetPonctuel(req, res, next) {
         });
       }
 
-      // Vérifier que le trajet peut être modifié
-      if (trajet.statutTrajet === 'EN_COURS' || trajet.statutTrajet === 'TERMINE') {
+      // ⭐ NOUVEAU: Bloquer la modification des trajets expirés
+      if (trajet.statutTrajet === 'EXPIRE') {
         return res.status(400).json({
           success: false,
-          message: 'Ce trajet ne peut plus être modifié'
+          message: 'Impossible de modifier un trajet expiré'
         });
       }
 
-      // Revalidation de l'itinéraire si les points changent
-      if (updates.pointDepart || updates.pointArrivee) {
-        const pointDepart = updates.pointDepart || trajet.pointDepart;
-        const pointArrivee = updates.pointArrivee || trajet.pointArrivee;
-        
-        const itineraireValide = await this.validerItineraire(
-          pointDepart.coordonnees.coordinates,
-          pointArrivee.coordonnees.coordinates
-        );
+      // ⭐ NOUVEAU: Vérifier automatiquement l'expiration
+      if (trajet.estExpire()) {
+        await trajet.marquerCommeExpire();
+        return res.status(400).json({
+          success: false,
+          message: 'Ce trajet a expiré et ne peut plus être modifié'
+        });
+      }
 
-        if (itineraireValide.success) {
-          updates.distance = itineraireValide.distance;
-          updates.dureeEstimee = itineraireValide.duree;
-          updates.heureArriveePrevue = itineraireValide.heureArrivee;
+      if (trajet.statutTrajet !== 'PROGRAMME') {
+        return res.status(400).json({
+          success: false,
+          message: 'Seuls les trajets programmés peuvent être modifiés'
+        });
+      }
+
+      // Champs modifiables
+      const champsModifiables = [
+        'pointDepart',
+        'pointArrivee',
+        'arretsIntermediaires',
+        'dateDepart',
+        'heureDepart',
+        'heureArriveePrevue',
+        'dureeEstimee',
+        'distance',
+        'prixParPassager',
+        'nombrePlacesDisponibles',
+        'vehiculeUtilise',
+        'preferences',
+        'commentaireConducteur'
+      ];
+
+      champsModifiables.forEach(champ => {
+        if (req.body[champ] !== undefined) {
+          trajet[champ] = req.body[champ];
+        }
+      });
+
+      // ⭐ NOUVEAU: Validation de la nouvelle date
+      if (req.body.dateDepart) {
+        const nouvelleDate = new Date(req.body.dateDepart);
+        if (nouvelleDate < new Date()) {
+          return res.status(400).json({
+            success: false,
+            message: 'La nouvelle date de départ doit être dans le futur'
+          });
         }
       }
 
-      const trajetModifie = await Trajet.findByIdAndUpdate(
-        id,
-        { $set: updates },
-        { new: true, runValidators: true }
-      ).populate('conducteurId', 'nom prenom photo');
+      await trajet.save();
+
+      await trajet.populate('conducteurId', 'nom prenom photo');
 
       res.json({
         success: true,
         message: 'Trajet modifié avec succès',
-        data: trajetModifie
+        data: trajet
       });
 
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la mise à jour du trajet', { originalError: error.message }));
-    }
-  }
-
-  /**
-   * Changer le nombre de places disponibles
-   */
-  async changerNombrePlaces(req, res, next) {
-    try {
-      const { id } = req.params;
-      const { nombrePlacesDisponibles } = req.body;
-
-      const trajet = await Trajet.findById(id);
-      if (!trajet) {
-        return res.status(404).json({
-          success: false,
-          message: 'Trajet non trouvé'
-        });
-      }
-
-      if (trajet.conducteurId.toString() !== req.user.id) {
-        return res.status(403).json({
-          success: false,
-          message: 'Vous n\'êtes pas autorisé à modifier ce trajet'
-        });
-      }
-
-      if (nombrePlacesDisponibles > trajet.nombrePlacesTotal) {
+      if (error.name === 'ValidationError') {
         return res.status(400).json({
           success: false,
-          message: 'Le nombre de places disponibles ne peut pas dépasser le nombre total de places'
+          message: 'Erreur de validation',
+          errors: Object.values(error.errors).map(err => err.message)
         });
       }
-
-      trajet.nombrePlacesDisponibles = nombrePlacesDisponibles;
-      await trajet.save();
-
-      res.json({
-        success: true,
-        message: 'Nombre de places mis à jour avec succès',
-        data: {
-          nombrePlacesDisponibles: trajet.nombrePlacesDisponibles,
-          nombrePlacesTotal: trajet.nombrePlacesTotal,
-          placesReservees: trajet.placesReservees
-        }
-      });
-
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la modification du nombre de places', { originalError: error.message }));
-    }
-  }
-
-  /**
-   * Modifier les préférences du trajet
-   */
-  async modifierPreferences(req, res, next) {
-    try {
-      const { id } = req.params;
-      const nouvellesPreferences = req.body;
-
-      const trajet = await Trajet.findById(id);
-      if (!trajet) {
-        return res.status(404).json({
-          success: false,
-          message: 'Trajet non trouvé'
-        });
-      }
-
-      if (trajet.conducteurId.toString() !== req.user.id) {
-        return res.status(403).json({
-          success: false,
-          message: 'Vous n\'êtes pas autorisé à modifier ce trajet'
-        });
-      }
-
-      // Validation des préférences contradictoires
-      if (nouvellesPreferences.accepteFemmesSeulement && nouvellesPreferences.accepteHommesSeuleument) {
-        return res.status(400).json({
-          success: false,
-          message: 'Ne peut pas accepter exclusivement les femmes ET les hommes'
-        });
-      }
-
-      trajet.preferences = { ...trajet.preferences.toObject(), ...nouvellesPreferences };
-      await trajet.save();
-
-      res.json({
-        success: true,
-        message: 'Préférences mises à jour avec succès',
-        data: trajet.preferences
-      });
-
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la modification des préférences', { originalError: error.message }));
+      return next(AppError.serverError('Erreur serveur lors de la modification du trajet', { 
+        originalError: error.message 
+      }));
     }
   }
 
@@ -662,7 +801,8 @@ async creerTrajetPonctuel(req, res, next) {
         });
       }
 
-      const statutsValides = ['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE'];
+      // ⭐ NOUVEAU: Liste complète avec EXPIRE
+      const statutsValides = ['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE', 'EXPIRE'];
       if (!statutsValides.includes(statutTrajet)) {
         return res.status(400).json({
           success: false,
@@ -670,11 +810,20 @@ async creerTrajetPonctuel(req, res, next) {
         });
       }
 
+      // ⭐ NOUVEAU: Vérifier l'expiration automatique
+      if (trajet.estExpire() && trajet.statutTrajet === 'PROGRAMME') {
+        await trajet.marquerCommeExpire();
+        return res.status(400).json({
+          success: false,
+          message: 'Ce trajet a expiré automatiquement'
+        });
+      }
+
       const ancienStatut = trajet.statutTrajet;
       trajet.statutTrajet = statutTrajet;
       await trajet.save();
 
-      // TODO: Envoyer des notifications selon le changement de statut
+      // Notifications selon le changement de statut
       await this.gererNotificationsStatut(trajet, ancienStatut, statutTrajet);
 
       res.json({
@@ -687,7 +836,9 @@ async creerTrajetPonctuel(req, res, next) {
       });
 
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la mise à jour du statut', { originalError: error.message }));
+      return next(AppError.serverError('Erreur serveur lors de la mise à jour du statut', { 
+        originalError: error.message 
+      }));
     }
   }
 
@@ -716,7 +867,10 @@ async creerTrajetPonctuel(req, res, next) {
         });
       }
 
-      if (trajet.statutTrajet === 'TERMINE' || trajet.statutTrajet === 'ANNULE') {
+      // ⭐ NOUVEAU: Inclure EXPIRE dans les statuts non annulables
+      if (trajet.statutTrajet === 'TERMINE' || 
+          trajet.statutTrajet === 'ANNULE' || 
+          trajet.statutTrajet === 'EXPIRE') {
         return res.status(400).json({
           success: false,
           message: 'Ce trajet ne peut pas être annulé'
@@ -730,7 +884,7 @@ async creerTrajetPonctuel(req, res, next) {
       }
       await trajet.save();
 
-      // TODO: Envoyer des notifications aux passagers
+      // Envoyer des notifications aux passagers
       await this.envoyerNotificationsAnnulation(trajet, motifAnnulation);
 
       res.json({
@@ -744,12 +898,14 @@ async creerTrajetPonctuel(req, res, next) {
       });
 
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de l\'annulation du trajet', { originalError: error.message }));
+      return next(AppError.serverError('Erreur serveur lors de l\'annulation du trajet', { 
+        originalError: error.message 
+      }));
     }
   }
 
   /**
-   * Supprimer un trajet récurrent
+   * Supprimer (ou plutôt annuler) un trajet récurrent
    */
   async supprimerTrajetRecurrent(req, res, next) {
     try {
@@ -784,28 +940,118 @@ async creerTrajetPonctuel(req, res, next) {
         });
       }
 
-      // TODO: Vérifier s'il y a des réservations actives
-      // const reservationsActives = await Reservation.countDocuments({ 
-      //   trajetId: id, 
-      //   statut: { $in: ['CONFIRMEE', 'EN_ATTENTE'] } 
-      // });
+      // ⭐ NOUVEAU: Vérifier les réservations actives (si modèle Reservation existe)
+      try {
+        const Reservation = require('../models/Reservation');
+        const reservationsActives = await Reservation.countDocuments({ 
+          trajetId: id, 
+          statut: { $in: ['CONFIRMEE', 'EN_ATTENTE'] } 
+        });
 
-      // if (reservationsActives > 0) {
-      //   return res.status(400).json({
-      //     success: false,
-      //     message: 'Impossible de supprimer un trajet avec des réservations actives'
-      //   });
-      // }
+        if (reservationsActives > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Impossible de supprimer un trajet avec ${reservationsActives} réservation(s) active(s)`
+          });
+        }
+      } catch (err) {
+        // Si le modèle Reservation n'existe pas encore, on continue
+        console.log('Modèle Reservation non disponible');
+      }
 
-      await Trajet.findByIdAndDelete(id);
+      // ⭐ NOUVEAU: Annuler au lieu de supprimer définitivement
+      trajet.statutTrajet = 'ANNULE';
+      trajet.commentaireConducteur = 'Trajet récurrent supprimé par le conducteur';
+      await trajet.save();
 
       res.json({
         success: true,
-        message: 'Trajet récurrent supprimé avec succès'
+        message: 'Trajet récurrent annulé avec succès'
       });
 
     } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la suppression du trajet', { originalError: error.message }));
+      return next(AppError.serverError('Erreur serveur lors de la suppression du trajet', { 
+        originalError: error.message 
+      }));
+    }
+  }
+
+  // ==================== MÉTHODES EXPIRATION ====================
+
+  /**
+   * ⭐ NOUVEAU: Vérifier et marquer un trajet comme expiré
+   */
+  async verifierExpiration(req, res, next) {
+    try {
+      const { id } = req.params;
+
+      const trajet = await Trajet.findById(id);
+      if (!trajet) {
+        return res.status(404).json({
+          success: false,
+          message: 'Trajet non trouvé'
+        });
+      }
+
+      const etaitExpire = trajet.estExpire();
+      if (etaitExpire) {
+        await trajet.marquerCommeExpire();
+      }
+
+      res.json({
+        success: true,
+        data: {
+          id: trajet._id,
+          estExpire: etaitExpire,
+          statutActuel: trajet.statutTrajet,
+          dateExpiration: trajet.dateExpiration,
+          raisonExpiration: trajet.raisonExpiration
+        }
+      });
+
+    } catch (error) {
+      return next(AppError.serverError('Erreur lors de la vérification d\'expiration', { 
+        originalError: error.message 
+      }));
+    }
+  }
+
+  /**
+   * ⭐ NOUVEAU: Obtenir tous les trajets expirés
+   */
+  async obtenirTrajetsExpires(req, res, next) {
+    try {
+      const { page = 1, limit = 20 } = req.query;
+
+      const query = {
+        statutTrajet: 'EXPIRE'
+      };
+
+      const options = {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        sort: { dateExpiration: -1 },
+        populate: { path: 'conducteurId', select: 'nom prenom' }
+      };
+
+      const trajets = await Trajet.paginate(query, options);
+
+      res.json({
+        success: true,
+        count: trajets.docs.length,
+        pagination: {
+          total: trajets.totalDocs,
+          page: trajets.page,
+          pages: trajets.totalPages,
+          limit: trajets.limit
+        },
+        data: trajets.docs
+      });
+
+    } catch (error) {
+      return next(AppError.serverError('Erreur lors de la récupération des trajets expirés', { 
+        originalError: error.message 
+      }));
     }
   }
 
@@ -816,24 +1062,17 @@ async creerTrajetPonctuel(req, res, next) {
    */
   async validerItineraire(coordonneesDepart, coordonneesArrivee) {
     try {
-      // Simulation d'appel à Google Maps API
-      // En réalité, vous utiliseriez l'API Google Maps Directions
-      
-      // Calculs approximatifs (à remplacer par l'API réelle)
       const [longDepart, latDepart] = coordonneesDepart;
       const [longArrivee, latArrivee] = coordonneesArrivee;
       
-      // Calcul de distance approximatif (formule haversine simplifiée)
       const distance = this.calculerDistance(latDepart, longDepart, latArrivee, longArrivee);
-      
-      // Durée estimée (60 km/h en moyenne)
-      const duree = Math.round(distance * 60 / 60); // en minutes
+      const duree = Math.round(distance * 60 / 60);
       
       return {
         success: true,
-        distance: Math.round(distance * 100) / 100, // 2 décimales
+        distance: Math.round(distance * 100) / 100,
         duree: duree,
-        heureArrivee: this.calculerHeureArrivee('08:00', duree) // exemple
+        heureArrivee: this.calculerHeureArrivee('08:00', duree)
       };
 
     } catch (error) {
@@ -849,7 +1088,7 @@ async creerTrajetPonctuel(req, res, next) {
    * Calculer la distance entre deux points (formule haversine)
    */
   calculerDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Rayon de la Terre en km
+    const R = 6371;
     const dLat = this.toRad(lat2 - lat1);
     const dLon = this.toRad(lon2 - lon1);
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -878,8 +1117,13 @@ async creerTrajetPonctuel(req, res, next) {
    * Gérer les notifications selon le changement de statut
    */
   async gererNotificationsStatut(trajet, ancienStatut, nouveauStatut) {
-    // TODO: Implémenter la logique de notification
+    // TODO: Implémenter la logique de notification réelle
     console.log(`Notification: Trajet ${trajet._id} changé de ${ancienStatut} à ${nouveauStatut}`);
+    
+    // Exemple d'implémentation future:
+    // if (nouveauStatut === 'EN_COURS') {
+    //   await NotificationService.envoyerNotification(passagers, 'Le trajet a démarré');
+    // }
   }
 
   /**
@@ -888,6 +1132,15 @@ async creerTrajetPonctuel(req, res, next) {
   async envoyerNotificationsAnnulation(trajet, motif) {
     // TODO: Implémenter l'envoi de notifications aux passagers
     console.log(`Notification d'annulation pour le trajet ${trajet._id}: ${motif}`);
+    
+    // Exemple d'implémentation future:
+    // const reservations = await Reservation.find({ trajetId: trajet._id });
+    // for (let reservation of reservations) {
+    //   await NotificationService.envoyerEmail(reservation.passagerId, {
+    //     sujet: 'Trajet annulé',
+    //     message: `Le trajet a été annulé. Raison: ${motif}`
+    //   });
+    // }
   }
 }
 

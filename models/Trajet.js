@@ -172,6 +172,14 @@ const preferencesSchema = new mongoose.Schema({
   fumeur: {
     type: Boolean,
     default: false
+  },
+  animauxAcceptes: {
+    type: Boolean,
+    default: false
+  },
+  climatisationActive: {
+    type: Boolean,
+    default: true
   }
 }, { _id: false });
 
@@ -336,12 +344,23 @@ const trajetSchema = new mongoose.Schema({
   // Statut et état
   statutTrajet: {
     type: String,
-    enum: ['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE'],
+    enum: ['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE', 'EXPIRE'],  // ⭐ AJOUT: EXPIRE
     default: 'PROGRAMME'
   },
   validationAutomatique: {
     type: Boolean,
     default: false
+  },
+
+  // ⭐ NOUVEAU: Gestion de l'expiration
+  dateExpiration: {
+    type: Date,
+    index: true
+  },
+  raisonExpiration: {
+    type: String,
+    enum: ['DATE_PASSEE', 'RECURRENCE_TERMINEE', 'INACTIVITE', 'AUTRE'],
+    default: null
   },
 
   // Métadonnées
@@ -355,10 +374,12 @@ const trajetSchema = new mongoose.Schema({
     ref: 'Evenement'
   }
 }, {
-  timestamps: true, // Ajoute automatiquement createdAt et updatedAt
+  timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
+
+// =============== INDEX ===============
 
 // Index géospatial pour les recherches par proximité
 trajetSchema.index({ "pointDepart.coordonnees": "2dsphere" });
@@ -374,9 +395,21 @@ trajetSchema.index({ trajetRecurrentId: 1, dateDepart: 1 });
 trajetSchema.index({ estInstanceRecurrente: 1, dateDepart: 1 });
 trajetSchema.index({ 'recurrence.dateFinRecurrence': 1 });
 
+// ⭐ NOUVEAUX INDEX pour l'expiration
+trajetSchema.index({ statutTrajet: 1, dateDepart: 1 });
+trajetSchema.index({ dateExpiration: 1 });
+trajetSchema.index({ 'recurrence.dateFinRecurrence': 1, typeTrajet: 1 });
+trajetSchema.index({ 
+  statutTrajet: 1, 
+  dateDepart: 1, 
+  nombrePlacesDisponibles: 1 
+});
+
+// =============== MIDDLEWARES ===============
+
 // Middleware pre-save pour validation croisée
 trajetSchema.pre('save', function(next) {
-  // Validation des préférences de genre (ne peut pas accepter les deux exclusivement)
+  // Validation des préférences de genre
   if (this.preferences.accepteFemmesSeulement && this.preferences.accepteHommesSeuleument) {
     return next(new Error('Ne peut pas accepter exclusivement les femmes ET les hommes'));
   }
@@ -393,15 +426,64 @@ trajetSchema.pre('save', function(next) {
     }
   }
 
-  // Tri automatique des arrêts intermédiaires par ordreArret
+  // Tri automatique des arrêts intermédiaires
   if (this.arretsIntermediaires && this.arretsIntermediaires.length > 0) {
     this.arretsIntermediaires.sort((a, b) => a.ordreArret - b.ordreArret);
+  }
+
+  // ⭐ NOUVEAU: Vérifier l'expiration automatique
+  if (!this.isNew && this.estExpire() && this.statutTrajet === 'PROGRAMME') {
+    this.statutTrajet = 'EXPIRE';
+    this.dateExpiration = new Date();
+    this.raisonExpiration = 'DATE_PASSEE';
   }
 
   next();
 });
 
-// Méthodes d'instance
+// ⭐ NOUVEAU: Middleware pre-find pour filtrer les trajets expirés
+trajetSchema.pre(/^find/, function(next) {
+  // Option pour inclure les trajets expirés
+  if (!this.getOptions().includeExpired) {
+    // Par défaut, exclure les trajets expirés
+    this.where({ statutTrajet: { $ne: 'EXPIRE' } });
+  }
+  next();
+});
+
+// Middleware pour mettre à jour les statistiques du conducteur
+trajetSchema.pre('save', async function(next) {
+  try {
+    if (!this.isModified('statutTrajet')) return next();
+
+    if (this.statutTrajet === 'TERMINE') {
+      const Utilisateur = mongoose.model('Utilisateur');
+      const conducteur = await Utilisateur.findById(this.conducteurId);
+      if (!conducteur) return next();
+
+      if (typeof conducteur.nombreTrajetsEffectues !== 'number') {
+        conducteur.nombreTrajetsEffectues = 0;
+      }
+      if (typeof conducteur.scoreConfiance !== 'number') {
+        conducteur.scoreConfiance = 3.0;
+      }
+
+      conducteur.nombreTrajetsEffectues += 1;
+      const bonus = 0.02;
+      conducteur.scoreConfiance = Math.min(5, Math.max(1, (conducteur.scoreConfiance + bonus)));
+      conducteur.derniereActivite = new Date();
+
+      await conducteur.save();
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// =============== MÉTHODES D'INSTANCE ===============
+
 trajetSchema.methods.peutEtreReserve = function() {
   return this.statutTrajet === 'PROGRAMME' && 
          this.nombrePlacesDisponibles > 0 && 
@@ -412,7 +494,33 @@ trajetSchema.methods.calculerTarifTotal = function(nombrePassagers = 1) {
   return this.prixParPassager * nombrePassagers;
 };
 
-// Méthodes pour les trajets récurrents
+// ⭐ NOUVEAU: Vérifier si un trajet est expiré
+trajetSchema.methods.estExpire = function() {
+  const maintenant = new Date();
+  return maintenant > this.dateDepart && this.statutTrajet === 'PROGRAMME';
+};
+
+// ⭐ NOUVEAU: Marquer ce trajet comme expiré
+trajetSchema.methods.marquerCommeExpire = async function() {
+  if (this.estExpire()) {
+    this.statutTrajet = 'EXPIRE';
+    this.dateExpiration = new Date();
+    this.raisonExpiration = 'DATE_PASSEE';
+    await this.save();
+    return true;
+  }
+  return false;
+};
+
+// ⭐ NOUVEAU: Vérifier si la récurrence est expirée
+trajetSchema.methods.recurrenceEstExpiree = function() {
+  if (this.typeTrajet === 'RECURRENT' && this.recurrence?.dateFinRecurrence) {
+    return new Date() > this.recurrence.dateFinRecurrence;
+  }
+  return false;
+};
+
+// Méthodes pour les trajets récurrents (existantes)
 trajetSchema.methods.estTrajetRecurrent = function() {
   return this.typeTrajet === 'RECURRENT';
 };
@@ -435,7 +543,9 @@ trajetSchema.methods.obtenirInstances = async function(dateDebut = null, dateFin
   return [];
 };
 
-// Méthodes statiques
+// =============== MÉTHODES STATIQUES ===============
+
+// Méthodes existantes
 trajetSchema.statics.findTrajetsDisponibles = function(dateDebut, dateFin) {
   return this.find({
     dateDepart: { $gte: dateDebut, $lte: dateFin },
@@ -444,7 +554,6 @@ trajetSchema.statics.findTrajetsDisponibles = function(dateDebut, dateFin) {
   });
 };
 
-// Méthodes pour les trajets récurrents
 trajetSchema.statics.findTrajetsRecurrents = function(conducteurId = null) {
   const query = { typeTrajet: 'RECURRENT' };
   if (conducteurId) {
@@ -483,7 +592,7 @@ trajetSchema.statics.findTrajetsProches = function(longitude, latitude, distance
         "pointDepart.coordonnees": {
           $near: {
             $geometry: { type: "Point", coordinates: [longitude, latitude] },
-            $maxDistance: distanceMaxKm * 1000 // Conversion en mètres
+            $maxDistance: distanceMaxKm * 1000
           }
         }
       },
@@ -501,7 +610,161 @@ trajetSchema.statics.findTrajetsProches = function(longitude, latitude, distance
   });
 };
 
-// Virtuals
+// ⭐ NOUVELLES MÉTHODES pour la gestion de l'expiration
+
+// Trouver tous les trajets expirés
+trajetSchema.statics.findTrajetsExpires = function() {
+  const maintenant = new Date();
+  return this.find({
+    statutTrajet: 'PROGRAMME',
+    dateDepart: { $lt: maintenant }
+  });
+};
+
+// Trouver les trajets qui vont expirer dans X heures
+trajetSchema.statics.findTrajetsAExpirer = function(heures = 2) {
+  const maintenant = new Date();
+  const dateExpiration = new Date(maintenant.getTime() + (heures * 60 * 60 * 1000));
+  
+  return this.find({
+    statutTrajet: 'PROGRAMME',
+    dateDepart: { 
+      $gte: maintenant,
+      $lte: dateExpiration 
+    }
+  });
+};
+
+// Trouver les trajets récurrents expirés
+trajetSchema.statics.findTrajetsRecurrentsExpires = function() {
+  const maintenant = new Date();
+  return this.find({
+    typeTrajet: 'RECURRENT',
+    'recurrence.dateFinRecurrence': { $lt: maintenant },
+    statutTrajet: { $nin: ['TERMINE', 'EXPIRE'] }
+  });
+};
+
+// Marquer les trajets comme expirés
+trajetSchema.statics.marquerTrajetsExpires = async function() {
+  const maintenant = new Date();
+  
+  const result = await this.updateMany(
+    {
+      statutTrajet: 'PROGRAMME',
+      dateDepart: { $lt: maintenant }
+    },
+    {
+      $set: { 
+        statutTrajet: 'EXPIRE',
+        dateExpiration: maintenant,
+        raisonExpiration: 'DATE_PASSEE'
+      }
+    }
+  );
+  
+  console.log(`✅ ${result.modifiedCount} trajets marqués comme expirés`);
+  return result;
+};
+
+// Marquer les récurrences expirées
+trajetSchema.statics.marquerRecurrencesExpirees = async function() {
+  const maintenant = new Date();
+  
+  const result = await this.updateMany(
+    {
+      typeTrajet: 'RECURRENT',
+      'recurrence.dateFinRecurrence': { $lt: maintenant },
+      statutTrajet: 'PROGRAMME'
+    },
+    {
+      $set: { 
+        statutTrajet: 'EXPIRE',
+        dateExpiration: maintenant,
+        raisonExpiration: 'RECURRENCE_TERMINEE'
+      }
+    }
+  );
+  
+  console.log(`✅ ${result.modifiedCount} récurrences marquées comme expirées`);
+  return result;
+};
+
+// Nettoyer les vieux trajets expirés (après X jours)
+trajetSchema.statics.nettoyerVieuxTrajetsExpires = async function(joursAGarder = 30) {
+  const dateLimit = new Date();
+  dateLimit.setDate(dateLimit.getDate() - joursAGarder);
+  
+  const result = await this.deleteMany({
+    statutTrajet: 'EXPIRE',
+    dateExpiration: { $lt: dateLimit }
+  });
+  
+  console.log(`✅ ${result.deletedCount} vieux trajets expirés supprimés`);
+  return result;
+};
+
+// Obtenir des statistiques sur l'expiration
+trajetSchema.statics.getStatistiquesExpiration = async function() {
+  const maintenant = new Date();
+  
+  const stats = await this.aggregate([
+    {
+      $facet: {
+        expiresDansUnJour: [
+          {
+            $match: {
+              statutTrajet: 'PROGRAMME',
+              dateDepart: {
+                $gte: maintenant,
+                $lte: new Date(maintenant.getTime() + 24 * 60 * 60 * 1000)
+              }
+            }
+          },
+          { $count: 'count' }
+        ],
+        dejaExpires: [
+          {
+            $match: {
+              statutTrajet: 'PROGRAMME',
+              dateDepart: { $lt: maintenant }
+            }
+          },
+          { $count: 'count' }
+        ],
+        recurrencesExpirees: [
+          {
+            $match: {
+              typeTrajet: 'RECURRENT',
+              'recurrence.dateFinRecurrence': { $lt: maintenant },
+              statutTrajet: { $ne: 'EXPIRE' }
+            }
+          },
+          { $count: 'count' }
+        ],
+        trajetsExpires: [
+          {
+            $match: {
+              statutTrajet: 'EXPIRE'
+            }
+          },
+          { $count: 'count' }
+        ]
+      }
+    }
+  ]);
+  
+  return {
+    expiresDansUnJour: stats[0].expiresDansUnJour[0]?.count || 0,
+    dejaExpires: stats[0].dejaExpires[0]?.count || 0,
+    recurrencesExpirees: stats[0].recurrencesExpirees[0]?.count || 0,
+    trajetsExpires: stats[0].trajetsExpires[0]?.count || 0,
+    timestamp: new Date()
+  };
+};
+
+// =============== VIRTUALS ===============
+
 trajetSchema.virtual('placesReservees').get(function() {
   return this.nombrePlacesTotal - this.nombrePlacesDisponibles;
 });
@@ -509,45 +772,14 @@ trajetSchema.virtual('placesReservees').get(function() {
 trajetSchema.virtual('tauxOccupation').get(function() {
   return Math.round((this.placesReservees / this.nombrePlacesTotal) * 100);
 });
-trajetSchema.plugin(mongoosePaginate);
-module.exports = mongoose.model('Trajet', trajetSchema);
-// Mettre à jour les statistiques du conducteur quand un trajet est terminé
-trajetSchema.pre('save', async function(next) {
-  try {
-    // Si le statut ne change pas, ne rien faire
-    if (!this.isModified('statutTrajet')) return next();
 
-    // Détecter transition vers TERMINE
-    if (this.statutTrajet === 'TERMINE') {
-      const Utilisateur = mongoose.model('Utilisateur');
-
-      // Récupérer l'utilisateur conducteur
-      const conducteur = await Utilisateur.findById(this.conducteurId);
-      if (!conducteur) return next();
-
-      // Initialiser champs si absents
-      if (typeof conducteur.nombreTrajetsEffectues !== 'number') {
-        conducteur.nombreTrajetsEffectues = 0;
-      }
-      if (typeof conducteur.scoreConfiance !== 'number') {
-        conducteur.scoreConfiance = 3.0; // base neutre
-      }
-
-      // Incrémenter le nombre de trajets effectués
-      conducteur.nombreTrajetsEffectues += 1;
-
-      // Ajustement simple du score de confiance (borne [1,5])
-      const bonus = 0.02; // petit bonus par trajet terminé
-      conducteur.scoreConfiance = Math.min(5, Math.max(1, (conducteur.scoreConfiance + bonus)));
-
-      // Enregistrer une dernière date d'activité
-      conducteur.derniereActivite = new Date();
-
-      await conducteur.save();
-    }
-
-    next();
-  } catch (error) {
-    next(error);
-  }
+// ⭐ NOUVEAU: Virtual pour vérifier si expiré
+trajetSchema.virtual('isExpired').get(function() {
+  return this.statutTrajet === 'EXPIRE' || this.estExpire();
 });
+
+// =============== PLUGINS ===============
+
+trajetSchema.plugin(mongoosePaginate);
+
+module.exports = mongoose.model('Trajet', trajetSchema);

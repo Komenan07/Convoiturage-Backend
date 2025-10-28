@@ -186,7 +186,287 @@ const optionalAuthMiddleware = async (req, res, next) => {
   }
 };
 
-// ... Reste des middlewares inchangé
+/**
+ * ⭐  Middleware pour vérifier le refresh token
+ * À utiliser sur les routes de rafraîchissement de token
+ */
+const refreshTokenMiddleware = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token manquant',
+        code: 'NO_REFRESH_TOKEN'
+      });
+    }
+
+    // Vérifier la validité du refresh token
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
+    } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          success: false,
+          message: 'Refresh token expiré. Veuillez vous reconnecter.',
+          code: 'REFRESH_TOKEN_EXPIRED'
+        });
+      }
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token invalide',
+        code: 'INVALID_REFRESH_TOKEN'
+      });
+    }
+
+    // Vérifier que l'utilisateur existe et que le refresh token correspond
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur introuvable',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    // Vérifier que le refresh token dans la DB correspond
+    if (user.refreshToken !== refreshToken) {
+      securityLogger.warn('Tentative d\'utilisation d\'un ancien refresh token', {
+        userId: user._id,
+        ip: req.ip
+      });
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token révoqué ou invalide',
+        code: 'REFRESH_TOKEN_REVOKED'
+      });
+    }
+
+    // Ajouter les informations utilisateur à la requête
+    req.user = {
+      id: user._id,
+      userId: user._id,
+      email: user.email,
+      role: user.role
+    };
+    req.userProfile = user;
+    req.refreshToken = refreshToken;
+
+    next();
+
+  } catch (error) {
+    console.error('Erreur dans refreshTokenMiddleware:', error);
+    return next(AppError.serverError('Erreur lors de la vérification du refresh token', { originalError: error.message }));
+  }
+};
+
+/**
+ * ⭐ Middleware pour vérifier le rôle conducteur/passager
+ * @param {Array<string>} rolesRequis - ['conducteur', 'passager', 'les_deux']
+ */
+const roleCovoiturageMiddleware = (rolesRequis = []) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.userProfile) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentification requise',
+          code: 'AUTH_REQUIRED'
+        });
+      }
+
+      const userRole = req.userProfile.role;
+
+      // Si l'utilisateur a le rôle "les_deux", il peut tout faire
+      if (userRole === 'les_deux') {
+        return next();
+      }
+
+      // Vérifier si le rôle de l'utilisateur est dans les rôles requis
+      if (!rolesRequis.includes(userRole) && !rolesRequis.includes('les_deux')) {
+        return res.status(403).json({
+          success: false,
+          message: `Cette action nécessite le rôle: ${rolesRequis.join(' ou ')}`,
+          code: 'ROLE_COVOITURAGE_REQUIRED',
+          requiredRoles: rolesRequis,
+          userRole: userRole
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Erreur dans roleCovoiturageMiddleware:', error);
+      return next(AppError.serverError('Erreur lors de la vérification du rôle covoiturage', { originalError: error.message }));
+    }
+  };
+};
+
+/**
+ * ⭐ Middleware pour vérifier le solde du compte covoiturage
+ * À utiliser sur les routes qui nécessitent un solde minimum
+ */
+const checkSoldeMiddleware = (montantMinimum = 0) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.userProfile) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentification requise',
+          code: 'AUTH_REQUIRED'
+        });
+      }
+
+      const user = req.userProfile;
+
+      // Vérifier si l'utilisateur a un compte covoiturage
+      if (!user.compteCovoiturage) {
+        return res.status(400).json({
+          success: false,
+          message: 'Compte covoiturage non initialisé',
+          code: 'NO_COVOITURAGE_ACCOUNT'
+        });
+      }
+
+      const soldeActuel = user.compteCovoiturage.solde || 0;
+
+      // Vérifier si le solde est suffisant
+      if (soldeActuel < montantMinimum) {
+        return res.status(402).json({
+          success: false,
+          message: `Solde insuffisant. Minimum requis: ${montantMinimum} FCFA`,
+          code: 'INSUFFICIENT_BALANCE',
+          soldeActuel: soldeActuel,
+          montantMinimum: montantMinimum,
+          manquant: montantMinimum - soldeActuel
+        });
+      }
+
+      // Ajouter le solde dans req pour utilisation ultérieure
+      req.soldeActuel = soldeActuel;
+
+      next();
+    } catch (error) {
+      console.error('Erreur dans checkSoldeMiddleware:', error);
+      return next(AppError.serverError('Erreur lors de la vérification du solde', { originalError: error.message }));
+    }
+  };
+};
+
+/**
+ * ⭐  Middleware pour vérifier la vérification du compte
+ * Nécessite que le compte soit vérifié (email ou SMS)
+ */
+const requireVerifiedAccount = async (req, res, next) => {
+  try {
+    if (!req.userProfile) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentification requise',
+        code: 'AUTH_REQUIRED'
+      });
+    }
+
+    const user = req.userProfile;
+
+    // Vérifier si le compte est vérifié
+    if (!user.emailVerifie && !user.telephoneVerifie) {
+      return res.status(403).json({
+        success: false,
+        message: 'Veuillez vérifier votre compte (email ou téléphone) pour accéder à cette fonctionnalité',
+        code: 'ACCOUNT_NOT_VERIFIED',
+        emailVerifie: user.emailVerifie,
+        telephoneVerifie: user.telephoneVerifie
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Erreur dans requireVerifiedAccount:', error);
+    return next(AppError.serverError('Erreur lors de la vérification du compte', { originalError: error.message }));
+  }
+};
+
+/**
+ * ⭐  Middleware pour vérifier l'auto-recharge
+ * Vérifie que l'utilisateur a configuré l'auto-recharge
+ */
+const checkAutoRechargeEnabled = async (req, res, next) => {
+  try {
+    if (!req.userProfile) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentification requise',
+        code: 'AUTH_REQUIRED'
+      });
+    }
+
+    const user = req.userProfile;
+
+    if (!user.compteCovoiturage || !user.compteCovoiturage.autoRechargeActive) {
+      return res.status(400).json({
+        success: false,
+        message: 'La recharge automatique n\'est pas activée',
+        code: 'AUTO_RECHARGE_NOT_ENABLED'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Erreur dans checkAutoRechargeEnabled:', error);
+    return next(AppError.serverError('Erreur lors de la vérification de l\'auto-recharge', { originalError: error.message }));
+  }
+};
+
+/**
+ * ⭐  Middleware pour vérifier les permissions de modification de profil
+ * L'utilisateur ne peut modifier que son propre profil (sauf admin)
+ */
+const canModifyProfile = async (req, res, next) => {
+  try {
+    const targetUserId = req.params.userId || req.params.id || req.body.userId;
+    
+    // Admin peut tout modifier
+    if (req.user.role === 'admin') {
+      return next();
+    }
+
+    // Vérifier que l'utilisateur modifie son propre profil
+    if (!targetUserId || req.user.userId.toString() !== targetUserId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Vous ne pouvez modifier que votre propre profil',
+        code: 'CANNOT_MODIFY_OTHER_PROFILE'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Erreur dans canModifyProfile:', error);
+    return next(AppError.serverError('Erreur lors de la vérification des permissions', { originalError: error.message }));
+  }
+};
+
+/**
+ * ⭐  Middleware pour logger les actions sensibles
+ */
+const logSensitiveAction = (actionType) => {
+  return (req, res, next) => {
+    securityLogger.info('Action sensible', {
+      actionType: actionType,
+      userId: req.user ? req.user.userId : 'anonymous',
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      endpoint: `${req.method} ${req.originalUrl}`,
+      timestamp: new Date().toISOString()
+    });
+    next();
+  };
+};
+
+
+// Reste des middlewares inchangé
 const adminMiddleware = async (req, res, next) => {
   try {
     // D'abord, vérifier l'authentification
@@ -265,6 +545,14 @@ module.exports = {
   optionalAuthMiddleware,
   ownershipMiddleware,
   logAuthMiddleware,
+
+  refreshTokenMiddleware,
+  roleCovoiturageMiddleware,
+  checkSoldeMiddleware,
+  requireVerifiedAccount,
+  checkAutoRechargeEnabled,
+  canModifyProfile,
+  logSensitiveAction,
   
   // Alias pour compatibilité
   protect: authMiddleware,

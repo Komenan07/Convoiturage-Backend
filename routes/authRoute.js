@@ -34,11 +34,27 @@ const {
   reinitialiserMotDePasse,
   demandeReinitialisationMotDePasse,
   confirmerReinitialisationMotDePasse,
-  forgotPassword,           // Demander code reset WhatsApp
-  resetPassword,            // Réinitialiser avec code WhatsApp
+
+  // Réinitialisation mot de passe WhatsApp
+  forgotPassword,          
+  resetPassword,            
   resendResetCode,    
-  verifyResetCode,      // Renvoyer code reset WhatsApp
+  verifyResetCode,      
   
+  // Gestion des Refresh Tokens
+  refreshToken,
+  roterToken,
+  obtenirSessionsActives,
+  revoquerSession,
+  deconnexionGlobale,
+
+  // Gestion des Recharges
+  demanderRecharge,
+  confirmerRecharge,
+  configurerAutoRecharge,
+  desactiverAutoRecharge,
+  configurerRetraitGains,
+
   // Nouveaux contrôleurs compte covoiturage
   obtenirResumeCompteCovoiturage,
   obtenirHistoriqueRecharges,
@@ -95,6 +111,16 @@ const whatsappResetLimiter = rateLimit({
     message: 'Trop de demandes de réinitialisation WhatsApp. Réessayez dans 15 minutes.'
   }
 });
+
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 demandes de refresh max par IP
+  message: {
+    success: false,
+    message: 'Trop de demandes de rafraîchissement de token. Réessayez dans 15 minutes.'
+  }
+});
+
 // =============== VALIDATIONS ===============
 
 const validateEmail = [
@@ -162,6 +188,35 @@ const validateNewPassword = [
     .isLength({ min: 4 })
     .withMessage('Le mot de passe doit contenir au moins 4 caractères')
 ];
+
+const validateRefreshToken = [
+  body('refreshToken')
+    .trim()
+    .notEmpty()
+    .withMessage('Le refresh token est requis')
+    .isLength({ min: 64, max: 128 })
+    .withMessage('Le refresh token doit être un JWT valide')
+];
+
+const validateRecharge = [
+  body('montant')
+    .isNumeric()
+    .withMessage('Le montant doit être un nombre')
+    .isFloat({ min: 100 })
+    .withMessage('Le montant minimum de recharge est de 100 FCFA'),
+  body('methodePaiement')
+    .trim()
+    .notEmpty()
+    .withMessage('La méthode de paiement est requise')
+    .isIn(['orange_money', 'mtn_money', 'moov_money', 'wave', 'carte_bancaire'])
+    .withMessage('Méthode de paiement invalide'),
+  body('numeroTelephone')
+    .optional()
+    .trim()
+    .matches(/^(\+225)?[0-9]{8,10}$/)
+    .withMessage('Numéro de téléphone invalide')
+];
+
 // Middleware de gestion des erreurs de validation
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
@@ -466,7 +521,33 @@ router.post('/resend-reset-code-whatsapp',
   resendResetCode
 );
 
-// =============== ROUTES PROTÉGÉES - DÉCONNEXION ===============
+// =============== ROUTES PUBLIQUES - REFRESH TOKENS ===============
+
+/**
+ * @route   POST /api/auth/refresh-token
+ * @desc    Rafraîchir le token d'accès
+ * @access  Public (nécessite refresh token)
+ */
+router.post('/refresh-token',
+  refreshLimiter,
+  validateRefreshToken,
+  handleValidationErrors,
+  refreshToken
+);
+
+/**
+ * @route   POST /api/auth/rotate-token
+ * @desc    Rotation du refresh token (plus sécurisé)
+ * @access  Public (nécessite refresh token)
+ */
+router.post('/rotate-token',
+  refreshLimiter,
+  validateRefreshToken,
+  handleValidationErrors,
+  roterToken
+);
+
+// =============== ROUTES PROTÉGÉES - DÉCONNEXION - SESSION===============
 
 /**
  * @route   POST /api/auth/deconnexion
@@ -476,6 +557,32 @@ router.post('/resend-reset-code-whatsapp',
  */
 router.post('/deconnexion', authMiddleware, deconnexion);
 router.post('/logout', authMiddleware, deconnexion);
+
+/**
+ * @route   GET /api/auth/sessions
+ * @desc    Obtenir les sessions actives
+ * @access  Privé
+ */
+router.get('/sessions', authMiddleware, obtenirSessionsActives);
+
+/**
+ * @route   DELETE /api/auth/sessions
+ * @desc    Révoquer une session spécifique
+ * @access  Privé
+ */
+router.delete('/sessions',
+  authMiddleware,
+  validateRefreshToken,
+  handleValidationErrors,
+  revoquerSession
+);
+
+/**
+ * @route   POST /api/auth/logout-all
+ * @desc    Déconnexion globale (toutes sessions)
+ * @access  Privé
+ */
+router.post('/logout-all', authMiddleware, deconnexionGlobale);
 
 // =============== ROUTES PROTÉGÉES - VÉRIFICATION ET PROFIL ===============
 
@@ -527,6 +634,72 @@ router.get('/historique-commissions', authMiddleware, obtenirHistoriqueCommissio
  */
 router.get('/peut-accepter-course', authMiddleware, verifierCapaciteAcceptationCourse);
 
+// =============== ROUTES PROTÉGÉES - RECHARGES ===============
+
+/**
+ * @route   POST /api/auth/recharge
+ * @desc    Demander une recharge de compte
+ * @access  Privé (conducteurs uniquement)
+ */
+router.post('/recharge',
+  authMiddleware,
+  validateRecharge,
+  handleValidationErrors,
+  demanderRecharge
+);
+
+/**
+ * @route   PUT /api/auth/recharge/:referenceTransaction/confirm
+ * @desc    Confirmer une recharge (webhook/admin)
+ * @access  Privé/Admin
+ */
+router.put('/recharge/:referenceTransaction/confirm',
+  authMiddleware,
+  body('userId').notEmpty().withMessage('ID utilisateur requis'),
+  body('statut').optional().isIn(['reussi', 'echoue']).withMessage('Statut invalide'),
+  handleValidationErrors,
+  confirmerRecharge
+);
+
+/**
+ * @route   POST /api/auth/auto-recharge/configure
+ * @desc    Configurer la recharge automatique
+ * @access  Privé
+ */
+router.post('/auto-recharge/configure',
+  authMiddleware,
+  [
+    body('seuilAutoRecharge').isNumeric().withMessage('Seuil invalide'),
+    body('montantAutoRecharge').isNumeric().withMessage('Montant invalide'),
+    body('methodePaiementAuto').notEmpty().withMessage('Méthode requise')
+  ],
+  handleValidationErrors,
+  configurerAutoRecharge
+);
+
+/**
+ * @route   POST /api/auth/auto-recharge/desactiver
+ * @desc    Désactiver la recharge automatique
+ * @access  Privé
+ */
+router.post('/auto-recharge/desactiver', authMiddleware, desactiverAutoRecharge);
+
+/**
+ * @route   POST /api/auth/retrait/configure
+ * @desc    Configurer les paramètres de retrait
+ * @access  Privé
+ */
+router.post('/retrait/configure',
+  authMiddleware,
+  [
+    body('numeroMobile').notEmpty().withMessage('Numéro mobile requis'),
+    body('operateur').notEmpty().withMessage('Opérateur requis'),
+    body('nomTitulaire').notEmpty().withMessage('Nom titulaire requis')
+  ],
+  handleValidationErrors,
+  configurerRetraitGains
+);
+
 // =============== ROUTES DE MONITORING ET DIAGNOSTICS ===============
 
 /**
@@ -548,7 +721,10 @@ router.get('/health', (req, res) => {
       smsPasswordReset: true,
       whatsappPasswordReset: true, 
       adminAccess: true,
-      compteCovoiturage: true // NOUVEAU
+      compteCovoiturage: true ,
+      recharges: true,
+      commissions: true,
+      autoRecharge: true
     },
     routes: {
       publiques: [

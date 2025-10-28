@@ -44,6 +44,21 @@ const validateOTPCode = [
     .withMessage('Le code OTP doit contenir exactement 6 chiffres')
 ];
 
+const validateWhatsAppCode = [
+  body('code')
+    .trim()
+    .matches(/^[0-9]{6}$/)
+    .withMessage('Le code doit contenir exactement 6 chiffres')
+];
+
+const validateRole = [
+  body('role')
+    .optional()
+    .isIn(['conducteur', 'passager', 'les_deux'])
+    .withMessage('Rôle invalide. Doit être: conducteur, passager ou les_deux')
+];
+
+
 // =============== VALIDATIONS POUR INSCRIPTION ===============
 
 // Validation pour l'inscription EMAIL (existant)
@@ -169,7 +184,7 @@ const resendSMSValidation = [
 
 // =============== VALIDATIONS RESET PASSWORD ===============
 
-// Validation pour la réinitialisation de mot de passe (existant)
+// Validation pour la réinitialisation de mot de passe
 const resetPasswordValidation = [
   body('password')
     .isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractères')
@@ -206,6 +221,20 @@ const newPasswordValidation = [
     })
 ];
 
+const validateResetPassword = [
+  body('motDePasse')
+    .isLength({ min: 8 })
+    .withMessage('Le mot de passe doit contenir au moins 8 caractères')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre')
+];
+
+const validateNewPassword = [
+  body('new_password')
+    .isLength({ min: 4 })
+    .withMessage('Le mot de passe doit contenir au moins 4 caractères')
+];
+
 // =============== VALIDATIONS POUR ADMIN ===============
 
 // Validation pour connexion admin
@@ -228,6 +257,15 @@ const refreshTokenValidation = [
     .withMessage('Refresh token requis')
     .isLength({ min: 10 })
     .withMessage('Refresh token invalide')
+];
+
+const validateRefreshToken = [
+  body('refreshToken')
+    .trim()
+    .notEmpty()
+    .withMessage('Le refresh token est requis')
+    .isJWT()
+    .withMessage('Le refresh token doit être un JWT valide')
 ];
 
 // =============== VALIDATIONS POUR PROFIL ===============
@@ -266,6 +304,129 @@ const updateProfileValidation = [
     .optional()
     .isIn(['M', 'F'])
     .withMessage('Le sexe doit être M ou F')
+];
+
+// =============== VALIDATIONS POUR RECHARGES ===============
+
+// ⭐ NOUVEAU: Validation pour demande de recharge
+const validateRecharge = [
+  body('montant')
+    .isNumeric()
+    .withMessage('Le montant doit être un nombre')
+    .isFloat({ min: 100 })
+    .withMessage('Le montant minimum de recharge est de 100 FCFA')
+    .isFloat({ max: 1000000 })
+    .withMessage('Le montant maximum de recharge est de 1 000 000 FCFA'),
+  
+  body('methodePaiement')
+    .trim()
+    .notEmpty()
+    .withMessage('La méthode de paiement est requise')
+    .isIn(['orange_money', 'mtn_money', 'moov_money', 'wave', 'carte_bancaire'])
+    .withMessage('Méthode de paiement invalide'),
+  
+  body('numeroTelephone')
+    .optional()
+    .trim()
+    .matches(/^(\+225)?[0-9]{8,10}$/)
+    .withMessage('Numéro de téléphone invalide')
+];
+
+// ⭐ NOUVEAU: Validation pour confirmation de recharge
+const validateRechargeConfirmation = [
+  body('transactionId')
+    .trim()
+    .notEmpty()
+    .withMessage('ID de transaction requis')
+    .isLength({ min: 5, max: 100 })
+    .withMessage('ID de transaction invalide'),
+  
+  body('referenceOperateur')
+    .optional()
+    .trim()
+    .isString()
+    .withMessage('Référence opérateur invalide')
+];
+
+// ⭐ NOUVEAU: Validation pour configuration auto-recharge
+const validateAutoRecharge = [
+  body('seuilAutoRecharge')
+    .isNumeric()
+    .withMessage('Le seuil doit être un nombre')
+    .isFloat({ min: 100, max: 10000 })
+    .withMessage('Le seuil doit être entre 100 et 10 000 FCFA'),
+  
+  body('montantAutoRecharge')
+    .isNumeric()
+    .withMessage('Le montant doit être un nombre')
+    .isFloat({ min: 500, max: 50000 })
+    .withMessage('Le montant doit être entre 500 et 50 000 FCFA'),
+  
+  body('methodePaiementAuto')
+    .trim()
+    .notEmpty()
+    .withMessage('La méthode de paiement est requise')
+    .isIn(['orange_money', 'mtn_money', 'moov_money', 'wave'])
+    .withMessage('Méthode de paiement invalide')
+];
+
+// ⭐ NOUVEAU: Validation pour configuration retrait
+const validateRetraitConfig = [
+  body('numeroMobile')
+    .trim()
+    .notEmpty()
+    .withMessage('Le numéro mobile est requis')
+    .matches(/^(\+225)?[0-9]{8,10}$/)
+    .withMessage('Numéro de téléphone invalide'),
+  
+  body('operateur')
+    .trim()
+    .notEmpty()
+    .withMessage('L\'opérateur est requis')
+    .isIn(['orange_money', 'mtn_money', 'moov_money', 'wave'])
+    .withMessage('Opérateur invalide'),
+  
+  body('nomTitulaire')
+    .trim()
+    .notEmpty()
+    .withMessage('Le nom du titulaire est requis')
+    .isLength({ min: 3, max: 100 })
+    .withMessage('Le nom du titulaire doit contenir entre 3 et 100 caractères')
+];
+
+// =============== VALIDATIONS POUR SESSIONS ===============
+
+// ⭐ NOUVEAU: Validation pour session ID
+const validateSessionId = [
+  body('sessionId')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('ID de session requis')
+    .isMongoId()
+    .withMessage('ID de session invalide')
+];
+
+// =============== VALIDATIONS WHATSAPP ===============
+
+// ⭐ NOUVEAU: Validation pour numéro WhatsApp
+const validateWhatsAppPhone = [
+  body('phone')
+    .trim()
+    .notEmpty()
+    .withMessage('Le numéro WhatsApp est requis')
+    .matches(/^(\+225)?[0-9]{8,10}$/)
+    .withMessage('Numéro WhatsApp invalide')
+];
+
+// ⭐ NOUVEAU: Validation complète reset WhatsApp
+const validateWhatsAppReset = [
+  body('phone')
+    .trim()
+    .matches(/^(\+225)?[0-9]{8,10}$/)
+    .withMessage('Numéro WhatsApp invalide'),
+  ...validateWhatsAppCode,
+  ...validateNewPassword
 ];
 
 // =============== VALIDATIONS COMPOSITES ===============
@@ -367,6 +528,23 @@ const validateEmailDomains = [
     })
 ];
 
+const validateMinAmount = (min = 100) => [
+  body('montant')
+    .isNumeric()
+    .withMessage('Le montant doit être un nombre')
+    .isFloat({ min })
+    .withMessage(`Le montant minimum est de ${min} FCFA`)
+];
+
+const validateMongoId = (fieldName = 'id') => [
+  body(fieldName)
+    .trim()
+    .notEmpty()
+    .withMessage(`${fieldName} est requis`)
+    .isMongoId()
+    .withMessage(`${fieldName} invalide`)
+];
+
 // =============== EXPORTS ===============
 
 module.exports = {
@@ -376,6 +554,8 @@ module.exports = {
   validatePassword,
   validateSMSCode,
   validateOTPCode,
+  validateWhatsAppCode,       
+  validateRole,      
   
   // Validations existantes (compatibilité)
   registerValidation,
@@ -390,15 +570,35 @@ module.exports = {
   verifyOTPResetValidation,
   newPasswordValidation,
   
+  // Validations reset password
+  validateResetPassword,       
+  validateNewPassword,         
+
   // Validations système
   loginPhoneValidation,
   loginFlexibleValidation,
   adminLoginValidation,
   refreshTokenValidation,
+  validateRefreshToken, 
   updateProfileValidation,
   fullRegisterValidation,
+
+  // ⭐ Validations recharges
+  validateRecharge,
+  validateRechargeConfirmation,
+  validateAutoRecharge,
+  validateRetraitConfig,
+
+  // ⭐  Validations sessions
+  validateSessionId,
+  
+  // ⭐  Validations WhatsApp
+  validateWhatsAppPhone,
+  validateWhatsAppReset,
   
   // Validations personnalisées
   validateIvorianPhone,
-  validateEmailDomains
+  validateEmailDomains,
+  validateMinAmount,            
+  validateMongoId               
 };

@@ -44,6 +44,62 @@ const utilisateurSchema = new mongoose.Schema({
     select: false // Exclut par défaut le mot de passe des requêtes
   },
   
+  // ===== SYSTÈME DE REFRESH TOKEN =====
+  refreshTokens: [{
+    token: {
+      type: String,
+      required: true,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    expiresAt: {
+      type: Date,
+      required: true
+    },
+    deviceInfo: {
+      userAgent: String,
+      ip: String,
+      deviceType: {
+        type: String,
+        enum: ['mobile', 'desktop', 'tablet', 'unknown'],
+        default: 'unknown'
+      },
+      os: String,
+      browser: String
+    },
+    lastUsedAt: {
+      type: Date,
+      default: Date.now
+    },
+    isRevoked: {
+      type: Boolean,
+      default: false
+    },
+    revokedAt: Date,
+    revokedReason: String
+  }],
+
+  // Limiter le nombre de sessions actives
+  maxActiveSessions: {
+    type: Number,
+    default: 5,
+    min: [1, 'Au moins 1 session active autorisée'],
+    max: [10, 'Maximum 10 sessions actives']
+  },
+
+  // Sécurité supplémentaire
+  derniereChangementMotDePasse: {
+    type: Date,
+    default: Date.now
+  },
+  
+  exigerChangementMotDePasse: {
+    type: Boolean,
+    default: false
+  },
+
   nom: {
     type: String,
     required: [true, 'Le nom est requis'],
@@ -153,7 +209,7 @@ const utilisateurSchema = new mongoose.Schema({
     },
     ville: {
       type: String,
-      required: false,  // ← Rendre optionnel
+      required: false,  
       trim: true,
       default: 'Abidjan'
     },
@@ -716,18 +772,355 @@ utilisateurSchema.methods.verifierMotDePasse = async function(motDePasseCandidat
   return await bcrypt.compare(motDePasseCandidat, this.motDePasse);
 };
 
+/**
+ * Générer Access Token (JWT courte durée)
+ */
 utilisateurSchema.methods.getSignedJwtToken = function() {
   return jwt.sign(
     { 
       userId: this._id,
       email: this.email,
-      role: this.role
+      role: this.role,
+      type: 'access'
     },
     process.env.JWT_SECRET || 'votre-cle-secrete-super-longue-et-complexe',
     {
-      expiresIn: process.env.JWT_EXPIRE || '7d'
+      expiresIn: process.env.JWT_EXPIRE || '15m' // Courte durée pour l'access token
     }
   );
+};
+
+/**
+ * Générer Refresh Token (longue durée)
+ */
+utilisateurSchema.methods.generateRefreshToken = async function(deviceInfo = {}) {
+  // Générer un token unique et sécurisé
+  const refreshToken = crypto.randomBytes(64).toString('hex');
+  
+  // Hasher le refresh token avant stockage
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(refreshToken)
+    .digest('hex');
+
+  // Calculer la date d'expiration (30 jours par défaut)
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + (parseInt(process.env.REFRESH_TOKEN_DAYS) || 30));
+
+  // Nettoyer les tokens expirés avant d'ajouter un nouveau
+  await this.cleanExpiredTokens();
+
+  // Limiter le nombre de sessions actives
+  if (this.refreshTokens.filter(t => !t.isRevoked).length >= this.maxActiveSessions) {
+    // Révoquer le plus ancien token actif
+    const oldestToken = this.refreshTokens
+      .filter(t => !t.isRevoked)
+      .sort((a, b) => a.createdAt - b.createdAt)[0];
+    
+    if (oldestToken) {
+      oldestToken.isRevoked = true;
+      oldestToken.revokedAt = new Date();
+      oldestToken.revokedReason = 'MAX_SESSIONS_EXCEEDED';
+    }
+  }
+
+  // Ajouter le nouveau refresh token
+  this.refreshTokens.push({
+    token: hashedToken,
+    expiresAt,
+    deviceInfo: {
+      userAgent: deviceInfo.userAgent || 'Unknown',
+      ip: deviceInfo.ip || 'Unknown',
+      deviceType: deviceInfo.deviceType || 'unknown',
+      os: deviceInfo.os || 'Unknown',
+      browser: deviceInfo.browser || 'Unknown'
+    },
+    lastUsedAt: new Date()
+  });
+
+  await this.save();
+
+  // Retourner le token non-hashé (à envoyer au client)
+  return refreshToken;
+};
+
+/**
+ * Vérifier et utiliser un Refresh Token
+ */
+utilisateurSchema.methods.verifyRefreshToken = async function(refreshToken) {
+  // Hasher le token reçu
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(refreshToken)
+    .digest('hex');
+
+  // Trouver le token dans la base
+  const tokenData = this.refreshTokens.find(
+    t => t.token === hashedToken && !t.isRevoked
+  );
+
+  if (!tokenData) {
+    return {
+      valide: false,
+      raison: 'TOKEN_INVALIDE',
+      message: 'Refresh token invalide ou révoqué'
+    };
+  }
+
+  // Vérifier l'expiration
+  if (tokenData.expiresAt < new Date()) {
+    tokenData.isRevoked = true;
+    tokenData.revokedAt = new Date();
+    tokenData.revokedReason = 'EXPIRED';
+    await this.save();
+
+    return {
+      valide: false,
+      raison: 'TOKEN_EXPIRE',
+      message: 'Refresh token expiré'
+    };
+  }
+
+  // Mettre à jour la dernière utilisation
+  tokenData.lastUsedAt = new Date();
+  this.derniereConnexion = new Date();
+  await this.save();
+
+  return {
+    valide: true,
+    tokenData: {
+      createdAt: tokenData.createdAt,
+      lastUsedAt: tokenData.lastUsedAt,
+      deviceInfo: tokenData.deviceInfo
+    }
+  };
+};
+
+/**
+ * Révoquer un Refresh Token spécifique
+ */
+utilisateurSchema.methods.revokeRefreshToken = async function(refreshToken, raison = 'USER_LOGOUT') {
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(refreshToken)
+    .digest('hex');
+
+  const tokenData = this.refreshTokens.find(t => t.token === hashedToken);
+
+  if (!tokenData) {
+    return {
+      success: false,
+      message: 'Token introuvable'
+    };
+  }
+
+  if (tokenData.isRevoked) {
+    return {
+      success: false,
+      message: 'Token déjà révoqué'
+    };
+  }
+
+  tokenData.isRevoked = true;
+  tokenData.revokedAt = new Date();
+  tokenData.revokedReason = raison;
+
+  await this.save();
+
+  return {
+    success: true,
+    message: 'Token révoqué avec succès'
+  };
+};
+
+/**
+ * Révoquer tous les Refresh Tokens (déconnexion globale)
+ */
+utilisateurSchema.methods.revokeAllRefreshTokens = async function(raison = 'LOGOUT_ALL_DEVICES') {
+  const tokensActifs = this.refreshTokens.filter(t => !t.isRevoked);
+
+  tokensActifs.forEach(token => {
+    token.isRevoked = true;
+    token.revokedAt = new Date();
+    token.revokedReason = raison;
+  });
+
+  await this.save();
+
+  return {
+    success: true,
+    message: `${tokensActifs.length} session(s) révoquée(s)`,
+    count: tokensActifs.length
+  };
+};
+
+/**
+ * Nettoyer les tokens expirés
+ */
+utilisateurSchema.methods.cleanExpiredTokens = async function() {
+  const maintenant = new Date();
+  const tokensAvant = this.refreshTokens.length;
+
+  this.refreshTokens = this.refreshTokens.filter(token => {
+    // Garder les tokens non expirés
+    if (token.expiresAt > maintenant) return true;
+    
+    // Supprimer les tokens expirés depuis plus de 7 jours
+    const joursDepuisExpiration = (maintenant - token.expiresAt) / (1000 * 60 * 60 * 24);
+    return joursDepuisExpiration <= 7;
+  });
+
+  if (tokensAvant !== this.refreshTokens.length) {
+    await this.save();
+  }
+};
+
+/**
+ * Obtenir les sessions actives
+ */
+utilisateurSchema.methods.getActiveSessions = function() {
+  const maintenant = new Date();
+  
+  return this.refreshTokens
+    .filter(t => !t.isRevoked && t.expiresAt > maintenant)
+    .map(t => ({
+      createdAt: t.createdAt,
+      lastUsedAt: t.lastUsedAt,
+      expiresAt: t.expiresAt,
+      deviceInfo: t.deviceInfo,
+      isCurrentSession: false // À définir par le contrôleur
+    }))
+    .sort((a, b) => b.lastUsedAt - a.lastUsedAt);
+};
+
+/**
+ * Vérifier si un changement de mot de passe invalide les tokens
+ */
+utilisateurSchema.methods.shouldInvalidateTokens = function() {
+  // Si le mot de passe a été changé récemment, invalider les anciens tokens
+  const dureeGraceMinutes = 5;
+  const tempsEcoule = (Date.now() - this.derniereChangementMotDePasse) / (1000 * 60);
+  
+  return tempsEcoule < dureeGraceMinutes;
+};
+
+/**
+ * Rotation du Refresh Token (pour sécurité accrue)
+ */
+utilisateurSchema.methods.rotateRefreshToken = async function(oldRefreshToken, deviceInfo = {}) {
+  // Vérifier l'ancien token
+  const verification = await this.verifyRefreshToken(oldRefreshToken);
+  
+  if (!verification.valide) {
+    return {
+      success: false,
+      raison: verification.raison,
+      message: verification.message
+    };
+  }
+
+  // Révoquer l'ancien token
+  await this.revokeRefreshToken(oldRefreshToken, 'TOKEN_ROTATION');
+
+  // Générer un nouveau token
+  const newRefreshToken = await this.generateRefreshToken(deviceInfo);
+
+  // Générer un nouveau access token
+  const newAccessToken = this.getSignedJwtToken();
+
+  return {
+    success: true,
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
+    expiresIn: process.env.JWT_EXPIRE || '15m'
+  };
+};
+
+// ===== MIDDLEWARE PRE-SAVE =====
+utilisateurSchema.pre('save', async function(next) {
+  // Hash password si modifié
+  if (this.isModified('motDePasse')) {
+    const salt = await bcrypt.genSalt(12);
+    this.motDePasse = await bcrypt.hash(this.motDePasse, salt);
+    
+    // Mettre à jour la date de changement de mot de passe
+    this.derniereChangementMotDePasse = new Date();
+    
+    // Révoquer tous les tokens existants pour forcer une reconnexion
+    if (!this.isNew) {
+      this.refreshTokens.forEach(token => {
+        if (!token.isRevoked) {
+          token.isRevoked = true;
+          token.revokedAt = new Date();
+          token.revokedReason = 'PASSWORD_CHANGED';
+        }
+      });
+    }
+  }
+
+  next();
+});
+
+// ===== MÉTHODES STATIQUES =====
+
+/**
+ * Nettoyer les tokens expirés de tous les utilisateurs
+ */
+utilisateurSchema.statics.cleanAllExpiredTokens = async function() {
+  const maintenant = new Date();
+  const dateLimit = new Date(maintenant.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 jours
+
+  const result = await this.updateMany(
+    {},
+    {
+      $pull: {
+        refreshTokens: {
+          expiresAt: { $lt: dateLimit }
+        }
+      }
+    }
+  );
+
+  return result;
+};
+
+/**
+ * Obtenir les statistiques des sessions
+ */
+utilisateurSchema.statics.getSessionStatistics = async function() {
+  const stats = await this.aggregate([
+    {
+      $project: {
+        totalTokens: { $size: '$refreshTokens' },
+        activeTokens: {
+          $size: {
+            $filter: {
+              input: '$refreshTokens',
+              as: 'token',
+              cond: {
+                $and: [
+                  { $eq: ['$$token.isRevoked', false] },
+                  { $gt: ['$$token.expiresAt', new Date()] }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalUsers: { $sum: 1 },
+        avgTokensPerUser: { $avg: '$totalTokens' },
+        avgActiveTokensPerUser: { $avg: '$activeTokens' },
+        totalTokens: { $sum: '$totalTokens' },
+        totalActiveTokens: { $sum: '$activeTokens' }
+      }
+    }
+  ]);
+
+  return stats[0] || {};
 };
 
 utilisateurSchema.methods.getEmailConfirmationToken = function() {

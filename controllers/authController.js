@@ -13,7 +13,6 @@ const path = require('path');
 // ===================================
 // FONCTIONS UTILITAIRES
 // ===================================
-
 /**
  * Fonction utilitaire pour charger et remplacer les variables dans un template
  */
@@ -34,6 +33,37 @@ const chargerTemplate = (nomTemplate, variables = {}) => {
     throw new Error(`Impossible de charger le template ${nomTemplate}`);
   }
 };
+
+// ✨ Détecter le type d'appareil
+const detectDeviceType = (userAgent) => {
+  if (!userAgent) return 'unknown';
+  if (/mobile/i.test(userAgent)) return 'mobile';
+  if (/tablet/i.test(userAgent)) return 'tablet';
+  return 'desktop';
+};
+
+// ✨Détecter le système d'exploitation
+const detectOS = (userAgent) => {
+  if (!userAgent) return 'Unknown';
+  if (/windows/i.test(userAgent)) return 'Windows';
+  if (/android/i.test(userAgent)) return 'Android';
+  if (/iphone|ipad/i.test(userAgent)) return 'iOS';
+  if (/mac/i.test(userAgent)) return 'macOS';
+  if (/linux/i.test(userAgent)) return 'Linux';
+  return 'Unknown';
+};
+
+// ✨ Détecter le navigateur
+const detectBrowser = (userAgent) => {
+  if (!userAgent) return 'Unknown';
+  if (/chrome/i.test(userAgent) && !/edge/i.test(userAgent)) return 'Chrome';
+  if (/firefox/i.test(userAgent)) return 'Firefox';
+  if (/safari/i.test(userAgent) && !/chrome/i.test(userAgent)) return 'Safari';
+  if (/edge/i.test(userAgent)) return 'Edge';
+  if (/opera/i.test(userAgent)) return 'Opera';
+  return 'Unknown';
+};
+
 // ===================================
 // INSCRIPTION AVEC WHATSAPP
 // ===================================
@@ -200,7 +230,7 @@ const verifyCode = async (req, res, next) => {
     }
 
     const utilisateur = await User.findOne({ telephone })
-      .select('+codeVerificationWhatsApp');
+      .select('+codeVerificationWhatsApp +refreshTokens');
 
     if (!utilisateur) {
       return res.status(404).json({
@@ -246,8 +276,19 @@ const verifyCode = async (req, res, next) => {
       utilisateur.prenom
     );
 
+    // ✨ Récupérer les informations de l'appareil
+    const deviceInfo = {
+      userAgent: req.headers['user-agent'] || 'Unknown',
+      ip: req.ip || req.connection.remoteAddress,
+      deviceType: detectDeviceType(req.headers['user-agent']),
+      os: detectOS(req.headers['user-agent']),
+      browser: detectBrowser(req.headers['user-agent'])
+    };
+
     // Générer le token JWT
-    const token = utilisateur.getSignedJwtToken();
+    // Générer Access Token ET Refresh Token
+    const accessToken = utilisateur.getSignedJwtToken();
+    const refreshToken = await utilisateur.generateRefreshToken(deviceInfo);
 
     logger.info('Vérification WhatsApp réussie', { userId: utilisateur._id });
 
@@ -255,7 +296,10 @@ const verifyCode = async (req, res, next) => {
       success: true,
       message: '✅ Compte vérifié avec succès !',
       data: {
-        token,
+        accessToken,       
+        refreshToken, 
+        expiresIn: process.env.JWT_EXPIRE || '15m',
+        refreshTokenExpiresIn: `${process.env.REFRESH_TOKEN_DAYS || 30} jours`,    
         utilisateur: {
           id: utilisateur._id,
           nom: utilisateur.nom,
@@ -1270,179 +1314,6 @@ const renvoyerCodeSMS = async (req, res, next) => {
 /**
  * Connexion utilisateur
  */
-// const connexion = async (req, res, next) => {
-//   try {
-//     logger.info('Tentative de connexion', { email: req.body.email });
-    
-//     const { email, motDePasse } = req.body;
-
-//     if (!email || !motDePasse) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Email et mot de passe sont requis',
-//         codeErreur: 'MISSING_FIELDS'
-//       });
-//     }
-
-//     const user = await User.findOne({ email }).select('+motDePasse');
-    
-//     if (!user) {
-//       logger.warn('Connexion échouée - Email incorrect', { email });
-//       return res.status(401).json({
-//         success: false,
-//         message: 'Adresse email incorrecte',
-//         codeErreur: 'INVALID_EMAIL',
-//         champ: 'email'
-//       });
-//     }
-
-//     // Vérifier le statut du compte
-//     const statutAutorise = user.peutSeConnecter();
-//     if (!statutAutorise.autorise) {
-//       logger.warn('Connexion échouée - Compte non autorisé', { 
-//         userId: user._id, 
-//         statut: user.statutCompte,
-//         raison: statutAutorise.raison 
-//       });
-      
-//       let messageStatut = '';
-//       let codeErreurStatut = '';
-
-//       switch (user.statutCompte) {
-//         case 'EN_ATTENTE_VERIFICATION':
-//           messageStatut = 'Votre compte n\'est pas encore vérifié. Vérifiez votre email.';
-//           codeErreurStatut = 'ACCOUNT_NOT_VERIFIED';
-//           break;
-//         case 'BLOQUE':
-//           messageStatut = 'Votre compte a été bloqué définitivement.';
-//           codeErreurStatut = 'ACCOUNT_BLOCKED';
-//           break;
-//         case 'SUSPENDU':
-//           messageStatut = 'Votre compte est temporairement suspendu.';
-//           codeErreurStatut = 'ACCOUNT_SUSPENDED';
-//           break;
-//         default:
-//           if (statutAutorise.raison === 'Compte temporairement bloqué') {
-//             messageStatut = 'Votre compte est temporairement bloqué suite à plusieurs tentatives de connexion échouées.';
-//             codeErreurStatut = 'ACCOUNT_TEMP_BLOCKED';
-//           } else {
-//             messageStatut = 'Votre compte est désactivé.';
-//             codeErreurStatut = 'ACCOUNT_DISABLED';
-//           }
-//       }
-
-//       return res.status(403).json({
-//         success: false,
-//         message: messageStatut,
-//         codeErreur: codeErreurStatut
-//       });
-//     }
-
-//     // Vérifier le mot de passe
-//     let isMatch = false;
-    
-//     try {
-//       if (!user.motDePasse.startsWith('$2')) {
-//         logger.warn('Hash corrompu détecté', { userId: user._id });
-//         return res.status(500).json({
-//           success: false,
-//           message: 'Erreur de sécurité du compte. Veuillez réinitialiser votre mot de passe.',
-//           codeErreur: 'CORRUPTED_HASH'
-//         });
-//       }
-      
-//       isMatch = await user.verifierMotDePasse(motDePasse.trim());
-      
-//     } catch (bcryptError) {
-//       logger.error('Erreur vérification mot de passe', { error: bcryptError.message, userId: user._id });
-//       return res.status(500).json({
-//         success: false,
-//         message: 'Erreur de vérification du mot de passe',
-//         codeErreur: 'PASSWORD_VERIFICATION_ERROR'
-//       });
-//     }
-
-//     if (!isMatch) {
-//       // Incrémenter les tentatives échouées
-//       user.tentativesConnexionEchouees += 1;
-//       user.derniereTentativeConnexion = new Date();
-      
-//       if (user.tentativesConnexionEchouees >= 5) {
-//         user.compteBloqueLe = new Date();
-//       }
-      
-//       await user.save();
-      
-//       const tentativesRestantes = Math.max(0, 5 - user.tentativesConnexionEchouees);
-      
-//       logger.warn('Connexion échouée - Mot de passe incorrect', { 
-//         email, 
-//         tentativesEchouees: user.tentativesConnexionEchouees,
-//         tentativesRestantes
-//       });
-      
-//       return res.status(401).json({
-//         success: false,
-//         message: 'Mot de passe incorrect',
-//         codeErreur: 'INVALID_PASSWORD',
-//         champ: 'motDePasse',
-//         tentativesRestantes,
-//         avertissement: tentativesRestantes <= 2 ? 
-//           `Attention : il vous reste ${tentativesRestantes} tentative(s) avant blocage temporaire` : 
-//           null
-//       });
-//     }
-
-//     // CONNEXION RÉUSSIE
-//     // Réinitialiser les tentatives échouées
-//     if (user.tentativesConnexionEchouees > 0) {
-//       user.tentativesConnexionEchouees = 0;
-//       user.derniereTentativeConnexion = null;
-//       user.compteBloqueLe = null;
-//     }
-
-//     // Mettre à jour la dernière connexion
-//     user.derniereConnexion = new Date();
-//     await user.save();
-
-//     // Générer le token JWT
-//     const token = user.getSignedJwtToken();
-
-//     logger.info('Connexion réussie', { userId: user._id });
-    
-//     res.json({
-//       success: true,
-//       message: 'Connexion réussie',
-//       token,
-//       user: {
-//         id: user._id,
-//         nom: user.nom,
-//         prenom: user.prenom,
-//         email: user.email,
-//         telephone: user.telephone,
-//         role: user.role,
-//         photoProfil: user.photoProfil,
-//         statutCompte: user.statutCompte,
-//         dateInscription: user.dateInscription,
-//         scoreConfiance: user.scoreConfiance,
-//         noteGenerale: user.noteGenerale,
-//         badges: user.badges,
-//         estVerifie: user.estVerifie,
-//         compteCovoiturage: {
-//           solde: user.compteCovoiturage.solde,
-//           estRecharge: user.compteCovoiturage.estRecharge,
-//           totalGagnes: user.compteCovoiturage.totalGagnes,
-//           peutAccepterCourses: user.peutAccepterCourses,
-//           compteRechargeActif: user.compteRechargeActif
-//         }
-//       }
-//     });
-    
-//   } catch (error) {
-//     logger.error('Erreur connexion:', error);
-//     return next(AppError.serverError('Erreur serveur lors de la connexion', { originalError: error.message }));
-//   }
-// };
 const connexion = async (req, res, next) => {
   try {
     const { email, telephone, motDePasse } = req.body;
@@ -1468,7 +1339,7 @@ const connexion = async (req, res, next) => {
     const champRecherche = isEmail ? 'email' : 'telephone';
 
     // Rechercher l'utilisateur par email OU téléphone
-    const user = await User.findOne({ [champRecherche]: identifiant }).select('+motDePasse');
+    const user = await User.findOne({ [champRecherche]: identifiant }).select('+motDePasse +refreshTokens');
     
     if (!user) {
       logger.warn('Connexion échouée - Identifiant incorrect', { 
@@ -1602,14 +1473,34 @@ const connexion = async (req, res, next) => {
     await user.save();
 
     // Générer le token JWT
-    const token = user.getSignedJwtToken();
+    const accessToken = user.getSignedJwtToken();
 
-    logger.info('Connexion réussie', { userId: user._id });
+    //  Récupérer les informations de l'appareil
+    const deviceInfo = {
+      userAgent: req.headers['user-agent'] || 'Unknown',
+      ip: req.ip || req.connection?.remoteAddress || 'Unknown',
+      deviceType: detectDeviceType(req.headers['user-agent']),
+      os: detectOS(req.headers['user-agent']),
+      browser: detectBrowser(req.headers['user-agent'])
+    };
+
+    // 3. NOUVEAU: Générer le refresh token
+    const refreshToken = await user.generateRefreshToken(deviceInfo);
+
+    logger.info('Connexion réussie', { 
+      userId: user._id ,
+      deviceType: deviceInfo.deviceType
+  });
     
     res.json({
       success: true,
       message: 'Connexion réussie',
-      token,
+      data: {
+        accessToken: accessToken,      
+        refreshToken: refreshToken,   
+        expiresIn: process.env.JWT_EXPIRE || '15m',
+        tokenType: 'Bearer'
+      },
       user: {
         id: user._id,
         nom: user.nom,
@@ -2703,6 +2594,499 @@ const confirmerReinitialisationMotDePasse = async (req, res, next) => {
 };
 
 // ===================================
+// ✨ NOUVEAU - GESTION DES REFRESH TOKENS
+// ===================================
+
+/**
+ * @desc    Rafraîchir le token d'accès
+ * @route   POST /api/auth/refresh-token
+ * @access  Public
+ */
+const refreshToken = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token manquant'
+      });
+    }
+
+    // Hasher le refresh token pour recherche
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
+
+    // Trouver l'utilisateur avec ce refresh token
+    const user = await User.findOne({
+      'refreshTokens.token': hashedToken
+    }).select('+refreshTokens');
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token invalide'
+      });
+    }
+
+    // Vérifier le refresh token
+    const verification = await user.verifyRefreshToken(refreshToken);
+
+    if (!verification.valide) {
+      return res.status(401).json({
+        success: false,
+        message: verification.message,
+        raison: verification.raison
+      });
+    }
+
+    // Générer un nouveau access token
+    const newAccessToken = user.getSignedJwtToken();
+
+    logger.info('Token rafraîchi avec succès', { userId: user._id });
+
+    res.json({
+      success: true,
+      message: 'Token rafraîchi avec succès',
+      data: {
+        accessToken: newAccessToken,
+        expiresIn: process.env.JWT_EXPIRE || '15m'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur rafraîchissement token:', error);
+    return next(AppError.serverError('Erreur lors du rafraîchissement du token'));
+  }
+};
+
+/**
+ * @desc    Obtenir les sessions actives de l'utilisateur
+ * @route   GET /api/auth/sessions
+ * @access  Private
+ */
+const obtenirSessionsActives = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.userId)
+      .select('+refreshTokens');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    const sessions = user.getActiveSessions();
+
+    res.json({
+      success: true,
+      sessions: sessions,
+      total: sessions.length
+    });
+
+  } catch (error) {
+    logger.error('Erreur obtention sessions:', error);
+    return next(AppError.serverError('Erreur lors de la récupération des sessions'));
+  }
+};
+
+/**
+ * @desc    Révoquer une session spécifique
+ * @route   DELETE /api/auth/sessions
+ * @access  Private
+ */
+const revoquerSession = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token manquant'
+      });
+    }
+
+    const user = await User.findById(req.user.userId)
+      .select('+refreshTokens');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    const result = await user.revokeRefreshToken(refreshToken, 'USER_REVOKE');
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.message
+      });
+    }
+
+    logger.info('Session révoquée', { userId: user._id });
+
+    res.json({
+      success: true,
+      message: 'Session révoquée avec succès'
+    });
+
+  } catch (error) {
+    logger.error('Erreur révocation session:', error);
+    return next(AppError.serverError('Erreur lors de la révocation de la session'));
+  }
+};
+
+/**
+ * @desc    Révoquer toutes les sessions (déconnexion globale)
+ * @route   POST /api/auth/logout-all
+ * @access  Private
+ */
+const deconnexionGlobale = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.userId)
+      .select('+refreshTokens');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    const result = await user.revokeAllRefreshTokens('LOGOUT_ALL_DEVICES');
+
+    logger.info('Déconnexion globale réussie', { 
+      userId: user._id, 
+      sessionsRevoquees: result.count 
+    });
+
+    res.json({
+      success: true,
+      message: result.message,
+      sessionsRevoquees: result.count
+    });
+
+  } catch (error) {
+    logger.error('Erreur déconnexion globale:', error);
+    return next(AppError.serverError('Erreur lors de la déconnexion globale'));
+  }
+};
+/**
+ * @desc    Rotation du refresh token (plus sécurisé)
+ * @route   POST /api/auth/rotate
+ * @access  Public
+ */
+const roterToken = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token manquant'
+      });
+    }
+
+    // Récupérer les informations de l'appareil
+    const deviceInfo = {
+      userAgent: req.headers['user-agent'] || 'Unknown',
+      ip: req.ip || req.connection.remoteAddress,
+      deviceType: detectDeviceType(req.headers['user-agent']),
+      os: detectOS(req.headers['user-agent']),
+      browser: detectBrowser(req.headers['user-agent'])
+    };
+
+    // Hasher le refresh token
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
+
+    // Trouver l'utilisateur
+    const user = await User.findOne({
+      'refreshTokens.token': hashedToken
+    }).select('+refreshTokens');
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token invalide'
+      });
+    }
+
+    // Rotation du token
+    const result = await user.rotateRefreshToken(refreshToken, deviceInfo);
+
+    if (!result.success) {
+      return res.status(401).json({
+        success: false,
+        message: result.message,
+        raison: result.raison
+      });
+    }
+
+    logger.info('Rotation de token réussie', { userId: user._id });
+
+    res.json({
+      success: true,
+      message: 'Tokens rotatés avec succès',
+      data: {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur rotation token:', error);
+    return next(AppError.serverError('Erreur lors de la rotation du token'));
+  }
+};
+
+
+// ===================================
+// ✨ GESTION DES RECHARGES
+// ===================================
+
+/**
+ * @desc    Demander une recharge de compte
+ * @route   POST /api/auth/recharge
+ * @access  Private
+ */
+const demanderRecharge = async (req, res, next) => {
+  try {
+    const { montant, methodePaiement, referenceTransaction, fraisTransaction } = req.body;
+
+    if (!montant || !methodePaiement || !referenceTransaction) {
+      return res.status(400).json({
+        success: false,
+        message: 'Montant, méthode de paiement et référence transaction requis'
+      });
+    }
+
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    // Vérifier que l'utilisateur est conducteur
+    if (user.role !== 'conducteur' && user.role !== 'les_deux') {
+      return res.status(403).json({
+        success: false,
+        message: 'Seuls les conducteurs peuvent recharger leur compte'
+      });
+    }
+
+    await user.rechargerCompte(montant, methodePaiement, referenceTransaction, fraisTransaction || 0);
+
+    logger.info('Demande de recharge créée', { 
+      userId: user._id, 
+      montant, 
+      referenceTransaction 
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Demande de recharge enregistrée',
+      data: {
+        referenceTransaction,
+        montant,
+        methodePaiement,
+        statut: 'en_attente'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur demande recharge:', error);
+    return next(AppError.serverError('Erreur lors de la demande de recharge', {
+      originalError: error.message
+    }));
+  }
+};
+
+/**
+ * @desc    Confirmer une recharge (webhook ou admin)
+ * @route   PUT /api/auth/recharge/:referenceTransaction/confirm
+ * @access  Private/Admin
+ */
+const confirmerRecharge = async (req, res, next) => {
+  try {
+    const { referenceTransaction } = req.params;
+    const { statut = 'reussi', userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID utilisateur requis'
+      });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    await user.confirmerRecharge(referenceTransaction, statut);
+
+    logger.info('Recharge confirmée', { 
+      userId: user._id, 
+      referenceTransaction, 
+      statut 
+    });
+
+    res.json({
+      success: true,
+      message: `Recharge ${statut === 'reussi' ? 'confirmée' : 'échouée'}`,
+      data: {
+        referenceTransaction,
+        statut,
+        nouveauSolde: user.compteCovoiturage.solde
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur confirmation recharge:', error);
+    return next(AppError.serverError('Erreur lors de la confirmation de recharge', {
+      originalError: error.message
+    }));
+  }
+};
+
+/**
+ * @desc    Configurer la recharge automatique
+ * @route   POST /api/auth/auto-recharge/configure
+ * @access  Private
+ */
+const configurerAutoRecharge = async (req, res, next) => {
+  try {
+    const { seuilAutoRecharge, montantAutoRecharge, methodePaiementAuto } = req.body;
+
+    if (!seuilAutoRecharge || !montantAutoRecharge || !methodePaiementAuto) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tous les paramètres de recharge automatique sont requis'
+      });
+    }
+
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    await user.configurerAutoRecharge(seuilAutoRecharge, montantAutoRecharge, methodePaiementAuto);
+
+    logger.info('Recharge automatique configurée', { userId: user._id });
+
+    res.json({
+      success: true,
+      message: 'Recharge automatique configurée avec succès',
+      data: {
+        modeAutoRecharge: user.compteCovoiturage.modeAutoRecharge
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur configuration auto-recharge:', error);
+    return next(AppError.serverError('Erreur lors de la configuration', {
+      originalError: error.message
+    }));
+  }
+};
+
+/**
+ * @desc    Désactiver la recharge automatique
+ * @route   POST /api/auth/auto-recharge/desactiver
+ * @access  Private
+ */
+const desactiverAutoRecharge = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    await user.desactiverAutoRecharge();
+
+    logger.info('Recharge automatique désactivée', { userId: user._id });
+
+    res.json({
+      success: true,
+      message: 'Recharge automatique désactivée avec succès'
+    });
+
+  } catch (error) {
+    logger.error('Erreur désactivation auto-recharge:', error);
+    return next(AppError.serverError('Erreur lors de la désactivation'));
+  }
+};
+
+/**
+ * @desc    Configurer les paramètres de retrait des gains
+ * @route   POST /api/auth/retrait/configure
+ * @access  Private
+ */
+const configurerRetraitGains = async (req, res, next) => {
+  try {
+    const { numeroMobile, operateur, nomTitulaire } = req.body;
+
+    if (!numeroMobile || !operateur || !nomTitulaire) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numéro mobile, opérateur et nom titulaire requis'
+      });
+    }
+
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    await user.configurerRetraitGains(numeroMobile, operateur, nomTitulaire);
+
+    logger.info('Paramètres de retrait configurés', { userId: user._id });
+
+    res.json({
+      success: true,
+      message: 'Paramètres de retrait configurés avec succès',
+      data: {
+        parametresRetrait: user.compteCovoiturage.parametresRetrait
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur configuration retrait:', error);
+    return next(AppError.serverError('Erreur lors de la configuration', {
+      originalError: error.message
+    }));
+  }
+};
+
+// ===================================
 // NOUVEAUX CONTRÔLEURS COMPTE COVOITURAGE
 // ===================================
 
@@ -2882,12 +3266,26 @@ module.exports = {
   reinitialiserMotDePasse,
   demandeReinitialisationMotDePasse,
   confirmerReinitialisationMotDePasse,
-  // Réinitialisation mot de passe WhatsApp (NOUVEAU)
+  // Réinitialisation mot de passe WhatsApp
   forgotPassword,
   verifyResetCode,
   resetPassword,
   resendResetCode,
-  
+
+  // Gestion des Refresh Tokens
+  refreshToken,
+  roterToken,
+  obtenirSessionsActives,
+  revoquerSession,
+  deconnexionGlobale,
+
+  // Gestion des Recharges 
+  demanderRecharge,
+  confirmerRecharge,
+  configurerAutoRecharge,
+  desactiverAutoRecharge,
+  configurerRetraitGains,
+
   // Nouveaux contrôleurs compte covoiturage
   obtenirResumeCompteCovoiturage,
   obtenirHistoriqueRecharges,
