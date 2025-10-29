@@ -3,6 +3,7 @@ const express = require('express');
 const { body, query, param, validationResult } = require('express-validator');
 const TrajetController = require('../controllers/trajetController');
 const { authMiddleware } = require('../middlewares/authMiddleware');
+const { transformerCoordonneesEnGeoJSON } = require('../middlewares/geoJsonMiddleware');
 const router = express.Router();
 
 // ===============================================
@@ -39,23 +40,37 @@ const validatePointDepart = [
     .notEmpty().withMessage('Le nom du point de départ est requis')
     .isLength({ min: 2, max: 200 }).withMessage('Le nom doit contenir entre 2 et 200 caractères'),
   body('pointDepart.adresse')
-  .notEmpty().withMessage('L\'adresse du point de départ est requise')
-  .trim()
-  .isLength({ max: 500 }),
+    .notEmpty().withMessage('L\'adresse du point de départ est requise')
+    .trim()
+    .isLength({ max: 500 }).withMessage('L\'adresse ne peut pas dépasser 500 caractères'),
   body('pointDepart.coordonnees')
-    .optional()
-    .isArray({ min: 2, max: 2 }).withMessage('Les coordonnées doivent être [longitude, latitude]'),
+    .notEmpty().withMessage('Les coordonnées du point de départ sont requises')
+    .isArray({ min: 2, max: 2 }).withMessage('Les coordonnées doivent être [longitude, latitude]')
+    .custom((value) => {
+      if (!Array.isArray(value) || value.length !== 2) {
+        throw new Error('Format de coordonnées invalide');
+      }
+      const [longitude, latitude] = value;
+      if (longitude < -180 || longitude > 180) {
+        throw new Error('La longitude doit être entre -180 et 180');
+      }
+      if (latitude < -90 || latitude > 90) {
+        throw new Error('La latitude doit être entre -90 et 90');
+      }
+      return true;
+    }),
   body('pointDepart.ville')
+    .optional()
     .trim()
     .isLength({ max: 100 }).withMessage('Le nom de la ville ne peut pas dépasser 100 caractères'),
   body('pointDepart.commune')
-  .notEmpty().withMessage('La commune du point de départ est requise')
-  .trim()
-  .isLength({ max: 100 }),
+    .notEmpty().withMessage('La commune du point de départ est requise')
+    .trim()
+    .isLength({ max: 100 }).withMessage('La commune ne peut pas dépasser 100 caractères'),
   body('pointDepart.quartier')
-  .notEmpty().withMessage('Le quartier du point de départ est requis')
-  .trim()
-  .isLength({ max: 100 })
+    .notEmpty().withMessage('Le quartier du point de départ est requis')
+    .trim()
+    .isLength({ max: 100 }).withMessage('Le quartier ne peut pas dépasser 100 caractères')
 ];
 
 // Validation du point d'arrivée
@@ -65,20 +80,37 @@ const validatePointArrivee = [
     .notEmpty().withMessage('Le nom du point d\'arrivée est requis')
     .isLength({ min: 2, max: 200 }).withMessage('Le nom doit contenir entre 2 et 200 caractères'),
   body('pointArrivee.adresse')
-    .optional()
+    .notEmpty().withMessage('L\'adresse du point d\'arrivée est requise')
     .trim()
     .isLength({ max: 500 }).withMessage('L\'adresse ne peut pas dépasser 500 caractères'),
   body('pointArrivee.coordonnees')
-    .optional()
-    .isArray({ min: 2, max: 2 }).withMessage('Les coordonnées doivent être [longitude, latitude]'),
+    .notEmpty().withMessage('Les coordonnées du point d\'arrivée sont requises')
+    .isArray({ min: 2, max: 2 }).withMessage('Les coordonnées doivent être [longitude, latitude]')
+    .custom((value) => {
+      if (!Array.isArray(value) || value.length !== 2) {
+        throw new Error('Format de coordonnées invalide');
+      }
+      const [longitude, latitude] = value;
+      if (longitude < -180 || longitude > 180) {
+        throw new Error('La longitude doit être entre -180 et 180');
+      }
+      if (latitude < -90 || latitude > 90) {
+        throw new Error('La latitude doit être entre -90 et 90');
+      }
+      return true;
+    }),
   body('pointArrivee.ville')
     .optional()
     .trim()
     .isLength({ max: 100 }).withMessage('Le nom de la ville ne peut pas dépasser 100 caractères'),
   body('pointArrivee.commune')
-    .optional()
+    .notEmpty().withMessage('La commune du point d\'arrivée est requise')
     .trim()
-    .isLength({ max: 100 }).withMessage('Le nom de la commune ne peut pas dépasser 100 caractères')
+    .isLength({ max: 100 }).withMessage('La commune ne peut pas dépasser 100 caractères'),
+  body('pointArrivee.quartier')
+    .notEmpty().withMessage('Le quartier du point d\'arrivée est requis')
+    .trim()
+    .isLength({ max: 100 }).withMessage('Le quartier ne peut pas dépasser 100 caractères')
 ];
 
 // Validation de la date de départ
@@ -197,25 +229,27 @@ const validateRecurrence = [
 const validatePreferences = [
   body('preferences.accepteFemmesSeulement')
     .optional()
-    .isBoolean(),
+    .isBoolean().withMessage('La préférence femmes seulement doit être un booléen'),
   body('preferences.accepteHommesSeuleument')
     .optional()
-    .isBoolean(),
+    .isBoolean().withMessage('La préférence hommes seulement doit être un booléen'),
   body('preferences.accepteBagages')
     .optional()
-    .isBoolean(),
+    .isBoolean().withMessage('La préférence bagages doit être un booléen'),
   body('preferences.typeBagages')
     .optional()
-    .isIn(['PETIT', 'MOYEN', 'GRAND']),
+    .isIn(['PETIT', 'MOYEN', 'GRAND'])
+    .withMessage('Type de bagages invalide'),
   body('preferences.musique')
     .optional()
-    .isBoolean(),
+    .isBoolean().withMessage('La préférence musique doit être un booléen'),
   body('preferences.conversation')
     .optional()
-    .isIn(['AUCUNE', 'LIMITEE', 'LIBRE']),
+    .isIn(['AUCUNE', 'LIMITEE', 'LIBRE'])
+    .withMessage('Type de conversation invalide'),
   body('preferences.fumeur')
     .optional()
-    .isBoolean(),
+    .isBoolean().withMessage('La préférence fumeur doit être un booléen'),
   body('preferences.animauxAcceptes')
     .optional()
     .isBoolean().withMessage('La préférence animaux doit être un booléen'),
@@ -348,6 +382,7 @@ router.get('/expires', [
  */
 router.post('/ponctuel', 
   authMiddleware,
+  transformerCoordonneesEnGeoJSON,
   [
     ...validatePointDepart,
     ...validatePointArrivee,

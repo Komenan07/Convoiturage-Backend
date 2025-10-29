@@ -469,21 +469,27 @@ const logSensitiveAction = (actionType) => {
 // Reste des middlewares inchangé
 const adminMiddleware = async (req, res, next) => {
   try {
-    // D'abord, vérifier l'authentification
-    await authMiddleware(req, res, () => {
-      // Vérifier le rôle admin
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          message: 'Accès refusé. Droits administrateur requis.',
-          code: 'ADMIN_REQUIRED'
-        });
-      }
-      next();
-    });
+    // Vérifier que l'authentification a déjà été faite
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentification requise',
+        code: 'AUTH_REQUIRED'
+      });
+    }
+
+    // Vérifier le rôle admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès refusé. Droits administrateur requis.',
+        code: 'ADMIN_REQUIRED'
+      });
+    }
+    
+    next();
   } catch (error) {
-    console.error('Erreur dans adminMiddleware:', error);
-    return next(AppError.serverError('Erreur serveur lors de la vérification des droits admin', { originalError: error.message }));
+    return next(AppError.serverError('Erreur lors de la vérification des droits admin', { originalError: error.message }));
   }
 };
 

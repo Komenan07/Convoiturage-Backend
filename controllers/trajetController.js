@@ -404,100 +404,189 @@ async modifierPreferences(req, res, next) {
     }));
   }
 }
-  /**
-   * Rechercher trajets disponibles (géospatial)
-   */
-  async rechercherTrajetsDisponibles(req, res, next) {
-    try {
-      const {
-        longitude,
-        latitude,
-        rayonKm = 10,
-        dateDepart,
-        dateFin,
-        prixMax,
-        nombrePlacesMin = 1,
-        page = 1,
-        limit = 20
-      } = req.query;
+/**
+ * Rechercher trajets disponibles (géospatial)
+ */
+async rechercherTrajetsDisponibles(req, res, next) {
+  try {
+    const {
+      longitude,
+      latitude,
+      rayonKm = 10,
+      dateDepart,
+      dateFin,
+      prixMax,
+      nombrePlacesMin = 1,
+      page = 1,
+      limit = 20
+    } = req.query;
 
-      let query = {
-        statutTrajet: 'PROGRAMME',
-        nombrePlacesDisponibles: { $gte: parseInt(nombrePlacesMin) },
-        dateDepart: { $gte: new Date() } // ⭐ NOUVEAU: Exclure les dates passées
-      };
+    // Construction de la requête de base
+    let baseQuery = {
+      statutTrajet: 'PROGRAMME',
+      nombrePlacesDisponibles: { $gte: parseInt(nombrePlacesMin) },
+      dateDepart: { $gte: new Date() }
+    };
 
-      // Filtre par date
-      if (dateDepart) {
-        query.dateDepart = { $gte: new Date(dateDepart) };
-        if (dateFin) {
-          query.dateDepart.$lte = new Date(dateFin);
-        }
+    // Filtre par date
+    if (dateDepart) {
+      const dateDebutFilter = new Date(dateDepart);
+      if (dateFin) {
+        baseQuery.dateDepart = {
+          $gte: dateDebutFilter,
+          $lte: new Date(dateFin)
+        };
+      } else {
+        baseQuery.dateDepart = { $gte: dateDebutFilter };
       }
+    }
 
-      // Filtre par prix
-      if (prixMax) {
-        query.prixParPassager = { $lte: parseInt(prixMax) };
-      }
+    // Filtre par prix
+    if (prixMax) {
+      baseQuery.prixParPassager = { $lte: parseInt(prixMax) };
+    }
 
-      // ⭐ NOUVEAU: Pagination
-      const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        sort: { dateDepart: 1 },
-        populate: { path: 'conducteurId', select: 'nom prenom photo note' }
-      };
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
-      let result;
+    let result;
 
-      // Recherche géospatiale si coordonnées fournies
-      if (longitude && latitude) {
-        // Pour géospatial, on ne peut pas utiliser paginate directement
-        const trajets = await Trajet.findTrajetsProches(
-          parseFloat(longitude), 
-          parseFloat(latitude), 
-          parseInt(rayonKm)
-        ).where(query)
-          .populate('conducteurId', 'nom prenom photo note')
-          .sort({ dateDepart: 1 })
-          .limit(parseInt(limit))
-          .skip((parseInt(page) - 1) * parseInt(limit));
+    // Recherche géospatiale si coordonnées fournies
+    if (longitude && latitude) {
+      try {
+        const long = parseFloat(longitude);
+        const lat = parseFloat(latitude);
+        const maxDistance = parseInt(rayonKm) * 1000;
 
-        const total = await Trajet.findTrajetsProches(
-          parseFloat(longitude), 
-          parseFloat(latitude), 
-          parseInt(rayonKm)
-        ).where(query).countDocuments();
+        // Pipeline d'agrégation pour recherche géospatiale
+        const pipeline = [
+          {
+            $geoNear: {
+              near: {
+                type: "Point",
+                coordinates: [long, lat]
+              },
+              distanceField: "distanceFromSearch",
+              maxDistance: maxDistance,
+              spherical: true,
+              query: baseQuery,
+              key: "pointDepart.coordonnees" // ⭐ SOLUTION: Spécifier l'index à utiliser
+            }
+          },
+          {
+            $sort: { dateDepart: 1, distanceFromSearch: 1 }
+          },
+          {
+            $facet: {
+              metadata: [
+                { $count: "total" }
+              ],
+              data: [
+                { $skip: skip },
+                { $limit: limitNum },
+                {
+                  $lookup: {
+                    from: 'utilisateurs',
+                    localField: 'conducteurId',
+                    foreignField: '_id',
+                    as: 'conducteurInfo'
+                  }
+                },
+                {
+                  $unwind: {
+                    path: '$conducteurInfo',
+                    preserveNullAndEmptyArrays: true
+                  }
+                },
+                {
+                  $addFields: {
+                    'conducteurId': {
+                      _id: '$conducteurInfo._id',
+                      nom: '$conducteurInfo.nom',
+                      prenom: '$conducteurInfo.prenom',
+                      photo: '$conducteurInfo.photoProfil',
+                      note: '$conducteurInfo.noteGenerale'
+                    },
+                    distanceKm: { 
+                      $round: [{ $divide: ['$distanceFromSearch', 1000] }, 2] 
+                    }
+                  }
+                },
+                {
+                  $project: {
+                    conducteurInfo: 0,
+                    distanceFromSearch: 0
+                  }
+                }
+              ]
+            }
+          }
+        ];
+
+        const aggregationResult = await Trajet.aggregate(pipeline);
+
+        const total = aggregationResult[0]?.metadata[0]?.total || 0;
+        const trajets = aggregationResult[0]?.data || [];
 
         result = {
           docs: trajets,
           totalDocs: total,
-          limit: parseInt(limit),
-          page: parseInt(page),
-          totalPages: Math.ceil(total / parseInt(limit))
+          limit: limitNum,
+          page: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          hasNextPage: pageNum < Math.ceil(total / limitNum),
+          hasPrevPage: pageNum > 1
         };
-      } else {
-        result = await Trajet.paginate(query, options);
+
+        console.log(`✅ Recherche géospatiale réussie: ${total} trajet(s) trouvé(s)`);
+
+      } catch (geoError) {
+        console.error('❌ Erreur recherche géospatiale:', geoError.message);
+        
+        // Fallback: recherche sans géolocalisation
+        console.log('⚠️ Fallback vers recherche standard sans géolocalisation');
+        
+        const options = {
+          page: pageNum,
+          limit: limitNum,
+          sort: { dateDepart: 1 },
+          populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' }
+        };
+        
+        result = await Trajet.paginate(baseQuery, options);
       }
-
-      res.json({
-        success: true,
-        count: result.docs.length,
-        pagination: {
-          total: result.totalDocs,
-          page: result.page,
-          pages: result.totalPages,
-          limit: result.limit
-        },
-        data: result.docs
-      });
-
-    } catch (error) {
-      return next(AppError.serverError('Erreur serveur lors de la recherche de trajets', { 
-        originalError: error.message 
-      }));
+    } else {
+      // Recherche simple sans géolocalisation
+      const options = {
+        page: pageNum,
+        limit: limitNum,
+        sort: { dateDepart: 1 },
+        populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' }
+      };
+      
+      result = await Trajet.paginate(baseQuery, options);
     }
+
+    res.json({
+      success: true,
+      count: result.docs.length,
+      pagination: {
+        total: result.totalDocs,
+        page: result.page,
+        pages: result.totalPages,
+        limit: result.limit
+      },
+      data: result.docs
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur dans rechercherTrajetsDisponibles:', error.message);
+    return next(AppError.serverError('Erreur serveur lors de la recherche de trajets', { 
+      originalError: error.message 
+    }));
   }
+}
 
   /**
    * Obtenir un trajet par ID

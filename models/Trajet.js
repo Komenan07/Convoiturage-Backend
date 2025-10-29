@@ -13,6 +13,11 @@ const pointSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  ville: {                    
+    type: String,
+    trim: true,
+    maxlength: 100
+  },
   commune: {
     type: String,
     required: true,
@@ -55,6 +60,11 @@ const arretIntermediaireSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true
+  },
+  ville: {                    
+    type: String,
+    trim: true,
+    maxlength: 100
   },
   commune: {
     type: String,
@@ -359,8 +369,7 @@ const trajetSchema = new mongoose.Schema({
   },
   raisonExpiration: {
     type: String,
-    enum: ['DATE_PASSEE', 'RECURRENCE_TERMINEE', 'INACTIVITE', 'AUTRE'],
-    default: null
+    enum: ['DATE_PASSEE', 'RECURRENCE_TERMINEE', 'INACTIVITE', 'AUTRE']
   },
 
   // Métadonnées
