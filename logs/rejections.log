@@ -6904,3 +6904,1320 @@
   version: '1.0.0',
   timestamp: '2025-10-29 09:42:33'
 }
+{
+  error: TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')
+      at obtenirTrajetsConducteur (C:\Projet perso\Convoiturage-Backend\controllers\trajetController.js:176:15)
+      at Layer.handle [as handle_request] (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at handleValidationErrors (C:\Projet perso\Convoiturage-Backend\routes\trajets.js:29:3)
+      at Layer.handle [as handle_request] (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at middleware (C:\Projet perso\Convoiturage-Backend\node_modules\express-validator\lib\middlewares\check.js:16:13)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5),
+  level: 'error',
+  message: "unhandledRejection: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\Projet perso\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\Projet perso\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\Projet perso\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\Projet perso\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 09:46:30 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 15492,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 118775808,
+      heapTotal: 66048000,
+      heapUsed: 62824312,
+      external: 22616256,
+      arrayBuffers: 19065047
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 3053.109 },
+  trace: [
+    {
+      column: 15,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\controllers\\trajetController.js',
+      function: 'obtenirTrajetsConducteur',
+      line: 176,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 3,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\routes\\trajets.js',
+      function: 'handleValidationErrors',
+      line: 29,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js',
+      function: 'middleware',
+      line: 16,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 09:46:30'
+}
+{
+  error: TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')
+      at obtenirTrajetsConducteur (C:\Projet perso\Convoiturage-Backend\controllers\trajetController.js:176:15)
+      at Layer.handle [as handle_request] (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at handleValidationErrors (C:\Projet perso\Convoiturage-Backend\routes\trajets.js:29:3)
+      at Layer.handle [as handle_request] (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at middleware (C:\Projet perso\Convoiturage-Backend\node_modules\express-validator\lib\middlewares\check.js:16:13)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5),
+  level: 'error',
+  message: "unhandledRejection: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\Projet perso\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\Projet perso\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\Projet perso\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\Projet perso\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 09:58:47 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 12444,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 118161408,
+      heapTotal: 65523712,
+      heapUsed: 61823536,
+      external: 22531767,
+      arrayBuffers: 18989070
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 3789.843 },
+  trace: [
+    {
+      column: 15,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\controllers\\trajetController.js',
+      function: 'obtenirTrajetsConducteur',
+      line: 176,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 3,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\routes\\trajets.js',
+      function: 'handleValidationErrors',
+      line: 29,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js',
+      function: 'middleware',
+      line: 16,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 09:58:47'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 10:36:26 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 14092,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 124100608,
+      heapTotal: 69980160,
+      heapUsed: 66685152,
+      external: 23090951,
+      arrayBuffers: 19539742
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 6049.39 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 10:36:26'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 10:54:17 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 9800,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 122400768,
+      heapTotal: 67883008,
+      heapUsed: 64493928,
+      external: 23021246,
+      arrayBuffers: 19478549
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 7119.875 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 10:54:17'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 11:01:27 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 9132,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 119074816,
+      heapTotal: 67096576,
+      heapUsed: 63325784,
+      external: 22738165,
+      arrayBuffers: 19186956
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 7550.671 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 11:01:27'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 11:41:53 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 10960,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 124383232,
+      heapTotal: 71028736,
+      heapUsed: 63756768,
+      external: 22756320,
+      arrayBuffers: 19209367
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 9976.125 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 11:41:53'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 12:24:33 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 17188,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 112459776,
+      heapTotal: 70504448,
+      heapUsed: 64293096,
+      external: 22895499,
+      arrayBuffers: 19344290
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 12536.296 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 12:24:33'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 12:34:26 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 1204,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 120967168,
+      heapTotal: 68407296,
+      heapUsed: 65035472,
+      external: 22791132,
+      arrayBuffers: 19244179
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 13129.265 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 12:34:26'
+}
+{
+  error: TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')
+      at obtenirTrajetsConducteur (C:\Projet perso\Convoiturage-Backend\controllers\trajetController.js:176:15)
+      at Layer.handle [as handle_request] (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at handleValidationErrors (C:\Projet perso\Convoiturage-Backend\routes\trajets.js:29:3)
+      at Layer.handle [as handle_request] (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\Projet perso\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at middleware (C:\Projet perso\Convoiturage-Backend\node_modules\express-validator\lib\middlewares\check.js:16:13)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5),
+  level: 'error',
+  message: "unhandledRejection: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\Projet perso\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\Projet perso\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\Projet perso\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\Projet perso\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 12:55:17 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 5864,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 123543552,
+      heapTotal: 69980160,
+      heapUsed: 65556072,
+      external: 23356469,
+      arrayBuffers: 19813772
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 14379.859 },
+  trace: [
+    {
+      column: 15,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\controllers\\trajetController.js',
+      function: 'obtenirTrajetsConducteur',
+      line: 176,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 3,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\routes\\trajets.js',
+      function: 'handleValidationErrors',
+      line: 29,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js',
+      function: 'middleware',
+      line: 16,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 12:55:17'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 13:11:46 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 3024,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 122642432,
+      heapTotal: 69718016,
+      heapUsed: 66003560,
+      external: 22814913,
+      arrayBuffers: 19272216
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 15368.875 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 13:11:46'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 14:24:15 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 15520,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 129802240,
+      heapTotal: 70504448,
+      heapUsed: 63526280,
+      external: 22652004,
+      arrayBuffers: 19109307
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 19716.75 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 14:24:15'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 14:31:03 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 13624,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 122687488,
+      heapTotal: 69980160,
+      heapUsed: 65679032,
+      external: 22758254,
+      arrayBuffers: 19215557
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 20124.968 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 14:31:03'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 14:35:20 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 17068,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 119341056,
+      heapTotal: 66572288,
+      heapUsed: 63742472,
+      external: 22544606,
+      arrayBuffers: 19001909
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 20381.531 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 14:35:20'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 14:44:02 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 16744,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 123801600,
+      heapTotal: 68931584,
+      heapUsed: 65817416,
+      external: 22815220,
+      arrayBuffers: 19268267
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 20904 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 14:44:02'
+}
+{
+  error: MongooseError: Connection.prototype.close() no longer accepts a callback
+      at NativeConnection.close (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\connection.js:856:11)
+      at gracefulShutdown (C:\Projet perso\Convoiturage-Backend\server.js:333:23)
+      at process.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:345:28)
+      at process.emit (node:events:530:35),
+  level: 'error',
+  message: 'unhandledRejection: Connection.prototype.close() no longer accepts a callback\n' +
+    'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  stack: 'MongooseError: Connection.prototype.close() no longer accepts a callback\n' +
+    '    at NativeConnection.close (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js:856:11)\n' +
+    '    at gracefulShutdown (C:\\Projet perso\\Convoiturage-Backend\\server.js:333:23)\n' +
+    '    at process.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:345:28)\n' +
+    '    at process.emit (node:events:530:35)',
+  rejection: true,
+  date: 'Wed Oct 29 2025 14:54:20 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 11996,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 123957248,
+      heapTotal: 71028736,
+      heapUsed: 67525104,
+      external: 23037412,
+      arrayBuffers: 19494715
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 21522.171 },
+  trace: [
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\connection.js',
+      function: 'NativeConnection.close',
+      line: 856,
+      method: 'close',
+      native: false
+    },
+    {
+      column: 23,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: 'gracefulShutdown',
+      line: 333,
+      method: null,
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 345,
+      method: null,
+      native: false
+    },
+    {
+      column: 35,
+      file: 'node:events',
+      function: 'process.emit',
+      line: 530,
+      method: 'emit',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-29 14:54:20'
+}

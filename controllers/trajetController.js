@@ -4,6 +4,30 @@ const AppError = require('../utils/AppError');
 
 class TrajetController {
   
+  // ✅ CONSTRUCTEUR POUR BINDER TOUTES LES MÉTHODES
+  constructor() {
+    this.creerTrajetPonctuel = this.creerTrajetPonctuel.bind(this);
+    this.creerTrajetRecurrent = this.creerTrajetRecurrent.bind(this);
+    this.obtenirDetailsTrajet = this.obtenirDetailsTrajet.bind(this);
+    this.obtenirTrajetsConducteur = this.obtenirTrajetsConducteur.bind(this);
+    this.filtrerTrajets = this.filtrerTrajets.bind(this);
+    this.obtenirHistoriqueTrajets = this.obtenirHistoriqueTrajets.bind(this);
+    this.modifierDetailsTrajet = this.modifierDetailsTrajet.bind(this);
+    this.changerNombrePlaces = this.changerNombrePlaces.bind(this);
+    this.modifierPreferences = this.modifierPreferences.bind(this);
+    this.rechercherTrajetsDisponibles = this.rechercherTrajetsDisponibles.bind(this);
+    this.obtenirTrajetParId = this.obtenirTrajetParId.bind(this);
+    this.obtenirMesTrajets = this.obtenirMesTrajets.bind(this);
+    this.obtenirTrajetsParConducteur = this.obtenirTrajetsParConducteur.bind(this);
+    this.obtenirTrajetsRecurrents = this.obtenirTrajetsRecurrents.bind(this);
+    this.modifierTrajet = this.modifierTrajet.bind(this);
+    this.mettreAJourStatut = this.mettreAJourStatut.bind(this);
+    this.annulerTrajet = this.annulerTrajet.bind(this);
+    this.supprimerTrajetRecurrent = this.supprimerTrajetRecurrent.bind(this);
+    this.verifierExpiration = this.verifierExpiration.bind(this);
+    this.obtenirTrajetsExpires = this.obtenirTrajetsExpires.bind(this);
+  }
+  
   // ==================== CREATE ====================
   
   /**

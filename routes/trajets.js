@@ -45,19 +45,36 @@ const validatePointDepart = [
     .isLength({ max: 500 }).withMessage('L\'adresse ne peut pas dépasser 500 caractères'),
   body('pointDepart.coordonnees')
     .notEmpty().withMessage('Les coordonnées du point de départ sont requises')
-    .isArray({ min: 2, max: 2 }).withMessage('Les coordonnées doivent être [longitude, latitude]')
     .custom((value) => {
-      if (!Array.isArray(value) || value.length !== 2) {
-        throw new Error('Format de coordonnées invalide');
+      // ✅ Accepter le format GeoJSON
+      if (value.type === 'Point' && Array.isArray(value.coordinates)) {
+        const [longitude, latitude] = value.coordinates;
+        if (typeof longitude !== 'number' || typeof latitude !== 'number') {
+          throw new Error('Les coordonnées doivent être des nombres');
+        }
+        if (longitude < -180 || longitude > 180) {
+          throw new Error('La longitude doit être entre -180 et 180');
+        }
+        if (latitude < -90 || latitude > 90) {
+          throw new Error('La latitude doit être entre -90 et 90');
+        }
+        return true;
       }
-      const [longitude, latitude] = value;
-      if (longitude < -180 || longitude > 180) {
-        throw new Error('La longitude doit être entre -180 et 180');
+      // ✅ Accepter aussi le format tableau simple [lng, lat]
+      else if (Array.isArray(value) && value.length === 2) {
+        const [longitude, latitude] = value;
+        if (typeof longitude !== 'number' || typeof latitude !== 'number') {
+          throw new Error('Les coordonnées doivent être des nombres');
+        }
+        if (longitude < -180 || longitude > 180) {
+          throw new Error('La longitude doit être entre -180 et 180');
+        }
+        if (latitude < -90 || latitude > 90) {
+          throw new Error('La latitude doit être entre -90 et 90');
+        }
+        return true;
       }
-      if (latitude < -90 || latitude > 90) {
-        throw new Error('La latitude doit être entre -90 et 90');
-      }
-      return true;
+      throw new Error('Format de coordonnées invalide. Utilisez GeoJSON ou [longitude, latitude]');
     }),
   body('pointDepart.ville')
     .optional()
@@ -73,6 +90,7 @@ const validatePointDepart = [
     .isLength({ max: 100 }).withMessage('Le quartier ne peut pas dépasser 100 caractères')
 ];
 
+
 // Validation du point d'arrivée
 const validatePointArrivee = [
   body('pointArrivee.nom')
@@ -85,19 +103,36 @@ const validatePointArrivee = [
     .isLength({ max: 500 }).withMessage('L\'adresse ne peut pas dépasser 500 caractères'),
   body('pointArrivee.coordonnees')
     .notEmpty().withMessage('Les coordonnées du point d\'arrivée sont requises')
-    .isArray({ min: 2, max: 2 }).withMessage('Les coordonnées doivent être [longitude, latitude]')
     .custom((value) => {
-      if (!Array.isArray(value) || value.length !== 2) {
-        throw new Error('Format de coordonnées invalide');
+      // ✅ Accepter le format GeoJSON
+      if (value.type === 'Point' && Array.isArray(value.coordinates)) {
+        const [longitude, latitude] = value.coordinates;
+        if (typeof longitude !== 'number' || typeof latitude !== 'number') {
+          throw new Error('Les coordonnées doivent être des nombres');
+        }
+        if (longitude < -180 || longitude > 180) {
+          throw new Error('La longitude doit être entre -180 et 180');
+        }
+        if (latitude < -90 || latitude > 90) {
+          throw new Error('La latitude doit être entre -90 et 90');
+        }
+        return true;
       }
-      const [longitude, latitude] = value;
-      if (longitude < -180 || longitude > 180) {
-        throw new Error('La longitude doit être entre -180 et 180');
+      // ✅ Accepter aussi le format tableau simple [lng, lat]
+      else if (Array.isArray(value) && value.length === 2) {
+        const [longitude, latitude] = value;
+        if (typeof longitude !== 'number' || typeof latitude !== 'number') {
+          throw new Error('Les coordonnées doivent être des nombres');
+        }
+        if (longitude < -180 || longitude > 180) {
+          throw new Error('La longitude doit être entre -180 et 180');
+        }
+        if (latitude < -90 || latitude > 90) {
+          throw new Error('La latitude doit être entre -90 et 90');
+        }
+        return true;
       }
-      if (latitude < -90 || latitude > 90) {
-        throw new Error('La latitude doit être entre -90 et 90');
-      }
-      return true;
+      throw new Error('Format de coordonnées invalide. Utilisez GeoJSON ou [longitude, latitude]');
     }),
   body('pointArrivee.ville')
     .optional()
@@ -426,6 +461,7 @@ router.post('/ponctuel',
  */
 router.post('/recurrent', 
   authMiddleware,
+  transformerCoordonneesEnGeoJSON, 
   [
     ...validatePointDepart,
     ...validatePointArrivee,
@@ -625,6 +661,51 @@ router.get('/:id/expiration',
 );
 
 // ===============================================
+// ROUTE DE SANTÉ (HEALTH CHECK)
+// ===============================================
+
+/**
+ * @route   GET /api/trajets/health
+ * @desc    Vérifier l'état de santé du service des trajets
+ * @access  Public
+ */
+router.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Service des trajets opérationnel',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    endpoints: {
+      creation: [
+        'POST /ponctuel - Créer un trajet ponctuel',
+        'POST /recurrent - Créer un trajet récurrent'
+      ],
+      lecture: [
+        'GET /recherche - Rechercher des trajets',
+        'GET /filtrer - Filtrer les trajets',
+        'GET /conducteur/:id - Trajets d\'un conducteur',
+        'GET /historique - Historique utilisateur',
+        'GET /expires - Trajets expirés',
+        'GET /:id - Détails d\'un trajet'
+      ],
+      modification: [
+        'PUT /:id - Modifier un trajet',
+        'PATCH /:id/places - Modifier les places',
+        'PATCH /:id/preferences - Modifier les préférences',
+        'PATCH /:id/statut - Changer le statut',
+        'PATCH /:id/annuler - Annuler un trajet'
+      ],
+      suppression: [
+        'DELETE /:id - Supprimer un trajet récurrent'
+      ],
+      utilitaires: [
+        'GET /:id/expiration - Vérifier expiration'
+      ]
+    }
+  });
+});
+
+// ===============================================
 // ROUTE GÉNÉRIQUE GET PAR ID - TOUJOURS EN DERNIER
 // ===============================================
 
@@ -701,49 +782,5 @@ router.use((error, req, res, next) => {
   next(error);
 });
 
-// ===============================================
-// ROUTE DE SANTÉ (HEALTH CHECK)
-// ===============================================
-
-/**
- * @route   GET /api/trajets/health
- * @desc    Vérifier l'état de santé du service des trajets
- * @access  Public
- */
-router.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Service des trajets opérationnel',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    endpoints: {
-      creation: [
-        'POST /ponctuel - Créer un trajet ponctuel',
-        'POST /recurrent - Créer un trajet récurrent'
-      ],
-      lecture: [
-        'GET /recherche - Rechercher des trajets',
-        'GET /filtrer - Filtrer les trajets',
-        'GET /conducteur/:id - Trajets d\'un conducteur',
-        'GET /historique - Historique utilisateur',
-        'GET /expires - Trajets expirés',
-        'GET /:id - Détails d\'un trajet'
-      ],
-      modification: [
-        'PUT /:id - Modifier un trajet',
-        'PATCH /:id/places - Modifier les places',
-        'PATCH /:id/preferences - Modifier les préférences',
-        'PATCH /:id/statut - Changer le statut',
-        'PATCH /:id/annuler - Annuler un trajet'
-      ],
-      suppression: [
-        'DELETE /:id - Supprimer un trajet récurrent'
-      ],
-      utilitaires: [
-        'GET /:id/expiration - Vérifier expiration'
-      ]
-    }
-  });
-});
 
 module.exports = router;

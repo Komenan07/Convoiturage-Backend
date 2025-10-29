@@ -197,20 +197,26 @@ class PlacesV2Service {
 
   async getPlaceDetails(placeId, fields = []) {
     try {
+
+      let normalizedPlaceId = placeId;
+    
+    if (!placeId.startsWith('places/')) {
+      normalizedPlaceId = `places/${placeId}`;
+      console.log(`🔄 PlaceId normalisé: ${placeId} → ${normalizedPlaceId}`);
+    }
+
       const fieldMask = fields.length > 0 
         ? fields.join(',')
         : this._getFieldMask('details');
 
       const response = await axios.get(
-        `${this.baseUrl}/places/${placeId}`,
+        `${this.baseUrl}/${normalizedPlaceId}`,
         {
           headers: {
             'Content-Type': 'application/json',
             'X-Goog-Api-Key': this.apiKey,
             'X-Goog-FieldMask': fieldMask,
-          },
-          params: {
-            languageCode: 'fr',
+            'Accept-Language': 'fr'
           },
         }
       );
@@ -228,6 +234,20 @@ class PlacesV2Service {
       };
     } catch (error) {
       console.error('Erreur détails lieu:', error.response?.data || error.message);
+      if (error.response?.status === 400) {
+      return {
+        success: false,
+        error: 'Place ID invalide ou format non reconnu',
+        details: error.response?.data?.error?.message,
+        hint: 'Vérifiez que le placeId est valide et provient de Places API V2',
+      };
+    }
+    if (error.response?.status === 404) {
+      return {
+        success: false,
+        error: 'Lieu non trouvé avec ce Place ID',
+      };
+    }
       return {
         success: false,
         error: error.response?.data?.error?.message || error.message,
