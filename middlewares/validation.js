@@ -113,6 +113,18 @@ const validateTrajet = [
   handleValidationErrors
 ];
 
+/**
+ * Validation pour obtenir les méthodes de paiement d'un trajet
+ */
+const validateTrajetId = [
+  param('trajetId')
+    .notEmpty()
+    .withMessage('ID de trajet requis')
+    .isMongoId()
+    .withMessage('ID de trajet invalide'),
+  handleValidationErrors
+];
+
 // =========================
 // VALIDATION VÉHICULES
 // =========================
@@ -154,6 +166,24 @@ const validatePaiement = [
     .isIn(['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
     .withMessage('Méthode de paiement non supportée')
     .default('WAVE'),
+  handleValidationErrors
+];
+
+/**
+ * Validation pour confirmer un paiement en espèces
+ */
+const validateConfirmerPaiementEspeces = [
+  param('referenceTransaction')
+    .notEmpty()
+    .withMessage('Référence de transaction requise')
+    .isLength({ min: 10, max: 50 })
+    .withMessage('Format de référence invalide'),
+  body('codeConfirmation')
+    .optional()
+    .isString()
+    .withMessage('Code de confirmation doit être une chaîne')
+    .isLength({ min: 4, max: 10 })
+    .withMessage('Code de confirmation invalide (4-10 caractères)'),
   handleValidationErrors
 ];
 
@@ -494,6 +524,7 @@ module.exports = {
   
   // Trajets
   validateTrajet,
+   validateTrajetId,
   
   // Véhicules
   validateVehicule,
@@ -503,6 +534,7 @@ module.exports = {
   
   // Paiements trajets
   validatePaiement,
+  validateConfirmerPaiementEspeces,
   
   // Recharges
   validateRecharge,

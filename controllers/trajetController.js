@@ -706,7 +706,7 @@ async rechercherTrajetsDisponibles(req, res, next) {
       const query = {
         conducteurId,
         statutTrajet: { $in: ['PROGRAMME', 'EN_COURS'] },
-        dateDepart: { $gte: new Date() } // ⭐ NOUVEAU: Seulement les trajets futurs
+        dateDepart: { $gte: new Date() } 
       };
 
       const options = {

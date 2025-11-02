@@ -1,3 +1,4 @@
+// utils/logger.js
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
@@ -125,6 +126,26 @@ const securityRotateTransport = new DailyRotateFile({
   auditFile: path.join(logDir, 'security-audit.json')
 });
 
+// 🆕 Configuration des logs de paiements
+const paiementRotateTransport = new DailyRotateFile({
+  filename: path.join(logDir, 'paiement-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  maxSize: '20m',
+  maxFiles: '180d', // 6 mois pour conformité légale
+  format: logFormat,
+  auditFile: path.join(logDir, 'paiement-audit.json')
+});
+
+// 🆕 Configuration des logs de commissions
+const commissionRotateTransport = new DailyRotateFile({
+  filename: path.join(logDir, 'commission-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  maxSize: '10m',
+  maxFiles: '180d',
+  format: logFormat,
+  auditFile: path.join(logDir, 'commission-audit.json')
+});
+
 // Logger principal
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
@@ -135,13 +156,8 @@ const logger = winston.createLogger({
     version: process.env.APP_VERSION || '1.0.0'
   },
   transports: [
-    // Transport pour tous les logs
     fileRotateTransport,
-    
-    // Transport pour les erreurs uniquement
     errorRotateTransport,
-    
-    // Transport console pour le développement
     ...(process.env.NODE_ENV !== 'production' ? [
       new winston.transports.Console({
         format: consoleFormat,
@@ -149,14 +165,12 @@ const logger = winston.createLogger({
       })
     ] : [])
   ],
-  // Gestion des exceptions non capturées
   exceptionHandlers: [
     new winston.transports.File({
       filename: path.join(logDir, 'exceptions.log'),
       format: logFormat
     })
   ],
-  // Gestion des rejections de promesses non capturées
   rejectionHandlers: [
     new winston.transports.File({
       filename: path.join(logDir, 'rejections.log'),
@@ -176,9 +190,7 @@ const authLogger = winston.createLogger({
   transports: [
     authRotateTransport,
     ...(process.env.NODE_ENV !== 'production' ? [
-      new winston.transports.Console({
-        format: consoleFormat
-      })
+      new winston.transports.Console({ format: consoleFormat })
     ] : [])
   ]
 });
@@ -195,9 +207,7 @@ const transactionLogger = winston.createLogger({
     transactionRotateTransport,
     fileRotateTransport,
     ...(process.env.NODE_ENV !== 'production' ? [
-      new winston.transports.Console({
-        format: consoleFormat
-      })
+      new winston.transports.Console({ format: consoleFormat })
     ] : [])
   ]
 });
@@ -214,9 +224,42 @@ const securityLogger = winston.createLogger({
     securityRotateTransport,
     errorRotateTransport,
     ...(process.env.NODE_ENV !== 'production' ? [
-      new winston.transports.Console({
-        format: consoleFormat
-      })
+      new winston.transports.Console({ format: consoleFormat })
+    ] : [])
+  ]
+});
+
+// 🆕 Logger spécialisé pour les paiements
+const paiementLogger = winston.createLogger({
+  level: 'info',
+  format: logFormat,
+  defaultMeta: {
+    service: 'paiement-service',
+    environment: process.env.NODE_ENV || 'development'
+  },
+  transports: [
+    paiementRotateTransport,
+    transactionRotateTransport,
+    fileRotateTransport,
+    ...(process.env.NODE_ENV !== 'production' ? [
+      new winston.transports.Console({ format: consoleFormat })
+    ] : [])
+  ]
+});
+
+// 🆕 Logger spécialisé pour les commissions
+const commissionLogger = winston.createLogger({
+  level: 'info',
+  format: logFormat,
+  defaultMeta: {
+    service: 'commission-service',
+    environment: process.env.NODE_ENV || 'development'
+  },
+  transports: [
+    commissionRotateTransport,
+    transactionRotateTransport,
+    ...(process.env.NODE_ENV !== 'production' ? [
+      new winston.transports.Console({ format: consoleFormat })
     ] : [])
   ]
 });
@@ -225,7 +268,6 @@ const securityLogger = winston.createLogger({
 const httpLogger = (req, res, next) => {
   const start = Date.now();
   
-  // Log de la requête entrante
   logger.http('Requête HTTP entrante', {
     method: req.method,
     url: req.originalUrl,
@@ -235,13 +277,11 @@ const httpLogger = (req, res, next) => {
     sessionId: req.sessionID
   });
 
-  // Override de res.end pour logger la réponse
   const originalEnd = res.end;
   res.end = function(chunk, encoding) {
     const duration = Date.now() - start;
     const contentLength = res.get('Content-Length') || 0;
     
-    // Déterminer le niveau de log selon le status code
     let logLevel = 'http';
     if (res.statusCode >= 400 && res.statusCode < 500) {
       logLevel = 'warn';
@@ -431,6 +471,280 @@ const logTransaction = {
 };
 
 /**
+ * 🆕 Log des événements de paiement (trajets et recharges)
+ */
+const logPaiement = {
+  // Paiements trajets
+  trajetInitie: (paiementId, referenceTransaction, reservationId, montant, methodePaiement, userId) => {
+    paiementLogger.info('💳 Paiement trajet initié', {
+      event: 'paiement_trajet_initie',
+      paiementId,
+      referenceTransaction,
+      reservationId,
+      montant,
+      methodePaiement,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  trajetConfirme: (paiementId, referenceTransaction, montant, commission, userId) => {
+    paiementLogger.info('✅ Paiement trajet confirmé', {
+      event: 'paiement_trajet_confirme',
+      paiementId,
+      referenceTransaction,
+      montant,
+      commission,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  trajetEchec: (paiementId, referenceTransaction, montant, raison, userId) => {
+    paiementLogger.error('❌ Paiement trajet échoué', {
+      event: 'paiement_trajet_echec',
+      paiementId,
+      referenceTransaction,
+      montant,
+      raison,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  especesConfirme: (paiementId, referenceTransaction, montant, confirmePar, userId) => {
+    paiementLogger.info('💵 Paiement espèces confirmé', {
+      event: 'paiement_especes_confirme',
+      paiementId,
+      referenceTransaction,
+      montant,
+      confirmePar,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  // Recharges
+  rechargeInitiee: (paiementId, referenceTransaction, montant, methodePaiement, userId) => {
+    paiementLogger.info('🔄 Recharge initiée', {
+      event: 'recharge_initiee',
+      paiementId,
+      referenceTransaction,
+      montant,
+      methodePaiement,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  rechargeConfirmee: (paiementId, referenceTransaction, montant, bonusRecharge, nouveauSolde, userId) => {
+    paiementLogger.info('✅ Recharge confirmée', {
+      event: 'recharge_confirmee',
+      paiementId,
+      referenceTransaction,
+      montant,
+      bonusRecharge,
+      nouveauSolde,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  rechargeEchouee: (paiementId, referenceTransaction, montant, raison, userId) => {
+    paiementLogger.error('❌ Recharge échouée', {
+      event: 'recharge_echouee',
+      paiementId,
+      referenceTransaction,
+      montant,
+      raison,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  rechargeAnnulee: (paiementId, referenceTransaction, montant, raison, userId) => {
+    paiementLogger.warn('🚫 Recharge annulée', {
+      event: 'recharge_annulee',
+      paiementId,
+      referenceTransaction,
+      montant,
+      raison,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  autoRechargeConfigured: (userId, seuil, montant, methode) => {
+    paiementLogger.info('⚙️ Recharge automatique configurée', {
+      event: 'auto_recharge_configured',
+      userId,
+      seuil,
+      montant,
+      methode,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  // CinetPay
+  cinetpayWebhook: (referenceTransaction, statut, montant, operateur) => {
+    paiementLogger.info('📨 Webhook CinetPay reçu', {
+      event: 'cinetpay_webhook',
+      referenceTransaction,
+      statut,
+      montant,
+      operateur,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  cinetpayErreur: (referenceTransaction, codeErreur, message) => {
+    paiementLogger.error('⚠️ Erreur CinetPay', {
+      event: 'cinetpay_error',
+      referenceTransaction,
+      codeErreur,
+      message,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  // Validations
+  validationEchec: (paiementId, raison, details, userId) => {
+    paiementLogger.warn('⚠️ Validation paiement échouée', {
+      event: 'validation_echec',
+      paiementId,
+      raison,
+      details,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  methodeNonAutorisee: (userId, methodePaiement, raison) => {
+    paiementLogger.warn('🚫 Méthode de paiement non autorisée', {
+      event: 'methode_non_autorisee',
+      userId,
+      methodePaiement,
+      raison,
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+/**
+ * 🆕 Log des événements de commission
+ */
+const logCommission = {
+  calculee: (paiementId, montant, taux, tauxOriginal, reductionAppliquee) => {
+    commissionLogger.info('💰 Commission calculée', {
+      event: 'commission_calculee',
+      paiementId,
+      montant,
+      taux,
+      tauxOriginal,
+      reductionAppliquee,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  prelevee: (paiementId, referenceTransaction, montant, conducteurId, nouveauSolde) => {
+    commissionLogger.info('✅ Commission prélevée', {
+      event: 'commission_prelevee',
+      paiementId,
+      referenceTransaction,
+      montant,
+      conducteurId,
+      nouveauSolde,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  echec: (paiementId, referenceTransaction, montant, conducteurId, raison, soldeActuel) => {
+    commissionLogger.error('❌ Échec prélèvement commission', {
+      event: 'commission_echec',
+      paiementId,
+      referenceTransaction,
+      montant,
+      conducteurId,
+      raison,
+      soldeActuel,
+      priority: 'HIGH',
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  bonusApplique: (paiementId, typeBonus, montantBonus, raison, userId) => {  
+    commissionLogger.info('🎁 Bonus appliqué', {
+      event: 'bonus_applique',
+      paiementId,
+      typeBonus,  
+      montantBonus,
+      raison,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  reductionAppliquee: (paiementId, tauxOriginal, nouveauTaux, raison, conducteurId) => {
+    commissionLogger.info('📉 Réduction commission appliquée', {
+      event: 'reduction_commission',
+      paiementId,
+      tauxOriginal,
+      nouveauTaux,
+      reductionPourcent: ((tauxOriginal - nouveauTaux) / tauxOriginal * 100).toFixed(2),
+      raison,
+      conducteurId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  remboursee: (paiementId, montant, raison, adminId) => {
+    commissionLogger.warn('↩️ Commission remboursée', {
+      event: 'commission_remboursee',
+      paiementId,
+      montant,
+      raison,
+      adminId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  annulee: (paiementId, montant, raison, adminId) => {
+    commissionLogger.warn('🚫 Commission annulée', {
+      event: 'commission_annulee',
+      paiementId,
+      montant,
+      raison,
+      adminId,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  // Admin actions
+  traiterEchecsManuel: (adminId, nombrePaiements, action, resultats) => {
+    commissionLogger.info('⚙️ Traitement manuel commissions échec', {
+      event: 'traiter_echecs_manuel',
+      adminId,
+      nombrePaiements,
+      action,
+      traites: resultats.traites,
+      echecs: resultats.echecs,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  rapportGenere: (adminId, format, periode, nombreTransactions, totalCommissions) => {
+    commissionLogger.info('📊 Rapport commissions généré', {
+      event: 'rapport_genere',
+      adminId,
+      format,
+      periode,
+      nombreTransactions,
+      totalCommissions,
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+/**
  * Log des événements métier spécifiques au covoiturage
  */
 const logBusiness = {
@@ -512,6 +826,8 @@ module.exports = {
   authLogger,
   transactionLogger,
   securityLogger,
+  paiementLogger,      // 🆕
+  commissionLogger,    // 🆕
   
   // Middleware
   httpLogger,
@@ -520,6 +836,8 @@ module.exports = {
   logAuth,
   logSecurity,
   logTransaction,
+  logPaiement,         // 🆕
+  logCommission,       // 🆕
   logBusiness,
   
   // Méthodes de commodité

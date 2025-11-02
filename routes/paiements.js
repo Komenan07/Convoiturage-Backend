@@ -14,6 +14,7 @@ const requireRole = (roles) => roleMiddleware(roles);
 const {
   // Paiements trajets
   validatePaiement,
+  validateConfirmerPaiementEspeces,
   
   // Recharges
   validateRecharge,
@@ -25,6 +26,7 @@ const {
   // Communes
   validateReferenceTransaction,
   validatePaiementId,
+  validateTrajetId,
   validateHistoriquePaiements,
   validateRemboursement,
   
@@ -80,7 +82,31 @@ router.use(authenticateToken);
  * @desc    Initier un paiement pour une réservation de trajet
  * @access  Private (Passager)
  */
-router.post('/initier', validatePaiement, paiementController.initierPaiement);
+router.post('/initier', 
+  validatePaiement, 
+  paiementController.initierPaiement
+);
+
+/**
+ * 🆕 @route   GET /api/paiements/trajets/:trajetId/methodes-disponibles
+ * @desc    Obtenir les méthodes de paiement disponibles pour un trajet
+ * @access  Private
+ */
+router.get('/trajets/:trajetId/methodes-disponibles', 
+  validateTrajetId,
+  paiementController.obtenirMethodesPaiementDisponibles
+);
+
+/**
+ * 🆕 @route   POST /api/paiements/especes/:referenceTransaction/confirmer
+ * @desc    Confirmer un paiement en espèces après le trajet
+ * @access  Private (Conducteur ou Passager)
+ */
+router.post('/especes/:referenceTransaction/confirmer', 
+  validateReferenceTransaction,
+  validateConfirmerPaiementEspeces,
+  paiementController.confirmerPaiementEspeces
+);
 
 /**
  * @route   GET /api/paiements/statut/:referenceTransaction
@@ -104,10 +130,12 @@ router.get('/historique',
 
 /**
  * @route   GET /api/paiements/methodes/disponibles
- * @desc    Obtenir les méthodes de paiement disponibles
+ * @desc    Obtenir toutes les méthodes de paiement disponibles
  * @access  Private
  */
-router.get('/methodes/disponibles', paiementController.obtenirMethodesDisponibles);
+router.get('/methodes/disponibles', 
+  paiementController.obtenirMethodesDisponibles
+);
 
 /**
  * @route   GET /api/paiements/:paiementId
@@ -194,15 +222,19 @@ router.delete('/recharge/annuler/:referenceTransaction',
 // =========================
 
 /**
- * @route   POST /api/paiements/rembourser
+ * @route   POST /api/paiements/admin/rembourser
  * @desc    Rembourser un paiement (admin)
  * @access  Private (Admin)
  */
-router.post('/rembourser', 
+router.post('/admin/rembourser', 
   requireRole(['admin']), 
   validateRemboursement,
   paiementController.rembourserPaiement
 );
+
+// =========================
+// ADMIN - GESTION DES COMMISSIONS
+// =========================
 
 /**
  * @route   GET /api/paiements/admin/commissions/statistiques
@@ -238,7 +270,7 @@ router.get('/admin/commissions/detail/:paiementId',
 
 /**
  * @route   GET /api/paiements/admin/commissions/rapport
- * @desc    Générer un rapport des commissions
+ * @desc    Générer un rapport des commissions (JSON, PDF, CSV)
  * @access  Private (Admin)
  */
 router.get('/admin/commissions/rapport', 
@@ -257,6 +289,10 @@ router.get('/admin/commissions/surveillance',
   paiementController.surveillerCommissions
 );
 
+// =========================
+// ADMIN - GESTION DES RECHARGES
+// =========================
+
 /**
  * @route   GET /api/paiements/admin/recharges/statistiques
  * @desc    Statistiques des recharges pour les admins
@@ -270,7 +306,7 @@ router.get('/admin/recharges/statistiques',
 
 /**
  * @route   POST /api/paiements/admin/recharges/traiter-attente
- * @desc    Traiter les recharges en attente
+ * @desc    Traiter les recharges en attente (confirmation automatique ou expiration)
  * @access  Private (Admin)
  */
 router.post('/admin/recharges/traiter-attente', 

@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 180
+    },
+    "auditLog": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-audit.json",
+    "files": [
+        {
+            "date": 1761937342474,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-2025-10-31.log",
+            "hash": "3877970d3b310ee3219343413feee1859a5f345d376124b01a213c102a7a6fd1"
+        },
+        {
+            "date": 1762119922469,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-2025-11-02.log",
+            "hash": "5d59d99221113a2b4c05418c4973f1fa7f90dfd459502e8609c12861710f5553"
+        }
+    ],
+    "hashType": "sha256"
+}

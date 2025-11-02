@@ -2,7 +2,6 @@
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 
-// Schéma principal de l'entité Paiement avec système de commission 10%
 const paiementSchema = new mongoose.Schema({
   // ===== RÉFÉRENCES =====
   reservationId: { 
@@ -27,13 +26,7 @@ const paiementSchema = new mongoose.Schema({
   montantTotal: { 
     type: Number, 
     required: [true, 'Le montant total est requis'], 
-    min: [0, 'Le montant total doit être positif'],
-    validate: {
-      validator: function(v) {
-        return v > 0;
-      },
-      message: 'Le montant total doit être supérieur à 0'
-    }
+    min: [0, 'Le montant total doit être positif']
   },
   montantConducteur: { 
     type: Number, 
@@ -51,13 +44,17 @@ const paiementSchema = new mongoose.Schema({
     min: [0, 'Les frais de transaction doivent être positifs']
   },
 
-  // ===== NOUVEAU : SYSTÈME DE COMMISSION 10% =====
+  // ===== 🆕 SYSTÈME DE COMMISSION AMÉLIORÉ =====
   commission: {
     taux: {
       type: Number,
       default: 0.10, // 10% par défaut
       min: [0, 'Le taux ne peut être négatif'],
       max: [1, 'Le taux ne peut dépasser 100%']
+    },
+    tauxOriginal: {
+      type: Number,
+      default: 0.10 // Taux avant réductions éventuelles
     },
     montant: {
       type: Number,
@@ -75,7 +72,7 @@ const paiementSchema = new mongoose.Schema({
     statutPrelevement: {
       type: String,
       enum: {
-        values: ['preleve', 'en_attente', 'echec'],
+        values: ['preleve', 'en_attente', 'echec', 'insuffisant'], // 🆕 Ajout 'insuffisant'
         message: 'Statut de prélèvement invalide'
       },
       default: 'en_attente'
@@ -86,24 +83,78 @@ const paiementSchema = new mongoose.Schema({
       default: function() {
         return `COM_${Date.now()}_${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
       }
+    },
+    // 🆕 COMMISSION DYNAMIQUE
+    typeTarification: {
+      type: String,
+      enum: ['standard', 'distance_courte', 'distance_longue', 'personnalisee'],
+      default: 'standard'
+    },
+    reductionAppliquee: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 1 // Pourcentage de réduction (ex: 0.1 = 10% de réduction)
+    },
+    raisonReduction: String // Ex: "Conducteur 5 étoiles", "Prime fidélité"
+  },
+
+  // ===== 🆕 BONUS ET FIDÉLISATION =====
+  bonus: {
+    bonusRecharge: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    primePerformance: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    primeHebdomadaire: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    detailsBonus: {
+      type: String,
+      maxlength: 500
     }
   },
 
-  // ===== MÉTHODE DE PAIEMENT ÉTENDUE =====
+  // ===== MÉTHODE DE PAIEMENT =====
   methodePaiement: {
     type: String,
     enum: {
+      // 🔧 CORRECTION: Uniformisation à 'ESPECES' (pluriel)
       values: ['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'COMPTE_RECHARGE'],
       message: 'Méthode de paiement non supportée'
     },
     required: [true, 'La méthode de paiement est requise']
   },
 
-  // ===== NOUVEAU : RÈGLES DE PAIEMENT APPLIQUÉES =====
+  // ===== 🆕 RÈGLES DE PAIEMENT AMÉLIORÉES =====
   reglesPaiement: {
     conducteurCompteRecharge: {
       type: Boolean,
       required: [true, 'Le statut du compte conducteur est requis']
+    },
+    soldeConducteurAvant: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    soldeConducteurApres: {
+      type: Number,
+      min: 0
+    },
+    soldeMinimumRequis: {
+      type: Number,
+      default: 1000 // 🆕 1000 FCFA minimum
+    },
+    soldeSuffisant: {
+      type: Boolean,
+      default: false
     },
     modesAutorises: [{
       type: String,
@@ -111,7 +162,7 @@ const paiementSchema = new mongoose.Schema({
     }],
     raisonValidation: {
       type: String,
-      maxlength: [500, 'La raison de validation ne peut dépasser 500 caractères']
+      maxlength: 500
     },
     verificationsPassees: {
       type: Boolean,
@@ -120,7 +171,26 @@ const paiementSchema = new mongoose.Schema({
     dateValidation: {
       type: Date,
       default: Date.now
-    }
+    },
+    // 🆕 BLOCAGE SI SOLDE INSUFFISANT
+    blocageActif: {
+      type: Boolean,
+      default: false
+    },
+    raisonBlocage: String
+  },
+
+  // ===== 🆕 GESTION PORTEFEUILLE CONDUCTEUR =====
+  portefeuilleConducteur: {
+    soldeBloque: {
+      type: Number,
+      default: 0,
+      min: 0,
+      comment: 'Montant bloqué en attente de validation du trajet'
+    },
+    dateDeblocage: Date,
+    raisonBlocage: String,
+    transactionBlocageId: String
   },
 
   // ===== DÉTAILS TRANSACTION =====
@@ -138,30 +208,18 @@ const paiementSchema = new mongoose.Schema({
     index: true
   },
 
-  // ===== RÉPARTITION DES FRAIS (OPTIONNEL) =====
+  // ===== RÉPARTITION DES FRAIS =====
   repartitionFrais: {
-    peages: { 
-      type: Number, 
-      default: 0, 
-      min: [0, 'Les frais de péage doivent être positifs']
-    },
-    carburant: { 
-      type: Number, 
-      default: 0, 
-      min: [0, 'Les frais de carburant doivent être positifs']
-    },
-    usureVehicule: { 
-      type: Number, 
-      default: 0, 
-      min: [0, 'Les frais d\'usure véhicule doivent être positifs']
-    }
+    peages: { type: Number, default: 0, min: 0 },
+    carburant: { type: Number, default: 0, min: 0 },
+    usureVehicule: { type: Number, default: 0, min: 0 }
   },
 
   // ===== STATUT =====
   statutPaiement: {
     type: String,
     enum: {
-      values: ['EN_ATTENTE', 'TRAITE', 'COMPLETE', 'ECHEC', 'REMBOURSE'],
+      values: ['EN_ATTENTE', 'TRAITE', 'COMPLETE', 'ECHEC', 'REMBOURSE', 'BLOQUE'], // 🆕 Ajout 'BLOQUE'
       message: 'Statut de paiement invalide'
     },
     default: 'EN_ATTENTE',
@@ -169,87 +227,34 @@ const paiementSchema = new mongoose.Schema({
   },
 
   // ===== DATES =====
-  dateInitiation: { 
-    type: Date, 
-    default: Date.now,
-    index: true
-  },
-  dateTraitement: { 
-    type: Date,
-    validate: {
-      validator: function(v) {
-        return !v || v >= this.dateInitiation;
-      },
-      message: 'La date de traitement doit être postérieure à la date d\'initiation'
-    }
-  },
-  dateCompletion: { 
-    type: Date,
-    validate: {
-      validator: function(v) {
-        return !v || (this.dateTraitement && v >= this.dateTraitement) || v >= this.dateInitiation;
-      },
-      message: 'La date de complétion doit être postérieure aux autres dates'
-    }
-  },
+  dateInitiation: { type: Date, default: Date.now, index: true },
+  dateTraitement: { type: Date },
+  dateCompletion: { type: Date },
 
   // ===== REÇU ET FACTURE =====
-  numeroRecu: { 
-    type: String, 
-    sparse: true,
-    unique: true
-  },
-  urlRecu: { 
-    type: String 
-  },
+  numeroRecu: { type: String, sparse: true, unique: true },
+  urlRecu: { type: String },
 
-  // ===== NOUVEAU : TRAÇABILITÉ POUR AUDIT =====
+  // ===== TRAÇABILITÉ =====
   historiqueStatuts: [{
-    ancienStatut: {
-      type: String,
-      required: true
-    },
-    nouveauStatut: {
-      type: String,
-      required: true
-    },
-    dateChangement: {
-      type: Date,
-      default: Date.now
-    },
-    raisonChangement: {
-      type: String,
-      maxlength: [500, 'La raison ne peut dépasser 500 caractères']
-    },
-    utilisateurId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Utilisateur'
-    }
+    ancienStatut: String,
+    nouveauStatut: String,
+    dateChangement: { type: Date, default: Date.now },
+    raisonChangement: String,
+    utilisateurId: { type: mongoose.Schema.Types.ObjectId, ref: 'Utilisateur' }
   }],
 
-  // ===== INTÉGRATION MOBILE MONEY =====
+  // ===== MOBILE MONEY =====
   mobileMoney: {
     operateur: {
       type: String,
       enum: ['WAVE', 'ORANGE', 'MTN', 'MOOV']
     },
-    numeroTelephone: {
-      type: String,
-      validate: {
-        validator: function(v) {
-          return !v || /^(\+225)?[0-9]{8,10}$/.test(v);
-        },
-        message: 'Numéro de téléphone invalide'
-      }
-    },
+    numeroTelephone: String,
     transactionId: String,
     codeTransaction: String,
     dateTransaction: Date,
-    fraisOperateur: {
-      type: Number,
-      default: 0,
-      min: [0, 'Les frais opérateur doivent être positifs']
-    },
+    fraisOperateur: { type: Number, default: 0, min: 0 },
     statutMobileMoney: {
       type: String,
       enum: ['PENDING', 'SUCCESS', 'FAILED', 'TIMEOUT'],
@@ -257,33 +262,20 @@ const paiementSchema = new mongoose.Schema({
     }
   },
 
-  // ===== SÉCURITÉ ET VÉRIFICATION =====
+  // ===== SÉCURITÉ =====
   securite: {
-    empreinteTransaction: {
-      type: String,
-      unique: true
-    },
+    empreinteTransaction: { type: String, unique: true },
     ipAddress: String,
     userAgent: String,
     deviceId: String,
-    tentativesEchec: {
-      type: Number,
-      default: 0,
-      max: [5, 'Nombre maximum de tentatives dépassé']
-    },
+    tentativesEchec: { type: Number, default: 0, max: 5 },
     bloqueJusquA: Date
   },
 
   // ===== LOGS ET ERREURS =====
   logsTransaction: [{
-    date: { 
-      type: Date, 
-      default: Date.now 
-    },
-    action: {
-      type: String,
-      required: true
-    },
+    date: { type: Date, default: Date.now },
+    action: { type: String, required: true },
     details: mongoose.Schema.Types.Mixed,
     source: {
       type: String,
@@ -298,10 +290,7 @@ const paiementSchema = new mongoose.Schema({
   }],
 
   erreurs: [{
-    date: { 
-      type: Date, 
-      default: Date.now 
-    },
+    date: { type: Date, default: Date.now },
     code: String,
     message: String,
     stack: String,
@@ -314,14 +303,12 @@ const paiementSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// ===== INDEX COMPOSÉS =====
+// ===== INDEX =====
 paiementSchema.index({ reservationId: 1, payeurId: 1 });
 paiementSchema.index({ statutPaiement: 1, dateInitiation: -1 });
 paiementSchema.index({ methodePaiement: 1, statutPaiement: 1 });
-paiementSchema.index({ dateCompletion: -1 }, { sparse: true });
 paiementSchema.index({ 'commission.statutPrelevement': 1 });
-paiementSchema.index({ 'mobileMoney.transactionId': 1 }, { sparse: true });
-paiementSchema.index({ 'securite.empreinteTransaction': 1 });
+paiementSchema.index({ 'reglesPaiement.soldeSuffisant': 1 }); // 🆕
 
 // ===== PROPRIÉTÉS VIRTUELLES =====
 paiementSchema.virtual('estComplete').get(function() {
@@ -332,156 +319,204 @@ paiementSchema.virtual('estPaiementMobile').get(function() {
   return ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'].includes(this.methodePaiement);
 });
 
-paiementSchema.virtual('commissionPrelevee').get(function() {
-  return this.commission.statutPrelevement === 'preleve';
-});
-
 paiementSchema.virtual('montantNetConducteur').get(function() {
-  return this.montantTotal - this.commission.montant - this.fraisTransaction;
+  return this.montantTotal - this.commission.montant - this.fraisTransaction + 
+         (this.bonus.bonusRecharge || 0) + (this.bonus.primePerformance || 0);
 });
 
 paiementSchema.virtual('tauxCommissionReel').get(function() {
   return this.montantTotal > 0 ? (this.commission.montant / this.montantTotal) : 0;
 });
 
-// ===== MIDDLEWARE PRE-SAVE =====
-paiementSchema.pre('save', function(next) {
-  try {
-    // 1. Validation cohérence des montants
-    const montantCalcule = this.montantConducteur + this.commission.montant + this.fraisTransaction;
-    const tolerance = 0.01;
-    
-    if (Math.abs(this.montantTotal - montantCalcule) > tolerance) {
-      return next(new Error('Incohérence dans la répartition des montants'));
-    }
+// ===== 🆕 MÉTHODES AMÉLIORÉES =====
 
-    // 2. Générer numéro de reçu si paiement complété
-    if (this.statutPaiement === 'COMPLETE' && !this.numeroRecu) {
-      this.numeroRecu = `REC_${Date.now()}_${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-    }
-
-    // 3. Générer empreinte de transaction unique
-    if (!this.securite.empreinteTransaction) {
-      this.securite.empreinteTransaction = crypto
-        .createHash('sha256')
-        .update(`${this.payeurId}-${this.beneficiaireId}-${this.montantTotal}-${this.dateInitiation}`)
-        .digest('hex');
-    }
-
-    // 4. Mise à jour automatique des dates selon le statut
-    if (this.isModified('statutPaiement')) {
-      const maintenant = new Date();
-      
-      // Ajouter à l'historique des statuts
-      if (!this.isNew) {
-        this.historiqueStatuts.push({
-          ancienStatut: this.constructor.schema.paths.statutPaiement.default,
-          nouveauStatut: this.statutPaiement,
-          dateChangement: maintenant,
-          raisonChangement: 'Changement automatique de statut'
-        });
-      }
-      
-      switch (this.statutPaiement) {
-        case 'TRAITE':
-          if (!this.dateTraitement) {
-            this.dateTraitement = maintenant;
-          }
-          break;
-        case 'COMPLETE':
-          if (!this.dateCompletion) {
-            this.dateCompletion = maintenant;
-          }
-          if (!this.dateTraitement) {
-            this.dateTraitement = maintenant;
-          }
-          // Marquer commission comme prélevée
-          if (this.commission.statutPrelevement === 'en_attente') {
-            this.commission.statutPrelevement = 'preleve';
-            this.commission.datePrelevement = maintenant;
-          }
-          break;
-        case 'ECHEC':
-          if (this.commission.statutPrelevement === 'en_attente') {
-            this.commission.statutPrelevement = 'echec';
-          }
-          break;
-      }
-    }
-
-    next();
-  } catch (error) {
-    next(error);
+// 🆕 Calculer commission dynamique selon distance et note
+paiementSchema.methods.calculerCommissionDynamique = async function(distanceKm, noteConducteur) {
+  let tauxBase = 0.10; // 10%
+  
+  // Tarification selon distance
+  if (distanceKm < 10) {
+    this.commission.typeTarification = 'distance_courte';
+    tauxBase = 0.12; // 12% pour courtes distances
+  } else if (distanceKm > 50) {
+    this.commission.typeTarification = 'distance_longue';
+    tauxBase = 0.08; // 8% pour longues distances
   }
-});
-
-// ===== MIDDLEWARE POST-SAVE =====
-paiementSchema.post('save', async function(doc) {
-  try {
-    // Traiter les actions post-paiement
-    if (doc.isModified('statutPaiement') && doc.statutPaiement === 'COMPLETE') {
-      await doc.traiterCommissionApresPayement();
-    }
-  } catch (error) {
-    console.error('Erreur post-save paiement:', error);
+  
+  // Réduction selon note du conducteur
+  let reductionNote = 0;
+  if (noteConducteur >= 4.8) {
+    reductionNote = 0.02; // -2% pour excellents conducteurs
+    this.commission.raisonReduction = 'Conducteur 5 étoiles';
+  } else if (noteConducteur >= 4.5) {
+    reductionNote = 0.01; // -1% pour bons conducteurs
+    this.commission.raisonReduction = 'Conducteur 4.5+ étoiles';
   }
-});
-
-// ===== MÉTHODES D'INSTANCE =====
-
-// Calculer la commission de la plateforme (10% par défaut)
-paiementSchema.methods.calculerCommission = function(tauxCommission = 0.10) {
-  this.commission.taux = tauxCommission;
-  this.commission.montant = Math.round(this.montantTotal * tauxCommission);
+  
+  // Appliquer la réduction
+  this.commission.tauxOriginal = tauxBase;
+  this.commission.reductionAppliquee = reductionNote;
+  this.commission.taux = tauxBase - reductionNote;
+  this.commission.montant = Math.round(this.montantTotal * this.commission.taux);
+  
   this.commissionPlateforme = this.commission.montant;
   this.montantConducteur = this.montantTotal - this.commission.montant - this.fraisTransaction;
   
-  this.ajouterLog('COMMISSION_CALCULEE', {
-    taux: tauxCommission,
-    montant: this.commission.montant,
-    montantConducteur: this.montantConducteur
+  this.ajouterLog('COMMISSION_DYNAMIQUE_CALCULEE', {
+    distance: distanceKm,
+    noteConducteur,
+    tauxBase,
+    reductionAppliquee: reductionNote,
+    tauxFinal: this.commission.taux,
+    montantCommission: this.commission.montant
   });
   
   return this.commission.montant;
 };
 
-// Valider les règles de paiement selon le système de commission
+// 🆕 Valider règles avec vérification du solde
 paiementSchema.methods.validerReglesPaiement = async function() {
   try {
     const Reservation = mongoose.model('Reservation');
     
-    const reservation = await Reservation.findById(this.reservationId).populate('trajetId');
+    const reservation = await Reservation.findById(this.reservationId)
+      .populate({
+        path: 'trajetId',
+        populate: {
+          path: 'conducteurId',
+          select: 'compteCovoiturage noteMoyenne'
+        }
+      });
+    
     if (!reservation) {
       throw new Error('Réservation introuvable');
     }
 
     const trajet = reservation.trajetId;
-    const modeAccepte = trajet.accepteModePaiement(this.methodePaiement);
+    const conducteur = trajet.conducteurId;
+    const soldeConducteur = conducteur.compteCovoiturage?.solde || 0;
+    const soldeMinimum = 1000; // 1000 FCFA minimum
     
-    this.reglesPaiement = {
-      conducteurCompteRecharge: trajet.conducteurId.compteCovoiturage?.estRecharge || false,
-      modesAutorises: Object.keys(trajet.modesPaiementAcceptes).filter(
-        mode => trajet.modesPaiementAcceptes[mode]
-      ),
-      raisonValidation: modeAccepte.accepte ? 'Mode de paiement autorisé' : modeAccepte.raison,
-      verificationsPassees: modeAccepte.accepte,
-      dateValidation: new Date()
-    };
-
-    this.ajouterLog('VALIDATION_REGLES', {
-      methodePaiement: this.methodePaiement,
-      resultat: modeAccepte.accepte,
-      raison: modeAccepte.raison
-    });
-
-    return modeAccepte.accepte;
+    // Enregistrer le solde avant
+    this.reglesPaiement.soldeConducteurAvant = soldeConducteur;
+    this.reglesPaiement.soldeMinimumRequis = soldeMinimum;
+    
+    // 🔴 VÉRIFICATION CRITIQUE : PAIEMENT ESPÈCES
+    if (this.methodePaiement === 'ESPECES') {
+      
+      // Vérifier si compte rechargé
+      if (!conducteur.compteCovoiturage?.estRecharge) {
+        this.reglesPaiement.verificationsPassees = false;
+        this.reglesPaiement.blocageActif = true;
+        this.reglesPaiement.raisonBlocage = 'Compte conducteur non rechargé';
+        this.reglesPaiement.raisonValidation = 'Le conducteur doit recharger son compte pour accepter les paiements en espèces';
+        
+        this.statutPaiement = 'BLOQUE';
+        
+        this.ajouterLog('PAIEMENT_BLOQUE', {
+          raison: 'Compte non rechargé',
+          methodePaiement: 'ESPECES'
+        }, 'SYSTEM', 'WARNING');
+        
+        return false;
+      }
+      
+      // Vérifier si solde suffisant pour commission
+      if (soldeConducteur < soldeMinimum) {
+        this.reglesPaiement.soldeSuffisant = false;
+        this.reglesPaiement.verificationsPassees = false;
+        this.reglesPaiement.blocageActif = true;
+        this.reglesPaiement.raisonBlocage = `Solde insuffisant (${soldeConducteur} FCFA < ${soldeMinimum} FCFA)`;
+        this.reglesPaiement.raisonValidation = `Le solde du conducteur est insuffisant. Minimum requis : ${soldeMinimum} FCFA`;
+        
+        this.statutPaiement = 'BLOQUE';
+        
+        this.ajouterLog('PAIEMENT_BLOQUE', {
+          raison: 'Solde insuffisant',
+          soldeConducteur,
+          soldeMinimum,
+          methodePaiement: 'ESPECES'
+        }, 'SYSTEM', 'WARNING');
+        
+        return false;
+      }
+      
+      // Vérifier si solde suffisant pour prélever la commission
+      if (soldeConducteur < this.commission.montant) {
+        this.reglesPaiement.soldeSuffisant = false;
+        this.reglesPaiement.verificationsPassees = false;
+        this.reglesPaiement.blocageActif = true;
+        this.reglesPaiement.raisonBlocage = `Solde insuffisant pour commission (${soldeConducteur} FCFA < ${this.commission.montant} FCFA)`;
+        
+        this.commission.statutPrelevement = 'insuffisant';
+        this.commission.modePrelevement = 'compte_recharge';
+        this.statutPaiement = 'BLOQUE';
+        
+        this.ajouterLog('COMMISSION_IMPOSSIBLE', {
+          raison: 'Solde insuffisant pour prélever commission',
+          soldeConducteur,
+          commissionRequise: this.commission.montant
+        }, 'SYSTEM', 'ERROR');
+        
+        return false;
+      }
+      
+      // ✅ Tout est OK pour paiement espèces
+      this.reglesPaiement.soldeSuffisant = true;
+      this.reglesPaiement.verificationsPassees = true;
+      this.reglesPaiement.blocageActif = false;
+      this.commission.modePrelevement = 'compte_recharge';
+      this.reglesPaiement.raisonValidation = 'Paiement en espèces autorisé - Solde suffisant';
+      
+      this.ajouterLog('VALIDATION_ESPECES_OK', {
+        soldeConducteur,
+        commissionAPrelever: this.commission.montant,
+        soldeApresCommission: soldeConducteur - this.commission.montant
+      });
+      
+    } 
+    // 🟢 PAIEMENT NUMÉRIQUE : TOUJOURS AUTORISÉ
+    else if (this.estPaiementMobile) {
+      this.reglesPaiement.verificationsPassees = true;
+      this.reglesPaiement.soldeSuffisant = true; // N'a pas d'importance ici
+      this.reglesPaiement.blocageActif = false;
+      this.commission.modePrelevement = 'paiement_mobile';
+      this.reglesPaiement.raisonValidation = 'Paiement numérique - Commission prélevée automatiquement';
+      
+      this.ajouterLog('VALIDATION_MOBILE_OK', {
+        methodePaiement: this.methodePaiement,
+        commissionAPrelever: this.commission.montant
+      });
+    }
+    
+    // Modes autorisés
+    this.reglesPaiement.modesAutorises = this.obtenirModesAutorisesSelonSolde(soldeConducteur, soldeMinimum);
+    this.reglesPaiement.dateValidation = new Date();
+    
+    return this.reglesPaiement.verificationsPassees;
+    
   } catch (error) {
     this.ajouterErreur('VALIDATION_REGLES_ERREUR', error.message);
     return false;
   }
 };
 
-// Traiter la commission après paiement
+// 🆕 Obtenir modes de paiement autorisés selon solde
+paiementSchema.methods.obtenirModesAutorisesSelonSolde = function(soldeConducteur, soldeMinimum) {
+  const modesNumeriques = ['wave', 'orange_money', 'mtn_money', 'moov_money'];
+  
+  // Toujours autoriser les modes numériques
+  let modes = [...modesNumeriques];
+  
+  // Autoriser espèces uniquement si solde suffisant
+  if (soldeConducteur >= soldeMinimum && soldeConducteur >= this.commission.montant) {
+    modes.unshift('especes');
+  }
+  
+  return modes;
+};
+
+// 🆕 Traiter commission avec gestion solde
 paiementSchema.methods.traiterCommissionApresPayement = async function() {
   try {
     if (this.commission.statutPrelevement === 'preleve') return;
@@ -490,6 +525,19 @@ paiementSchema.methods.traiterCommissionApresPayement = async function() {
     const conducteur = await Utilisateur.findById(this.beneficiaireId);
 
     if (this.commission.modePrelevement === 'compte_recharge') {
+      // Vérifier à nouveau le solde (sécurité)
+      if (conducteur.compteCovoiturage.solde < this.commission.montant) {
+        this.commission.statutPrelevement = 'insuffisant';
+        this.ajouterErreur('SOLDE_INSUFFISANT', 
+          `Solde insuffisant pour prélever commission : ${conducteur.compteCovoiturage.solde} FCFA < ${this.commission.montant} FCFA`
+        );
+        await this.save();
+        return;
+      }
+      
+      // Enregistrer solde avant
+      this.reglesPaiement.soldeConducteurAvant = conducteur.compteCovoiturage.solde;
+      
       // Prélever commission du compte rechargé
       await conducteur.preleverCommission(
         this.commission.montant,
@@ -497,9 +545,15 @@ paiementSchema.methods.traiterCommissionApresPayement = async function() {
         this._id
       );
       
+      // Enregistrer solde après
+      await conducteur.reload(); // Recharger pour avoir le nouveau solde
+      this.reglesPaiement.soldeConducteurApres = conducteur.compteCovoiturage.solde;
+      
       this.ajouterLog('COMMISSION_PRELEVEE_COMPTE', {
         montant: this.commission.montant,
-        conducteurId: this.beneficiaireId
+        conducteurId: this.beneficiaireId,
+        soldeAvant: this.reglesPaiement.soldeConducteurAvant,
+        soldeApres: this.reglesPaiement.soldeConducteurApres
       });
       
     } else if (this.commission.modePrelevement === 'paiement_mobile') {
@@ -510,7 +564,7 @@ paiementSchema.methods.traiterCommissionApresPayement = async function() {
       });
     }
 
-    // Créditer les gains au conducteur
+    // Créditer les gains au conducteur (montant après commission)
     await conducteur.crediterGains(
       this.montantConducteur,
       this.reservationId,
@@ -529,7 +583,68 @@ paiementSchema.methods.traiterCommissionApresPayement = async function() {
   }
 };
 
-// Initier un paiement mobile money
+// 🆕 Appliquer bonus de recharge
+paiementSchema.methods.appliquerBonusRecharge = function(montantRecharge) {
+  if (montantRecharge >= 10000) {
+    const bonusPourcentage = 0.02; // 2%
+    this.bonus.bonusRecharge = Math.round(montantRecharge * bonusPourcentage);
+    this.bonus.detailsBonus = `Bonus de recharge de ${bonusPourcentage * 100}% pour rechargement ≥ 10 000 FCFA`;
+    
+    this.ajouterLog('BONUS_RECHARGE_APPLIQUE', {
+      montantRecharge,
+      bonusPourcentage,
+      montantBonus: this.bonus.bonusRecharge
+    });
+  }
+  return this.bonus.bonusRecharge;
+};
+
+// 🆕 Appliquer prime performance
+paiementSchema.methods.appliquerPrimePerformance = function(noteMoyenne, nombreTrajetsMois) {
+  if (noteMoyenne >= 4.5 && nombreTrajetsMois >= 20) {
+    this.bonus.primePerformance = 5000; // 5000 FCFA
+    this.bonus.detailsBonus = (this.bonus.detailsBonus || '') + 
+      ` | Prime performance : Note ${noteMoyenne}/5, ${nombreTrajetsMois} trajets ce mois`;
+    
+    this.ajouterLog('PRIME_PERFORMANCE_APPLIQUEE', {
+      noteMoyenne,
+      nombreTrajetsMois,
+      montantPrime: this.bonus.primePerformance
+    });
+  }
+  return this.bonus.primePerformance;
+};
+
+// 🆕 Bloquer montant dans portefeuille
+paiementSchema.methods.bloquerMontantPortefeuille = async function(montant, raison) {
+  this.portefeuilleConducteur.soldeBloque = montant;
+  this.portefeuilleConducteur.raisonBlocage = raison;
+  this.portefeuilleConducteur.transactionBlocageId = this.referenceTransaction;
+  
+  this.ajouterLog('MONTANT_BLOQUE', {
+    montant,
+    raison,
+    dateDeblocage: this.portefeuilleConducteur.dateDeblocage
+  });
+  
+  return this.save();
+};
+
+// 🆕 Débloquer montant dans portefeuille
+paiementSchema.methods.debloquerMontantPortefeuille = async function() {
+  const montantDebloque = this.portefeuilleConducteur.soldeBloque;
+  this.portefeuilleConducteur.soldeBloque = 0;
+  this.portefeuilleConducteur.raisonBlocage = null;
+  this.portefeuilleConducteur.transactionBlocageId = null;
+  
+  this.ajouterLog('MONTANT_DEBLOQUE', {
+    montant: montantDebloque
+  });
+  
+  return this.save();
+};
+
+// Autres méthodes existantes...
 paiementSchema.methods.initierPaiementMobile = function(numeroTelephone, operateur) {
   this.mobileMoney = {
     operateur: operateur.toUpperCase(),
@@ -537,20 +652,15 @@ paiementSchema.methods.initierPaiementMobile = function(numeroTelephone, operate
     statutMobileMoney: 'PENDING',
     dateTransaction: new Date()
   };
-
-  // Déterminer le mode de prélèvement
   this.commission.modePrelevement = 'paiement_mobile';
-
   this.ajouterLog('PAIEMENT_MOBILE_INITIE', {
     operateur,
     numero: numeroTelephone.replace(/(.{3})(.*)(.{3})/, '$1***$3'),
     montant: this.montantTotal
   });
-
   return this;
 };
 
-// Traiter le callback mobile money
 paiementSchema.methods.traiterCallbackMobile = function(donneesCallback) {
   this.mobileMoney.transactionId = donneesCallback.transactionId;
   this.mobileMoney.codeTransaction = donneesCallback.codeTransaction;
@@ -575,20 +685,19 @@ paiementSchema.methods.traiterCallbackMobile = function(donneesCallback) {
   return this;
 };
 
-// Vérifier si une transition de statut est valide
 paiementSchema.methods.peutChangerStatut = function(nouveauStatut) {
   const transitionsValides = {
-    'EN_ATTENTE': ['TRAITE', 'ECHEC', 'REMBOURSE'],
+    'EN_ATTENTE': ['TRAITE', 'ECHEC', 'REMBOURSE', 'BLOQUE'],
     'TRAITE': ['COMPLETE', 'ECHEC', 'REMBOURSE'],
     'COMPLETE': ['REMBOURSE'],
     'ECHEC': ['EN_ATTENTE'],
-    'REMBOURSE': []
+    'REMBOURSE': [],
+    'BLOQUE': ['EN_ATTENTE', 'ECHEC']
   };
   
   return transitionsValides[this.statutPaiement]?.includes(nouveauStatut) || false;
 };
 
-// Ajouter un log de transaction
 paiementSchema.methods.ajouterLog = function(action, details, source = 'SYSTEM', niveau = 'INFO') {
   this.logsTransaction.push({
     date: new Date(),
@@ -598,13 +707,11 @@ paiementSchema.methods.ajouterLog = function(action, details, source = 'SYSTEM',
     niveau
   });
   
-  // Limiter à 50 logs max
   if (this.logsTransaction.length > 50) {
     this.logsTransaction = this.logsTransaction.slice(-50);
   }
 };
 
-// Ajouter une erreur
 paiementSchema.methods.ajouterErreur = function(code, message, stack = null, contexte = {}) {
   this.erreurs.push({
     date: new Date(),
@@ -621,7 +728,6 @@ paiementSchema.methods.ajouterErreur = function(code, message, stack = null, con
   }
 };
 
-// Obtenir le résumé du paiement
 paiementSchema.methods.obtenirResume = function() {
   return {
     id: this._id,
@@ -631,9 +737,12 @@ paiementSchema.methods.obtenirResume = function() {
     commission: {
       montant: this.commission.montant,
       taux: this.commission.taux,
+      tauxOriginal: this.commission.tauxOriginal,
+      reductionAppliquee: this.commission.reductionAppliquee,
       statutPrelevement: this.commission.statutPrelevement,
       modePrelevement: this.commission.modePrelevement
     },
+    bonus: this.bonus,
     methodePaiement: this.methodePaiement,
     statutPaiement: this.statutPaiement,
     reglesPaiement: this.reglesPaiement,
@@ -649,7 +758,6 @@ paiementSchema.methods.obtenirResume = function() {
 
 // ===== MÉTHODES STATIQUES =====
 
-// Obtenir les statistiques des commissions
 paiementSchema.statics.obtenirStatistiquesCommissions = async function(dateDebut, dateFin) {
   return this.aggregate([
     {
@@ -665,34 +773,35 @@ paiementSchema.statics.obtenirStatistiquesCommissions = async function(dateDebut
         nombreTransactions: { $sum: 1 },
         montantTotalTraite: { $sum: '$montantTotal' },
         montantMoyenTransaction: { $avg: '$montantTotal' },
-        commissionsParMode: {
-          $push: {
-            mode: '$commission.modePrelevement',
-            montant: '$commission.montant'
-          }
-        }
+        totalBonus: { $sum: { $add: ['$bonus.bonusRecharge', '$bonus.primePerformance'] } }
       }
     }
   ]);
 };
 
-// Obtenir les paiements avec commission en échec
 paiementSchema.statics.obtenirCommissionsEnEchec = function() {
   return this.find({
-    'commission.statutPrelevement': 'echec',
+    'commission.statutPrelevement': { $in: ['echec', 'insuffisant'] },
     statutPaiement: 'COMPLETE'
   })
-  .populate('beneficiaireId', 'nom prenom email')
+  .populate('beneficiaireId', 'nom prenom email compteCovoiturage')
   .populate('reservationId');
 };
 
-// Statistiques par mode de paiement
+// 🆕 Obtenir paiements bloqués
+paiementSchema.statics.obtenirPaiementsBloqués = function() {
+  return this.find({
+    statutPaiement: 'BLOQUE',
+    'reglesPaiement.blocageActif': true
+  })
+  .populate('beneficiaireId', 'nom prenom email compteCovoiturage')
+  .populate('reservationId');
+};
+
 paiementSchema.statics.statistiquesParModePaiement = async function() {
   return this.aggregate([
     {
-      $match: {
-        statutPaiement: 'COMPLETE'
-      }
+      $match: { statutPaiement: 'COMPLETE' }
     },
     {
       $group: {
@@ -703,24 +812,10 @@ paiementSchema.statics.statistiquesParModePaiement = async function() {
         montantMoyen: { $avg: '$montantTotal' }
       }
     },
-    {
-      $sort: { nombre: -1 }
-    }
+    { $sort: { nombre: -1 } }
   ]);
 };
 
-// Obtenir les paiements en attente de traitement
-paiementSchema.statics.obtenirPaiementsEnAttente = function() {
-  return this.find({
-    statutPaiement: 'EN_ATTENTE',
-    dateInitiation: { 
-      $lt: new Date(Date.now() - 15 * 60 * 1000) // Plus de 15 minutes
-    }
-  })
-  .populate('payeurId beneficiaireId', 'nom prenom email telephone');
-};
-
-// Analyse des revenus pour tableau de bord admin
 paiementSchema.statics.analyseRevenus = async function(periode = 30) {
   const dateDebut = new Date();
   dateDebut.setDate(dateDebut.getDate() - periode);
@@ -739,13 +834,12 @@ paiementSchema.statics.analyseRevenus = async function(periode = 30) {
         },
         chiffreAffaires: { $sum: '$montantTotal' },
         commissionsPerçues: { $sum: '$commission.montant' },
+        bonusVerses: { $sum: { $add: ['$bonus.bonusRecharge', '$bonus.primePerformance'] } },
         nombreTransactions: { $sum: 1 },
         montantMoyenTransaction: { $avg: '$montantTotal' }
       }
     },
-    {
-      $sort: { '_id': 1 }
-    }
+    { $sort: { '_id': 1 } }
   ]);
 };
 

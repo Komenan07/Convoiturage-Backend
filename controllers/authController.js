@@ -64,6 +64,504 @@ const detectBrowser = (userAgent) => {
   return 'Unknown';
 };
 
+
+// ===================================
+// INSCRIPTION CONDUCTEUR 
+// ===================================
+
+/**
+ * @desc    Inscription d'un nouveau conducteur avec véhicule
+ * @route   POST /api/auth/inscription-conducteur
+ * @access  Public
+ */
+const inscrireConducteur = async (req, res, next) => {
+  try {
+    logger.info('Tentative d\'inscription conducteur', { email: req.body.email });
+
+    const {
+      // Données personnelles
+      nom,
+      prenom,
+      email,
+      telephone,
+      motDePasse,
+      dateNaissance,
+      sexe,
+      adresse,
+      preferences,
+      contactsUrgence,
+      documentIdentite,
+      
+      // Données du véhicule
+      vehicule,
+      
+      //  Méthode de vérification choisie
+      methodVerification // 'email' ou 'whatsapp'
+    } = req.body;
+
+    // Validation des champs requis
+    if (!nom || !prenom || !telephone || !motDePasse) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tous les champs obligatoires doivent être renseignés',
+        champsRequis: ['nom', 'prenom', 'telephone', 'motDePasse']
+      });
+    }
+
+    // NOUVEAU : Validation de la méthode de vérification
+    if (!methodVerification || !['email', 'whatsapp'].includes(methodVerification)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Veuillez choisir une méthode de vérification (email ou whatsapp)',
+        errorType: 'MISSING_VERIFICATION_METHOD'
+      });
+    }
+
+    // NOUVEAU : Si email choisi, l'email doit être fourni
+    if (methodVerification === 'email' && !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'L\'email est requis pour la vérification par email',
+        errorType: 'EMAIL_REQUIRED',
+        field: 'email'
+      });
+    }
+
+    // Normalisation du téléphone (réutiliser la fonction du controller)
+    const normaliserTelephoneCI = (tel) => {
+      if (!tel) return null;
+      
+      let telClean = tel.replace(/[\s\-().]/g, '');
+      
+      // Cas 1: Numéro commence par +225
+      if (telClean.startsWith('+225')) {
+        const numero = telClean.substring(4);
+        if (numero.length === 10 && /^\d{10}$/.test(numero)) {
+          return '+225' + numero;
+        }
+        return null;
+      }
+      
+      // Cas 2: Numéro commence par 00225
+      if (telClean.startsWith('00225')) {
+        const numero = telClean.substring(5);
+        if (numero.length === 10 && /^\d{10}$/.test(numero)) {
+          return '+225' + numero;
+        }
+        return null;
+      }
+      
+      // Cas 3: Numéro commence par 225
+      if (telClean.startsWith('225')) {
+        const numero = telClean.substring(3);
+        if (numero.length === 10 && /^\d{10}$/.test(numero)) {
+          return '+225' + numero;
+        }
+        return null;
+      }
+      
+      telClean = telClean.replace(/^\+/, '');
+      
+      // Cas 4: Numéro commence par 0
+      if (telClean.startsWith('0')) {
+        const numero = telClean.substring(1);
+        if (numero.length === 9 && /^\d{9}$/.test(numero)) {
+          return '+2250' + numero;
+        }
+        return null;
+      }
+      
+      // Cas 5: Numéro de 10 chiffres
+      if (telClean.length === 10 && /^\d{10}$/.test(telClean)) {
+        return '+225' + telClean;
+      }
+      
+      // Cas 6: Numéro de 9 chiffres
+      if (telClean.length === 9 && /^\d{9}$/.test(telClean)) {
+        return '+2250' + telClean;
+      }
+      
+      // Cas 7: Numéro de 8 chiffres
+      if (telClean.length === 8 && /^\d{8}$/.test(telClean)) {
+        return '+22507' + telClean;
+      }
+      
+      return null;
+    };
+
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide pour la Côte d\'Ivoire',
+        errorType: 'INVALID_PHONE_FORMAT',
+        field: 'telephone',
+        value: telephone,
+        suggestion: 'Formats acceptés: 0707070708, 07070708, +22507070708'
+      });
+    }
+
+    // Normalisation du sexe
+    let sexeNormalise = sexe;
+    if (sexe) {
+      if (sexe.toLowerCase() === 'masculin' || sexe.toLowerCase() === 'homme') {
+        sexeNormalise = 'M';
+      } else if (sexe.toLowerCase() === 'féminin' || sexe.toLowerCase() === 'femme') {
+        sexeNormalise = 'F';
+      }
+    }
+
+    // Vérifier si l'utilisateur existe déjà
+    const utilisateurExistant = await User.findOne({
+      $or: [
+        { telephone: phoneProcessed },
+        ...(email ? [{ email: email }] : [])
+      ]
+    }).maxTimeMS(30000);
+
+    if (utilisateurExistant) {
+      if (utilisateurExistant.telephone === phoneProcessed) {
+        logger.warn('Inscription conducteur échouée - Téléphone déjà utilisé', { telephone: phoneProcessed });
+        return res.status(409).json({
+          success: false,
+          message: 'Un compte existe déjà avec ce numéro de téléphone',
+          errorType: 'TELEPHONE_ALREADY_EXISTS',
+          field: 'telephone'
+        });
+      }
+      if (email && utilisateurExistant.email === email) {
+        logger.warn('Inscription conducteur échouée - Email déjà utilisé', { email });
+        return res.status(409).json({
+          success: false,
+          message: 'Un compte existe déjà avec cet email',
+          errorType: 'EMAIL_ALREADY_EXISTS',
+          field: 'email'
+        });
+      }
+    }
+
+    // Vérifier si l'immatriculation existe déjà (si véhicule fourni)
+    if (vehicule && vehicule.immatriculation) {
+      const Vehicule = require('../models/Vehicule');
+      const vehiculeExistant = await Vehicule.findOne({
+        immatriculation: vehicule.immatriculation.toUpperCase()
+      });
+
+      if (vehiculeExistant) {
+        logger.warn('Inscription conducteur échouée - Immatriculation déjà utilisée', { 
+          immatriculation: vehicule.immatriculation 
+        });
+        return res.status(409).json({
+          success: false,
+          message: 'Un véhicule avec cette immatriculation existe déjà',
+          errorType: 'IMMATRICULATION_ALREADY_EXISTS',
+          field: 'immatriculation'
+        });
+      }
+    }
+
+    // Créer l'utilisateur conducteur
+    const userData = {
+      nom,
+      prenom,
+      telephone: phoneProcessed,
+      email: email || `${phoneProcessed}@temp.covoiturage.ci`,
+      motDePasse, // Sera hashé par le middleware pre-save
+      role: 'conducteur',
+      statutCompte: 'EN_ATTENTE_VERIFICATION',
+      tentativesConnexionEchouees: 0,
+      badges: ['NOUVEAU'],
+      // Initialiser le compte covoiturage
+      compteCovoiturage: {
+        solde: 0,
+        estRecharge: false,
+        seuilMinimum: 0,
+        historiqueRecharges: [],
+        totalCommissionsPayees: 0,
+        totalGagnes: 0,
+        modeAutoRecharge: {
+          active: false
+        },
+        historiqueCommissions: [],
+        parametresRetrait: {},
+        limites: {
+          retraitJournalier: 1000000,
+          retraitMensuel: 5000000,
+          montantRetireAujourdhui: 0,
+          montantRetireCeMois: 0
+        }
+      }
+    };
+
+    // NOUVEAU : Ajouter les tokens selon la méthode choisie
+    if (methodVerification === 'email') {
+      // Générer un token de confirmation d'email
+      const confirmationToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
+      
+      userData.tokenConfirmationEmail = hashedToken;
+      userData.expirationTokenConfirmation = Date.now() + 24 * 60 * 60 * 1000; // 24 heures
+      
+      // Stocker le token non hashé temporairement pour l'envoi
+      userData._confirmationTokenPlain = confirmationToken;
+    }
+
+    // Ajouter les champs optionnels avec normalisation
+    if (dateNaissance) userData.dateNaissance = dateNaissance;
+    if (sexeNormalise) userData.sexe = sexeNormalise;
+    if (adresse) userData.adresse = adresse;
+    if (preferences) userData.preferences = preferences;
+    if (contactsUrgence) userData.contactsUrgence = contactsUrgence;
+    if (documentIdentite) userData.documentIdentite = documentIdentite;
+
+    const nouvelUtilisateur = await User.create(userData);
+
+    // Créer le véhicule si les données sont fournies
+    let vehiculeCreated = null;
+    if (vehicule && vehicule.marque && vehicule.modele && vehicule.immatriculation) {
+      const Vehicule = require('../models/Vehicule');
+      
+      try {
+        vehiculeCreated = await Vehicule.create({
+          ...vehicule,
+          immatriculation: vehicule.immatriculation.toUpperCase(),
+          proprietaireId: nouvelUtilisateur._id,
+          estPrincipal: true,
+          statut: 'ACTIF'
+        });
+
+        // Mettre à jour l'utilisateur avec les infos du véhicule (pour compatibilité)
+        nouvelUtilisateur.vehicule = {
+          marque: vehicule.marque,
+          modele: vehicule.modele,
+          couleur: vehicule.couleur,
+          immatriculation: vehicule.immatriculation.toUpperCase(),
+          nombrePlaces: vehicule.nombrePlaces,
+          photoVehicule: vehicule.photoVehicule,
+          assurance: vehicule.assurance,
+          visiteTechnique: vehicule.visiteTechnique
+        };
+        await nouvelUtilisateur.save({ validateBeforeSave: false });
+
+        logger.info('Véhicule créé avec succès', { 
+          vehiculeId: vehiculeCreated._id,
+          userId: nouvelUtilisateur._id 
+        });
+
+      } catch (vehiculeError) {
+        logger.error('Erreur création véhicule', { 
+          error: vehiculeError.message,
+          userId: nouvelUtilisateur._id 
+        });
+        
+        // Ne pas bloquer l'inscription si le véhicule échoue
+        // L'utilisateur pourra l'ajouter plus tard
+      }
+    }
+
+    // LOGIQUE DE VÉRIFICATION SELON LA MÉTHODE CHOISIE
+    let verificationEnvoyee = false;
+    let messageVerification = '';
+    let actionSuivante = '';
+    let routeSuivante = '';
+
+    if (methodVerification === 'whatsapp') {
+      // ========== VÉRIFICATION PAR WHATSAPP ==========
+      const codeWhatsApp = nouvelUtilisateur.genererCodeWhatsApp();
+      await nouvelUtilisateur.save({ validateBeforeSave: false });
+
+      try {
+        const nomComplet = `${prenom} ${nom}`;
+        const resultatEnvoi = await greenApiService.envoyerCodeVerification(
+          phoneProcessed,
+          codeWhatsApp,
+          nomComplet
+        );
+
+        if (!resultatEnvoi.success) {
+          logger.error('Échec envoi WhatsApp conducteur', { 
+            telephone: phoneProcessed, 
+            error: resultatEnvoi.error 
+          });
+          verificationEnvoyee = false;
+        } else {
+          logger.info('Code WhatsApp envoyé au conducteur', { 
+            userId: nouvelUtilisateur._id 
+          });
+          verificationEnvoyee = true;
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📱 Code conducteur envoyé à ${phoneProcessed}: ${codeWhatsApp}`);
+          }
+        }
+      } catch (whatsappError) {
+        logger.error('Erreur envoi WhatsApp conducteur:', whatsappError);
+        verificationEnvoyee = false;
+      }
+
+      messageVerification = verificationEnvoyee 
+        ? 'Inscription conducteur réussie ! Un code de vérification a été envoyé sur WhatsApp.'
+        : 'Inscription réussie mais l\'envoi du code WhatsApp a échoué. Contactez le support.';
+      actionSuivante = 'VERIFY_WHATSAPP';
+      routeSuivante = '/api/auth/verify-code';
+
+    } else if (methodVerification === 'email') {
+      // ========== VÉRIFICATION PAR EMAIL ==========
+      const confirmationToken = userData._confirmationTokenPlain;
+      const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
+      
+      try {
+        const emailHtml = chargerTemplate('envoiEmail-template.html', {
+          'newUser.prenom': nouvelUtilisateur.prenom,
+          'confirmationUrl': confirmationUrl
+        });
+
+        await sendEmail({
+          to: nouvelUtilisateur.email,
+          subject: 'Confirmez votre compte conducteur - WAYZ-ECO',
+          html: emailHtml
+        });
+
+        logger.info('Email de confirmation envoyé au conducteur', { 
+          userId: nouvelUtilisateur._id, 
+          email: nouvelUtilisateur.email 
+        });
+        verificationEnvoyee = true;
+
+      } catch (emailError) {
+        logger.error('Erreur envoi email confirmation conducteur:', emailError);
+        verificationEnvoyee = false;
+      }
+
+      messageVerification = verificationEnvoyee
+        ? 'Inscription conducteur réussie ! Un email de confirmation a été envoyé.'
+        : 'Inscription réussie mais l\'envoi de l\'email a échoué. Contactez le support.';
+      actionSuivante = 'VERIFY_EMAIL';
+      routeSuivante = '/api/auth/confirm-email/:token';
+    }
+
+    // Générer les tokens d'authentification
+    const accessToken = nouvelUtilisateur.getSignedJwtToken();
+    const deviceInfo = {
+      userAgent: req.headers['user-agent'] || 'Unknown',
+      ip: req.ip || req.connection.remoteAddress,
+      deviceType: detectDeviceType(req.headers['user-agent']),
+      os: detectOS(req.headers['user-agent']),
+      browser: detectBrowser(req.headers['user-agent'])
+    };
+    const refreshToken = await nouvelUtilisateur.generateRefreshToken(deviceInfo);
+
+    logger.info('Inscription conducteur réussie', { 
+      userId: nouvelUtilisateur._id,
+      hasVehicule: !!vehiculeCreated,
+      methodVerification: methodVerification
+    });
+
+    // Réponse adaptée selon la méthode de vérification
+    res.status(201).json({
+      success: true,
+      message: messageVerification,
+      data: {
+        utilisateur: {
+          id: nouvelUtilisateur._id,
+          nom: nouvelUtilisateur.nom,
+          prenom: nouvelUtilisateur.prenom,
+          nomComplet: nouvelUtilisateur.nomComplet,
+          email: nouvelUtilisateur.email,
+          telephone: nouvelUtilisateur.telephone,
+          role: nouvelUtilisateur.role,
+          statutCompte: nouvelUtilisateur.statutCompte,
+          estVerifie: nouvelUtilisateur.estVerifie,
+          whatsappVerifieLe: nouvelUtilisateur.whatsappVerifieLe,
+          badges: nouvelUtilisateur.badges,
+          compteCovoiturage: {
+            solde: nouvelUtilisateur.compteCovoiturage.solde,
+            estRecharge: nouvelUtilisateur.compteCovoiturage.estRecharge
+          }
+        },
+        vehicule: vehiculeCreated ? {
+          id: vehiculeCreated._id,
+          marque: vehiculeCreated.marque,
+          modele: vehiculeCreated.modele,
+          couleur: vehiculeCreated.couleur,
+          immatriculation: vehiculeCreated.immatriculation,
+          nombrePlaces: vehiculeCreated.nombrePlaces,
+          estPrincipal: vehiculeCreated.estPrincipal,
+          statut: vehiculeCreated.statut
+        } : null,
+        tokens: {
+          accessToken,
+          refreshToken,
+          expiresIn: process.env.JWT_EXPIRE || '15m',
+          refreshTokenExpiresIn: `${process.env.REFRESH_TOKEN_DAYS || 30} jours`
+        },
+        verification: {
+          method: methodVerification,
+          emailEnvoye: methodVerification === 'email' && verificationEnvoyee,
+          whatsappEnvoye: methodVerification === 'whatsapp' && verificationEnvoyee,
+          requiresEmailVerification: methodVerification === 'email',
+          requiresWhatsAppVerification: methodVerification === 'whatsapp',
+          requiresDocumentVerification: true,
+          expiration: methodVerification === 'whatsapp' 
+            ? nouvelUtilisateur.codeVerificationWhatsApp?.expiration 
+            : nouvelUtilisateur.expirationTokenConfirmation
+        }
+      },
+      nextStep: {
+        action: actionSuivante,
+        message: methodVerification === 'email' 
+          ? 'Veuillez vérifier votre email et cliquer sur le lien de confirmation'
+          : 'Veuillez saisir le code reçu sur WhatsApp pour activer votre compte',
+        route: routeSuivante
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur inscription conducteur:', error);
+
+    // Gestion des erreurs de validation Mongoose
+    if (error.name === 'ValidationError') {
+      const validationErrors = {};
+      Object.keys(error.errors).forEach(key => {
+        validationErrors[key] = error.errors[key].message;
+      });
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation des données',
+        errorType: 'VALIDATION_ERROR',
+        errors: validationErrors
+      });
+    }
+
+    // Erreur de duplication MongoDB
+    if (error.code === 11000) {
+      let duplicatedField = 'unknown';
+      let message = 'Un compte avec ces informations existe déjà';
+
+      if (error.message.includes('telephone')) {
+        duplicatedField = 'telephone';
+        message = 'Un compte avec ce numéro de téléphone existe déjà';
+      } else if (error.message.includes('email')) {
+        duplicatedField = 'email';
+        message = 'Un compte avec cet email existe déjà';
+      }
+
+      return res.status(409).json({
+        success: false,
+        message: message,
+        errorType: 'DUPLICATE_ERROR',
+        field: duplicatedField
+      });
+    }
+
+    return next(AppError.serverError('Erreur serveur lors de l\'inscription conducteur', { 
+      originalError: error.message
+    }));
+  }
+};
+
 // ===================================
 // INSCRIPTION AVEC WHATSAPP
 // ===================================
@@ -3242,6 +3740,7 @@ module.exports = {
   // Inscription
   inscription,
   inscriptionSMS,
+  inscrireConducteur,
   register,
   verifyCode,
   resendCode,
