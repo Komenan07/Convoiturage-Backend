@@ -6904,3 +6904,495 @@
   version: '1.0.0',
   timestamp: '2025-10-29 09:42:33'
 }
+{
+  error: TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')
+      at obtenirTrajetsConducteur (C:\new\covoiturage\Convoiturage-Backend\controllers\trajetController.js:176:15)
+      at Layer.handle [as handle_request] (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at handleValidationErrors (C:\new\covoiturage\Convoiturage-Backend\routes\trajets.js:29:3)
+      at Layer.handle [as handle_request] (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at middleware (C:\new\covoiturage\Convoiturage-Backend\node_modules\express-validator\lib\middlewares\check.js:16:13)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5),
+  level: 'error',
+  message: "unhandledRejection: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  rejection: true,
+  date: 'Fri Oct 31 2025 18:17:36 GMT+0100 (heure normale d’Europe centrale)',
+  process: {
+    pid: 29056,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\new\\covoiturage\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.18.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\new\\covoiturage\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 29655040,
+      heapTotal: 70868992,
+      heapUsed: 64635168,
+      external: 23878198,
+      arrayBuffers: 20225415
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 535754.937 },
+  trace: [
+    {
+      column: 15,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js',
+      function: 'obtenirTrajetsConducteur',
+      line: 176,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 3,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js',
+      function: 'handleValidationErrors',
+      line: 29,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js',
+      function: 'middleware',
+      line: 16,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-31 18:17:36'
+}
+{
+  error: TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')
+      at obtenirTrajetsConducteur (C:\new\covoiturage\Convoiturage-Backend\controllers\trajetController.js:176:15)
+      at Layer.handle [as handle_request] (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at handleValidationErrors (C:\new\covoiturage\Convoiturage-Backend\routes\trajets.js:29:3)
+      at Layer.handle [as handle_request] (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at middleware (C:\new\covoiturage\Convoiturage-Backend\node_modules\express-validator\lib\middlewares\check.js:16:13)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5),
+  level: 'error',
+  message: "unhandledRejection: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  rejection: true,
+  date: 'Fri Oct 31 2025 18:22:49 GMT+0100 (heure normale d’Europe centrale)',
+  process: {
+    pid: 30512,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\new\\covoiturage\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.18.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\new\\covoiturage\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 103862272,
+      heapTotal: 64778240,
+      heapUsed: 60985288,
+      external: 22529266,
+      arrayBuffers: 18911011
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 536068.703 },
+  trace: [
+    {
+      column: 15,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js',
+      function: 'obtenirTrajetsConducteur',
+      line: 176,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 3,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js',
+      function: 'handleValidationErrors',
+      line: 29,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js',
+      function: 'middleware',
+      line: 16,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-10-31 18:22:49'
+}
+{
+  error: TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')
+      at obtenirTrajetsConducteur (C:\new\covoiturage\Convoiturage-Backend\controllers\trajetController.js:176:15)
+      at Layer.handle [as handle_request] (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at handleValidationErrors (C:\new\covoiturage\Convoiturage-Backend\routes\trajets.js:29:3)
+      at Layer.handle [as handle_request] (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at middleware (C:\new\covoiturage\Convoiturage-Backend\node_modules\express-validator\lib\middlewares\check.js:16:13)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5),
+  level: 'error',
+  message: "unhandledRejection: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  rejection: true,
+  date: 'Sun Nov 02 2025 22:42:04 GMT+0100 (heure normale d’Europe centrale)',
+  process: {
+    pid: 7956,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\new\\covoiturage\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.18.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\new\\covoiturage\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 39710720,
+      heapTotal: 65564672,
+      heapUsed: 62386048,
+      external: 22796606,
+      arrayBuffers: 19168435
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 128610.109 },
+  trace: [
+    {
+      column: 15,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js',
+      function: 'obtenirTrajetsConducteur',
+      line: 176,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 3,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js',
+      function: 'handleValidationErrors',
+      line: 29,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js',
+      function: 'middleware',
+      line: 16,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-11-02 22:42:04'
+}
+{
+  error: TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')
+      at obtenirTrajetsConducteur (C:\new\covoiturage\Convoiturage-Backend\controllers\trajetController.js:176:15)
+      at Layer.handle [as handle_request] (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at handleValidationErrors (C:\new\covoiturage\Convoiturage-Backend\routes\trajets.js:29:3)
+      at Layer.handle [as handle_request] (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\layer.js:95:5)
+      at next (C:\new\covoiturage\Convoiturage-Backend\node_modules\express\lib\router\route.js:149:13)
+      at middleware (C:\new\covoiturage\Convoiturage-Backend\node_modules\express-validator\lib\middlewares\check.js:16:13)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5),
+  level: 'error',
+  message: "unhandledRejection: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  stack: "TypeError: Cannot read properties of undefined (reading 'obtenirTrajetsParConducteur')\n" +
+    '    at obtenirTrajetsConducteur (C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js:176:15)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at handleValidationErrors (C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js:29:3)\n' +
+    '    at Layer.handle [as handle_request] (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n' +
+    '    at next (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js:149:13)\n' +
+    '    at middleware (C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js:16:13)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+  rejection: true,
+  date: 'Sun Nov 02 2025 23:27:04 GMT+0100 (heure normale d’Europe centrale)',
+  process: {
+    pid: 23484,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\new\\covoiturage\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.18.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\new\\covoiturage\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 70209536,
+      heapTotal: 65302528,
+      heapUsed: 61715752,
+      external: 22868269,
+      arrayBuffers: 19241502
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 131309.75 },
+  trace: [
+    {
+      column: 15,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\controllers\\trajetController.js',
+      function: 'obtenirTrajetsConducteur',
+      line: 176,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 3,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\routes\\trajets.js',
+      function: 'handleValidationErrors',
+      line: 29,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\layer.js',
+      function: 'Layer.handle [as handle_request]',
+      line: 95,
+      method: 'handle [as handle_request]',
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express\\lib\\router\\route.js',
+      function: 'next',
+      line: 149,
+      method: null,
+      native: false
+    },
+    {
+      column: 13,
+      file: 'C:\\new\\covoiturage\\Convoiturage-Backend\\node_modules\\express-validator\\lib\\middlewares\\check.js',
+      function: 'middleware',
+      line: 16,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2025-11-02 23:27:04'
+}

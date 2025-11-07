@@ -173,7 +173,43 @@ async obtenirDetailsTrajet(req, res, next) {
  * Obtenir les trajets d'un conducteur spécifique
  */
 async obtenirTrajetsConducteur(req, res, next) {
-  return this.obtenirTrajetsParConducteur(req, res, next);
+  // return this.obtenirTrajetsParConducteur(req, res, next);
+  try {
+      const { conducteurId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+
+      const query = {
+        conducteurId,
+        statutTrajet: { $in: ['PROGRAMME', 'EN_COURS'] },
+        dateDepart: { $gte: new Date() } // ⭐ NOUVEAU: Seulement les trajets futurs
+      };
+
+      const options = {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        sort: { dateDepart: 1 },
+        populate: { path: 'conducteurId', select: 'nom prenom photo note' }
+      };
+
+      const trajets = await Trajet.paginate(query, options);
+
+      res.json({
+        success: true,
+        count: trajets.docs.length,
+        pagination: {
+          total: trajets.totalDocs,
+          page: trajets.page,
+          pages: trajets.totalPages,
+          limit: trajets.limit
+        },
+        data: trajets.docs
+      });
+
+    } catch (error) {
+      return next(AppError.serverError('Erreur serveur lors de la récupération des trajets', { 
+        originalError: error.message 
+      }));
+    }
 }
 
 /**
