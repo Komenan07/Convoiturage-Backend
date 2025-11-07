@@ -13,6 +13,7 @@ const path = require('path');
 // ===================================
 // FONCTIONS UTILITAIRES
 // ===================================
+
 /**
  * Fonction utilitaire pour charger et remplacer les variables dans un template
  */
@@ -32,6 +33,75 @@ const chargerTemplate = (nomTemplate, variables = {}) => {
     logger.error(`Erreur chargement template ${nomTemplate}:`, error);
     throw new Error(`Impossible de charger le template ${nomTemplate}`);
   }
+};
+
+/**
+ * 🔥 FONCTION CENTRALISÉE DE NORMALISATION DU TÉLÉPHONE POUR LA CÔTE D'IVOIRE
+ * Cette fonction doit être utilisée PARTOUT où on manipule un numéro de téléphone
+ */
+const normaliserTelephoneCI = (tel) => {
+  if (!tel) return null;
+  
+  // Supprimer tous les caractères non numériques sauf le +
+  let telClean = tel.replace(/[\s\-().]/g, '');
+  
+  // Cas 1: Numéro commence par +225 (déjà international)
+  if (telClean.startsWith('+225')) {
+    const numero = telClean.substring(4); // Enlever +225
+    // Vérifier que le numéro fait exactement 10 chiffres
+    if (numero.length === 10 && /^\d{10}$/.test(numero)) {
+      return '+225' + numero;
+    }
+    return null; // Format invalide
+  }
+  
+  // Cas 2: Numéro commence par 00225
+  if (telClean.startsWith('00225')) {
+    const numero = telClean.substring(5); // Enlever 00225
+    if (numero.length === 10 && /^\d{10}$/.test(numero)) {
+      return '+225' + numero;
+    }
+    return null;
+  }
+  
+  // Cas 3: Numéro commence par 225 (sans indicateur international)
+  if (telClean.startsWith('225')) {
+    const numero = telClean.substring(3); // Enlever 225
+    if (numero.length === 10 && /^\d{10}$/.test(numero)) {
+      return '+225' + numero;
+    }
+    return null;
+  }
+  
+  // Enlever le + initial s'il existe pour traitement uniforme
+  telClean = telClean.replace(/^\+/, '');
+  
+  // Cas 4: Numéro commence par 0 (format national)
+  if (telClean.startsWith('0')) {
+    const numero = telClean.substring(1); // Enlever le 0
+    if (numero.length === 9 && /^\d{9}$/.test(numero)) {
+      return '+2250' + numero; // Ajouter +225 + 0
+    }
+    return null;
+  }
+  
+  // Cas 5: Numéro de 10 chiffres (format national sans 0 initial)
+  if (telClean.length === 10 && /^\d{10}$/.test(telClean)) {
+    return '+225' + telClean;
+  }
+  
+  // Cas 6: Numéro de 9 chiffres (format local sans 0)
+  if (telClean.length === 9 && /^\d{9}$/.test(telClean)) {
+    return '+2250' + telClean;
+  }
+  
+  // Cas 7: Numéro de 8 chiffres (ancien format mobile)
+  if (telClean.length === 8 && /^\d{8}$/.test(telClean)) {
+    // Ajouter 0 pour faire 10 chiffres au format national
+    return '+22507' + telClean;
+  }
+  
+  return null; // Format non reconnu
 };
 
 // ✨ Détecter le type d'appareil
@@ -64,6 +134,443 @@ const detectBrowser = (userAgent) => {
   return 'Unknown';
 };
 
+
+// ===================================
+// INSCRIPTION CONDUCTEUR 
+// ===================================
+
+/**
+ * @desc    Inscription d'un nouveau conducteur avec véhicule
+ * @route   POST /api/auth/inscription-conducteur
+ * @access  Public
+ */
+const inscrireConducteur = async (req, res, next) => {
+  try {
+    logger.info('Tentative d\'inscription conducteur', { email: req.body.email });
+
+    const {
+      // Données personnelles
+      nom,
+      prenom,
+      email,
+      telephone,
+      motDePasse,
+      dateNaissance,
+      sexe,
+      adresse,
+      preferences,
+      contactsUrgence,
+      documentIdentite,
+      
+      // Données du véhicule
+      vehicule,
+      
+      //  Méthode de vérification choisie
+      methodVerification // 'email' ou 'whatsapp'
+    } = req.body;
+
+    // Validation des champs requis
+    if (!nom || !prenom || !telephone || !motDePasse) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tous les champs obligatoires doivent être renseignés',
+        champsRequis: ['nom', 'prenom', 'telephone', 'motDePasse']
+      });
+    }
+
+    // NOUVEAU : Validation de la méthode de vérification
+    if (!methodVerification || !['email', 'whatsapp'].includes(methodVerification)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Veuillez choisir une méthode de vérification (email ou whatsapp)',
+        errorType: 'MISSING_VERIFICATION_METHOD'
+      });
+    }
+
+    // NOUVEAU : Si email choisi, l'email doit être fourni
+    if (methodVerification === 'email' && !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'L\'email est requis pour la vérification par email',
+        errorType: 'EMAIL_REQUIRED',
+        field: 'email'
+      });
+    }
+
+    // 🔥 UTILISER LA FONCTION CENTRALISÉE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide pour la Côte d\'Ivoire',
+        errorType: 'INVALID_PHONE_FORMAT',
+        field: 'telephone',
+        value: telephone,
+        suggestion: 'Formats acceptés: 0707070708, 07070708, +22507070708'
+      });
+    }
+
+    // Normalisation du sexe
+    let sexeNormalise = sexe;
+    if (sexe) {
+      if (sexe.toLowerCase() === 'masculin' || sexe.toLowerCase() === 'homme') {
+        sexeNormalise = 'M';
+      } else if (sexe.toLowerCase() === 'féminin' || sexe.toLowerCase() === 'femme') {
+        sexeNormalise = 'F';
+      }
+    }
+
+    // Vérifier si l'utilisateur existe déjà
+    const utilisateurExistant = await User.findOne({
+      $or: [
+        { telephone: phoneProcessed },
+        ...(email ? [{ email: email }] : [])
+      ]
+    }).maxTimeMS(30000);
+
+    if (utilisateurExistant) {
+      if (utilisateurExistant.telephone === phoneProcessed) {
+        logger.warn('Inscription conducteur échouée - Téléphone déjà utilisé', { telephone: phoneProcessed });
+        return res.status(409).json({
+          success: false,
+          message: 'Un compte existe déjà avec ce numéro de téléphone',
+          errorType: 'TELEPHONE_ALREADY_EXISTS',
+          field: 'telephone'
+        });
+      }
+      if (email && utilisateurExistant.email === email) {
+        logger.warn('Inscription conducteur échouée - Email déjà utilisé', { email });
+        return res.status(409).json({
+          success: false,
+          message: 'Un compte existe déjà avec cet email',
+          errorType: 'EMAIL_ALREADY_EXISTS',
+          field: 'email'
+        });
+      }
+    }
+
+    // Vérifier si l'immatriculation existe déjà (si véhicule fourni)
+    if (vehicule && vehicule.immatriculation) {
+      const Vehicule = require('../models/Vehicule');
+      const vehiculeExistant = await Vehicule.findOne({
+        immatriculation: vehicule.immatriculation.toUpperCase()
+      });
+
+      if (vehiculeExistant) {
+        logger.warn('Inscription conducteur échouée - Immatriculation déjà utilisée', { 
+          immatriculation: vehicule.immatriculation 
+        });
+        return res.status(409).json({
+          success: false,
+          message: 'Un véhicule avec cette immatriculation existe déjà',
+          errorType: 'IMMATRICULATION_ALREADY_EXISTS',
+          field: 'immatriculation'
+        });
+      }
+    }
+
+    // Créer l'utilisateur conducteur
+    const userData = {
+      nom,
+      prenom,
+      telephone: phoneProcessed,
+      email: email || `${phoneProcessed}@temp.covoiturage.ci`,
+      motDePasse, // Sera hashé par le middleware pre-save
+      role: 'conducteur',
+      statutCompte: 'EN_ATTENTE_VERIFICATION',
+      tentativesConnexionEchouees: 0,
+      badges: ['NOUVEAU'],
+      // Initialiser le compte covoiturage
+      compteCovoiturage: {
+        solde: 0,
+        estRecharge: false,
+        seuilMinimum: 0,
+        historiqueRecharges: [],
+        totalCommissionsPayees: 0,
+        totalGagnes: 0,
+        modeAutoRecharge: {
+          active: false
+        },
+        historiqueCommissions: [],
+        parametresRetrait: {},
+        limites: {
+          retraitJournalier: 1000000,
+          retraitMensuel: 5000000,
+          montantRetireAujourdhui: 0,
+          montantRetireCeMois: 0
+        }
+      }
+    };
+
+    // NOUVEAU : Ajouter les tokens selon la méthode choisie
+    if (methodVerification === 'email') {
+      // Générer un token de confirmation d'email
+      const confirmationToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
+      
+      userData.tokenConfirmationEmail = hashedToken;
+      userData.expirationTokenConfirmation = Date.now() + 24 * 60 * 60 * 1000; // 24 heures
+      
+      // Stocker le token non hashé temporairement pour l'envoi
+      userData._confirmationTokenPlain = confirmationToken;
+    }
+
+    // Ajouter les champs optionnels avec normalisation
+    if (dateNaissance) userData.dateNaissance = dateNaissance;
+    if (sexeNormalise) userData.sexe = sexeNormalise;
+    if (adresse) userData.adresse = adresse;
+    if (preferences) userData.preferences = preferences;
+    if (contactsUrgence) userData.contactsUrgence = contactsUrgence;
+    if (documentIdentite) userData.documentIdentite = documentIdentite;
+
+    const nouvelUtilisateur = await User.create(userData);
+
+    // Créer le véhicule si les données sont fournies
+    let vehiculeCreated = null;
+    if (vehicule && vehicule.marque && vehicule.modele && vehicule.immatriculation) {
+      const Vehicule = require('../models/Vehicule');
+      
+      try {
+        vehiculeCreated = await Vehicule.create({
+          ...vehicule,
+          immatriculation: vehicule.immatriculation.toUpperCase(),
+          proprietaireId: nouvelUtilisateur._id,
+          estPrincipal: true,
+          statut: 'ACTIF'
+        });
+
+        // Mettre à jour l'utilisateur avec les infos du véhicule (pour compatibilité)
+        nouvelUtilisateur.vehicule = {
+          marque: vehicule.marque,
+          modele: vehicule.modele,
+          couleur: vehicule.couleur,
+          immatriculation: vehicule.immatriculation.toUpperCase(),
+          nombrePlaces: vehicule.nombrePlaces,
+          photoVehicule: vehicule.photoVehicule,
+          assurance: vehicule.assurance,
+          visiteTechnique: vehicule.visiteTechnique
+        };
+        await nouvelUtilisateur.save({ validateBeforeSave: false });
+
+        logger.info('Véhicule créé avec succès', { 
+          vehiculeId: vehiculeCreated._id,
+          userId: nouvelUtilisateur._id 
+        });
+
+      } catch (vehiculeError) {
+        logger.error('Erreur création véhicule', { 
+          error: vehiculeError.message,
+          userId: nouvelUtilisateur._id 
+        });
+        
+        // Ne pas bloquer l'inscription si le véhicule échoue
+        // L'utilisateur pourra l'ajouter plus tard
+      }
+    }
+
+    // LOGIQUE DE VÉRIFICATION SELON LA MÉTHODE CHOISIE
+    let verificationEnvoyee = false;
+    let messageVerification = '';
+    let actionSuivante = '';
+    let routeSuivante = '';
+
+    if (methodVerification === 'whatsapp') {
+      // ========== VÉRIFICATION PAR WHATSAPP ==========
+      const codeWhatsApp = nouvelUtilisateur.genererCodeWhatsApp();
+      await nouvelUtilisateur.save({ validateBeforeSave: false });
+
+      try {
+        const nomComplet = `${prenom} ${nom}`;
+        const resultatEnvoi = await greenApiService.envoyerCodeVerification(
+          phoneProcessed,
+          codeWhatsApp,
+          nomComplet
+        );
+
+        if (!resultatEnvoi.success) {
+          logger.error('Échec envoi WhatsApp conducteur', { 
+            telephone: phoneProcessed, 
+            error: resultatEnvoi.error 
+          });
+          verificationEnvoyee = false;
+        } else {
+          logger.info('Code WhatsApp envoyé au conducteur', { 
+            userId: nouvelUtilisateur._id 
+          });
+          verificationEnvoyee = true;
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📱 Code conducteur envoyé à ${phoneProcessed}: ${codeWhatsApp}`);
+          }
+        }
+      } catch (whatsappError) {
+        logger.error('Erreur envoi WhatsApp conducteur:', whatsappError);
+        verificationEnvoyee = false;
+      }
+
+      messageVerification = verificationEnvoyee 
+        ? 'Inscription conducteur réussie ! Un code de vérification a été envoyé sur WhatsApp.'
+        : 'Inscription réussie mais l\'envoi du code WhatsApp a échoué. Contactez le support.';
+      actionSuivante = 'VERIFY_WHATSAPP';
+      routeSuivante = '/api/auth/verify-code';
+
+    } else if (methodVerification === 'email') {
+      // ========== VÉRIFICATION PAR EMAIL ==========
+      const confirmationToken = userData._confirmationTokenPlain;
+      const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
+      
+      try {
+        const emailHtml = chargerTemplate('envoiEmail-template.html', {
+          'newUser.prenom': nouvelUtilisateur.prenom,
+          'confirmationUrl': confirmationUrl
+        });
+
+        await sendEmail({
+          to: nouvelUtilisateur.email,
+          subject: 'Confirmez votre compte conducteur - WAYZ-ECO',
+          html: emailHtml
+        });
+
+        logger.info('Email de confirmation envoyé au conducteur', { 
+          userId: nouvelUtilisateur._id, 
+          email: nouvelUtilisateur.email 
+        });
+        verificationEnvoyee = true;
+
+      } catch (emailError) {
+        logger.error('Erreur envoi email confirmation conducteur:', emailError);
+        verificationEnvoyee = false;
+      }
+
+      messageVerification = verificationEnvoyee
+        ? 'Inscription conducteur réussie ! Un email de confirmation a été envoyé.'
+        : 'Inscription réussie mais l\'envoi de l\'email a échoué. Contactez le support.';
+      actionSuivante = 'VERIFY_EMAIL';
+      routeSuivante = '/api/auth/confirm-email/:token';
+    }
+
+    // Générer les tokens d'authentification
+    const accessToken = nouvelUtilisateur.getSignedJwtToken();
+    const deviceInfo = {
+      userAgent: req.headers['user-agent'] || 'Unknown',
+      ip: req.ip || req.connection.remoteAddress,
+      deviceType: detectDeviceType(req.headers['user-agent']),
+      os: detectOS(req.headers['user-agent']),
+      browser: detectBrowser(req.headers['user-agent'])
+    };
+    const refreshToken = await nouvelUtilisateur.generateRefreshToken(deviceInfo);
+
+    logger.info('Inscription conducteur réussie', { 
+      userId: nouvelUtilisateur._id,
+      hasVehicule: !!vehiculeCreated,
+      methodVerification: methodVerification
+    });
+
+    // Réponse adaptée selon la méthode de vérification
+    res.status(201).json({
+      success: true,
+      message: messageVerification,
+      data: {
+        utilisateur: {
+          id: nouvelUtilisateur._id,
+          nom: nouvelUtilisateur.nom,
+          prenom: nouvelUtilisateur.prenom,
+          nomComplet: nouvelUtilisateur.nomComplet,
+          email: nouvelUtilisateur.email,
+          telephone: nouvelUtilisateur.telephone,
+          role: nouvelUtilisateur.role,
+          statutCompte: nouvelUtilisateur.statutCompte,
+          estVerifie: nouvelUtilisateur.estVerifie,
+          whatsappVerifieLe: nouvelUtilisateur.whatsappVerifieLe,
+          badges: nouvelUtilisateur.badges,
+          compteCovoiturage: {
+            solde: nouvelUtilisateur.compteCovoiturage.solde,
+            estRecharge: nouvelUtilisateur.compteCovoiturage.estRecharge
+          }
+        },
+        vehicule: vehiculeCreated ? {
+          id: vehiculeCreated._id,
+          marque: vehiculeCreated.marque,
+          modele: vehiculeCreated.modele,
+          couleur: vehiculeCreated.couleur,
+          immatriculation: vehiculeCreated.immatriculation,
+          nombrePlaces: vehiculeCreated.nombrePlaces,
+          estPrincipal: vehiculeCreated.estPrincipal,
+          statut: vehiculeCreated.statut
+        } : null,
+        tokens: {
+          accessToken,
+          refreshToken,
+          expiresIn: process.env.JWT_EXPIRE || '15m',
+          refreshTokenExpiresIn: `${process.env.REFRESH_TOKEN_DAYS || 30} jours`
+        },
+        verification: {
+          method: methodVerification,
+          emailEnvoye: methodVerification === 'email' && verificationEnvoyee,
+          whatsappEnvoye: methodVerification === 'whatsapp' && verificationEnvoyee,
+          requiresEmailVerification: methodVerification === 'email',
+          requiresWhatsAppVerification: methodVerification === 'whatsapp',
+          requiresDocumentVerification: true,
+          expiration: methodVerification === 'whatsapp' 
+            ? nouvelUtilisateur.codeVerificationWhatsAppExpire 
+            : nouvelUtilisateur.expirationTokenConfirmation
+        }
+      },
+      nextStep: {
+        action: actionSuivante,
+        message: methodVerification === 'email' 
+          ? 'Veuillez vérifier votre email et cliquer sur le lien de confirmation'
+          : 'Veuillez saisir le code reçu sur WhatsApp pour activer votre compte',
+        route: routeSuivante
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur inscription conducteur:', error);
+
+    // Gestion des erreurs de validation Mongoose
+    if (error.name === 'ValidationError') {
+      const validationErrors = {};
+      Object.keys(error.errors).forEach(key => {
+        validationErrors[key] = error.errors[key].message;
+      });
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation des données',
+        errorType: 'VALIDATION_ERROR',
+        errors: validationErrors
+      });
+    }
+
+    // Erreur de duplication MongoDB
+    if (error.code === 11000) {
+      let duplicatedField = 'unknown';
+      let message = 'Un compte avec ces informations existe déjà';
+
+      if (error.message.includes('telephone')) {
+        duplicatedField = 'telephone';
+        message = 'Un compte avec ce numéro de téléphone existe déjà';
+      } else if (error.message.includes('email')) {
+        duplicatedField = 'email';
+        message = 'Un compte avec cet email existe déjà';
+      }
+
+      return res.status(409).json({
+        success: false,
+        message: message,
+        errorType: 'DUPLICATE_ERROR',
+        field: duplicatedField
+      });
+    }
+
+    return next(AppError.serverError('Erreur serveur lors de l\'inscription conducteur', { 
+      originalError: error.message
+    }));
+  }
+};
+
 // ===================================
 // INSCRIPTION AVEC WHATSAPP
 // ===================================
@@ -88,17 +595,31 @@ const register = async (req, res, next) => {
       });
     }
 
+    // 🔥 NORMALISER LE TÉLÉPHONE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide pour la Côte d\'Ivoire',
+        errorType: 'INVALID_PHONE_FORMAT',
+        field: 'telephone',
+        value: telephone,
+        suggestion: 'Formats acceptés: 0707070708, 07070708, +22507070708'
+      });
+    }
+
     // Vérifier si l'utilisateur existe déjà
     const utilisateurExiste = await User.findOne({
       $or: [
-        { telephone: telephone },
+        { telephone: phoneProcessed },
         ...(email ? [{ email: email }] : [])
       ]
     }).maxTimeMS(30000);
 
     if (utilisateurExiste) {
-      if (utilisateurExiste.telephone === telephone) {
-        logger.warn('Inscription échouée - Téléphone déjà utilisé', { telephone });
+      if (utilisateurExiste.telephone === phoneProcessed) {
+        logger.warn('Inscription échouée - Téléphone déjà utilisé', { telephone: phoneProcessed });
         return res.status(409).json({
           success: false,
           message: 'Ce numéro de téléphone est déjà utilisé',
@@ -119,8 +640,8 @@ const register = async (req, res, next) => {
     const donneesUtilisateur = {
       nom,
       prenom,
-      telephone,
-      email: email || `${telephone}@temp.covoiturage.ci`,
+      telephone: phoneProcessed,
+      email: email || `${phoneProcessed}@temp.covoiturage.ci`,
       motDePasse: motDePasse || `Temp${Math.random().toString(36).slice(-8)}!1`,
       statutCompte: 'EN_ATTENTE_VERIFICATION',
       role: 'passager',
@@ -152,7 +673,7 @@ const register = async (req, res, next) => {
     // Envoyer le code via WhatsApp
     const nomComplet = `${prenom} ${nom}`;
     const resultatEnvoi = await greenApiService.envoyerCodeVerification(
-      telephone,
+      phoneProcessed,
       code,
       nomComplet
     );
@@ -161,7 +682,7 @@ const register = async (req, res, next) => {
       // Si l'envoi échoue, supprimer l'utilisateur créé
       await User.findByIdAndDelete(utilisateur._id);
       
-      logger.error('Échec envoi WhatsApp', { telephone, error: resultatEnvoi.error });
+      logger.error('Échec envoi WhatsApp', { telephone: phoneProcessed, error: resultatEnvoi.error });
       return res.status(500).json({
         success: false,
         message: 'Erreur lors de l\'envoi du code de vérification',
@@ -174,7 +695,7 @@ const register = async (req, res, next) => {
     
     // En développement, logger le code
     if (process.env.NODE_ENV === 'development') {
-      console.log(`📱 Code envoyé à ${telephone}: ${code}`);
+      console.log(`📱 Code envoyé à ${phoneProcessed}: ${code}`);
     }
 
     res.status(201).json({
@@ -184,7 +705,7 @@ const register = async (req, res, next) => {
         utilisateurId: utilisateur._id,
         telephone: utilisateur.telephone,
         nomComplet: utilisateur.nomComplet,
-        expiration: utilisateur.codeVerificationWhatsApp.expiration
+        expiration: utilisateur.codeVerificationWhatsAppExpire
       }
     });
 
@@ -229,8 +750,19 @@ const verifyCode = async (req, res, next) => {
       });
     }
 
-    const utilisateur = await User.findOne({ telephone })
-      .select('+codeVerificationWhatsApp +refreshTokens');
+    // 🔥 NORMALISER LE TÉLÉPHONE AVANT LA RECHERCHE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide',
+        errorType: 'INVALID_PHONE_FORMAT'
+      });
+    }
+
+    const utilisateur = await User.findOne({ telephone: phoneProcessed })
+      .select('+codeVerificationWhatsApp +codeVerificationWhatsAppExpire +refreshTokens');
 
     if (!utilisateur) {
       return res.status(404).json({
@@ -239,7 +771,7 @@ const verifyCode = async (req, res, next) => {
       });
     }
 
-    if (utilisateur.whatsappVerifieLe) {
+    if (utilisateur.whatsappVerifie) {
       return res.status(400).json({
         success: false,
         message: 'Ce compte est déjà vérifié',
@@ -252,27 +784,24 @@ const verifyCode = async (req, res, next) => {
     if (!resultatVerification.valide) {
       await utilisateur.save({ validateBeforeSave: false });
 
-      const statusCode = resultatVerification.raison === 'CODE_EXPIRE' ? 410 : 400;
-
-      return res.status(statusCode).json({
+      return res.status(400).json({
         success: false,
-        message: resultatVerification.message,
-        raison: resultatVerification.raison,
-        tentativesRestantes: resultatVerification.tentativesRestantes
+        message: resultatVerification.raison
       });
     }
 
     // Code valide : activer le compte
-    utilisateur.whatsappVerifieLe = Date.now();
+    utilisateur.whatsappVerifie = true;
     utilisateur.statutCompte = 'ACTIF';
     utilisateur.estVerifie = true;
     utilisateur.codeVerificationWhatsApp = undefined;
+    utilisateur.codeVerificationWhatsAppExpire = undefined;
 
     await utilisateur.save({ validateBeforeSave: false });
 
     // Envoyer message de bienvenue
     await greenApiService.envoyerMessageBienvenue(
-      telephone,
+      phoneProcessed,
       utilisateur.prenom
     );
 
@@ -285,7 +814,6 @@ const verifyCode = async (req, res, next) => {
       browser: detectBrowser(req.headers['user-agent'])
     };
 
-    // Générer le token JWT
     // Générer Access Token ET Refresh Token
     const accessToken = utilisateur.getSignedJwtToken();
     const refreshToken = await utilisateur.generateRefreshToken(deviceInfo);
@@ -337,8 +865,19 @@ const resendCode = async (req, res, next) => {
       });
     }
 
-    const utilisateur = await User.findOne({ telephone })
-      .select('+codeVerificationWhatsApp');
+    // 🔥 NORMALISER LE TÉLÉPHONE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide',
+        errorType: 'INVALID_PHONE_FORMAT'
+      });
+    }
+
+    const utilisateur = await User.findOne({ telephone: phoneProcessed })
+      .select('+codeVerificationWhatsApp +codeVerificationWhatsAppExpire');
 
     if (!utilisateur) {
       return res.status(404).json({
@@ -347,20 +886,10 @@ const resendCode = async (req, res, next) => {
       });
     }
 
-    if (utilisateur.whatsappVerifieLe) {
+    if (utilisateur.whatsappVerifie) {
       return res.status(400).json({
         success: false,
         message: 'Ce compte est déjà vérifié'
-      });
-    }
-
-    const verification = utilisateur.peutRenvoyerCode();
-    if (!verification.autorise) {
-      return res.status(429).json({
-        success: false,
-        message: verification.message,
-        raison: verification.raison,
-        tempsRestant: verification.tempsRestant
       });
     }
 
@@ -369,7 +898,7 @@ const resendCode = async (req, res, next) => {
 
     const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
     const resultatEnvoi = await greenApiService.envoyerCodeVerification(
-      telephone,
+      phoneProcessed,
       code,
       nomComplet
     );
@@ -385,7 +914,7 @@ const resendCode = async (req, res, next) => {
     logger.info('Nouveau code WhatsApp envoyé', { userId: utilisateur._id });
     
     if (process.env.NODE_ENV === 'development') {
-      console.log(`📱 Nouveau code envoyé à ${telephone}: ${code}`);
+      console.log(`📱 Nouveau code envoyé à ${phoneProcessed}: ${code}`);
     }
 
     res.status(200).json({
@@ -393,7 +922,7 @@ const resendCode = async (req, res, next) => {
       message: 'Un nouveau code a été envoyé sur WhatsApp',
       data: {
         telephone: utilisateur.telephone,
-        expiration: utilisateur.codeVerificationWhatsApp.expiration
+        expiration: utilisateur.codeVerificationWhatsAppExpire
       }
     });
 
@@ -404,6 +933,7 @@ const resendCode = async (req, res, next) => {
     }));
   }
 };
+
 // ===================================
 // CONTRÔLEURS D'INSCRIPTION
 // ===================================
@@ -436,13 +966,25 @@ const inscription = async (req, res, next) => {
       });
     }
 
+    // 🔥 NORMALISER LE TÉLÉPHONE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide',
+        errorType: 'INVALID_PHONE_FORMAT',
+        field: 'telephone'
+      });
+    }
+
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await User.findOne({ 
-      $or: [{ email }, { telephone }] 
+      $or: [{ email }, { telephone: phoneProcessed }] 
     }).maxTimeMS(30000);
     
     if (existingUser) {
-      logger.warn('Inscription échouée - Email ou téléphone déjà utilisé', { email, telephone });
+      logger.warn('Inscription échouée - Email ou téléphone déjà utilisé', { email, telephone: phoneProcessed });
       return res.status(409).json({
         success: false,
         message: 'Un compte avec cet email ou ce numéro existe déjà'
@@ -459,7 +1001,7 @@ const inscription = async (req, res, next) => {
       prenom,
       email,
       motDePasse, // Sera hashé par le middleware pre-save
-      telephone,
+      telephone: phoneProcessed,
       role: (role && ['conducteur', 'passager', 'les_deux'].includes(role)) ? role : 'passager',
       statutCompte: 'EN_ATTENTE_VERIFICATION',
       tentativesConnexionEchouees: 0,
@@ -561,10 +1103,9 @@ const inscription = async (req, res, next) => {
 };
 
 /**
- * Inscription avec vérification SMS - VERSION CORRIGÉE
+ * Inscription avec vérification SMS
  */
 const inscriptionSMS = async (req, res, next) => {
-  // Déclarer les variables en dehors du try pour les rendre accessibles dans le catch
   let telephone, email;
   
   try {
@@ -582,12 +1123,9 @@ const inscriptionSMS = async (req, res, next) => {
       adresse
     } = req.body;
 
-    // Assigner aux variables déclarées en dehors
     telephone = telephoneFromBody;
     email = emailFromBody;
 
-    // ========== CORRECTIONS PRINCIPALES ==========
-    
     // 1. NORMALISATION DU SEXE au début
     let sexeNormalise = sexe;
     if (sexe) {
@@ -610,74 +1148,7 @@ const inscriptionSMS = async (req, res, next) => {
       });
     }
 
-    // ========== NORMALISATION SPÉCIFIQUE CÔTE D'IVOIRE ==========
-    
-    const normaliserTelephoneCI = (tel) => {
-      if (!tel) return null;
-      
-      // Supprimer tous les caractères non numériques sauf le +
-      let telClean = tel.replace(/[\s\-().]/g, '');
-      
-      // Cas 1: Numéro commence par +225 (déjà international)
-      if (telClean.startsWith('+225')) {
-        const numero = telClean.substring(4); // Enlever +225
-        // Vérifier que le numéro fait exactement 10 chiffres
-        if (numero.length === 10 && /^\d{10}$/.test(numero)) {
-          return '+225' + numero;
-        }
-        return null; // Format invalide
-      }
-      
-      // Cas 2: Numéro commence par 00225
-      if (telClean.startsWith('00225')) {
-        const numero = telClean.substring(5); // Enlever 00225
-        if (numero.length === 10 && /^\d{10}$/.test(numero)) {
-          return '+225' + numero;
-        }
-        return null;
-      }
-      
-      // Cas 3: Numéro commence par 225 (sans indicateur international)
-      if (telClean.startsWith('225')) {
-        const numero = telClean.substring(3); // Enlever 225
-        if (numero.length === 10 && /^\d{10}$/.test(numero)) {
-          return '+225' + numero;
-        }
-        return null;
-      }
-      
-      // Enlever le + initial s'il existe pour traitement uniforme
-      telClean = telClean.replace(/^\+/, '');
-      
-      // Cas 4: Numéro commence par 0 (format national)
-      if (telClean.startsWith('0')) {
-        const numero = telClean.substring(1); // Enlever le 0
-        if (numero.length === 9 && /^\d{9}$/.test(numero)) {
-          return '+2250' + numero; // Ajouter +225 + 0
-        }
-        return null;
-      }
-      
-      // Cas 5: Numéro de 10 chiffres (format national sans 0 initial)
-      if (telClean.length === 10 && /^\d{10}$/.test(telClean)) {
-        return '+225' + telClean;
-      }
-      
-      // Cas 6: Numéro de 9 chiffres (format local sans 0)
-      if (telClean.length === 9 && /^\d{9}$/.test(telClean)) {
-        return '+2250' + telClean;
-      }
-      
-      // Cas 7: Numéro de 8 chiffres (ancien format mobile)
-      if (telClean.length === 8 && /^\d{8}$/.test(telClean)) {
-        // Ajouter 0 pour faire 10 chiffres au format national
-        return '+22507' + telClean;
-      }
-      
-      return null; // Format non reconnu
-    };
-
-    // Appliquer la normalisation et validation
+    // 🔥 NORMALISER LE TÉLÉPHONE
     const phoneProcessed = normaliserTelephoneCI(telephone);
     
     if (!phoneProcessed) {
@@ -712,8 +1183,6 @@ const inscriptionSMS = async (req, res, next) => {
         errors: erreurs
       });
     }
-
-    // ========== VÉRIFICATIONS D'EXISTENCE AMÉLIORÉES ==========
 
     // Vérifier si l'utilisateur existe déjà par téléphone
     const existingUserByPhone = await User.findOne({ telephone }).maxTimeMS(30000);
@@ -768,13 +1237,12 @@ const inscriptionSMS = async (req, res, next) => {
       nom,
       prenom,
       telephone,
-      motDePasse, // Sera hashé par le middleware pre-save
+      motDePasse,
       role: (role && ['conducteur', 'passager', 'les_deux'].includes(role)) ? role : 'passager',
       statutCompte: 'EN_ATTENTE_VERIFICATION',
       tentativesConnexionEchouees: 0,
       codeSMS: codeSMS,
       expirationCodeSMS: expirationCodeSMS,
-      // Initialiser le compte covoiturage
       compteCovoiturage: {
         solde: 0,
         estRecharge: false,
@@ -799,7 +1267,7 @@ const inscriptionSMS = async (req, res, next) => {
     // Ajouter les champs optionnels avec normalisation
     if (email) userData.email = email;
     if (dateNaissance) userData.dateNaissance = dateNaissance;
-    if (sexeNormalise) userData.sexe = sexeNormalise; // Utiliser la version normalisée
+    if (sexeNormalise) userData.sexe = sexeNormalise;
     if (adresse) userData.adresse = adresse;
 
     const newUser = new User(userData);
@@ -807,7 +1275,6 @@ const inscriptionSMS = async (req, res, next) => {
 
     // Envoyer le SMS de vérification
     try {
-      // Log détaillé pour debug
       logger.info('Tentative envoi SMS', {
         originalPhone: req.body.telephone,
         processedPhone: newUser.telephone,
@@ -882,8 +1349,6 @@ const inscriptionSMS = async (req, res, next) => {
   } catch (error) {
     logger.error('Erreur inscription SMS:', error);
     
-    // ========== GESTION D'ERREUR AMÉLIORÉE ==========
-    
     // Erreurs de validation Mongoose
     if (error.name === 'ValidationError') {
       const validationErrors = {};
@@ -899,9 +1364,8 @@ const inscriptionSMS = async (req, res, next) => {
       });
     }
 
-    // Erreur de duplication MongoDB (code 11000)
+    // Erreur de duplication MongoDB
     if (error.code === 11000) {
-      // Identifier le champ dupliqué
       let duplicatedField = 'unknown';
       let duplicatedValue = 'unknown';
       let message = 'Un compte avec ces informations existe déjà';
@@ -934,7 +1398,6 @@ const inscriptionSMS = async (req, res, next) => {
       });
     }
 
-    // Autres erreurs
     return next(AppError.serverError('Erreur serveur lors de l\'inscription SMS', { 
       originalError: error.message
     }));
@@ -1072,12 +1535,23 @@ const verifierCodeSMS = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({ telephone })
+    // 🔥 NORMALISER LE TÉLÉPHONE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide',
+        errorType: 'INVALID_PHONE_FORMAT'
+      });
+    }
+
+    const user = await User.findOne({ telephone: phoneProcessed })
       .select('+codeSMS +expirationCodeSMS')
       .maxTimeMS(30000);
 
     if (!user) {
-      logger.warn('Vérification SMS échouée - Utilisateur non trouvé', { telephone });
+      logger.warn('Vérification SMS échouée - Utilisateur non trouvé', { telephone: phoneProcessed });
       return res.status(404).json({
         success: false,
         message: 'Aucun utilisateur trouvé avec ce numéro de téléphone'
@@ -1093,7 +1567,7 @@ const verifierCodeSMS = async (req, res, next) => {
 
     // Vérifier le code SMS
     if (!user.codeSMS || user.codeSMS !== codeSMS) {
-      logger.warn('Vérification SMS échouée - Code incorrect', { userId: user._id, telephone });
+      logger.warn('Vérification SMS échouée - Code incorrect', { userId: user._id, telephone: phoneProcessed });
       return res.status(400).json({
         success: false,
         message: 'Code SMS incorrect'
@@ -1102,7 +1576,7 @@ const verifierCodeSMS = async (req, res, next) => {
 
     // Vérifier l'expiration
     if (!user.expirationCodeSMS || user.expirationCodeSMS < Date.now()) {
-      logger.warn('Vérification SMS échouée - Code expiré', { userId: user._id, telephone });
+      logger.warn('Vérification SMS échouée - Code expiré', { userId: user._id, telephone: phoneProcessed });
       return res.status(400).json({
         success: false,
         message: 'Code SMS expiré'
@@ -1119,7 +1593,7 @@ const verifierCodeSMS = async (req, res, next) => {
     // Générer le token JWT
     const token = user.getSignedJwtToken();
 
-    logger.info('Vérification SMS réussie', { userId: user._id, telephone });
+    logger.info('Vérification SMS réussie', { userId: user._id, telephone: phoneProcessed });
 
     res.status(200).json({
       success: true,
@@ -1238,12 +1712,23 @@ const renvoyerCodeSMS = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({ telephone })
+    // 🔥 NORMALISER LE TÉLÉPHONE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide',
+        errorType: 'INVALID_PHONE_FORMAT'
+      });
+    }
+
+    const user = await User.findOne({ telephone: phoneProcessed })
       .select('+codeSMS +expirationCodeSMS')
       .maxTimeMS(30000);
 
     if (!user) {
-      logger.warn('Renvoi SMS échoué - Utilisateur non trouvé', { telephone });
+      logger.warn('Renvoi SMS échoué - Utilisateur non trouvé', { telephone: phoneProcessed });
       return res.status(404).json({
         success: false,
         message: 'Aucun utilisateur trouvé avec ce numéro de téléphone'
@@ -1284,7 +1769,7 @@ const renvoyerCodeSMS = async (req, res, next) => {
         message: `Votre nouveau code de vérification WAYZ-ECO est: ${nouveauCode}. Ce code expire dans 10 minutes.`
       });
 
-      logger.info('Nouveau SMS envoyé', { userId: user._id, telephone });
+      logger.info('Nouveau SMS envoyé', { userId: user._id, telephone: phoneProcessed });
       
       res.status(200).json({
         success: true,
@@ -1336,14 +1821,32 @@ const connexion = async (req, res, next) => {
 
     // Déterminer si c'est un email ou un téléphone
     const isEmail = identifiant.includes('@');
-    const champRecherche = isEmail ? 'email' : 'telephone';
+    let champRecherche = isEmail ? 'email' : 'telephone';
+    let valeurRecherche = identifiant;
 
-    // Rechercher l'utilisateur par email OU téléphone
-    const user = await User.findOne({ [champRecherche]: identifiant }).select('+motDePasse +refreshTokens');
+    // 🔥 Si c'est un téléphone, le normaliser
+    if (!isEmail) {
+      const phoneProcessed = normaliserTelephoneCI(identifiant);
+      
+      if (!phoneProcessed) {
+        return res.status(400).json({
+          success: false,
+          message: 'Le numéro de téléphone n\'est pas valide',
+          errorType: 'INVALID_PHONE_FORMAT',
+          champ: 'telephone'
+        });
+      }
+      
+      valeurRecherche = phoneProcessed;
+    }
+
+    // Rechercher l'utilisateur
+    const user = await User.findOne({ [champRecherche]: valeurRecherche })
+      .select('+motDePasse +refreshTokens');
     
     if (!user) {
       logger.warn('Connexion échouée - Identifiant incorrect', { 
-        identifiant,
+        identifiant: valeurRecherche,
         champRecherche 
       });
       
@@ -1443,7 +1946,7 @@ const connexion = async (req, res, next) => {
       const tentativesRestantes = Math.max(0, 5 - user.tentativesConnexionEchouees);
       
       logger.warn('Connexion échouée - Mot de passe incorrect', { 
-        identifiant, 
+        identifiant: valeurRecherche, 
         tentativesEchouees: user.tentativesConnexionEchouees,
         tentativesRestantes
       });
@@ -1484,13 +1987,13 @@ const connexion = async (req, res, next) => {
       browser: detectBrowser(req.headers['user-agent'])
     };
 
-    // 3. NOUVEAU: Générer le refresh token
+    // Générer le refresh token
     const refreshToken = await user.generateRefreshToken(deviceInfo);
 
     logger.info('Connexion réussie', { 
-      userId: user._id ,
+      userId: user._id,
       deviceType: deviceInfo.deviceType
-  });
+    });
     
     res.json({
       success: true,
@@ -1530,6 +2033,7 @@ const connexion = async (req, res, next) => {
     return next(AppError.serverError('Erreur serveur lors de la connexion', { originalError: error.message }));
   }
 };
+
 /**
  * Connexion administrateur
  */
@@ -1747,7 +2251,7 @@ const obtenirUtilisateurConnecte = async (req, res, next) => {
 };
 
 // ============================================================
-// RÉINITIALISATION MOT DE PASSE VIA WHATSAPP (NOUVEAU)
+// RÉINITIALISATION MOT DE PASSE VIA WHATSAPP
 // ============================================================
 
 const forgotPassword = async (req, res, next) => {
@@ -1764,12 +2268,22 @@ const forgotPassword = async (req, res, next) => {
 
     logger.info('Demande réinitialisation mot de passe WhatsApp', { telephone });
 
-    // ✅ CORRECTION : Sélectionner explicitement codeResetWhatsApp
-    const utilisateur = await User.findOne({ telephone })
+    // 🔥 NORMALISER LE TÉLÉPHONE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide',
+        errorType: 'INVALID_PHONE_FORMAT'
+      });
+    }
+
+    const utilisateur = await User.findOne({ telephone: phoneProcessed })
       .select('+codeResetWhatsApp');
 
     if (!utilisateur) {
-      logger.info('Demande réinitialisation WhatsApp - Téléphone non trouvé (masqué)', { telephone });
+      logger.info('Demande réinitialisation WhatsApp - Téléphone non trouvé (masqué)', { telephone: phoneProcessed });
       // Pour la sécurité, on renvoie le même message même si le compte n'existe pas
       return res.json({
         success: true,
@@ -1781,7 +2295,7 @@ const forgotPassword = async (req, res, next) => {
       });
     }
 
-    // Vérifier si l'utilisateur peut recevoir un nouveau code (limite de 2 minutes entre chaque demande)
+    // Vérifier si l'utilisateur peut recevoir un nouveau code
     const verification = utilisateur.peutRenvoyerCodeReset ? utilisateur.peutRenvoyerCodeReset() : { autorise: true };
     
     if (!verification.autorise) {
@@ -1815,14 +2329,14 @@ const forgotPassword = async (req, res, next) => {
     // Envoyer le code via WhatsApp
     const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
     const resultatEnvoi = await greenApiService.envoyerCodeResetMotDePasse(
-      telephone,
+      phoneProcessed,
       codeReset,
       nomComplet
     );
 
     if (!resultatEnvoi.success) {
       logger.error('Échec envoi WhatsApp reset', { 
-        telephone, 
+        telephone: phoneProcessed, 
         error: resultatEnvoi.error 
       });
 
@@ -1837,12 +2351,12 @@ const forgotPassword = async (req, res, next) => {
 
     logger.info('Code réinitialisation WhatsApp envoyé', { 
       userId: utilisateur._id, 
-      telephone 
+      telephone: phoneProcessed 
     });
 
     // En développement, afficher le code dans les logs
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🔐 Code réinitialisation envoyé à ${telephone}: ${codeReset}`);
+      console.log(`🔐 Code réinitialisation envoyé à ${phoneProcessed}: ${codeReset}`);
     }
 
     res.status(200).json({
@@ -1894,8 +2408,18 @@ const verifyResetCode = async (req, res, next) => {
 
     logger.info('Vérification code réinitialisation WhatsApp', { telephone });
 
-    // ✅ CORRECTION : Sélectionner explicitement codeResetWhatsApp
-    const utilisateur = await User.findOne({ telephone })
+    // 🔥 NORMALISER LE TÉLÉPHONE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide',
+        errorType: 'INVALID_PHONE_FORMAT'
+      });
+    }
+
+    const utilisateur = await User.findOne({ telephone: phoneProcessed })
       .select('+codeResetWhatsApp');
 
     if (!utilisateur) {
@@ -1955,7 +2479,7 @@ const verifyResetCode = async (req, res, next) => {
       });
     }
 
-    // Comparer les codes (conversion en string et trim pour éviter les erreurs)
+    // Comparer les codes
     const codeStocke = String(utilisateur.codeResetWhatsApp.code).trim();
     const codeSaisi = String(code).trim();
 
@@ -2054,8 +2578,18 @@ const resetPassword = async (req, res, next) => {
 
     logger.info('Réinitialisation mot de passe WhatsApp', { telephone });
 
-    // ✅ CORRECTION : Sélectionner explicitement codeResetWhatsApp et motDePasse
-    const utilisateur = await User.findOne({ telephone })
+    // 🔥 NORMALISER LE TÉLÉPHONE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide',
+        errorType: 'INVALID_PHONE_FORMAT'
+      });
+    }
+
+    const utilisateur = await User.findOne({ telephone: phoneProcessed })
       .select('+codeResetWhatsApp +motDePasse');
 
     if (!utilisateur) {
@@ -2134,7 +2668,7 @@ const resetPassword = async (req, res, next) => {
     // Envoyer un message de confirmation WhatsApp
     try {
       await greenApiService.envoyerConfirmationResetMotDePasse(
-        telephone,
+        phoneProcessed,
         utilisateur.prenom
       );
     } catch (whatsappError) {
@@ -2194,12 +2728,22 @@ const resendResetCode = async (req, res, next) => {
 
     logger.info('Renvoi code réinitialisation WhatsApp', { telephone });
 
-    // ✅ CORRECTION : Sélectionner explicitement codeResetWhatsApp
-    const utilisateur = await User.findOne({ telephone })
+    // 🔥 NORMALISER LE TÉLÉPHONE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide',
+        errorType: 'INVALID_PHONE_FORMAT'
+      });
+    }
+
+    const utilisateur = await User.findOne({ telephone: phoneProcessed })
       .select('+codeResetWhatsApp');
 
     if (!utilisateur) {
-      logger.info('Renvoi code reset - Téléphone non trouvé (masqué)', { telephone });
+      logger.info('Renvoi code reset - Téléphone non trouvé (masqué)', { telephone: phoneProcessed });
       return res.json({
         success: true,
         message: 'Si un compte existe avec ce numéro, un nouveau code a été envoyé sur WhatsApp.'
@@ -2240,7 +2784,7 @@ const resendResetCode = async (req, res, next) => {
     // Envoyer le nouveau code via WhatsApp
     const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
     const resultatEnvoi = await greenApiService.envoyerCodeResetMotDePasse(
-      telephone,
+      phoneProcessed,
       nouveauCode,
       nomComplet
     );
@@ -2257,7 +2801,7 @@ const resendResetCode = async (req, res, next) => {
     logger.info('Nouveau code réinitialisation WhatsApp envoyé', { userId: utilisateur._id });
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🔐 Nouveau code reset envoyé à ${telephone}: ${nouveauCode}`);
+      console.log(`🔐 Nouveau code reset envoyé à ${phoneProcessed}: ${nouveauCode}`);
     }
 
     res.status(200).json({
@@ -2368,9 +2912,20 @@ const motDePasseOublieSMS = async (req, res, next) => {
 
     logger.info('Demande mot de passe oublié SMS', { telephone });
 
-    const user = await User.findOne({ telephone });
+    // 🔥 NORMALISER LE TÉLÉPHONE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide',
+        errorType: 'INVALID_PHONE_FORMAT'
+      });
+    }
+
+    const user = await User.findOne({ telephone: phoneProcessed });
     if (!user) {
-      logger.info('Demande réinitialisation SMS - Téléphone non trouvé (masqué)', { telephone });
+      logger.info('Demande réinitialisation SMS - Téléphone non trouvé (masqué)', { telephone: phoneProcessed });
       return res.json({
         success: true,
         message: 'Si un compte existe avec ce numéro, un code de réinitialisation a été envoyé'
@@ -2401,7 +2956,7 @@ const motDePasseOublieSMS = async (req, res, next) => {
         message: `Votre code de réinitialisation WAYZ-ECO est: ${codeOTPReset}. Ce code expire dans 10 minutes.`
       });
 
-      logger.info('SMS réinitialisation envoyé', { userId: user._id, telephone });
+      logger.info('SMS réinitialisation envoyé', { userId: user._id, telephone: phoneProcessed });
       
       res.json({
         success: true,
@@ -2454,16 +3009,27 @@ const verifierCodeOTPReset = async (req, res, next) => {
 
     logger.info('Vérification code OTP reset', { telephone });
 
+    // 🔥 NORMALISER LE TÉLÉPHONE
+    const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+    if (!phoneProcessed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le numéro de téléphone n\'est pas valide',
+        errorType: 'INVALID_PHONE_FORMAT'
+      });
+    }
+
     const hashedCode = crypto.createHash('sha256').update(codeOTP).digest('hex');
     
     const user = await User.findOne({ 
-      telephone,
+      telephone: phoneProcessed,
       tokenResetMotDePasse: hashedCode,
       expirationTokenReset: { $gt: Date.now() }
     });
 
     if (!user) {
-      logger.warn('Vérification OTP reset échouée', { telephone });
+      logger.warn('Vérification OTP reset échouée', { telephone: phoneProcessed });
       return res.status(400).json({
         success: false,
         message: 'Code OTP invalide ou expiré'
@@ -2594,7 +3160,7 @@ const confirmerReinitialisationMotDePasse = async (req, res, next) => {
 };
 
 // ===================================
-// ✨ NOUVEAU - GESTION DES REFRESH TOKENS
+// ✨ GESTION DES REFRESH TOKENS
 // ===================================
 
 /**
@@ -2776,6 +3342,7 @@ const deconnexionGlobale = async (req, res, next) => {
     return next(AppError.serverError('Erreur lors de la déconnexion globale'));
   }
 };
+
 /**
  * @desc    Rotation du refresh token (plus sécurisé)
  * @route   POST /api/auth/rotate
@@ -3242,6 +3809,7 @@ module.exports = {
   // Inscription
   inscription,
   inscriptionSMS,
+  inscrireConducteur,
   register,
   verifyCode,
   resendCode,
@@ -3266,6 +3834,7 @@ module.exports = {
   reinitialiserMotDePasse,
   demandeReinitialisationMotDePasse,
   confirmerReinitialisationMotDePasse,
+  
   // Réinitialisation mot de passe WhatsApp
   forgotPassword,
   verifyResetCode,

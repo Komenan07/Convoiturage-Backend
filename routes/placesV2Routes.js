@@ -58,6 +58,7 @@ router.post('/gares', authenticateToken, placesV2Controller.searchGaresRoutieres
 router.post('/poi', authenticateToken, placesV2Controller.searchPOI);
 router.get('/types/list', placesV2Controller.getPlaceTypes);
 router.get('/:placeId', authenticateToken, placesV2Controller.getPlaceDetails);
+router.post('/batch',authenticateToken, placesV2Controller.getBatchPlaceDetails);
 router.post('/stations-proches', placesV2Controller.searchStationsProches);
 router.post('/polices', placesV2Controller.searchPolices);
 router.post('/stations', placesV2Controller.searchStations);

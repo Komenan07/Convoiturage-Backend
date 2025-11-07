@@ -198,6 +198,81 @@ const getPlaceDetails = async (req, res) => {
 };
 
 /**
+ * Récupère plusieurs lieux par leurs Place IDs
+ * @route POST /api/places/batch
+ * @body {array} placeIds - Tableau de Place IDs
+ */
+const getBatchPlaceDetails = async (req, res) => {
+  try {
+    const { placeIds } = req.body;
+
+    // Validation
+    if (!placeIds || !Array.isArray(placeIds)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un tableau de Place IDs est requis',
+      });
+    }
+
+    if (placeIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Le tableau de Place IDs ne peut pas être vide',
+      });
+    }
+
+    if (placeIds.length > 50) {
+      return res.status(400).json({
+        success: false,
+        error: 'Maximum 50 Place IDs par requête',
+      });
+    }
+
+    // Récupérer les détails de chaque lieu
+    const results = await Promise.allSettled(
+      placeIds.map(placeId => placesV2Service.getPlaceDetails(placeId))
+    );
+
+    const successfulResults = [];
+    const failedResults = [];
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value.success) {
+        successfulResults.push({
+          placeId: placeIds[index],
+          data: result.value.data,
+        });
+      } else {
+        failedResults.push({
+          placeId: placeIds[index],
+          error: result.status === 'fulfilled' 
+            ? result.value.error 
+            : result.reason.message,
+        });
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: successfulResults,
+      failed: failedResults,
+      metadata: {
+        total: placeIds.length,
+        successful: successfulResults.length,
+        failed: failedResults.length,
+      },
+    });
+
+  } catch (error) {
+    console.error('Erreur getBatchPlaceDetails:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la récupération des détails',
+    });
+  }
+};
+
+/**
  * RECHERCHE DE COMMUNES
  * POST /api/places/communes
  */
@@ -556,6 +631,7 @@ module.exports = {
   searchNearby,
   autocomplete,
   getPlaceDetails,
+  getBatchPlaceDetails,
   searchCommunes,
   searchGaresRoutieres,
   searchStationsProches,

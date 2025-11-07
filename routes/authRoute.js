@@ -10,6 +10,7 @@ const {
   // Inscription
   inscription,              
   inscriptionSMS, 
+   inscrireConducteur,
   register,
   verifyCode,
   resendCode,          
@@ -217,6 +218,64 @@ const validateRecharge = [
     .withMessage('Numéro de téléphone invalide')
 ];
 
+/**
+ * Validations pour l'inscription conducteur
+ */
+const validateConducteurInscription = [
+  // Données personnelles
+  body('nom').trim().notEmpty().withMessage('Le nom est requis'),
+  body('prenom').trim().notEmpty().withMessage('Le prénom est requis'),
+  body('telephone')
+    .trim()
+    .matches(/^(\+225)?[0-9]{8,10}$/)
+    .withMessage('Numéro de téléphone invalide (format CI)'),
+  body('motDePasse')
+    .isLength({ min: 4 })
+    .withMessage('Le mot de passe doit contenir au moins 4 caractères'),
+  body('email')
+    .optional()
+    .isEmail()
+    .withMessage('Email invalide'),
+  body('dateNaissance')
+    .optional()
+    .isISO8601()
+    .withMessage('Date de naissance invalide'),
+  body('sexe')
+    .optional()
+    .isIn(['M', 'F', 'masculin', 'feminin', 'homme', 'femme'])
+    .withMessage('Sexe invalide'),
+
+  // Données du véhicule (optionnelles mais recommandées)
+  body('vehicule.marque')
+    .optional()
+    .trim()
+    .isLength({ min: 2 })
+    .withMessage('Marque du véhicule invalide'),
+  body('vehicule.modele')
+    .optional()
+    .trim()
+    .isLength({ min: 2 })
+    .withMessage('Modèle du véhicule invalide'),
+  body('vehicule.immatriculation')
+    .optional()
+    .trim()
+    .matches(/^[A-Z0-9\s-]{3,15}$/i)
+    .withMessage('Immatriculation invalide'),
+  body('vehicule.couleur')
+    .optional()
+    .trim()
+    .isLength({ min: 3 })
+    .withMessage('Couleur du véhicule invalide'),
+  body('vehicule.nombrePlaces')
+    .optional()
+    .isInt({ min: 1, max: 9 })
+    .withMessage('Nombre de places invalide (1-9)'),
+  body('vehicule.annee')
+    .optional()
+    .isInt({ min: 1990, max: new Date().getFullYear() + 1 })
+    .withMessage('Année du véhicule invalide')
+];
+
 // Middleware de gestion des erreurs de validation
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
@@ -291,6 +350,18 @@ router.post('/inscription-sms',
   ],
   handleValidationErrors,
   inscriptionSMS
+);
+
+/**
+ * @route   POST /api/auth/inscription-conducteur
+ * @desc     Inscription d'un conducteur avec son véhicule
+ * @access  Public
+ */
+router.post('/inscription-conducteur',
+  inscriptionLimiter,
+  validateConducteurInscription,
+  handleValidationErrors,
+  inscrireConducteur
 );
 
 // =============== ROUTES PUBLIQUES - CONNEXION ===============
@@ -724,7 +795,8 @@ router.get('/health', (req, res) => {
       compteCovoiturage: true ,
       recharges: true,
       commissions: true,
-      autoRecharge: true
+      autoRecharge: true,
+      inscriptionConducteur: true
     },
     routes: {
       publiques: [
@@ -733,6 +805,7 @@ router.get('/health', (req, res) => {
         'POST /resend-code (WhatsApp)',
         'POST /inscription',
         'POST /inscription-sms',
+        'POST /inscription-conducteur',
         'POST /connexion | /login',
         'POST /admin/connexion | /admin/login',
         'POST /forgot-password | /mot-de-passe-oublie',
@@ -828,7 +901,8 @@ router.get('/status', (req, res) => {
       commissions: true,
       autoRecharge: true,
       whatsappVerification: true,      
-      whatsappPasswordReset: true      
+      whatsappPasswordReset: true,
+      inscriptionConducteur: true       
     }
   });
 });

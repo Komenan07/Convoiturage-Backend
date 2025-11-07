@@ -1,0 +1,40 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 180
+    },
+    "auditLog": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-audit.json",
+    "files": [
+        {
+            "date": 1761937342474,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-2025-10-31.log",
+            "hash": "3877970d3b310ee3219343413feee1859a5f345d376124b01a213c102a7a6fd1"
+        },
+        {
+            "date": 1762119922469,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-2025-11-02.log",
+            "hash": "5d59d99221113a2b4c05418c4973f1fa7f90dfd459502e8609c12861710f5553"
+        },
+        {
+            "date": 1762160462804,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-2025-11-03.log",
+            "hash": "938798c62217f19c7f061ea876ec7c0f10e5a9c5ce08e0f6f272f2e34c1a681f"
+        },
+        {
+            "date": 1762242830405,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-2025-11-04.log",
+            "hash": "34a6f5452f283fc45625ced6ff9b7500e14824d65690a993d6b8c76e352d8287"
+        },
+        {
+            "date": 1762424805024,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-2025-11-06.log",
+            "hash": "3427cdb742b93de4eb351b9a581da7ad86991d8ac668b0dfe8dd744f160593e7"
+        },
+        {
+            "date": 1762474313278,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-2025-11-07.log",
+            "hash": "e9c5afa971afe26866ecd7807e258af993fa300f11ede93bfc8e8dc48fbde8ef"
+        }
+    ],
+    "hashType": "sha256"
+}

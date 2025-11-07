@@ -2,6 +2,8 @@
 const CinetPayService = require('../services/CinetPayService');
 const Paiement = require('../models/Paiement');
 const Utilisateur = require('../models/Utilisateur');
+const Trajet = require('../models/Trajet');
+const Reservation = require('../models/Reservation');
 const { logger } = require('../utils/logger');
 const sendEmail = require('../utils/emailService');
 const PDFDocument = require('pdfkit');
@@ -18,7 +20,13 @@ class PaiementController {
 
   async initierPaiement(req, res) {
     try {
-      const { reservationId, montant, methodePaiement = 'WAVE' } = req.body;
+      const { 
+        reservationId, 
+        montant, 
+        methodePaiement = 'WAVE',
+        numeroTelephone,
+        operateur 
+      } = req.body;
       const userId = req.user._id;
 
       // Validation des données
@@ -40,11 +48,16 @@ class PaiementController {
       }
 
       // Vérifier que l'utilisateur est le propriétaire de la réservation
-      const Reservation = require('../models/Reservation');
       const reservation = await Reservation.findOne({
         _id: reservationId,
         passagerId: userId
-      }).populate('trajetId');
+      }).populate({
+        path: 'trajetId',
+        populate: {
+          path: 'conducteurId',
+          select: 'nom prenom compteCovoiturage noteMoyenne statistiques'
+        }
+      });
 
       if (!reservation) {
         return res.status(404).json({
@@ -68,23 +81,379 @@ class PaiementController {
         });
       }
 
-      const result = await this.cinetPayService.initierPaiement(reservationId, montant);
+      const trajet = reservation.trajetId;
+      const conducteur = trajet.conducteurId;
+
+      // 🆕 VALIDATION CRITIQUE : Vérifier si le mode de paiement est autorisé
+      if (methodePaiement === 'ESPECES') {
+        // Vérifier compte rechargé
+        if (!conducteur.compteCovoiturage?.estRecharge) {
+          return res.status(403).json({
+            success: false,
+            error: 'PAIEMENT_ESPECES_NON_AUTORISE',
+            message: 'Le conducteur n\'accepte pas les paiements en espèces. Veuillez choisir un paiement numérique.',
+            methodesDisponibles: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY']
+          });
+        }
+
+        // Vérifier solde minimum
+        const soldeConducteur = conducteur.compteCovoiturage?.solde || 0;
+        const soldeMinimum = 1000;
+
+        if (soldeConducteur < soldeMinimum) {
+          return res.status(403).json({
+            success: false,
+            error: 'SOLDE_INSUFFISANT_CONDUCTEUR',
+            message: `Le conducteur doit avoir un solde minimum de ${soldeMinimum} FCFA pour accepter les paiements en espèces`,
+            methodesDisponibles: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY']
+          });
+        }
+      }
+
+      // Calculer les frais de transaction
+      const fraisTransaction = methodePaiement !== 'ESPECES' 
+        ? Math.max(Math.round(montant * 0.02), 50) 
+        : 0;
+
+      // Créer le paiement
+      const paiement = new Paiement({
+        reservationId,
+        payeurId: userId,
+        beneficiaireId: conducteur._id,
+        montantTotal: montant,
+        montantConducteur: 0, // Sera calculé après commission
+        commissionPlateforme: 0, // Sera calculé
+        fraisTransaction,
+        methodePaiement: methodePaiement.toUpperCase(),
+        
+        commission: {
+          taux: 0.10,
+          tauxOriginal: 0.10,
+          montant: 0,
+          modePrelevement: methodePaiement === 'ESPECES' ? 'compte_recharge' : 'paiement_mobile',
+          statutPrelevement: 'en_attente'
+        },
+
+        reglesPaiement: {
+          conducteurCompteRecharge: conducteur.compteCovoiturage?.estRecharge || false,
+          soldeConducteurAvant: conducteur.compteCovoiturage?.solde || 0,
+          soldeMinimumRequis: 1000,
+          soldeSuffisant: false,
+          modesAutorises: [],
+          verificationsPassees: false
+        },
+
+        securite: {
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          deviceId: req.get('X-Device-ID')
+        }
+      });
+
+      // 🆕 Calculer commission dynamique selon distance et note
+      const distanceKm = trajet.distanceKm || 0;
+      const noteConducteur = conducteur.noteMoyenne || 0;
+      await paiement.calculerCommissionDynamique(distanceKm, noteConducteur);
+
+      // 🆕 Appliquer bonus si applicable
+      const nombreTrajetsMois = conducteur.statistiques?.trajetsEffectuesMois || 0;
+      paiement.appliquerPrimePerformance(noteConducteur, nombreTrajetsMois);
+
+      // Valider les règles de paiement
+      const validationOk = await paiement.validerReglesPaiement();
+      
+      if (!validationOk) {
+        return res.status(403).json({
+          success: false,
+          error: 'VALIDATION_ECHEC',
+          message: paiement.reglesPaiement.raisonValidation || 'Paiement non autorisé',
+          details: {
+            blocageActif: paiement.reglesPaiement.blocageActif,
+            raisonBlocage: paiement.reglesPaiement.raisonBlocage,
+            methodesDisponibles: paiement.reglesPaiement.modesAutorises
+          }
+        });
+      }
+
+      // Initier paiement mobile si nécessaire
+      if (methodePaiement !== 'ESPECES') {
+        paiement.initierPaiementMobile(
+          numeroTelephone, 
+          operateur || methodePaiement.replace('_MONEY', '')
+        );
+      }
+
+      await paiement.save();
 
       logger.info('Paiement initié', {
         userId,
         reservationId,
         montant,
         methodePaiement,
-        transactionId: result.referenceTransaction
+        commission: paiement.commission.montant,
+        bonus: paiement.bonus,
+        referenceTransaction: paiement.referenceTransaction
       });
 
-      return res.status(201).json(result);
+      // Réponse selon le type de paiement
+      if (methodePaiement === 'ESPECES') {
+        return res.status(201).json({
+          success: true,
+          message: 'Paiement en espèces enregistré',
+          data: {
+            paiementId: paiement._id,
+            referenceTransaction: paiement.referenceTransaction,
+            montantTotal: paiement.montantTotal,
+            montantConducteur: paiement.montantConducteur,
+            commission: {
+              montant: paiement.commission.montant,
+              taux: paiement.commission.taux,
+              reductionAppliquee: paiement.commission.reductionAppliquee,
+              raisonReduction: paiement.commission.raisonReduction
+            },
+            bonus: paiement.bonus,
+            methodePaiement: paiement.methodePaiement,
+            statutPaiement: paiement.statutPaiement,
+            instructions: 'Payez le conducteur en espèces à la fin du trajet'
+          }
+        });
+      } else {
+        // Paiement mobile - utiliser CinetPay
+        const result = await this.cinetPayService.initierPaiement(
+          reservationId, 
+          montant,
+          {
+            methodePaiement,
+            numeroTelephone,
+            operateur,
+            referenceInterne: paiement.referenceTransaction
+          }
+        );
+
+        return res.status(201).json({
+          success: true,
+          message: 'Paiement mobile initié',
+          data: {
+            ...result,
+            paiementId: paiement._id,
+            commission: {
+              montant: paiement.commission.montant,
+              taux: paiement.commission.taux
+            },
+            bonus: paiement.bonus
+          }
+        });
+      }
 
     } catch (error) {
       logger.error('Erreur initiation paiement:', error);
       return res.status(500).json({
         success: false,
         error: 'ERREUR_PAIEMENT',
+        message: error.message
+      });
+    }
+  }
+
+  // 🆕 Obtenir les méthodes de paiement disponibles pour un trajet
+  async obtenirMethodesPaiementDisponibles(req, res) {
+    try {
+      const { trajetId } = req.params;
+
+      const trajet = await Trajet.findById(trajetId)
+        .populate('conducteurId', 'nom prenom compteCovoiturage noteMoyenne');
+
+      if (!trajet) {
+        return res.status(404).json({
+          success: false,
+          message: 'Trajet non trouvé'
+        });
+      }
+
+      const conducteur = trajet.conducteurId;
+      const soldeConducteur = conducteur.compteCovoiturage?.solde || 0;
+      const soldeMinimum = 1000;
+      const compteRecharge = conducteur.compteCovoiturage?.estRecharge && soldeConducteur >= soldeMinimum;
+
+      // Méthodes numériques toujours disponibles
+      const methodesNumeriques = [
+        {
+          id: 'WAVE',
+          nom: 'Wave',
+          type: 'mobile_money',
+          frais: '0%',
+          actif: true,
+          commission: '10%',
+          description: 'Commission prélevée automatiquement'
+        },
+        {
+          id: 'ORANGE_MONEY',
+          nom: 'Orange Money',
+          type: 'mobile_money',
+          frais: '1.5%',
+          actif: true,
+          commission: '10%',
+          description: 'Commission prélevée automatiquement'
+        },
+        {
+          id: 'MTN_MONEY',
+          nom: 'MTN Money',
+          type: 'mobile_money',
+          frais: '1.5%',
+          actif: true,
+          commission: '10%',
+          description: 'Commission prélevée automatiquement'
+        },
+        {
+          id: 'MOOV_MONEY',
+          nom: 'Moov Money',
+          type: 'mobile_money',
+          frais: '1.5%',
+          actif: true,
+          commission: '10%',
+          description: 'Commission prélevée automatiquement'
+        }
+      ];
+
+      const methodes = [...methodesNumeriques];
+
+      // Espèces uniquement si compte rechargé
+      if (compteRecharge) {
+        methodes.unshift({
+          id: 'ESPECES',
+          nom: 'Espèces',
+          type: 'cash',
+          frais: '0%',
+          actif: true,
+          commission: '10%',
+          description: 'Payez le conducteur directement - Commission prélevée du solde conducteur',
+          note: 'Le conducteur a un compte rechargé'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          methodesDisponibles: methodes,
+          conducteur: {
+            nom: `${conducteur.prenom} ${conducteur.nom}`,
+            compteRecharge,
+            solde: compteRecharge ? soldeConducteur : 0,
+            noteMoyenne: conducteur.noteMoyenne || 0
+          },
+          informations: {
+            commissionPlateforme: 'Commission de base 10% (peut être réduite selon la note du conducteur)',
+            paiementsNumeriques: 'Toujours disponibles - Commission prélevée automatiquement',
+            paiementsEspece: compteRecharge 
+              ? `Disponible - Le conducteur a un solde de ${soldeConducteur.toLocaleString()} FCFA` 
+              : `Non disponible - Le conducteur doit avoir un solde minimum de ${soldeMinimum.toLocaleString()} FCFA`
+          },
+          soldeMinimumRequis: soldeMinimum
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erreur méthodes paiement disponibles:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'ERREUR_METHODES',
+        message: error.message
+      });
+    }
+  }
+
+  // 🆕 Confirmer un paiement en espèces (après le trajet)
+  async confirmerPaiementEspeces(req, res) {
+    try {
+      const { referenceTransaction } = req.params;
+      const { codeConfirmation } = req.body;
+      const userId = req.user._id;
+
+      const paiement = await Paiement.findOne({
+        referenceTransaction,
+        methodePaiement: 'ESPECES',
+        statutPaiement: 'EN_ATTENTE'
+      }).populate('beneficiaireId', 'compteCovoiturage nom prenom email');
+
+      if (!paiement) {
+        return res.status(404).json({
+          success: false,
+          message: 'Paiement en espèces non trouvé ou déjà traité'
+        });
+      }
+
+      // Vérifier que c'est le conducteur ou le passager qui confirme
+      const estConducteur = paiement.beneficiaireId._id.toString() === userId.toString();
+      const estPassager = paiement.payeurId.toString() === userId.toString();
+
+      if (!estConducteur && !estPassager) {
+        return res.status(403).json({
+          success: false,
+          message: 'Non autorisé à confirmer ce paiement'
+        });
+      }
+
+      // Vérifier à nouveau le solde du conducteur
+      const conducteur = paiement.beneficiaireId;
+      const soldeConducteur = conducteur.compteCovoiturage?.solde || 0;
+
+      if (soldeConducteur < paiement.commission.montant) {
+        return res.status(400).json({
+          success: false,
+          error: 'SOLDE_INSUFFISANT',
+          message: `Le solde du conducteur est insuffisant pour prélever la commission (${soldeConducteur} FCFA < ${paiement.commission.montant} FCFA)`
+        });
+      }
+
+      // Confirmer le paiement
+      paiement.statutPaiement = 'COMPLETE';
+      paiement.dateCompletion = new Date();
+      paiement.reglesPaiement.soldeConducteurAvant = soldeConducteur;
+
+      paiement.ajouterLog('PAIEMENT_ESPECES_CONFIRME', {
+        confirmePar: estConducteur ? 'conducteur' : 'passager',
+        userId,
+        codeConfirmation,
+        dateConfirmation: new Date()
+      });
+
+      // Traiter la commission
+      await paiement.traiterCommissionApresPayement();
+
+      await paiement.save();
+
+      // Envoyer notification
+      await this.envoyerEmailConfirmationPaiement(conducteur, paiement);
+
+      logger.info('Paiement espèces confirmé', {
+        paiementId: paiement._id,
+        referenceTransaction,
+        confirmePar: estConducteur ? 'conducteur' : 'passager'
+      });
+
+      res.json({
+        success: true,
+        message: 'Paiement en espèces confirmé avec succès',
+        data: {
+          paiementId: paiement._id,
+          referenceTransaction: paiement.referenceTransaction,
+          montantTotal: paiement.montantTotal,
+          montantConducteur: paiement.montantConducteur,
+          commission: {
+            montant: paiement.commission.montant,
+            statutPrelevement: paiement.commission.statutPrelevement
+          },
+          nouveauSoldeConducteur: paiement.reglesPaiement.soldeConducteurApres,
+          statutPaiement: paiement.statutPaiement,
+          dateCompletion: paiement.dateCompletion
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erreur confirmation paiement espèces:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'ERREUR_CONFIRMATION',
         message: error.message
       });
     }
@@ -106,7 +475,7 @@ class PaiementController {
       const userId = req.user.userId;
 
       // Vérifier l'utilisateur
-      const user = await Utilisateur.findById(userId).select('role compteCovoiturage nom prenom email telephone');
+      const user = await Utilisateur.findById(userId).select('role compteCovoiturage nom prenom email telephone noteMoyenne');
       
       if (!user) {
         return res.status(404).json({
@@ -165,39 +534,37 @@ class PaiementController {
         });
       }
 
-      // Calculer les frais de transaction (exemple: 2% avec minimum 50 FCFA)
+      // Calculer les frais de transaction (2% avec minimum 50 FCFA)
       const fraisTransaction = Math.max(Math.round(montant * 0.02), 50);
       const montantNet = montant - fraisTransaction;
 
       // Créer l'enregistrement de paiement pour la recharge
       const paiement = new Paiement({
-        // On utilise l'utilisateur comme payeur et bénéficiaire pour une recharge
         payeurId: userId,
         beneficiaireId: userId,
         montantTotal: montant,
         montantConducteur: montantNet,
-        commissionPlateforme: 0, // Pas de commission sur les recharges
+        commissionPlateforme: 0,
         fraisTransaction,
         
-        // Commission (structure par défaut mais pas applicable)
         commission: {
           taux: 0,
+          tauxOriginal: 0,
           montant: 0,
           modePrelevement: 'paiement_mobile',
-          statutPrelevement: 'preleve' // Pas de commission à prélever
+          statutPrelevement: 'preleve'
         },
 
         methodePaiement: methodePaiement,
         
-        // Règles de paiement spécifiques recharge
         reglesPaiement: {
           conducteurCompteRecharge: user.compteCovoiturage?.estRecharge || false,
           modesAutorises: ['wave', 'orange_money', 'mtn_money', 'moov_money'],
           raisonValidation: 'Recharge de compte conducteur',
-          verificationsPassees: true
+          verificationsPassees: true,
+          soldeSuffisant: true
         },
 
-        // Mobile money
         mobileMoney: {
           operateur: operateur || methodePaiement.replace('_MONEY', ''),
           numeroTelephone: numeroTelephone,
@@ -205,7 +572,6 @@ class PaiementController {
           statutMobileMoney: 'PENDING'
         },
 
-        // Sécurité
         securite: {
           ipAddress: req.ip,
           userAgent: req.get('User-Agent'),
@@ -213,12 +579,15 @@ class PaiementController {
         }
       });
 
+      // 🆕 Appliquer bonus de recharge si éligible
+      paiement.appliquerBonusRecharge(montant);
+
       await paiement.save();
 
       // Ajouter à l'historique des recharges de l'utilisateur
       await user.rechargerCompte(
         montant, 
-        methodePaiement.toLowerCase().replace('_', '_'),
+        methodePaiement.toLowerCase(),
         paiement.referenceTransaction,
         fraisTransaction
       );
@@ -228,6 +597,7 @@ class PaiementController {
         montant,
         montantNet,
         fraisTransaction,
+        bonusRecharge: paiement.bonus.bonusRecharge,
         methodePaiement,
         operateur: operateur || methodePaiement.replace('_MONEY', '')
       });
@@ -236,6 +606,7 @@ class PaiementController {
         userId,
         paiementId: paiement._id,
         montant,
+        bonusRecharge: paiement.bonus.bonusRecharge,
         methodePaiement,
         referenceTransaction: paiement.referenceTransaction
       });
@@ -249,6 +620,8 @@ class PaiementController {
           montant,
           montantNet,
           fraisTransaction,
+          bonusRecharge: paiement.bonus.bonusRecharge,
+          montantTotalACrediter: montantNet + (paiement.bonus.bonusRecharge || 0),
           methodePaiement,
           statutPaiement: paiement.statutPaiement,
           dateInitiation: paiement.dateInitiation,
@@ -321,13 +694,17 @@ class PaiementController {
 
         // Confirmer la recharge dans le compte utilisateur
         const user = paiement.payeurId;
-        await user.confirmerRecharge(referenceTransaction, 'reussi');
+        const montantACrediter = paiement.montantConducteur + (paiement.bonus.bonusRecharge || 0);
+        
+        await user.confirmerRecharge(referenceTransaction, 'reussi', montantACrediter);
 
         // Envoyer email de confirmation
         await this.envoyerEmailConfirmationRecharge(user, paiement);
 
         paiement.ajouterLog('RECHARGE_CONFIRMEE', {
-          montantCredite: paiement.montantConducteur,
+          montantCredite: montantACrediter,
+          montantBase: paiement.montantConducteur,
+          bonusRecharge: paiement.bonus.bonusRecharge,
           nouveauSolde: user.compteCovoiturage.solde,
           codeVerification
         });
@@ -336,6 +713,7 @@ class PaiementController {
           paiementId: paiement._id,
           userId: user._id,
           montant: paiement.montantTotal,
+          montantCredite: montantACrediter,
           nouveauSolde: user.compteCovoiturage.solde
         });
 
@@ -345,7 +723,9 @@ class PaiementController {
           data: {
             paiementId: paiement._id,
             referenceTransaction: paiement.referenceTransaction,
-            montantCredite: paiement.montantConducteur,
+            montantCredite: montantACrediter,
+            montantBase: paiement.montantConducteur,
+            bonusRecharge: paiement.bonus.bonusRecharge,
             nouveauSolde: user.compteCovoiturage.solde,
             statutPaiement: paiement.statutPaiement,
             dateCompletion: paiement.dateCompletion
@@ -418,7 +798,7 @@ class PaiementController {
       // Construire les filtres
       const filtres = {
         payeurId: userId,
-        beneficiaireId: userId, // Pour les recharges, payeur = bénéficiaire
+        beneficiaireId: userId,
         methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
       };
 
@@ -434,7 +814,7 @@ class PaiementController {
 
       // Obtenir les recharges avec pagination
       const recharges = await Paiement.find(filtres)
-        .select('referenceTransaction montantTotal montantConducteur fraisTransaction methodePaiement statutPaiement dateInitiation dateCompletion mobileMoney.operateur mobileMoney.transactionId')
+        .select('referenceTransaction montantTotal montantConducteur fraisTransaction methodePaiement statutPaiement dateInitiation dateCompletion mobileMoney bonus')
         .sort({ dateInitiation: -1 })
         .skip((page - 1) * limit)
         .limit(parseInt(limit));
@@ -450,6 +830,7 @@ class PaiementController {
             montantTotalRecharge: { $sum: '$montantTotal' },
             montantNetCredite: { $sum: '$montantConducteur' },
             fraisTotaux: { $sum: '$fraisTransaction' },
+            bonusTotaux: { $sum: '$bonus.bonusRecharge' },
             nombreRecharges: { $sum: 1 },
             rechargesReussies: {
               $sum: { $cond: [{ $eq: ['$statutPaiement', 'COMPLETE'] }, 1, 0] }
@@ -468,6 +849,8 @@ class PaiementController {
             referenceTransaction: r.referenceTransaction,
             montantTotal: r.montantTotal,
             montantCredite: r.montantConducteur,
+            bonusRecharge: r.bonus?.bonusRecharge || 0,
+            montantTotalCredite: r.montantConducteur + (r.bonus?.bonusRecharge || 0),
             fraisTransaction: r.fraisTransaction,
             methodePaiement: r.methodePaiement,
             operateur: r.mobileMoney?.operateur,
@@ -486,6 +869,7 @@ class PaiementController {
             soldeActuel: user.compteCovoiturage?.solde || 0,
             montantTotalRecharge: statistiques.montantTotalRecharge || 0,
             montantNetCredite: statistiques.montantNetCredite || 0,
+            bonusTotaux: statistiques.bonusTotaux || 0,
             fraisTotaux: statistiques.fraisTotaux || 0,
             nombreRecharges: statistiques.nombreRecharges || 0,
             tauxReussite: statistiques.nombreRecharges > 0 ? 
@@ -512,7 +896,7 @@ class PaiementController {
       const paiement = await Paiement.findOne({
         referenceTransaction,
         payeurId: userId
-      }).select('referenceTransaction montantTotal montantConducteur fraisTransaction methodePaiement statutPaiement dateInitiation dateCompletion mobileMoney logsTransaction erreurs');
+      }).select('referenceTransaction montantTotal montantConducteur fraisTransaction methodePaiement statutPaiement dateInitiation dateCompletion mobileMoney logsTransaction erreurs bonus');
 
       if (!paiement) {
         return res.status(404).json({
@@ -545,12 +929,16 @@ class PaiementController {
         }
       ];
 
+      const montantTotalACrediter = paiement.montantConducteur + (paiement.bonus?.bonusRecharge || 0);
+
       res.json({
         success: true,
         data: {
           referenceTransaction: paiement.referenceTransaction,
           montantTotal: paiement.montantTotal,
           montantACrediter: paiement.montantConducteur,
+          bonusRecharge: paiement.bonus?.bonusRecharge || 0,
+          montantTotalACrediter,
           fraisTransaction: paiement.fraisTransaction,
           methodePaiement: paiement.methodePaiement,
           statutGlobal: paiement.statutPaiement,
@@ -695,7 +1083,7 @@ class PaiementController {
 
       // Vérifier si l'annulation est possible (moins de 30 minutes)
       const maintenant = new Date();
-      const delaiAnnulation = 30 * 60 * 1000; // 30 minutes en millisecondes
+      const delaiAnnulation = 30 * 60 * 1000;
       
       if (maintenant - paiement.dateInitiation > delaiAnnulation) {
         return res.status(400).json({
@@ -818,7 +1206,7 @@ class PaiementController {
         statut = null,
         dateDebut = null,
         dateFin = null,
-        type = 'tous' // 'tous', 'trajets', 'recharges'
+        type = 'tous'
       } = req.query;
 
       const skip = (page - 1) * limit;
@@ -830,7 +1218,7 @@ class PaiementController {
       
       // Filtrer par type
       if (type === 'trajets') {
-        filtres.reservationId = { $exists: true };
+        filtres.reservationId = { $exists: true, $ne: null };
       } else if (type === 'recharges') {
         filtres.payeurId = userId;
         filtres.beneficiaireId = userId;
@@ -1019,7 +1407,7 @@ class PaiementController {
   }
 
   // =========================
-  // GESTION DES COMMISSIONS
+  // GESTION DES COMMISSIONS (ADMIN)
   // =========================
 
   async obtenirStatistiquesCommissions(req, res) {
@@ -1064,7 +1452,8 @@ class PaiementController {
             nombreTransactions: statsActuelles.nombreTransactions || 0,
             montantTotalTraite: statsActuelles.montantTotalTraite || 0,
             montantMoyenTransaction: statsActuelles.montantMoyenTransaction || 0,
-            tauxCommissionMoyen: Math.round(tauxCommissionMoyen * 100) / 100
+            tauxCommissionMoyen: Math.round(tauxCommissionMoyen * 100) / 100,
+            totalBonus: statsActuelles.totalBonus || 0
           },
           repartitionParMode: statsModePaiement,
           evolutionQuotidienne: analyseRevenus,
@@ -1107,7 +1496,7 @@ class PaiementController {
 
       const paiements = await Paiement.find({
         _id: { $in: paiementIds },
-        'commission.statutPrelevement': 'echec',
+        'commission.statutPrelevement': { $in: ['echec', 'insuffisant'] },
         statutPaiement: 'COMPLETE'
       }).populate('beneficiaireId', 'nom prenom email compteCovoiturage');
 
@@ -1211,7 +1600,6 @@ class PaiementController {
       const { paiementId } = req.params;
       const userId = req.user._id;
 
-      // Vérifier permissions
       const paiement = await Paiement.findById(paiementId)
         .populate('payeurId', 'nom prenom email telephone')
         .populate('beneficiaireId', 'nom prenom email compteCovoiturage')
@@ -1219,7 +1607,7 @@ class PaiementController {
           path: 'reservationId',
           populate: {
             path: 'trajetId',
-            select: 'pointDepart pointArrivee dateDepart prixParPassager'
+            select: 'pointDepart pointArrivee dateDepart prixParPassager distanceKm'
           }
         });
 
@@ -1231,8 +1619,8 @@ class PaiementController {
       }
 
       // Vérifier que l'utilisateur peut voir ce paiement
-      const estProprietaire = paiement.payeurId._id.toString() === userId || 
-                              paiement.beneficiaireId._id.toString() === userId;
+      const estProprietaire = paiement.payeurId._id.toString() === userId.toString() || 
+                              paiement.beneficiaireId._id.toString() === userId.toString();
       const estAdmin = req.user.role === 'admin';
 
       if (!estProprietaire && !estAdmin) {
@@ -1256,13 +1644,18 @@ class PaiementController {
           paiement: paiement.obtenirResume(),
           detailsCommission: {
             taux: paiement.commission.taux,
+            tauxOriginal: paiement.commission.tauxOriginal,
             montant: paiement.commission.montant,
+            reductionAppliquee: paiement.commission.reductionAppliquee,
+            raisonReduction: paiement.commission.raisonReduction,
+            typeTarification: paiement.commission.typeTarification,
             modePrelevement: paiement.commission.modePrelevement,
             statutPrelevement: paiement.commission.statutPrelevement,
             datePrelevement: paiement.commission.datePrelevement,
             referencePrelevement: paiement.commission.referencePrelevement,
             tentativesPrelevement: tentativesPrelevement.length
           },
+          bonus: paiement.bonus,
           participants: {
             payeur: {
               id: paiement.payeurId._id,
@@ -1327,26 +1720,21 @@ class PaiementController {
 
       let formatDate;
       switch (groupePar) {
-        case 'heure': {
+        case 'heure':
           formatDate = '%Y-%m-%d %H:00';
           break;
-        }
-        case 'jour': {
+        case 'jour':
           formatDate = '%Y-%m-%d';
           break;
-        }
-        case 'semaine': {
+        case 'semaine':
           formatDate = '%Y-%U';
           break;
-        }
-        case 'mois': {
+        case 'mois':
           formatDate = '%Y-%m';
           break;
-        }
-        default: {
+        default:
           formatDate = '%Y-%m-%d';
           break;
-        }
       }
 
       const donnees = await Paiement.aggregate([
@@ -1362,6 +1750,11 @@ class PaiementController {
             nombreTransactions: { $sum: 1 },
             montantTotalTraite: { $sum: '$montantTotal' },
             totalCommissions: { $sum: '$commission.montant' },
+            totalBonus: { 
+              $sum: { 
+                $add: ['$bonus.bonusRecharge', '$bonus.primePerformance'] 
+              } 
+            },
             commissionsPrelevees: {
               $sum: {
                 $cond: [
@@ -1379,6 +1772,7 @@ class PaiementController {
             nombreTransactions: 1,
             montantTotalTraite: 1,
             totalCommissions: 1,
+            totalBonus: 1,
             commissionsPrelevees: 1,
             tauxPrelevement: {
               $multiply: [
@@ -1397,6 +1791,7 @@ class PaiementController {
           parametres: { dateDebut: debut, dateFin: fin, groupePar },
           resumeExecutif: {
             totalCommissions: donnees.reduce((sum, d) => sum + d.totalCommissions, 0),
+            totalBonus: donnees.reduce((sum, d) => sum + d.totalBonus, 0),
             totalTransactions: donnees.reduce((sum, d) => sum + d.nombreTransactions, 0),
             montantTotalTraite: donnees.reduce((sum, d) => sum + d.montantTotalTraite, 0)
           },
@@ -1448,12 +1843,12 @@ class PaiementController {
       const il1h = new Date(maintenant.getTime() - 60 * 60 * 1000);
 
       const commissionsEchecRecentes = await Paiement.find({
-        'commission.statutPrelevement': 'echec',
+        'commission.statutPrelevement': { $in: ['echec', 'insuffisant'] },
         'commission.datePrelevement': { $gte: il24h }
       }).countDocuments();
 
       const paiementsBloques = await Paiement.find({
-        statutPaiement: 'EN_ATTENTE',
+        statutPaiement: { $in: ['EN_ATTENTE', 'BLOQUE'] },
         dateInitiation: { $lt: il1h }
       }).countDocuments();
 
@@ -1523,41 +1918,34 @@ class PaiementController {
         groupePar = 'jour' 
       } = req.query;
 
-      // Dates par défaut (30 derniers jours)
       const fin = dateFin ? new Date(dateFin) : new Date();
       const debut = dateDebut ? new Date(dateDebut) : 
         new Date(fin.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-      // Format de date selon le groupement
       let formatDate;
       switch (groupePar) {
-        case 'heure': {
+        case 'heure':
           formatDate = '%Y-%m-%d %H:00';
           break;
-        }
-        case 'jour': {
+        case 'jour':
           formatDate = '%Y-%m-%d';
           break;
-        }
-        case 'semaine': {
+        case 'semaine':
           formatDate = '%Y-%U';
           break;
-        }
-        case 'mois': {
+        case 'mois':
           formatDate = '%Y-%m';
           break;
-        }
-        default: {
+        default:
           formatDate = '%Y-%m-%d';
           break;
-        }
       }
 
-      // Statistiques globales des recharges
+      // Statistiques globales
       const statsGlobales = await Paiement.aggregate([
         {
           $match: {
-            payeurId: { $eq: { $toObjectId: '$beneficiaireId' } }, // Recharges uniquement
+            payeurId: { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } },
             methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
             dateInitiation: { $gte: debut, $lte: fin }
           }
@@ -1569,6 +1957,7 @@ class PaiementController {
             montantTotalRecharge: { $sum: '$montantTotal' },
             montantNetCredite: { $sum: '$montantConducteur' },
             fraisTotaux: { $sum: '$fraisTransaction' },
+            bonusTotaux: { $sum: '$bonus.bonusRecharge' },
             rechargesReussies: {
               $sum: { $cond: [{ $eq: ['$statutPaiement', 'COMPLETE'] }, 1, 0] }
             },
@@ -1587,7 +1976,7 @@ class PaiementController {
       const evolutionTemporelle = await Paiement.aggregate([
         {
           $match: {
-            payeurId: { $eq: { $toObjectId: '$beneficiaireId' } },
+            payeurId: { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } },
             methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
             dateInitiation: { $gte: debut, $lte: fin }
           }
@@ -1600,6 +1989,7 @@ class PaiementController {
             nombreRecharges: { $sum: 1 },
             montantTotal: { $sum: '$montantTotal' },
             montantNetCredite: { $sum: '$montantConducteur' },
+            bonusTotaux: { $sum: '$bonus.bonusRecharge' },
             rechargesReussies: {
               $sum: { $cond: [{ $eq: ['$statutPaiement', 'COMPLETE'] }, 1, 0] }
             }
@@ -1614,7 +2004,7 @@ class PaiementController {
       const repartitionOperateurs = await Paiement.aggregate([
         {
           $match: {
-            payeurId: { $eq: { $toObjectId: '$beneficiaireId' } },
+            payeurId: { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } },
             methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
             dateInitiation: { $gte: debut, $lte: fin },
             statutPaiement: 'COMPLETE'
@@ -1625,7 +2015,8 @@ class PaiementController {
             _id: '$methodePaiement',
             nombreRecharges: { $sum: 1 },
             montantTotal: { $sum: '$montantTotal' },
-            fraisMoyens: { $avg: '$fraisTransaction' }
+            fraisMoyens: { $avg: '$fraisTransaction' },
+            bonusMoyens: { $avg: '$bonus.bonusRecharge' }
           }
         },
         {
@@ -1645,6 +2036,7 @@ class PaiementController {
             totalRecharges: stats.totalRecharges || 0,
             montantTotalRecharge: stats.montantTotalRecharge || 0,
             montantNetCredite: stats.montantNetCredite || 0,
+            bonusTotaux: stats.bonusTotaux || 0,
             fraisTotaux: stats.fraisTotaux || 0,
             montantMoyenRecharge: Math.round(stats.montantMoyenRecharge || 0),
             tauxReussite: Math.round(tauxReussite * 100) / 100
@@ -1687,7 +2079,6 @@ class PaiementController {
 
       const { forcerExpiration = false } = req.body;
 
-      // Délai d'expiration : 2 heures pour les recharges
       const delaiExpiration = 2 * 60 * 60 * 1000;
       const maintenant = new Date();
       const limiteExpiration = new Date(maintenant.getTime() - delaiExpiration);
@@ -1698,12 +2089,10 @@ class PaiementController {
       };
 
       if (forcerExpiration) {
-        // Traiter toutes les recharges en attente
-        criteres.payeurId = { $eq: { $toObjectId: '$beneficiaireId' } };
+        criteres.payeurId = { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } };
       } else {
-        // Seulement celles qui ont dépassé le délai
         criteres.dateInitiation = { $lte: limiteExpiration };
-        criteres.payeurId = { $eq: { $toObjectId: '$beneficiaireId' } };
+        criteres.payeurId = { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } };
       }
 
       const rechargesEnAttente = await Paiement.find(criteres)
@@ -1715,7 +2104,6 @@ class PaiementController {
 
       for (const recharge of rechargesEnAttente) {
         try {
-          // Vérifier le statut avec l'opérateur mobile money (simulation)
           const statutExterne = await this.verifierStatutMobileMoney(recharge);
           
           let resultat = {
@@ -1729,10 +2117,12 @@ class PaiementController {
             recharge.statutPaiement = 'COMPLETE';
             recharge.dateCompletion = new Date();
             
-            // Créditer le compte
+            const montantACrediter = recharge.montantConducteur + (recharge.bonus.bonusRecharge || 0);
+            
             await recharge.payeurId.confirmerRecharge(
               recharge.referenceTransaction, 
-              'reussi'
+              'reussi',
+              montantACrediter
             );
 
             recharge.ajouterLog('RECHARGE_AUTO_CONFIRMEE', {
@@ -1740,7 +2130,6 @@ class PaiementController {
               dateTraitement: new Date()
             });
 
-            // Envoyer email de confirmation
             await this.envoyerEmailConfirmationRecharge(recharge.payeurId, recharge);
 
             resultat.action = 'Confirmée automatiquement';
@@ -1752,7 +2141,6 @@ class PaiementController {
             recharge.statutPaiement = 'ECHEC';
             recharge.ajouterErreur('RECHARGE_EXPIREE', 'Délai de confirmation dépassé');
             
-            // Marquer comme échoué dans l'historique
             await recharge.payeurId.confirmerRecharge(
               recharge.referenceTransaction, 
               'echec'
@@ -1827,6 +2215,7 @@ class PaiementController {
     doc.fontSize(16).text('Résumé Exécutif');
     doc.fontSize(12);
     doc.text(`Total Commissions: ${resume.totalCommissions.toLocaleString()} FCFA`);
+    doc.text(`Total Bonus: ${resume.totalBonus.toLocaleString()} FCFA`);
     doc.text(`Nombre Transactions: ${resume.totalTransactions.toLocaleString()}`);
     doc.text(`Montant Total Traité: ${resume.montantTotalTraite.toLocaleString()} FCFA`);
 
@@ -1845,6 +2234,7 @@ class PaiementController {
       'Nombre_Transactions',
       'Montant_Total_Traite',
       'Total_Commissions',
+      'Total_Bonus',
       'Commissions_Prelevees',
       'Taux_Prelevement'
     ];
@@ -1854,6 +2244,7 @@ class PaiementController {
       d.nombreTransactions,
       d.montantTotalTraite,
       d.totalCommissions,
+      d.totalBonus || 0,
       d.commissionsPrelevees,
       d.tauxPrelevement.toFixed(2)
     ]);
@@ -1863,9 +2254,6 @@ class PaiementController {
       .join('\n');
   }
 
-  /**
-   * Valider le numéro de téléphone selon l'opérateur
-   */
   validerNumeroOperateur(numeroTelephone, operateur) {
     if (!numeroTelephone) {
       return { valide: false, message: 'Numéro de téléphone requis' };
@@ -1896,14 +2284,10 @@ class PaiementController {
     return { valide: true };
   }
 
-  /**
-   * Vérifier les limites de recharge quotidiennes
-   */
   async verifierLimitesRecharge(userId, montant) {
     const maintenant = new Date();
     const debutJour = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate());
 
-    // Obtenir les recharges du jour
     const rechargesAujourdhui = await Paiement.find({
       payeurId: userId,
       dateInitiation: { $gte: debutJour },
@@ -1914,9 +2298,8 @@ class PaiementController {
     const montantRechargeAujourdhui = rechargesAujourdhui.reduce((sum, r) => sum + r.montantTotal, 0);
     const nombreRechargesAujourdhui = rechargesAujourdhui.length;
 
-    // Limites quotidiennes
-    const LIMITE_MONTANT_QUOTIDIEN = 500000; // 500k FCFA
-    const LIMITE_NOMBRE_QUOTIDIEN = 5; // 5 recharges max/jour
+    const LIMITE_MONTANT_QUOTIDIEN = 500000;
+    const LIMITE_NOMBRE_QUOTIDIEN = 5;
 
     if (montantRechargeAujourdhui + montant > LIMITE_MONTANT_QUOTIDIEN) {
       return {
@@ -1944,9 +2327,6 @@ class PaiementController {
     return { autorise: true };
   }
 
-  /**
-   * Générer les instructions de recharge selon la méthode
-   */
   genererInstructionsRecharge(methodePaiement, numeroTelephone, montant) {
     const instructions = {
       'ORANGE_MONEY': [
@@ -1982,16 +2362,57 @@ class PaiementController {
       informationsImportantes: [
         'Conservez votre code de transaction',
         'La recharge sera créditée sous 15 minutes maximum',
+        'Bonus de 2% pour recharge ≥ 10 000 FCFA',
         'En cas de problème, contactez notre support'
       ]
     };
   }
 
-  /**
-   * Envoyer email de confirmation de recharge
-   */
+  async envoyerEmailConfirmationPaiement(conducteur, paiement) {
+    try {
+      await sendEmail({
+        to: conducteur.email,
+        subject: 'Paiement reçu - WAYZ-ECO',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #28a745;">✅ Paiement reçu avec succès</h2>
+            <p>Bonjour ${conducteur.prenom},</p>
+            
+            <div style="background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0;">
+              <h3>Détails du paiement</h3>
+              <ul style="list-style: none; padding: 0;">
+                <li><strong>Référence:</strong> ${paiement.referenceTransaction}</li>
+                <li><strong>Montant total:</strong> ${paiement.montantTotal.toLocaleString()} FCFA</li>
+                <li><strong>Commission plateforme:</strong> ${paiement.commission.montant.toLocaleString()} FCFA (${(paiement.commission.taux * 100).toFixed(1)}%)</li>
+                ${paiement.commission.reductionAppliquee > 0 ? `<li><strong>Réduction appliquée:</strong> ${(paiement.commission.reductionAppliquee * 100).toFixed(1)}% - ${paiement.commission.raisonReduction}</li>` : ''}
+                ${paiement.bonus.primePerformance > 0 ? `<li><strong>Prime performance:</strong> +${paiement.bonus.primePerformance.toLocaleString()} FCFA</li>` : ''}
+                <li><strong>Montant crédité:</strong> ${paiement.montantNetConducteur.toLocaleString()} FCFA</li>
+                <li><strong>Méthode:</strong> ${paiement.methodePaiement}</li>
+                <li><strong>Date:</strong> ${paiement.dateCompletion.toLocaleString()}</li>
+              </ul>
+            </div>
+
+            <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Nouveau solde après transaction:</strong> ${paiement.reglesPaiement.soldeConducteurApres?.toLocaleString() || 'N/A'} FCFA</p>
+            </div>
+
+            <hr style="margin: 30px 0;">
+            <p style="color: #666; font-size: 12px;">
+              Cette confirmation vous est envoyée automatiquement. 
+              Conservez-la pour vos dossiers.
+            </p>
+          </div>
+        `
+      });
+    } catch (emailError) {
+      logger.error('Erreur envoi email confirmation paiement:', emailError);
+    }
+  }
+
   async envoyerEmailConfirmationRecharge(user, paiement) {
     try {
+      const montantTotal = paiement.montantConducteur + (paiement.bonus.bonusRecharge || 0);
+      
       await sendEmail({
         to: user.email,
         subject: 'Recharge confirmée - WAYZ-ECO',
@@ -2005,7 +2426,9 @@ class PaiementController {
               <ul style="list-style: none; padding: 0;">
                 <li><strong>Référence:</strong> ${paiement.referenceTransaction}</li>
                 <li><strong>Montant rechargé:</strong> ${paiement.montantTotal.toLocaleString()} FCFA</li>
-                <li><strong>Montant crédité:</strong> ${paiement.montantConducteur.toLocaleString()} FCFA</li>
+                <li><strong>Montant net:</strong> ${paiement.montantConducteur.toLocaleString()} FCFA</li>
+                ${paiement.bonus.bonusRecharge > 0 ? `<li><strong>🎁 Bonus recharge:</strong> +${paiement.bonus.bonusRecharge.toLocaleString()} FCFA</li>` : ''}
+                <li><strong>Montant total crédité:</strong> ${montantTotal.toLocaleString()} FCFA</li>
                 <li><strong>Frais de transaction:</strong> ${paiement.fraisTransaction.toLocaleString()} FCFA</li>
                 <li><strong>Méthode:</strong> ${paiement.methodePaiement}</li>
                 <li><strong>Date:</strong> ${paiement.dateCompletion.toLocaleString()}</li>
@@ -2014,8 +2437,14 @@ class PaiementController {
 
             <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
               <p><strong>Nouveau solde disponible:</strong> ${user.compteCovoiturage.solde.toLocaleString()} FCFA</p>
-              <p>Vous pouvez maintenant accepter les paiements en espèces et bénéficier de tous les avantages conducteur !</p>
+              <p>✅ Vous pouvez maintenant accepter les paiements en espèces et bénéficier de tous les avantages conducteur !</p>
             </div>
+
+            ${paiement.bonus.bonusRecharge > 0 ? `
+            <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>🎉 Bonus fidélité:</strong> Vous avez reçu un bonus de ${(paiement.bonus.bonusRecharge / paiement.montantTotal * 100).toFixed(1)}% pour votre recharge !</p>
+            </div>
+            ` : ''}
 
             <div style="text-align: center; margin: 30px 0;">
               <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/conducteur/compte" 
@@ -2038,21 +2467,14 @@ class PaiementController {
     }
   }
 
-  /**
-   * Vérifier le statut avec l'opérateur mobile money (simulation)
-   */
   async verifierStatutMobileMoney(recharge) {
-    // Simulation de vérification externe
-    // En production, ceci ferait appel aux APIs des opérateurs
-    
-    const delaiMinimum = 5 * 60 * 1000; // 5 minutes minimum
+    const delaiMinimum = 5 * 60 * 1000;
     const maintenant = new Date();
     
     if (maintenant - recharge.dateInitiation < delaiMinimum) {
       return { confirme: false, raison: 'Délai minimum non atteint' };
     }
 
-    // Simulation : 85% de chance de confirmation après 5 minutes
     const probabiliteConfirmation = Math.random();
     
     if (probabiliteConfirmation > 0.15) {

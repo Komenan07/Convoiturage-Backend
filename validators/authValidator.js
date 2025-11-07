@@ -204,7 +204,7 @@ const verifyOTPResetValidation = [
   ...validateOTPCode
 ];
 
-// NOUVEAU: Validation pour nouveau mot de passe après OTP
+//  Validation pour nouveau mot de passe après OTP
 const newPasswordValidation = [
   body('password')
     .isLength({ min: 8 })
@@ -233,6 +233,116 @@ const validateNewPassword = [
   body('new_password')
     .isLength({ min: 4 })
     .withMessage('Le mot de passe doit contenir au moins 4 caractères')
+];
+
+//  Validation pour l'inscription CONDUCTEUR (Email OU WhatsApp)
+const validateConducteurInscription = [
+  // Données personnelles obligatoires
+  body('nom')
+    .trim()
+    .notEmpty()
+    .withMessage('Le nom est requis')
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Le nom doit contenir entre 2 et 50 caractères'),
+  
+  body('prenom')
+    .trim()
+    .notEmpty()
+    .withMessage('Le prénom est requis')
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Le prénom doit contenir entre 2 et 50 caractères'),
+  
+  body('telephone')
+    .trim()
+    .notEmpty()
+    .withMessage('Le numéro de téléphone est requis')
+    .matches(/^(\+225)?[0-9]{8,10}$/)
+    .withMessage('Numéro de téléphone invalide (format CI)'),
+  
+  body('motDePasse')
+    .notEmpty()
+    .withMessage('Le mot de passe est requis')
+    .isLength({ min: 4 })
+    .withMessage('Le mot de passe doit contenir au moins 4 caractères'),
+  
+  // ✅ Validation de la méthode de vérification
+  body('methodVerification')
+    .notEmpty()
+    .withMessage('La méthode de vérification est requise')
+    .isIn(['email', 'whatsapp'])
+    .withMessage('La méthode de vérification doit être "email" ou "whatsapp"'),
+  
+  // ✅ Validation conditionnelle de l'email (obligatoire si methodVerification = 'email')
+  body('email')
+    .if(body('methodVerification').equals('email'))
+    .notEmpty()
+    .withMessage('L\'email est requis pour la vérification par email')
+    .isEmail()
+    .withMessage('Email invalide')
+    .normalizeEmail(),
+  
+  // Email optionnel si méthode WhatsApp (mais doit être valide si fourni)
+  body('email')
+    .if(body('methodVerification').equals('whatsapp'))
+    .optional({ checkFalsy: true })
+    .isEmail()
+    .withMessage('Email invalide si fourni')
+    .normalizeEmail(),
+  
+  // Données optionnelles
+  body('dateNaissance')
+    .optional()
+    .isISO8601()
+    .withMessage('Date de naissance invalide')
+    .custom((value) => {
+      if (value) {
+        const age = (Date.now() - new Date(value).getTime()) / (1000 * 60 * 60 * 24 * 365);
+        if (age < 18 || age > 80) {
+          throw new Error('L\'âge doit être compris entre 18 et 80 ans');
+        }
+      }
+      return true;
+    }),
+  
+  body('sexe')
+    .optional()
+    .isIn(['M', 'F', 'masculin', 'feminin', 'homme', 'femme'])
+    .withMessage('Sexe invalide'),
+
+  // Données du véhicule (optionnelles mais recommandées)
+  body('vehicule.marque')
+    .optional()
+    .trim()
+    .isLength({ min: 2 })
+    .withMessage('Marque du véhicule invalide'),
+  
+  body('vehicule.modele')
+    .optional()
+    .trim()
+    .isLength({ min: 2 })
+    .withMessage('Modèle du véhicule invalide'),
+  
+  body('vehicule.immatriculation')
+    .optional()
+    .trim()
+    .matches(/^[A-Z0-9\s-]{3,15}$/i)
+    .withMessage('Immatriculation invalide'),
+  
+  body('vehicule.couleur')
+    .optional()
+    .trim()
+    .isLength({ min: 3 })
+    .withMessage('Couleur du véhicule invalide'),
+  
+  body('vehicule.nombrePlaces')
+    .optional()
+    .isInt({ min: 1, max: 9 })
+    .withMessage('Nombre de places invalide (1-9)'),
+  
+  body('vehicule.annee')
+    .optional()
+    .isInt({ min: 1990, max: new Date().getFullYear() + 1 })
+    .withMessage('Année du véhicule invalide')
 ];
 
 // =============== VALIDATIONS POUR ADMIN ===============
@@ -569,6 +679,8 @@ module.exports = {
   resetPasswordSMSValidation,
   verifyOTPResetValidation,
   newPasswordValidation,
+
+  validateConducteurInscription,
   
   // Validations reset password
   validateResetPassword,       
