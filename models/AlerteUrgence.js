@@ -1,54 +1,61 @@
-// models/AlerteUrgence.js
+// models/AlerteUrgence.js - ADAPTÉ POUR CÔTE D'IVOIRE
 const mongoose = require('mongoose');
 
-// Schéma pour les personnes présentes
+// === SCHÉMAS EMBARQUÉS ===
+
+// Personne présente dans le véhicule
 const personnePresenteSchema = new mongoose.Schema({
   utilisateurId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Utilisateur',
-    required: true
+    ref: 'Utilisateur'
   },
   nom: {
     type: String,
-    required: [true, 'Le nom de la personne est requis'],
+    required: [true, 'Le nom est requis'],
     trim: true,
-    maxlength: [100, 'Le nom ne peut pas dépasser 100 caractères']
+    maxlength: [100, 'Le nom ne peut dépasser 100 caractères']
   },
   telephone: {
     type: String,
-    required: [true, 'Le numéro de téléphone est requis'],
+    required: [true, 'Le téléphone est requis'],
     validate: {
       validator: function(tel) {
-        return /^(?:(?:\+33|0)[1-9](?:[0-9]{8}))$/.test(tel.replace(/[\s.-]/g, ''));
+        // Format Côte d'Ivoire: +225XXXXXXXXXX ou 0XXXXXXXXXX (10 chiffres)
+        return /^(?:(?:\+225|0)[0-9]{10})$/.test(tel.replace(/[\s.-]/g, ''));
       },
-      message: 'Format de téléphone invalide'
+      message: 'Format téléphone ivoirien invalide (+225XXXXXXXXXX ou 0XXXXXXXXXX)'
     }
+  },
+  estConducteur: {
+    type: Boolean,
+    default: false
   }
 }, { _id: true });
 
-// Schéma pour les contacts alertés
+// Contact alerté
 const contactAlerteSchema = new mongoose.Schema({
   nom: {
     type: String,
     required: [true, 'Le nom du contact est requis'],
     trim: true,
-    maxlength: [100, 'Le nom ne peut pas dépasser 100 caractères']
+    maxlength: [100, 'Le nom ne peut dépasser 100 caractères']
   },
   telephone: {
     type: String,
-    required: [true, 'Le numéro de téléphone du contact est requis'],
+    required: [true, 'Le téléphone du contact est requis'],
     validate: {
       validator: function(tel) {
-        return /^(?:(?:\+33|0)[1-9](?:[0-9]{8}))$/.test(tel.replace(/[\s.-]/g, ''));
+        return /^(?:(?:\+225|0)[0-9]{10})$/.test(tel.replace(/[\s.-]/g, ''));
       },
-      message: 'Format de téléphone invalide'
+      message: 'Format téléphone invalide'
     }
   },
   relation: {
     type: String,
-    required: [true, 'La relation avec le contact est requise'],
+    required: [true, 'La relation est requise'],
     enum: {
-      values: ['FAMILLE', 'AMI', 'COLLEGUE', 'CONTACT_URGENCE', 'AUTRE'],
+      values: ['FAMILLE', 'AMI', 'COLLEGUE', 'CONTACT_URGENCE', 
+               'COVOITUREUR', 'CONDUCTEUR','MEDECIN', 'AUTRE'],
       message: 'Type de relation invalide'
     }
   },
@@ -58,12 +65,17 @@ const contactAlerteSchema = new mongoose.Schema({
   },
   statutNotification: {
     type: String,
-    enum: ['ENVOYE', 'RECU', 'ECHEC'],
+    enum: ['ENVOYE', 'RECU', 'ECHEC', 'EN_ATTENTE'],
     default: 'ENVOYE'
+  },
+  canal: {
+    type: String,
+    enum: ['SMS', 'APPEL', 'WHATSAPP', 'APP'],
+    default: 'SMS'
   }
 }, { _id: true });
 
-// Schéma pour la position géographique
+// Position géographique
 const positionSchema = new mongoose.Schema({
   type: {
     type: String,
@@ -73,7 +85,7 @@ const positionSchema = new mongoose.Schema({
   },
   coordinates: {
     type: [Number],
-    required: [true, 'Les coordonnées GPS sont requises'],
+    required: [true, 'Coordonnées GPS requises'],
     validate: {
       validator: function(coords) {
         return coords.length === 2 && 
@@ -85,7 +97,8 @@ const positionSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
-// Schéma principal de l'alerte d'urgence
+// === SCHÉMA PRINCIPAL ===
+
 const alerteUrgenceSchema = new mongoose.Schema({
   // Identification
   declencheurId: {
@@ -102,18 +115,61 @@ const alerteUrgenceSchema = new mongoose.Schema({
     index: true
   },
   
-  // Localisation de l'urgence
+  numeroUrgence: {
+    type: String,
+    unique: true,
+    index: true
+  },
+  
+  // Localisation
   position: {
     type: positionSchema,
     required: [true, 'La position GPS est requise']
   },
   
-  // Détails de l'urgence
+  adresseApproximative: {
+    type: String,
+    maxlength: 500
+  },
+  
+  ville: {
+    type: String,
+    maxlength: 100,
+    index: true,
+    enum: {
+      values: [
+        'Abidjan', 'Yamoussoukro', 'Bouaké', 'Daloa', 'San-Pédro',
+        'Korhogo', 'Man', 'Gagnoa', 'Abengourou', 'Divo',
+        'Soubré', 'Agboville', 'Grand-Bassam', 'Dimbokro', 'Issia',
+        'Bondoukou', 'Oumé', 'Bingerville', 'Adzopé', 'Dabou',
+        'Tiassalé', 'Sassandra', 'Ferkessédougou', 'Toumodi',
+        'Séguéla', 'Katiola', 'Odienné', 'Toulepleu', 'Lakota',
+        'm\'bahiakro', 'Sakassou', 'Vavoua', 'Zouan-Hounien',
+        'Autre'
+      ],
+      message: 'Ville non reconnue en Côte d\'Ivoire'
+    }
+  },
+  
+  commune: {
+    type: String,
+    maxlength: 100
+  },
+  
+  // Type et gravité - ADAPTÉ COVOITURAGE
   typeAlerte: {
     type: String,
     required: [true, 'Le type d\'alerte est requis'],
     enum: {
-      values: ['SOS', 'ACCIDENT', 'AGRESSION', 'PANNE', 'MALAISE', 'AUTRE'],
+      values: [
+        // Urgences classiques
+        'SOS', 'ACCIDENT', 'AGRESSION', 'PANNE', 'MALAISE',
+        // Spécifique covoiturage
+        'PASSAGER_SUSPECT', 'CONDUCTEUR_DANGEREUX', 'HARCELEMENT',
+        'VOL', 'CHANGEMENT_ITINERAIRE', 'POINT_RENCONTRE_INSECURE',
+        'DEMANDE_ARGENT_SUPPLEMENTAIRE', 'VEHICULE_NON_CONFORME',
+        'RETARD_IMPORTANT', 'AUTRE'
+      ],
       message: 'Type d\'alerte invalide'
     },
     index: true
@@ -121,15 +177,15 @@ const alerteUrgenceSchema = new mongoose.Schema({
   
   description: {
     type: String,
-    required: [true, 'Une description de l\'urgence est requise'],
+    required: [true, 'Description requise'],
     trim: true,
-    minlength: [10, 'La description doit contenir au moins 10 caractères'],
-    maxlength: [1000, 'La description ne peut pas dépasser 1000 caractères']
+    minlength: [10, 'Description min 10 caractères'],
+    maxlength: [1000, 'Description max 1000 caractères']
   },
   
   niveauGravite: {
     type: String,
-    required: [true, 'Le niveau de gravité est requis'],
+    required: [true, 'Niveau de gravité requis'],
     enum: {
       values: ['FAIBLE', 'MOYEN', 'CRITIQUE'],
       message: 'Niveau de gravité invalide'
@@ -137,14 +193,36 @@ const alerteUrgenceSchema = new mongoose.Schema({
     index: true
   },
   
-  // Personnes présentes dans le véhicule
+  priorite: {
+    type: Number,
+    min: 1,
+    max: 5,
+    default: function() {
+      const prioriteMap = {
+        'SOS': { 'CRITIQUE': 5, 'MOYEN': 4, 'FAIBLE': 3 },
+        'ACCIDENT': { 'CRITIQUE': 5, 'MOYEN': 4, 'FAIBLE': 3 },
+        'AGRESSION': { 'CRITIQUE': 5, 'MOYEN': 4, 'FAIBLE': 3 },
+        'VOL': { 'CRITIQUE': 5, 'MOYEN': 4, 'FAIBLE': 3 },
+        'MALAISE': { 'CRITIQUE': 4, 'MOYEN': 3, 'FAIBLE': 2 },
+        'PASSAGER_SUSPECT': { 'CRITIQUE': 4, 'MOYEN': 3, 'FAIBLE': 2 },
+        'CONDUCTEUR_DANGEREUX': { 'CRITIQUE': 4, 'MOYEN': 3, 'FAIBLE': 2 },
+        'HARCELEMENT': { 'CRITIQUE': 4, 'MOYEN': 3, 'FAIBLE': 2 },
+        'CHANGEMENT_ITINERAIRE': { 'CRITIQUE': 3, 'MOYEN': 2, 'FAIBLE': 1 },
+        'PANNE': { 'CRITIQUE': 2, 'MOYEN': 2, 'FAIBLE': 1 },
+        'AUTRE': { 'CRITIQUE': 3, 'MOYEN': 2, 'FAIBLE': 1 }
+      };
+      return prioriteMap[this.typeAlerte]?.[this.niveauGravite] || 1;
+    }
+  },
+  
+  // Personnes impliquées
   personnesPresentes: {
     type: [personnePresenteSchema],
     validate: {
       validator: function(personnes) {
         return personnes && personnes.length > 0 && personnes.length <= 8;
       },
-      message: 'Il doit y avoir entre 1 et 8 personnes présentes'
+      message: 'Entre 1 et 8 personnes présentes'
     }
   },
   
@@ -155,11 +233,11 @@ const alerteUrgenceSchema = new mongoose.Schema({
       validator: function(contacts) {
         return contacts.length <= 20;
       },
-      message: 'Maximum 20 contacts peuvent être alertés'
+      message: 'Maximum 20 contacts'
     }
   },
   
-  // Suivi et résolution
+  // Statut et suivi
   statutAlerte: {
     type: String,
     enum: ['ACTIVE', 'EN_TRAITEMENT', 'RESOLUE', 'FAUSSE_ALERTE'],
@@ -167,70 +245,47 @@ const alerteUrgenceSchema = new mongoose.Schema({
     index: true
   },
   
-  premiersSecours: {
-    type: Boolean,
-    default: false
+  // Services contactés
+  servicesUrgenceCI: {
+    policeContactee: { type: Boolean, default: false },
+    numeroPolice: { type: String, default: '110' },
+    pompiersContactes: { type: Boolean, default: false },
+    numeroPompiers: { type: String, default: '180' },
+    ambulanceContactee: { type: Boolean, default: false },
+    numeroAmbulance: { type: String, default: '185' }
   },
   
-  policeContactee: {
-    type: Boolean,
-    default: false
-  },
-  
+  // Résolution
   dateResolution: {
     type: Date,
     validate: {
       validator: function(date) {
         return !date || date >= this.createdAt;
       },
-      message: 'La date de résolution doit être postérieure à la création'
+      message: 'Date résolution doit être après création'
     }
   },
   
   commentaireResolution: {
     type: String,
     trim: true,
-    maxlength: [1000, 'Le commentaire ne peut pas dépasser 1000 caractères']
+    maxlength: [1000, 'Commentaire max 1000 caractères']
   },
   
-  // Métadonnées de suivi
-  numeroUrgence: {
-    type: String,
-    unique: true,
-    index: true
+  resolePar: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Utilisateur'
   },
   
-  priorite: {
-    type: Number,
-    min: 1,
-    max: 5,
-    default: function() {
-      // Calculer la priorité basée sur le type et la gravité
-      const prioriteMap = {
-        'SOS': { 'CRITIQUE': 5, 'MOYEN': 4, 'FAIBLE': 3 },
-        'ACCIDENT': { 'CRITIQUE': 5, 'MOYEN': 4, 'FAIBLE': 3 },
-        'AGRESSION': { 'CRITIQUE': 5, 'MOYEN': 4, 'FAIBLE': 3 },
-        'MALAISE': { 'CRITIQUE': 4, 'MOYEN': 3, 'FAIBLE': 2 },
-        'PANNE': { 'CRITIQUE': 2, 'MOYEN': 2, 'FAIBLE': 1 },
-        'AUTRE': { 'CRITIQUE': 3, 'MOYEN': 2, 'FAIBLE': 1 }
-      };
-      return prioriteMap[this.typeAlerte]?.[this.niveauGravite] || 1;
-    }
+  // Métadonnées covoiturage
+  infoTrajet: {
+    depart: String,
+    destination: String,
+    immatriculationVehicule: String,
+    marqueVehicule: String
   },
   
-  // Informations de géolocalisation enrichies
-  adresseApproximative: {
-    type: String,
-    maxlength: 500
-  },
-  
-  ville: {
-    type: String,
-    maxlength: 100,
-    index: true
-  },
-  
-  // Horodatage automatique
+  // Timestamps
   createdAt: {
     type: Date,
     default: Date.now,
@@ -241,68 +296,78 @@ const alerteUrgenceSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-  
 }, {
-  timestamps: false, // Géré manuellement pour plus de contrôle
+  timestamps: false,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
-// Index géospatial pour la recherche de proximité
+// === INDEX ===
+
+// Géospatial pour recherche de proximité
 alerteUrgenceSchema.index({ "position": "2dsphere" });
 
-// Index composé pour les recherches fréquentes
+// Index composés pour recherches fréquentes
 alerteUrgenceSchema.index({ 
   "statutAlerte": 1, 
   "niveauGravite": -1, 
   "createdAt": -1 
 });
 
-// Index pour les alertes actives par région
 alerteUrgenceSchema.index({
   "ville": 1,
   "statutAlerte": 1,
   "createdAt": -1
 });
 
-// Index TTL pour supprimer automatiquement les alertes résolues après 1 an
+alerteUrgenceSchema.index({
+  "typeAlerte": 1,
+  "statutAlerte": 1
+});
+
+// TTL: supprimer alertes résolues après 1 an
 alerteUrgenceSchema.index(
   { "dateResolution": 1 },
   { 
-    expireAfterSeconds: 365 * 24 * 60 * 60, // 1 an
+    expireAfterSeconds: 365 * 24 * 60 * 60,
     partialFilterExpression: { "statutAlerte": "RESOLUE" }
   }
 );
 
 // === PROPRIÉTÉS VIRTUELLES ===
 
-// Durée depuis le déclenchement
 alerteUrgenceSchema.virtual('dureeDepuisDeclenchement').get(function() {
-  return Math.round((new Date() - this.createdAt) / (1000 * 60)); // en minutes
+  return Math.round((new Date() - this.createdAt) / (1000 * 60)); // minutes
 });
 
-// Nombre de personnes impliquées
 alerteUrgenceSchema.virtual('nombrePersonnes').get(function() {
-  return this.personnesPresentes ? this.personnesPresentes.length : 0;
+  return this.personnesPresentes?.length || 0;
 });
 
-// Statut critique
 alerteUrgenceSchema.virtual('estCritique').get(function() {
   return this.niveauGravite === 'CRITIQUE' || this.priorite >= 4;
 });
 
-// Temps de réponse (si résolu)
 alerteUrgenceSchema.virtual('tempsReponse').get(function() {
   if (this.dateResolution) {
-    return Math.round((this.dateResolution - this.createdAt) / (1000 * 60)); // en minutes
+    return Math.round((this.dateResolution - this.createdAt) / (1000 * 60));
   }
   return null;
+});
+
+alerteUrgenceSchema.virtual('estCovoiturage').get(function() {
+  const typesCovoiturage = [
+    'PASSAGER_SUSPECT', 'CONDUCTEUR_DANGEREUX', 'HARCELEMENT',
+    'CHANGEMENT_ITINERAIRE', 'POINT_RENCONTRE_INSECURE',
+    'DEMANDE_ARGENT_SUPPLEMENTAIRE', 'VEHICULE_NON_CONFORME'
+  ];
+  return typesCovoiturage.includes(this.typeAlerte);
 });
 
 // === MIDDLEWARE PRE-SAVE ===
 
 alerteUrgenceSchema.pre('save', async function(next) {
-  // Générer un numéro d'urgence unique
+  // Générer numéro d'urgence unique
   if (this.isNew && !this.numeroUrgence) {
     const date = new Date();
     const year = date.getFullYear().toString().slice(-2);
@@ -313,17 +378,17 @@ alerteUrgenceSchema.pre('save', async function(next) {
     this.numeroUrgence = `URG${year}${month}${day}${random}`;
   }
   
-  // Mettre à jour le timestamp
+  // Mettre à jour timestamp
   this.updatedAt = new Date();
   
-  // Valider la résolution
+  // Validation résolution
   if (this.statutAlerte === 'RESOLUE' && !this.dateResolution) {
     this.dateResolution = new Date();
   }
   
-  // Si l'alerte passe en résolu, vérifier les champs obligatoires
-  if (this.statutAlerte === 'RESOLUE' && !this.commentaireResolution) {
-    return next(new Error('Un commentaire de résolution est requis'));
+  if ((this.statutAlerte === 'RESOLUE' || this.statutAlerte === 'FAUSSE_ALERTE') && 
+      !this.commentaireResolution) {
+    return next(new Error('Commentaire de résolution requis'));
   }
   
   next();
@@ -331,17 +396,15 @@ alerteUrgenceSchema.pre('save', async function(next) {
 
 // === MÉTHODES D'INSTANCE ===
 
-// Ajouter un contact à alerter
 alerteUrgenceSchema.methods.ajouterContactAlerte = function(contact) {
   if (this.contactsAlertes.length >= 20) {
-    throw new Error('Limite de contacts atteinte (20 maximum)');
+    throw new Error('Limite de 20 contacts atteinte');
   }
   
   this.contactsAlertes.push(contact);
   return this.save();
 };
 
-// Mettre à jour le statut d'un contact
 alerteUrgenceSchema.methods.mettreAJourStatutContact = function(contactId, statut) {
   const contact = this.contactsAlertes.id(contactId);
   if (!contact) {
@@ -354,7 +417,6 @@ alerteUrgenceSchema.methods.mettreAJourStatutContact = function(contactId, statu
   return this.save();
 };
 
-// Résoudre l'alerte
 alerteUrgenceSchema.methods.resoudre = function(commentaire, typeResolution = 'RESOLUE') {
   this.statutAlerte = typeResolution;
   this.dateResolution = new Date();
@@ -363,7 +425,6 @@ alerteUrgenceSchema.methods.resoudre = function(commentaire, typeResolution = 'R
   return this.save();
 };
 
-// Escalader l'alerte
 alerteUrgenceSchema.methods.escalader = function() {
   if (this.niveauGravite === 'FAIBLE') {
     this.niveauGravite = 'MOYEN';
@@ -371,12 +432,16 @@ alerteUrgenceSchema.methods.escalader = function() {
     this.niveauGravite = 'CRITIQUE';
   }
   
-  // Recalculer la priorité
+  // Recalculer priorité
   const prioriteMap = {
     'SOS': { 'CRITIQUE': 5, 'MOYEN': 4, 'FAIBLE': 3 },
     'ACCIDENT': { 'CRITIQUE': 5, 'MOYEN': 4, 'FAIBLE': 3 },
     'AGRESSION': { 'CRITIQUE': 5, 'MOYEN': 4, 'FAIBLE': 3 },
+    'VOL': { 'CRITIQUE': 5, 'MOYEN': 4, 'FAIBLE': 3 },
     'MALAISE': { 'CRITIQUE': 4, 'MOYEN': 3, 'FAIBLE': 2 },
+    'PASSAGER_SUSPECT': { 'CRITIQUE': 4, 'MOYEN': 3, 'FAIBLE': 2 },
+    'CONDUCTEUR_DANGEREUX': { 'CRITIQUE': 4, 'MOYEN': 3, 'FAIBLE': 2 },
+    'HARCELEMENT': { 'CRITIQUE': 4, 'MOYEN': 3, 'FAIBLE': 2 },
     'PANNE': { 'CRITIQUE': 2, 'MOYEN': 2, 'FAIBLE': 1 },
     'AUTRE': { 'CRITIQUE': 3, 'MOYEN': 2, 'FAIBLE': 1 }
   };
@@ -386,15 +451,26 @@ alerteUrgenceSchema.methods.escalader = function() {
   return this.save();
 };
 
-// Vérifier si l'alerte est ancienne (plus de 2 heures sans résolution)
 alerteUrgenceSchema.methods.estAncienne = function() {
   const deuxHeures = 2 * 60 * 60 * 1000;
   return (new Date() - this.createdAt) > deuxHeures && this.statutAlerte === 'ACTIVE';
 };
 
+alerteUrgenceSchema.methods.notifierServicesUrgence = async function() {
+  // TODO: Intégration avec services d'urgence ivoiriens
+  // Police: 110/111, Pompiers: 180, SAMU: 185
+  
+  if (this.estCritique) {
+    console.log(`🚨 ALERTE CRITIQUE - Notification services d'urgence CI requise`);
+    console.log(`Type: ${this.typeAlerte}, Position: ${this.position.coordinates}`);
+    console.log(`Contacts: Police 110, Pompiers 180, SAMU 185`);
+  }
+  
+  return this;
+};
+
 // === MÉTHODES STATIQUES ===
 
-// Obtenir les alertes actives
 alerteUrgenceSchema.statics.obtenirAlertesActives = function() {
   return this.find({
     statutAlerte: { $in: ['ACTIVE', 'EN_TRAITEMENT'] }
@@ -404,7 +480,6 @@ alerteUrgenceSchema.statics.obtenirAlertesActives = function() {
   .populate('trajetId', 'depart destination');
 };
 
-// Rechercher par proximité géographique
 alerteUrgenceSchema.statics.rechercherParProximite = function(longitude, latitude, rayonKm = 50) {
   return this.find({
     "position": {
@@ -418,7 +493,6 @@ alerteUrgenceSchema.statics.rechercherParProximite = function(longitude, latitud
   .sort({ priorite: -1, createdAt: 1 });
 };
 
-// Obtenir les statistiques d'urgence
 alerteUrgenceSchema.statics.obtenirStatistiques = function(filtreDateDebut, filtreDateFin) {
   const matchStage = {};
   
@@ -440,13 +514,28 @@ alerteUrgenceSchema.statics.obtenirStatistiques = function(filtreDateDebut, filt
         alertesCritiques: {
           $sum: { $cond: [{ $eq: ["$niveauGravite", "CRITIQUE"] }, 1, 0] }
         },
-        tempsReponsemoyenne: { $avg: "$tempsReponse" },
-        repartitionTypes: {
-          $push: "$typeAlerte"
-        }
+        tempsReponseMoyen: { $avg: "$tempsReponse" },
+        repartitionTypes: { $push: "$typeAlerte" },
+        villesPlusAffectees: { $push: "$ville" }
       }
     }
   ]);
+};
+
+alerteUrgenceSchema.statics.obtenirAlertesCovoiturage = function() {
+  return this.find({
+    typeAlerte: { 
+      $in: [
+        'PASSAGER_SUSPECT', 'CONDUCTEUR_DANGEREUX', 'HARCELEMENT',
+        'CHANGEMENT_ITINERAIRE', 'POINT_RENCONTRE_INSECURE',
+        'DEMANDE_ARGENT_SUPPLEMENTAIRE', 'VEHICULE_NON_CONFORME'
+      ]
+    },
+    statutAlerte: { $in: ['ACTIVE', 'EN_TRAITEMENT'] }
+  })
+  .sort({ createdAt: -1 })
+  .populate('trajetId')
+  .populate('declencheurId', 'nom telephone');
 };
 
 module.exports = mongoose.model('AlerteUrgence', alerteUrgenceSchema);
