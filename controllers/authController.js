@@ -342,8 +342,8 @@ const passerConducteur = async (req, res, next) => {
     utilisateur.email = updates.email;
     
     // Ajouter le badge NOUVEAU_CONDUCTEUR si pas déjà présent
-    if (!utilisateur.badges.includes('NOUVEAU_CONDUCTEUR')) {
-      utilisateur.badges.push('NOUVEAU_CONDUCTEUR');
+    if (!utilisateur.badges.includes('NOUVEAU')) {
+      utilisateur.badges.push('NOUVEAU');
     }
 
     // Initialiser le compte covoiturage si pas déjà fait
@@ -1942,6 +1942,8 @@ const connexion = async (req, res, next) => {
       
       valeurRecherche = phoneProcessed;
     }
+
+    console.log('email : ', email , 'champ recheche : ', champRecherche, 'val : ', valeurRecherche)
 
     // Rechercher l'utilisateur
     const user = await User.findOne({ [champRecherche]: valeurRecherche })

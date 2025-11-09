@@ -532,7 +532,7 @@ const utilisateurSchema = new mongoose.Schema({
   statutCompte: {
     type: String,
     enum: {
-      values: ['ACTIF', 'SUSPENDU', 'BLOQUE', 'EN_ATTENTE_VERIFICATION'],
+      values: ['ACTIF', 'SUSPENDU', 'BLOQUE', 'EN_ATTENTE_VERIFICATION', 'CONDUCTEUR_EN_ATTENTE_VERIFICATION'],
       message: 'Statut de compte invalide'
     },
     default: 'EN_ATTENTE_VERIFICATION'
@@ -743,6 +743,7 @@ utilisateurSchema.methods.peutSeConnecter = function() {
       return { autorise: false, raison: 'Email non confirmé', action: 'CONFIRMER_EMAIL' };
     
     case 'ACTIF':
+    case 'CONDUCTEUR_EN_ATTENTE_VERIFICATION':
       if (this.compteBloqueLe && this.tentativesConnexionEchouees >= 5) {
         const tempsEcoule = maintenant - this.compteBloqueLe;
         const dureeBloquage = 15 * 60 * 1000;
