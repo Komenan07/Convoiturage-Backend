@@ -1,437 +1,328 @@
 // routes/vehicules.js
-// Routes complètes pour la gestion des véhicules
+// Routes complètes pour la gestion des véhicules - Côte d'Ivoire 2024
 
 const express = require('express');
 const router = express.Router();
 
-// =============== IMPORTS SÉCURISÉS ===============
+// =============== IMPORTS ===============
 
-// Import sécurisé du contrôleur
-let vehiculeController = {};
-try {
-  vehiculeController = require('../controllers/vehiculeController');
-  console.log('✅ Contrôleur vehiculeController chargé avec succès');
-} catch (error) {
-  console.warn('⚠️ Contrôleur vehiculeController non trouvé, utilisation des méthodes par défaut');
-  console.warn('   Erreur:', error.message);
-}
+const vehiculeController = require('../controllers/vehiculeController');
 
-// Import sécurisé des middlewares d'authentification
+// Middleware d'authentification - fallback si non disponible
 let auth = (req, res, next) => {
-  console.warn('⚠️ Middleware auth non disponible, accès autorisé');
-  req.user = { userId: 'user_test' }; // Utilisateur fictif pour les tests
+  req.user = { userId: 'user_test', role: 'USER' };
   next();
 };
 
+let isAdmin = (req, res, next) => next();
+
 try {
   const authMiddleware = require('../middlewares/authMiddleware');
-  if (authMiddleware.auth || authMiddleware.authenticateToken) {
-    auth = authMiddleware.auth || authMiddleware.authenticateToken;
-  }
-  console.log('✅ Middleware d\'authentification chargé avec succès');
+  // Utiliser authMiddleware, requireAuth ou protect selon ce qui est disponible
+  auth = authMiddleware.authMiddleware || authMiddleware.requireAuth || authMiddleware.protect || auth;
+  isAdmin = authMiddleware.isAdmin || authMiddleware.adminMiddleware || isAdmin;
 } catch (error) {
-  console.warn('⚠️ Middleware d\'authentification non trouvé, utilisation du fallback');
-  console.warn('   Erreur:', error.message);
+  console.warn('⚠️ Middleware d\'authentification non trouvé, utilisation fallback');
 }
 
-// Import sécurisé du middleware d'upload
-let uploadVehicule = {
-  single: (fieldName) => (req, res, next) => {
-    console.warn(`⚠️ Middleware upload.single('${fieldName}') non disponible`);
-    next();
-  }
+// Middleware d'upload - fallback si non disponible
+let upload = {
+  fields: (_fields) => (req, res, next) => next()
 };
 
 try {
   const uploadMiddleware = require('../middlewares/uploadMiddleware');
-  if (uploadMiddleware.uploadVehiculePhoto) {
-    uploadVehicule = uploadMiddleware.uploadVehiculePhoto;
-  } else if (uploadMiddleware.upload) {
-    uploadVehicule = uploadMiddleware.upload;
-  }
-  console.log('✅ Middleware d\'upload véhicule chargé avec succès');
+  upload = uploadMiddleware.upload || upload;
 } catch (error) {
-  console.warn('⚠️ Middleware d\'upload véhicule non trouvé, utilisation du fallback');
-  console.warn('   Erreur:', error.message);
+  console.warn('⚠️ Middleware d\'upload non trouvé, utilisation fallback');
 }
 
-// =============== FONCTIONS HELPER ===============
+// =============== MIDDLEWARES UTILITAIRES ===============
 
-// Créer un contrôleur par défaut pour les méthodes non implémentées
-const creerControleurParDefaut = (nomMethode, message = null) => {
-  return (req, res) => {
-    console.log(`📝 Appel de la méthode ${nomMethode} (non implémentée)`);
-    res.status(501).json({
-      success: false,
-      message: message || `Méthode ${nomMethode} non implémentée`,
-      info: 'Cette fonctionnalité sera disponible dans une future version',
-      methode: nomMethode,
-      parametres: req.params,
-      query: req.query,
-      timestamp: new Date().toISOString()
-    });
-  };
-};
-
-// Validation des IDs MongoDB
 const validerIdMongoDB = (req, res, next) => {
   const { vehiculeId } = req.params;
   if (vehiculeId && !vehiculeId.match(/^[0-9a-fA-F]{24}$/)) {
     return res.status(400).json({
       success: false,
       message: 'Format ID véhicule invalide',
-      id_fourni: vehiculeId,
-      format_attendu: 'ObjectId MongoDB (24 caractères hexadécimaux)'
+      id_fourni: vehiculeId
     });
   }
   next();
 };
 
-// =============== MIDDLEWARES DE LOGGING ===============
-
-// Logger pour debug
 const loggerVehicules = (req, res, next) => {
   console.log(`🚗 [VEHICULES] ${req.method} ${req.originalUrl} - User: ${req.user?.userId || 'Anonymous'}`);
-  if (Object.keys(req.query).length > 0) {
-    console.log(`    Query params:`, req.query);
-  }
-  if (Object.keys(req.params).length > 0) {
-    console.log(`    Route params:`, req.params);
-  }
   next();
 };
 
-// Utiliser le logger sur toutes les routes
+const champsPhotosMultiples = upload.fields([
+  { name: 'avant', maxCount: 1 },
+  { name: 'arriere', maxCount: 1 },
+  { name: 'lateral_gauche', maxCount: 1 },
+  { name: 'lateral_droit', maxCount: 1 },
+  { name: 'interieur', maxCount: 1 },
+  { name: 'tableau_bord', maxCount: 1 }
+]);
+
 router.use(loggerVehicules);
 
-// =============== ROUTES PRINCIPALES ===============
+// =============== ROUTES SPÉCIFIQUES (AVANT :vehiculeId) ===============
 
-// =============== CREATE ===============
+/**
+ * @route   GET /api/vehicules/mes-vehicules
+ * @desc    Obtenir tous les véhicules de l'utilisateur
+ */
+router.get('/mes-vehicules', auth, vehiculeController.obtenirMesVehicules);
 
-// Créer un nouveau véhicule avec photo optionnelle
-router.post('/', 
-  auth, 
-  uploadVehicule.single('photoVehicule'),
-  vehiculeController.creerVehicule || creerControleurParDefaut('creerVehicule', 'Création de véhicule non implémentée')
-);
+/**
+ * @route   GET /api/vehicules/principal
+ * @desc    Obtenir le véhicule principal
+ */
+router.get('/principal', auth, vehiculeController.obtenirVehiculePrincipal);
 
-// Dupliquer un véhicule existant
-router.post('/:vehiculeId/dupliquer',
-  auth,
-  validerIdMongoDB,
-  vehiculeController.dupliquerVehicule || creerControleurParDefaut('dupliquerVehicule')
-);
+/**
+ * @route   GET /api/vehicules/disponibles
+ * @desc    Rechercher véhicules disponibles
+ */
+router.get('/disponibles', auth, vehiculeController.rechercherVehiculesDisponibles);
 
-// =============== READ ===============
+/**
+ * @route   GET /api/vehicules/documents-expires
+ * @desc    Véhicules avec documents expirés
+ */
+router.get('/documents-expires', auth, vehiculeController.obtenirDocumentsExpires);
 
-// IMPORTANT: Routes spécifiques AVANT les routes avec paramètres
+/**
+ * @route   GET /api/vehicules/maintenance-requise
+ * @desc    Véhicules nécessitant maintenance
+ */
+router.get('/maintenance-requise', auth, vehiculeController.obtenirVehiculesMaintenanceRequise);
 
-// Obtenir tous les véhicules de l'utilisateur connecté avec pagination
-router.get('/mes-vehicules', 
-  auth, 
-  vehiculeController.obtenirMesVehicules || creerControleurParDefaut('obtenirMesVehicules')
-);
+/**
+ * @route   GET /api/vehicules/statistiques
+ * @desc    Statistiques des véhicules
+ */
+router.get('/statistiques', auth, vehiculeController.obtenirStatistiques);
 
-// Obtenir le véhicule principal de l'utilisateur
-router.get('/principal',
-  auth,
-  vehiculeController.obtenirVehiculePrincipal || creerControleurParDefaut('obtenirVehiculePrincipal')
-);
+/**
+ * @route   GET /api/vehicules/top-notes
+ * @desc    Top véhicules par note
+ */
+router.get('/top-notes', vehiculeController.obtenirTopVehicules);
 
-// Rechercher des véhicules par critères
-router.get('/recherche',
-  auth,
-  vehiculeController.rechercherVehicules || creerControleurParDefaut('rechercherVehicules')
-);
+/**
+ * @route   GET /api/vehicules/recherche-avancee
+ * @desc    Recherche avancée
+ */
+router.get('/recherche-avancee', auth, vehiculeController.rechercheAvancee);
 
-// Obtenir les véhicules avec documents expirés/expiration proche
-router.get('/documents-expires', 
-  auth, 
-  vehiculeController.obtenirDocumentsExpires || creerControleurParDefaut('obtenirDocumentsExpires')
-);
+// =============== ROUTES ADMIN SPÉCIFIQUES ===============
 
-// Statistiques des véhicules de l'utilisateur
-router.get('/statistiques',
-  auth,
-  vehiculeController.obtenirStatistiques || creerControleurParDefaut('obtenirStatistiques')
-);
+/**
+ * @route   GET /api/vehicules/admin/en-attente-validation
+ * @desc    Véhicules en attente validation
+ */
+router.get('/admin/en-attente-validation', auth, isAdmin, vehiculeController.obtenirVehiculesEnAttenteValidation);
 
-// Obtenir les détails d'un véhicule spécifique
-router.get('/:vehiculeId', 
-  auth, 
-  validerIdMongoDB,
-  vehiculeController.obtenirVehicule || creerControleurParDefaut('obtenirVehicule')
-);
+/**
+ * @route   GET /api/vehicules/admin/signalements
+ * @desc    Véhicules signalés
+ */
+router.get('/admin/signalements', auth, isAdmin, vehiculeController.obtenirVehiculesSignales);
 
-// Vérifier la validité des documents d'un véhicule
-router.get('/:vehiculeId/validite-documents', 
-  auth, 
-  validerIdMongoDB,
-  vehiculeController.verifierValiditeDocuments || creerControleurParDefaut('verifierValiditeDocuments')
-);
+/**
+ * @route   GET /api/vehicules/admin/statistiques-globales
+ * @desc    Statistiques globales
+ */
+router.get('/admin/statistiques-globales', auth, isAdmin, vehiculeController.obtenirStatistiquesGlobales);
 
-// Obtenir l'historique d'un véhicule
-router.get('/:vehiculeId/historique',
-  auth,
-  validerIdMongoDB,
-  vehiculeController.obtenirHistoriqueVehicule || creerControleurParDefaut('obtenirHistoriqueVehicule')
-);
+// =============== ROUTES CRUD STANDARD ===============
 
-// =============== UPDATE ===============
+/**
+ * @route   POST /api/vehicules
+ * @desc    Créer un véhicule
+ */
+router.post('/', auth, champsPhotosMultiples, vehiculeController.creerVehicule);
 
-// Modifier les informations générales du véhicule
-router.put('/:vehiculeId', 
-  auth, 
-  validerIdMongoDB,
-  uploadVehicule.single('photoVehicule'),
-  vehiculeController.modifierVehicule || creerControleurParDefaut('modifierVehicule')
-);
+/**
+ * @route   GET /api/vehicules/:vehiculeId
+ * @desc    Obtenir un véhicule
+ */
+router.get('/:vehiculeId', auth, validerIdMongoDB, vehiculeController.obtenirVehicule);
 
-// Mettre à jour uniquement la photo d'un véhicule
-router.put('/:vehiculeId/photo',
-  auth,
-  validerIdMongoDB,
-  uploadVehicule.single('photoVehicule'),
-  vehiculeController.mettreAJourPhotoVehicule || creerControleurParDefaut('mettreAJourPhotoVehicule')
-);
+/**
+ * @route   PUT /api/vehicules/:vehiculeId
+ * @desc    Modifier un véhicule
+ */
+router.put('/:vehiculeId', auth, validerIdMongoDB, champsPhotosMultiples, vehiculeController.modifierVehicule);
 
-// Renouveler l'assurance
-router.put('/:vehiculeId/assurance', 
-  auth, 
-  validerIdMongoDB,
-  vehiculeController.renouvelerAssurance || creerControleurParDefaut('renouvelerAssurance')
-);
+/**
+ * @route   DELETE /api/vehicules/:vehiculeId
+ * @desc    Supprimer un véhicule
+ */
+router.delete('/:vehiculeId', auth, validerIdMongoDB, vehiculeController.supprimerVehicule);
 
-// Renouveler la visite technique
-router.put('/:vehiculeId/visite-technique', 
-  auth, 
-  validerIdMongoDB,
-  vehiculeController.renouvelerVisiteTechnique || creerControleurParDefaut('renouvelerVisiteTechnique')
-);
+// =============== GESTION DOCUMENTS ===============
 
-// =============== PATCH (Modifications partielles) ===============
+/**
+ * @route   PUT /api/vehicules/:vehiculeId/documents
+ * @desc    Compléter documents
+ */
+router.put('/:vehiculeId/documents', auth, validerIdMongoDB, vehiculeController.completerDocuments);
 
-// Définir comme véhicule principal
-router.patch('/:vehiculeId/principal', 
-  auth, 
-  validerIdMongoDB,
-  vehiculeController.definirVehiculePrincipal || creerControleurParDefaut('definirVehiculePrincipal')
-);
+/**
+ * @route   GET /api/vehicules/:vehiculeId/validite-documents
+ * @desc    Vérifier validité documents
+ */
+router.get('/:vehiculeId/validite-documents', auth, validerIdMongoDB, vehiculeController.verifierValiditeDocuments);
 
-// Changer le statut d'un véhicule
-router.patch('/:vehiculeId/statut',
-  auth,
-  validerIdMongoDB,
-  vehiculeController.changerStatutVehicule || creerControleurParDefaut('changerStatutVehicule')
-);
+// =============== GESTION COVOITURAGE ===============
 
-// Mettre à jour le kilométrage
-router.patch('/:vehiculeId/kilometrage',
-  auth,
-  validerIdMongoDB,
-  vehiculeController.mettreAJourKilometrage || creerControleurParDefaut('mettreAJourKilometrage')
-);
+/**
+ * @route   POST /api/vehicules/:vehiculeId/activer-covoiturage
+ * @desc    Activer pour covoiturage
+ */
+router.post('/:vehiculeId/activer-covoiturage', auth, validerIdMongoDB, vehiculeController.activerPourCovoiturage);
 
-// Archiver un véhicule (alternative à la suppression)
-router.patch('/:vehiculeId/archiver',
-  auth,
-  validerIdMongoDB,
-  vehiculeController.archiverVehicule || creerControleurParDefaut('archiverVehicule')
-);
+/**
+ * @route   POST /api/vehicules/:vehiculeId/desactiver-covoiturage
+ * @desc    Désactiver pour covoiturage
+ */
+router.post('/:vehiculeId/desactiver-covoiturage', auth, validerIdMongoDB, vehiculeController.desactiverPourCovoiturage);
 
-// =============== DELETE ===============
+/**
+ * @route   GET /api/vehicules/:vehiculeId/disponibilite-trajet
+ * @desc    Vérifier disponibilité
+ */
+router.get('/:vehiculeId/disponibilite-trajet', auth, validerIdMongoDB, vehiculeController.verifierDisponibiliteTrajet);
 
-// Supprimer un véhicule (avec vérifications)
-router.delete('/:vehiculeId', 
-  auth, 
-  validerIdMongoDB,
-  vehiculeController.supprimerVehicule || creerControleurParDefaut('supprimerVehicule', 'Suppression de véhicule non implémentée - fonctionnalité critique')
-);
+// =============== GESTION MAINTENANCE ===============
 
-// =============== ROUTES DE TEST ET DEBUG ===============
+/**
+ * @route   POST /api/vehicules/:vehiculeId/maintenance
+ * @desc    Ajouter maintenance
+ */
+router.post('/:vehiculeId/maintenance', auth, validerIdMongoDB, vehiculeController.ajouterMaintenance);
 
-// Route de test pour le développement
-if (process.env.NODE_ENV !== 'production') {
-  router.get('/test/structure', (req, res) => {
-    const methodesControlleur = Object.keys(vehiculeController);
-    const methodesImplementees = [
-      'creerVehicule',
-      'obtenirMesVehicules', 
-      'obtenirVehicule',
-      'modifierVehicule',
-      'supprimerVehicule',
-      'definirVehiculePrincipal',
-      'obtenirVehiculePrincipal',
-      'mettreAJourPhotoVehicule',
-      'verifierValiditeDocuments',
-      'rechercherVehicules',
-      'obtenirDocumentsExpires',
-      'obtenirStatistiques',
-      'renouvelerAssurance',
-      'renouvelerVisiteTechnique',
-      'changerStatutVehicule',
-      'archiverVehicule',
-      'obtenirHistoriqueVehicule',
-      'mettreAJourKilometrage',
-      'dupliquerVehicule'
-    ];
+/**
+ * @route   PUT /api/vehicules/:vehiculeId/position
+ * @desc    Mettre à jour position
+ */
+router.put('/:vehiculeId/position', auth, validerIdMongoDB, vehiculeController.mettreAJourPosition);
 
-    res.json({
-      success: true,
-      message: 'Test de la structure des routes véhicules',
-      routes_disponibles: {
-        'POST': [
-          '/ (créer véhicule)',
-          '/:vehiculeId/dupliquer'
-        ],
-        'GET': [
-          '/mes-vehicules (avec pagination)',
-          '/principal',
-          '/recherche',
-          '/documents-expires',
-          '/statistiques',
-          '/:vehiculeId',
-          '/:vehiculeId/validite-documents',
-          '/:vehiculeId/historique'
-        ],
-        'PUT': [
-          '/:vehiculeId (modifier)',
-          '/:vehiculeId/photo',
-          '/:vehiculeId/assurance',
-          '/:vehiculeId/visite-technique'
-        ],
-        'PATCH': [
-          '/:vehiculeId/principal',
-          '/:vehiculeId/statut',
-          '/:vehiculeId/kilometrage',
-          '/:vehiculeId/archiver'
-        ],
-        'DELETE': [
-          '/:vehiculeId'
-        ]
-      },
-      controlleur: {
-        charge: methodesControlleur.length > 0,
-        methodes_disponibles: methodesControlleur,
-        methodes_implementees: methodesImplementees,
-        methodes_manquantes: methodesImplementees.filter(m => !methodesControlleur.includes(m))
-      },
-      middlewares: {
-        auth: typeof auth === 'function',
-        upload: typeof uploadVehicule.single === 'function',
-        validation_id: true
-      }
-    });
-  });
+// =============== GESTION ADMINISTRATIVE ===============
 
-  // Route de test pour vérifier l'authentification
-  router.get('/test/auth', auth, (req, res) => {
-    res.json({
-      success: true,
-      message: 'Authentification fonctionnelle',
-      user: req.user,
-      timestamp: new Date().toISOString()
-    });
-  });
+/**
+ * @route   POST /api/vehicules/:vehiculeId/valider
+ * @desc    Valider véhicule (Admin)
+ */
+router.post('/:vehiculeId/valider', auth, isAdmin, validerIdMongoDB, vehiculeController.validerVehicule);
 
-  // Route de test pour l'upload
-  router.post('/test/upload', 
-    auth, 
-    uploadVehicule.single('testPhoto'), 
-    (req, res) => {
-      res.json({
-        success: true,
-        message: 'Test d\'upload',
-        file: req.file || null,
-        body: req.body
-      });
-    }
-  );
-}
+/**
+ * @route   POST /api/vehicules/:vehiculeId/rejeter
+ * @desc    Rejeter véhicule (Admin)
+ */
+router.post('/:vehiculeId/rejeter', auth, isAdmin, validerIdMongoDB, vehiculeController.rejeterVehicule);
+
+/**
+ * @route   POST /api/vehicules/:vehiculeId/signaler
+ * @desc    Signaler véhicule
+ */
+router.post('/:vehiculeId/signaler', auth, validerIdMongoDB, vehiculeController.signalerVehicule);
+
+// =============== MÉTHODES SPÉCIFIQUES ===============
+
+/**
+ * @route   PATCH /api/vehicules/:vehiculeId/principal
+ * @desc    Définir comme principal
+ */
+router.patch('/:vehiculeId/principal', auth, validerIdMongoDB, vehiculeController.definirVehiculePrincipal);
+
+/**
+ * @route   PUT /api/vehicules/:vehiculeId/photos
+ * @desc    Mettre à jour photos
+ */
+router.put('/:vehiculeId/photos', auth, validerIdMongoDB, champsPhotosMultiples, vehiculeController.mettreAJourPhotos);
+
+/**
+ * @route   PATCH /api/vehicules/:vehiculeId/archiver
+ * @desc    Archiver véhicule
+ */
+router.patch('/:vehiculeId/archiver', auth, validerIdMongoDB, vehiculeController.archiverVehicule);
+
+/**
+ * @route   POST /api/vehicules/:vehiculeId/enregistrer-trajet
+ * @desc    Enregistrer trajet complété
+ */
+router.post('/:vehiculeId/enregistrer-trajet', auth, validerIdMongoDB, vehiculeController.enregistrerTrajet);
+
+/**
+ * @route   POST /api/vehicules/:vehiculeId/noter
+ * @desc    Noter véhicule
+ */
+router.post('/:vehiculeId/noter', auth, validerIdMongoDB, vehiculeController.noterVehicule);
+
+/**
+ * @route   GET /api/vehicules/:vehiculeId/exporter
+ * @desc    Exporter données
+ */
+router.get('/:vehiculeId/exporter', auth, validerIdMongoDB, vehiculeController.exporterDonneesVehicule);
 
 // =============== GESTION D'ERREURS ===============
 
-// Middleware de gestion d'erreurs spécifique aux véhicules
 router.use((error, req, res, next) => {
-  console.error(`💥 [VEHICULES] Erreur ${req.method} ${req.originalUrl}:`, {
-    message: error.message,
-    stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-    user: req.user?.userId,
-    params: req.params,
-    query: req.query,
-    timestamp: new Date().toISOString()
-  });
+  console.error(`💥 [VEHICULES] Erreur ${req.method} ${req.originalUrl}:`, error.message);
   
-  // Erreurs spécifiques aux véhicules
   if (error.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
       message: 'Données de véhicule invalides',
-      erreurs: Object.values(error.errors).map(err => err.message),
-      details: error.message
+      erreurs: Object.values(error.errors).map(err => err.message)
     });
   }
   
   if (error.name === 'CastError') {
     return res.status(400).json({
       success: false,
-      message: 'ID de véhicule invalide',
-      details: error.message,
-      id_fourni: error.value
+      message: 'ID de véhicule invalide'
     });
   }
 
-  // Erreur de duplication (immatriculation unique)
   if (error.code === 11000) {
+    const field = Object.keys(error.keyPattern)[0];
     return res.status(409).json({
       success: false,
-      message: 'Un véhicule avec cette immatriculation existe déjà',
-      details: error.message
+      message: `Un véhicule avec cette ${field} existe déjà`
     });
   }
 
-  // Erreurs d'upload
   if (error.code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({
       success: false,
-      message: 'Fichier trop volumineux',
-      details: 'La taille maximale autorisée est de 5MB'
+      message: 'Fichier trop volumineux (max 5MB par photo)'
     });
   }
 
   if (error.code === 'LIMIT_UNEXPECTED_FILE') {
     return res.status(400).json({
       success: false,
-      message: 'Type de fichier non autorisé',
-      details: 'Seules les images sont acceptées (jpg, jpeg, png, webp)'
+      message: 'Champ de fichier inattendu',
+      details: 'Photos acceptées: avant, arriere, lateral_gauche, lateral_droit, interieur, tableau_bord'
     });
   }
   
-  // Erreur générale - passer au middleware d'erreur global
   next(error);
 });
 
-// =============== MIDDLEWARE DE RÉPONSE 404 ===============
+// =============== MIDDLEWARE 404 ===============
 
-// Gestion des routes non trouvées spécifiques aux véhicules
 router.use('*', (req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route véhicule non trouvée',
     route_demandee: req.originalUrl,
-    methode: req.method,
-    routes_disponibles: [
-      'GET /api/vehicules/mes-vehicules',
-      'GET /api/vehicules/principal',
-      'GET /api/vehicules/recherche',
-      'GET /api/vehicules/documents-expires',
-      'GET /api/vehicules/statistiques',
-      'GET /api/vehicules/:vehiculeId',
-      'POST /api/vehicules',
-      'PUT /api/vehicules/:vehiculeId',
-      'PATCH /api/vehicules/:vehiculeId/principal',
-      'DELETE /api/vehicules/:vehiculeId'
-    ]
+    methode: req.method
   });
 });
 
