@@ -1,5 +1,6 @@
 // controllers/authController.js
 const User = require('../models/Utilisateur');
+const Vehicule = require('../models/Vehicule');
 const crypto = require('crypto');
 const sendEmail = require('../utils/emailService');
 const { sendSMS } = require('../services/smsService');
@@ -208,7 +209,6 @@ const passerConducteur = async (req, res, next) => {
       });
     }
 
-    const Vehicule = require('../models/Vehicule');
     
     // Vérifier si l'immatriculation existe déjà
     const immatriculationUpper = vehicule.immatriculation.toUpperCase().trim();
@@ -324,6 +324,7 @@ const passerConducteur = async (req, res, next) => {
     // ========================================
     // 👤 MISE À JOUR DU COMPTE UTILISATEUR
     // ========================================
+    const updates = req.body;
     const utilisateur = await User.findById(req.user.id);
 
     if (!utilisateur) {
@@ -336,7 +337,9 @@ const passerConducteur = async (req, res, next) => {
 
     // Mettre à jour le rôle et le statut
     utilisateur.role = 'conducteur';
-    utilisateur.statutCompte = 'EN_ATTENTE_VERIFICATION';
+    utilisateur.statutCompte = 'CONDUCTEUR_EN_ATTENTE_VERIFICATION';
+    utilisateur.telephone = updates.telephone;
+    utilisateur.email = updates.email;
     
     // Ajouter le badge NOUVEAU_CONDUCTEUR si pas déjà présent
     if (!utilisateur.badges.includes('NOUVEAU_CONDUCTEUR')) {
@@ -568,6 +571,7 @@ const passerConducteur = async (req, res, next) => {
       
       // Annuler le changement de rôle si le véhicule échoue
       utilisateur.role = 'passager';
+
       utilisateur.statutCompte = 'ACTIF';
       await utilisateur.save({ validateBeforeSave: false });
       
