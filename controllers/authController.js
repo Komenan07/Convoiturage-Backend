@@ -144,248 +144,208 @@ const detectBrowser = (userAgent) => {
  * @route   POST /api/auth/inscription-conducteur
  * @access  Public
  */
-const inscrireConducteur = async (req, res, next) => {
+const passerConducteur = async (req, res, next) => {
   try {
-    logger.info('Tentative d\'inscription conducteur', { email: req.body.email });
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentification requise pour devenir conducteur',
+        errorType: 'AUTHENTICATION_REQUIRED'
+      });
+    }
+    logger.info('Tentative de passage passager → conducteur', { 
+      userId: req.user.userId
+    });
+
+    // ========================================
+    // 🔐 VÉRIFICATIONS PRÉALABLES
+    // ========================================
+    
+    // 1. Vérifier que l'utilisateur est bien un passager
+    if (req.user.role !== 'passager') {
+      return res.status(400).json({
+        success: false,
+        message: 'Seuls les passagers peuvent devenir conducteurs',
+        errorType: 'INVALID_ROLE',
+        currentRole: req.user.role
+      });
+    }
+
+    // 2. Vérifier que le compte est vérifié
+    if (!req.userProfile.estVerifie) {
+      return res.status(403).json({
+        success: false,
+        message: 'Votre compte doit être vérifié avant de devenir conducteur',
+        errorType: 'ACCOUNT_NOT_VERIFIED',
+        action: 'Veuillez d\'abord vérifier votre compte'
+      });
+    }
 
     const {
-      // Données personnelles
-      nom,
-      prenom,
-      email,
-      telephone,
-      motDePasse,
-      dateNaissance,
-      sexe,
-      adresse,
-      preferences,
-      contactsUrgence,
-      documentIdentite,
-      
       // Données du véhicule
       vehicule,
       
-      //  Méthode de vérification choisie
+      // Méthode de vérification choisie (si changement d'email)
       methodVerification // 'email' ou 'whatsapp'
     } = req.body;
 
-    // Validation des champs requis
-    if (!nom || !prenom || !telephone || !motDePasse) {
+    // ========================================
+    // 🚗 VALIDATION DU VÉHICULE (OBLIGATOIRE)
+    // ========================================
+    if (!vehicule || !vehicule.immatriculation) {
       return res.status(400).json({
         success: false,
-        message: 'Tous les champs obligatoires doivent être renseignés',
-        champsRequis: ['nom', 'prenom', 'telephone', 'motDePasse']
+        message: 'Les informations du véhicule sont obligatoires pour devenir conducteur',
+        errorType: 'VEHICLE_REQUIRED',
+        champsRequis: [
+          'vehicule.marque',
+          'vehicule.modele',
+          'vehicule.couleur',
+          'vehicule.annee',
+          'vehicule.nombrePlaces',
+          'vehicule.immatriculation'
+        ]
       });
     }
 
-    // NOUVEAU : Validation de la méthode de vérification
-    if (!methodVerification || !['email', 'whatsapp'].includes(methodVerification)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Veuillez choisir une méthode de vérification (email ou whatsapp)',
-        errorType: 'MISSING_VERIFICATION_METHOD'
-      });
-    }
-
-    // NOUVEAU : Si email choisi, l'email doit être fourni
-    if (methodVerification === 'email' && !email) {
-      return res.status(400).json({
-        success: false,
-        message: 'L\'email est requis pour la vérification par email',
-        errorType: 'EMAIL_REQUIRED',
-        field: 'email'
-      });
-    }
-
-    // 🔥 UTILISER LA FONCTION CENTRALISÉE
-    const phoneProcessed = normaliserTelephoneCI(telephone);
+    const Vehicule = require('../models/Vehicule');
     
-    if (!phoneProcessed) {
-      return res.status(400).json({
+    // Vérifier si l'immatriculation existe déjà
+    const immatriculationUpper = vehicule.immatriculation.toUpperCase().trim();
+    const vehiculeExistant = await Vehicule.findOne({
+      immatriculation: immatriculationUpper
+    });
+
+    if (vehiculeExistant) {
+      logger.warn('Passage conducteur échoué - Immatriculation déjà utilisée', { 
+        userId: req.user.id,
+        immatriculation: vehicule.immatriculation 
+      });
+      return res.status(409).json({
         success: false,
-        message: 'Le numéro de téléphone n\'est pas valide pour la Côte d\'Ivoire',
-        errorType: 'INVALID_PHONE_FORMAT',
-        field: 'telephone',
-        value: telephone,
-        suggestion: 'Formats acceptés: 0707070708, 07070708, +22507070708'
+        message: 'Un véhicule avec cette immatriculation existe déjà',
+        errorType: 'IMMATRICULATION_ALREADY_EXISTS',
+        field: 'vehicule.immatriculation'
       });
     }
 
-    // Normalisation du sexe
-    let sexeNormalise = sexe;
-    if (sexe) {
-      if (sexe.toLowerCase() === 'masculin' || sexe.toLowerCase() === 'homme') {
-        sexeNormalise = 'M';
-      } else if (sexe.toLowerCase() === 'féminin' || sexe.toLowerCase() === 'femme') {
-        sexeNormalise = 'F';
-      }
-    }
+    // ✅ VALIDATION DES CHAMPS OBLIGATOIRES DU VÉHICULE
+    const errorsVehicule = [];
 
-    // Vérifier si l'utilisateur existe déjà
-    const utilisateurExistant = await User.findOne({
-      $or: [
-        { telephone: phoneProcessed },
-        ...(email ? [{ email: email }] : [])
-      ]
-    }).maxTimeMS(30000);
-
-    if (utilisateurExistant) {
-      if (utilisateurExistant.telephone === phoneProcessed) {
-        logger.warn('Inscription conducteur échouée - Téléphone déjà utilisé', { telephone: phoneProcessed });
-        return res.status(409).json({
-          success: false,
-          message: 'Un compte existe déjà avec ce numéro de téléphone',
-          errorType: 'TELEPHONE_ALREADY_EXISTS',
-          field: 'telephone'
-        });
-      }
-      if (email && utilisateurExistant.email === email) {
-        logger.warn('Inscription conducteur échouée - Email déjà utilisé', { email });
-        return res.status(409).json({
-          success: false,
-          message: 'Un compte existe déjà avec cet email',
-          errorType: 'EMAIL_ALREADY_EXISTS',
-          field: 'email'
-        });
-      }
-    }
-
-    // ========================================
-    // 🚗 VALIDATION DU VÉHICULE (SI FOURNI)
-    // ========================================
-    if (vehicule && vehicule.immatriculation) {
-      const Vehicule = require('../models/Vehicule');
-      
-      // Vérifier si l'immatriculation existe déjà
-      const immatriculationUpper = vehicule.immatriculation.toUpperCase().trim();
-      const vehiculeExistant = await Vehicule.findOne({
-        immatriculation: immatriculationUpper
+    if (!vehicule.marque) {
+      errorsVehicule.push({
+        field: 'vehicule.marque',
+        message: 'La marque du véhicule est obligatoire'
       });
+    }
 
-      if (vehiculeExistant) {
-        logger.warn('Inscription conducteur échouée - Immatriculation déjà utilisée', { 
-          immatriculation: vehicule.immatriculation 
-        });
-        return res.status(409).json({
-          success: false,
-          message: 'Un véhicule avec cette immatriculation existe déjà',
-          errorType: 'IMMATRICULATION_ALREADY_EXISTS',
-          field: 'vehicule.immatriculation'
-        });
-      }
+    if (!vehicule.modele) {
+      errorsVehicule.push({
+        field: 'vehicule.modele',
+        message: 'Le modèle du véhicule est obligatoire'
+      });
+    }
 
-      // ✅ VALIDATION DES CHAMPS OBLIGATOIRES DU VÉHICULE
-      const errorsVehicule = [];
+    if (!vehicule.couleur) {
+      errorsVehicule.push({
+        field: 'vehicule.couleur',
+        message: 'La couleur du véhicule est obligatoire'
+      });
+    }
 
-      // 1. Marque (déjà vérifié dans la condition if)
-      if (!vehicule.marque) {
-        errorsVehicule.push({
-          field: 'vehicule.marque',
-          message: 'La marque du véhicule est obligatoire'
-        });
-      }
-
-      // 2. Modèle (déjà vérifié dans la condition if)
-      if (!vehicule.modele) {
-        errorsVehicule.push({
-          field: 'vehicule.modele',
-          message: 'Le modèle du véhicule est obligatoire'
-        });
-      }
-
-      // 3. Couleur (OBLIGATOIRE selon le modèle)
-      if (!vehicule.couleur) {
-        errorsVehicule.push({
-          field: 'vehicule.couleur',
-          message: 'La couleur du véhicule est obligatoire'
-        });
-      }
-
-      // 4. Année (OBLIGATOIRE selon le modèle)
-      if (!vehicule.annee) {
+    if (!vehicule.annee) {
+      errorsVehicule.push({
+        field: 'vehicule.annee',
+        message: 'L\'année du véhicule est obligatoire'
+      });
+    } else {
+      const currentYear = new Date().getFullYear();
+      if (vehicule.annee < 2010) {
         errorsVehicule.push({
           field: 'vehicule.annee',
-          message: 'L\'année du véhicule est obligatoire'
+          message: 'Véhicule trop ancien pour le transport commercial (minimum 2010)'
         });
-      } else {
-        const currentYear = new Date().getFullYear();
-        if (vehicule.annee < 2010) {
-          errorsVehicule.push({
-            field: 'vehicule.annee',
-            message: 'Véhicule trop ancien pour le transport commercial (minimum 2010)'
-          });
-        } else if (vehicule.annee > currentYear + 1) {
-          errorsVehicule.push({
-            field: 'vehicule.annee',
-            message: `L'année ne peut pas dépasser ${currentYear + 1}`
-          });
-        }
-      }
-
-      // 5. Nombre de places (OBLIGATOIRE selon le modèle)
-      if (!vehicule.nombrePlaces) {
+      } else if (vehicule.annee > currentYear + 1) {
         errorsVehicule.push({
-          field: 'vehicule.nombrePlaces',
-          message: 'Le nombre de places est obligatoire'
-        });
-      } else if (vehicule.nombrePlaces < 2 || vehicule.nombrePlaces > 9) {
-        errorsVehicule.push({
-          field: 'vehicule.nombrePlaces',
-          message: 'Le nombre de places doit être entre 2 et 9'
-        });
-      }
-
-      // 6. Format d'immatriculation
-      const formatNouveau = /^[A-Z]{2}-\d{3}-[A-Z]{2}$/; // AB-123-CD
-      const formatAncien = /^\d{4}\s[A-Z]{2}\s\d{2}$/;   // 1234 AB 01
-      
-      if (!formatNouveau.test(immatriculationUpper) && !formatAncien.test(immatriculationUpper)) {
-        errorsVehicule.push({
-          field: 'vehicule.immatriculation',
-          message: 'Format d\'immatriculation invalide',
-          formatsAcceptes: ['AB-123-CD (nouveau format)', '1234 AB 01 (ancien format)'],
-          exemple: 'AB-123-CD ou 1234 AB 01'
-        });
-      }
-
-      // 🚨 SI DES ERREURS DE VALIDATION
-      if (errorsVehicule.length > 0) {
-        logger.warn('Validation véhicule échouée lors de l\'inscription', { 
-          errors: errorsVehicule 
-        });
-        
-        return res.status(400).json({
-          success: false,
-          message: 'Erreur de validation du véhicule',
-          errorType: 'VEHICLE_VALIDATION_ERROR',
-          errors: errorsVehicule,
-          champsObligatoires: [
-            'marque',
-            'modele',
-            'couleur',
-            'annee',
-            'nombrePlaces',
-            'immatriculation (format: AB-123-CD ou 1234 AB 01)'
-          ]
+          field: 'vehicule.annee',
+          message: `L'année ne peut pas dépasser ${currentYear + 1}`
         });
       }
     }
 
+    if (!vehicule.nombrePlaces) {
+      errorsVehicule.push({
+        field: 'vehicule.nombrePlaces',
+        message: 'Le nombre de places est obligatoire'
+      });
+    } else if (vehicule.nombrePlaces < 2 || vehicule.nombrePlaces > 9) {
+      errorsVehicule.push({
+        field: 'vehicule.nombrePlaces',
+        message: 'Le nombre de places doit être entre 2 et 9'
+      });
+    }
+
+    // Format d'immatriculation
+    const formatNouveau = /^[A-Z]{2}-\d{3}-[A-Z]{2}$/; // AB-123-CD
+    const formatAncien = /^\d{4}\s[A-Z]{2}\s\d{2}$/;   // 1234 AB 01
+    
+    if (!formatNouveau.test(immatriculationUpper) && !formatAncien.test(immatriculationUpper)) {
+      errorsVehicule.push({
+        field: 'vehicule.immatriculation',
+        message: 'Format d\'immatriculation invalide',
+        formatsAcceptes: ['AB-123-CD (nouveau format)', '1234 AB 01 (ancien format)'],
+        exemple: 'AB-123-CD ou 1234 AB 01'
+      });
+    }
+
+    // 🚨 SI DES ERREURS DE VALIDATION
+    if (errorsVehicule.length > 0) {
+      logger.warn('Validation véhicule échouée', { 
+        userId: req.user.id,
+        errors: errorsVehicule 
+      });
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation du véhicule',
+        errorType: 'VEHICLE_VALIDATION_ERROR',
+        errors: errorsVehicule,
+        champsObligatoires: [
+          'marque',
+          'modele',
+          'couleur',
+          'annee',
+          'nombrePlaces',
+          'immatriculation (format: AB-123-CD ou 1234 AB 01)'
+        ]
+      });
+    }
+
     // ========================================
-    // 👤 CRÉATION DE L'UTILISATEUR CONDUCTEUR
+    // 👤 MISE À JOUR DU COMPTE UTILISATEUR
     // ========================================
-    const userData = {
-      nom,
-      prenom,
-      telephone: phoneProcessed,
-      email: email || `${phoneProcessed}@temp.covoiturage.ci`,
-      motDePasse, // Sera hashé par le middleware pre-save
-      role: 'conducteur',
-      statutCompte: 'EN_ATTENTE_VERIFICATION',
-      tentativesConnexionEchouees: 0,
-      badges: ['NOUVEAU'],
-      // Initialiser le compte covoiturage
-      compteCovoiturage: {
+    const utilisateur = await User.findById(req.user.id);
+
+    if (!utilisateur) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé',
+        errorType: 'USER_NOT_FOUND'
+      });
+    }
+
+    // Mettre à jour le rôle et le statut
+    utilisateur.role = 'conducteur';
+    utilisateur.statutCompte = 'EN_ATTENTE_VERIFICATION';
+    
+    // Ajouter le badge NOUVEAU_CONDUCTEUR si pas déjà présent
+    if (!utilisateur.badges.includes('NOUVEAU_CONDUCTEUR')) {
+      utilisateur.badges.push('NOUVEAU_CONDUCTEUR');
+    }
+
+    // Initialiser le compte covoiturage si pas déjà fait
+    if (!utilisateur.compteCovoiturage || !utilisateur.compteCovoiturage.solde) {
+      utilisateur.compteCovoiturage = {
         solde: 0,
         estRecharge: false,
         seuilMinimum: 0,
@@ -403,382 +363,251 @@ const inscrireConducteur = async (req, res, next) => {
           montantRetireAujourdhui: 0,
           montantRetireCeMois: 0
         }
-      }
-    };
-
-    // NOUVEAU : Ajouter les tokens selon la méthode choisie
-    if (methodVerification === 'email') {
-      // Générer un token de confirmation d'email
-      const confirmationToken = crypto.randomBytes(32).toString('hex');
-      const hashedToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
-      
-      userData.tokenConfirmationEmail = hashedToken;
-      userData.expirationTokenConfirmation = Date.now() + 24 * 60 * 60 * 1000; // 24 heures
-      
-      // Stocker le token non hashé temporairement pour l'envoi
-      userData._confirmationTokenPlain = confirmationToken;
+      };
     }
 
-    // Ajouter les champs optionnels avec normalisation
-    if (dateNaissance) userData.dateNaissance = dateNaissance;
-    if (sexeNormalise) userData.sexe = sexeNormalise;
-    if (adresse) userData.adresse = adresse;
-    if (preferences) userData.preferences = preferences;
-    if (contactsUrgence) userData.contactsUrgence = contactsUrgence;
-    if (documentIdentite) userData.documentIdentite = documentIdentite;
-
-    const nouvelUtilisateur = new User(userData);
-    await nouvelUtilisateur.save();
+    await utilisateur.save({ validateBeforeSave: false });
 
     // ========================================
-    // 🚗 CRÉATION DU VÉHICULE (SI FOURNI ET VALIDE)
+    // 🚗 CRÉATION DU VÉHICULE
     // ========================================
     let vehiculeCreated = null;
-    let messageVehicule = '';
 
-    if (vehicule && vehicule.marque && vehicule.modele && vehicule.immatriculation && vehicule.couleur && vehicule.annee && vehicule.nombrePlaces) {
-      const Vehicule = require('../models/Vehicule');
-      
-      try {
-        const immatriculationUpper = vehicule.immatriculation.toUpperCase().trim();
+    try {
+      // Préparer les données du véhicule avec valeurs par défaut
+      const vehiculeData = {
+        // ====== CHAMPS OBLIGATOIRES ======
+        marque: vehicule.marque.trim(),
+        modele: vehicule.modele.trim(),
+        couleur: vehicule.couleur.trim(),
+        immatriculation: immatriculationUpper,
+        nombrePlaces: vehicule.nombrePlaces,
+        annee: vehicule.annee,
         
-        // Préparer les données du véhicule avec valeurs par défaut
-        const vehiculeData = {
-          // ====== CHAMPS OBLIGATOIRES ======
-          marque: vehicule.marque.trim(),
-          modele: vehicule.modele.trim(),
-          couleur: vehicule.couleur.trim(),
-          immatriculation: immatriculationUpper,
-          nombrePlaces: vehicule.nombrePlaces,
-          annee: vehicule.annee,
-          
-          // ====== PROPRIÉTAIRE ET STATUT ======
-          proprietaireId: nouvelUtilisateur._id,
-          estPrincipal: true,
-          statut: 'EN_ATTENTE_DOCUMENTS', // Statut initial correct
-          disponibilitePourCourse: false,
-          documentsComplets: false,
-          
-          // ====== PLACES DISPONIBLES ======
-          placesDisponibles: vehicule.nombrePlaces - 1, // -1 pour le conducteur
-          
-          // ====== CHAMPS OPTIONNELS AVEC VALEURS PAR DÉFAUT ======
-          carburant: vehicule.carburant || 'ESSENCE',
-          typeCarrosserie: vehicule.typeCarrosserie || 'BERLINE',
-          transmission: vehicule.transmission || 'MANUELLE',
-          kilometrage: vehicule.kilometrage || 0,
-          
-          // ====== ÉQUIPEMENTS (avec valeurs par défaut pour validation) ======
-          equipements: {
-            // Sécurité obligatoire (initialisés à false, à compléter plus tard)
-            ceintures: vehicule.equipements?.ceintures || 'AVANT_UNIQUEMENT',
-            airbags: vehicule.equipements?.airbags || false,
-            nombreAirbags: vehicule.equipements?.nombreAirbags || 0,
-            abs: vehicule.equipements?.abs || false,
-            esp: vehicule.equipements?.esp || false,
-            
-            // Équipements obligatoires CI (initialisés à false)
-            trousseSecours: vehicule.equipements?.trousseSecours || false,
-            extincteur: vehicule.equipements?.extincteur || false,
-            triangleSignalisation: vehicule.equipements?.triangleSignalisation || false,
-            giletSecurite: vehicule.equipements?.giletSecurite || false,
-            roueDeSecours: vehicule.equipements?.roueDeSecours || false,
-            cricCle: vehicule.equipements?.cricCle || false,
-            
-            // Confort (optionnel)
-            climatisation: vehicule.equipements?.climatisation || false,
-            vitresElectriques: vehicule.equipements?.vitresElectriques || false,
-            verrouillagesCentralises: vehicule.equipements?.verrouillagesCentralises || false,
-            regulateurVitesse: vehicule.equipements?.regulateurVitesse || false
-          },
-          
-          // ====== COMMODITÉS ======
-          commodites: {
-            wifi: vehicule.commodites?.wifi || false,
-            chargeurTelephone: vehicule.commodites?.chargeurTelephone || false,
-            priseUSB: vehicule.commodites?.priseUSB || false,
-            musique: vehicule.commodites?.musique || false,
-            bluetooth: vehicule.commodites?.bluetooth || false,
-            espaceBagages: vehicule.commodites?.espaceBagages || 'MOYEN',
-            siegesConfortables: vehicule.commodites?.siegesConfortables || false,
-            eauPotable: vehicule.commodites?.eauPotable || false
-          },
-          
-          // ====== PRÉFÉRENCES ======
-          preferences: {
-            animauxAutorises: vehicule.preferences?.animauxAutorises || false,
-            fumeurAutorise: vehicule.preferences?.fumeurAutorise || false,
-            enfantsAutorises: vehicule.preferences?.enfantsAutorises !== false,
-            bagagesVolumineuxAutorises: vehicule.preferences?.bagagesVolumineuxAutorises !== false,
-            discussionsAutorisees: vehicule.preferences?.discussionsAutorisees !== false,
-            musiqueAutorisee: vehicule.preferences?.musiqueAutorisee !== false
-          },
-          
-          // ====== PHOTOS (optionnelles à l'inscription) ======
-          photos: {
-            avant: vehicule.photos?.avant || null,
-            arriere: vehicule.photos?.arriere || null,
-            lateral_gauche: vehicule.photos?.lateral_gauche || null,
-            lateral_droit: vehicule.photos?.lateral_droit || null,
-            interieur: vehicule.photos?.interieur || null,
-            tableau_bord: vehicule.photos?.tableau_bord || null
-          },
-          
-          // ====== STATISTIQUES (valeurs initiales) ======
-          statistiques: {
-            nombreTrajets: 0,
-            nombrePassagers: 0,
-            kilometresParcourus: 0,
-            noteMoyenne: 0,
-            nombreAvis: 0,
-            nombreAnnulations: 0,
-            tauxAnnulation: 0,
-            tauxAcceptation: 100,
-            tempsMoyenReponse: 0,
-            dernierTrajet: null,
-            premiereUtilisation: null
-          },
-          
-          // ====== VALIDATION (statut initial) ======
-          validation: {
-            statutValidation: 'NON_VALIDE',
-            validePar: null,
-            dateValidation: null,
-            dateExpirationValidation: null,
-            commentairesAdmin: null,
-            documentsVerifies: [],
-            historique: []
-          }
+        // ====== PROPRIÉTAIRE ET STATUT ======
+        proprietaireId: utilisateur._id,
+        estPrincipal: true,
+        statut: 'EN_ATTENTE_DOCUMENTS',
+        disponibilitePourCourse: false,
+        documentsComplets: false,
+        
+        // ====== PLACES DISPONIBLES ======
+        placesDisponibles: vehicule.nombrePlaces - 1, // -1 pour le conducteur
+        
+        // ====== CHAMPS OPTIONNELS AVEC VALEURS PAR DÉFAUT ======
+        carburant: vehicule.carburant || 'ESSENCE',
+        typeCarrosserie: vehicule.typeCarrosserie || 'BERLINE',
+        transmission: vehicule.transmission || 'MANUELLE',
+        kilometrage: vehicule.kilometrage || 0,
+        
+        // ====== ÉQUIPEMENTS ======
+        equipements: {
+          ceintures: vehicule.equipements?.ceintures || 'AVANT_UNIQUEMENT',
+          airbags: vehicule.equipements?.airbags || false,
+          nombreAirbags: vehicule.equipements?.nombreAirbags || 0,
+          abs: vehicule.equipements?.abs || false,
+          esp: vehicule.equipements?.esp || false,
+          trousseSecours: vehicule.equipements?.trousseSecours || false,
+          extincteur: vehicule.equipements?.extincteur || false,
+          triangleSignalisation: vehicule.equipements?.triangleSignalisation || false,
+          giletSecurite: vehicule.equipements?.giletSecurite || false,
+          roueDeSecours: vehicule.equipements?.roueDeSecours || false,
+          cricCle: vehicule.equipements?.cricCle || false,
+          climatisation: vehicule.equipements?.climatisation || false,
+          vitresElectriques: vehicule.equipements?.vitresElectriques || false,
+          verrouillagesCentralises: vehicule.equipements?.verrouillagesCentralises || false,
+          regulateurVitesse: vehicule.equipements?.regulateurVitesse || false
+        },
+        
+        // ====== COMMODITÉS ======
+        commodites: {
+          wifi: vehicule.commodites?.wifi || false,
+          chargeurTelephone: vehicule.commodites?.chargeurTelephone || false,
+          priseUSB: vehicule.commodites?.priseUSB || false,
+          musique: vehicule.commodites?.musique || false,
+          bluetooth: vehicule.commodites?.bluetooth || false,
+          espaceBagages: vehicule.commodites?.espaceBagages || 'MOYEN',
+          siegesConfortables: vehicule.commodites?.siegesConfortables || false,
+          eauPotable: vehicule.commodites?.eauPotable || false
+        },
+        
+        // ====== PRÉFÉRENCES ======
+        preferences: {
+          animauxAutorises: vehicule.preferences?.animauxAutorises || false,
+          fumeurAutorise: vehicule.preferences?.fumeurAutorise || false,
+          enfantsAutorises: vehicule.preferences?.enfantsAutorises !== false,
+          bagagesVolumineuxAutorises: vehicule.preferences?.bagagesVolumineuxAutorises !== false,
+          discussionsAutorisees: vehicule.preferences?.discussionsAutorisees !== false,
+          musiqueAutorisee: vehicule.preferences?.musiqueAutorisee !== false
+        },
+        
+        // ====== PHOTOS ======
+        photos: {
+          avant: vehicule.photos?.avant || null,
+          arriere: vehicule.photos?.arriere || null,
+          lateral_gauche: vehicule.photos?.lateral_gauche || null,
+          lateral_droit: vehicule.photos?.lateral_droit || null,
+          interieur: vehicule.photos?.interieur || null,
+          tableau_bord: vehicule.photos?.tableau_bord || null
+        },
+        
+        // ====== STATISTIQUES ======
+        statistiques: {
+          nombreTrajets: 0,
+          nombrePassagers: 0,
+          kilometresParcourus: 0,
+          noteMoyenne: 0,
+          nombreAvis: 0,
+          nombreAnnulations: 0,
+          tauxAnnulation: 0,
+          tauxAcceptation: 100,
+          tempsMoyenReponse: 0,
+          dernierTrajet: null,
+          premiereUtilisation: null
+        },
+        
+        // ====== VALIDATION ======
+        validation: {
+          statutValidation: 'NON_VALIDE',
+          validePar: null,
+          dateValidation: null,
+          dateExpirationValidation: null,
+          commentairesAdmin: null,
+          documentsVerifies: [],
+          historique: []
+        }
+      };
+
+      // Documents légaux (si fournis)
+      if (vehicule.assurance) {
+        vehiculeData.assurance = {
+          numeroPolice: vehicule.assurance.numeroPolice || null,
+          dateDebut: vehicule.assurance.dateDebut || null,
+          dateExpiration: vehicule.assurance.dateExpiration || null,
+          compagnie: vehicule.assurance.compagnie || null,
+          type: vehicule.assurance.type || null,
+          montantCouverture: vehicule.assurance.montantCouverture || null,
+          attestationUrl: vehicule.assurance.attestationUrl || null
         };
-
-        // ====== DOCUMENTS LÉGAUX (si fournis) ======
-        if (vehicule.assurance) {
-          vehiculeData.assurance = {
-            numeroPolice: vehicule.assurance.numeroPolice || null,
-            dateDebut: vehicule.assurance.dateDebut || null,
-            dateExpiration: vehicule.assurance.dateExpiration || null,
-            compagnie: vehicule.assurance.compagnie || null,
-            type: vehicule.assurance.type || null,
-            montantCouverture: vehicule.assurance.montantCouverture || null,
-            attestationUrl: vehicule.assurance.attestationUrl || null
-          };
-        }
-
-        if (vehicule.visiteTechnique) {
-          vehiculeData.visiteTechnique = {
-            dateVisite: vehicule.visiteTechnique.dateVisite || null,
-            dateExpiration: vehicule.visiteTechnique.dateExpiration || null,
-            resultat: vehicule.visiteTechnique.resultat || null,
-            centreControle: vehicule.visiteTechnique.centreControle || null,
-            numeroAttestation: vehicule.visiteTechnique.numeroAttestation || null,
-            certificatUrl: vehicule.visiteTechnique.certificatUrl || null,
-            defautsReleves: vehicule.visiteTechnique.defautsReleves || []
-          };
-        }
-
-        if (vehicule.carteGrise) {
-          vehiculeData.carteGrise = {
-            numero: vehicule.carteGrise.numero || null,
-            dateEmission: vehicule.carteGrise.dateEmission || null,
-            dateExpiration: vehicule.carteGrise.dateExpiration || null,
-            centreEmission: vehicule.carteGrise.centreEmission || null,
-            numeroChassis: vehicule.carteGrise.numeroChassis || null,
-            puissanceFiscale: vehicule.carteGrise.puissanceFiscale || null,
-            documentUrl: vehicule.carteGrise.documentUrl || null
-          };
-        }
-
-        if (vehicule.vignette) {
-          vehiculeData.vignette = {
-            annee: vehicule.vignette.annee || null,
-            numero: vehicule.vignette.numero || null,
-            montant: vehicule.vignette.montant || null,
-            dateAchat: vehicule.vignette.dateAchat || null,
-            dateExpiration: vehicule.vignette.dateExpiration || null,
-            photoVignette: vehicule.vignette.photoVignette || null
-          };
-        }
-
-        if (vehicule.carteTransport) {
-          vehiculeData.carteTransport = {
-            numero: vehicule.carteTransport.numero || null,
-            dateDelivrance: vehicule.carteTransport.dateDelivrance || null,
-            dateExpiration: vehicule.carteTransport.dateExpiration || null,
-            categorieAutorisee: vehicule.carteTransport.categorieAutorisee || null,
-            typeVehicule: vehicule.carteTransport.typeVehicule || null,
-            autoritDelivrance: vehicule.carteTransport.autoritDelivrance || null,
-            documentUrl: vehicule.carteTransport.documentUrl || null
-          };
-        }
-
-        // ✅ CRÉER LE VÉHICULE
-        vehiculeCreated = await Vehicule.create(vehiculeData);
-
-        // Mettre à jour l'utilisateur avec les infos du véhicule (pour compatibilité)
-        nouvelUtilisateur.vehicule = {
-          marque: vehicule.marque,
-          modele: vehicule.modele,
-          couleur: vehicule.couleur,
-          immatriculation: immatriculationUpper,
-          nombrePlaces: vehicule.nombrePlaces,
-          photoVehicule: vehicule.photos?.avant || null,
-          assurance: vehicule.assurance || null,
-          visiteTechnique: vehicule.visiteTechnique || null
-        };
-        await nouvelUtilisateur.save({ validateBeforeSave: false });
-
-        logger.info('Véhicule créé avec succès', { 
-          vehiculeId: vehiculeCreated._id,
-          userId: nouvelUtilisateur._id,
-          immatriculation: immatriculationUpper
-        });
-
-        messageVehicule = 'Véhicule enregistré avec succès. Documents à compléter pour validation.';
-
-      } catch (vehiculeError) {
-        logger.error('Erreur création véhicule', { 
-          error: vehiculeError.message,
-          stack: vehiculeError.stack,
-          userId: nouvelUtilisateur._id 
-        });
-        
-        // Ne pas bloquer l'inscription si le véhicule échoue
-        messageVehicule = 'Véhicule non enregistré (erreur technique). Vous pourrez l\'ajouter plus tard.';
-        
-        // En développement, afficher l'erreur complète
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Détails erreur véhicule:', vehiculeError);
-        }
       }
+
+      if (vehicule.visiteTechnique) {
+        vehiculeData.visiteTechnique = {
+          dateVisite: vehicule.visiteTechnique.dateVisite || null,
+          dateExpiration: vehicule.visiteTechnique.dateExpiration || null,
+          resultat: vehicule.visiteTechnique.resultat || null,
+          centreControle: vehicule.visiteTechnique.centreControle || null,
+          numeroAttestation: vehicule.visiteTechnique.numeroAttestation || null,
+          certificatUrl: vehicule.visiteTechnique.certificatUrl || null,
+          defautsReleves: vehicule.visiteTechnique.defautsReleves || []
+        };
+      }
+
+      if (vehicule.carteGrise) {
+        vehiculeData.carteGrise = {
+          numero: vehicule.carteGrise.numero || null,
+          dateEmission: vehicule.carteGrise.dateEmission || null,
+          dateExpiration: vehicule.carteGrise.dateExpiration || null,
+          centreEmission: vehicule.carteGrise.centreEmission || null,
+          numeroChassis: vehicule.carteGrise.numeroChassis || null,
+          puissanceFiscale: vehicule.carteGrise.puissanceFiscale || null,
+          documentUrl: vehicule.carteGrise.documentUrl || null
+        };
+      }
+
+      if (vehicule.vignette) {
+        vehiculeData.vignette = {
+          annee: vehicule.vignette.annee || null,
+          numero: vehicule.vignette.numero || null,
+          montant: vehicule.vignette.montant || null,
+          dateAchat: vehicule.vignette.dateAchat || null,
+          dateExpiration: vehicule.vignette.dateExpiration || null,
+          photoVignette: vehicule.vignette.photoVignette || null
+        };
+      }
+
+      if (vehicule.carteTransport) {
+        vehiculeData.carteTransport = {
+          numero: vehicule.carteTransport.numero || null,
+          dateDelivrance: vehicule.carteTransport.dateDelivrance || null,
+          dateExpiration: vehicule.carteTransport.dateExpiration || null,
+          categorieAutorisee: vehicule.carteTransport.categorieAutorisee || null,
+          typeVehicule: vehicule.carteTransport.typeVehicule || null,
+          autoritDelivrance: vehicule.carteTransport.autoritDelivrance || null,
+          documentUrl: vehicule.carteTransport.documentUrl || null
+        };
+      }
+
+      // ✅ CRÉER LE VÉHICULE
+      vehiculeCreated = await Vehicule.create(vehiculeData);
+
+      // Mettre à jour l'utilisateur avec les infos du véhicule
+      utilisateur.vehicule = {
+        marque: vehicule.marque,
+        modele: vehicule.modele,
+        couleur: vehicule.couleur,
+        immatriculation: immatriculationUpper,
+        nombrePlaces: vehicule.nombrePlaces,
+        photoVehicule: vehicule.photos?.avant || null,
+        assurance: vehicule.assurance || null,
+        visiteTechnique: vehicule.visiteTechnique || null
+      };
+      await utilisateur.save({ validateBeforeSave: false });
+
+      logger.info('Véhicule créé lors du passage conducteur', { 
+        vehiculeId: vehiculeCreated._id,
+        userId: utilisateur._id,
+        immatriculation: immatriculationUpper
+      });
+
+    } catch (vehiculeError) {
+      logger.error('Erreur création véhicule lors passage conducteur', { 
+        error: vehiculeError.message,
+        userId: utilisateur._id 
+      });
+      
+      // Annuler le changement de rôle si le véhicule échoue
+      utilisateur.role = 'passager';
+      utilisateur.statutCompte = 'ACTIF';
+      await utilisateur.save({ validateBeforeSave: false });
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Impossible de créer le véhicule. Le changement de statut a été annulé.',
+        errorType: 'VEHICLE_CREATION_ERROR',
+        error: process.env.NODE_ENV === 'development' ? vehiculeError.message : undefined
+      });
     }
 
-    // ========================================
-    // 📧 LOGIQUE DE VÉRIFICATION SELON LA MÉTHODE CHOISIE
-    // ========================================
-    let verificationEnvoyee = false;
-    let messageVerification = '';
-    let actionSuivante = '';
-    let routeSuivante = '';
-
-    if (methodVerification === 'whatsapp') {
-      // ========== VÉRIFICATION PAR WHATSAPP ==========
-      const codeWhatsApp = nouvelUtilisateur.genererCodeWhatsApp();
-      await nouvelUtilisateur.save({ validateBeforeSave: false });
-
-      try {
-        const nomComplet = `${prenom} ${nom}`;
-        const resultatEnvoi = await greenApiService.envoyerCodeVerification(
-          phoneProcessed,
-          codeWhatsApp,
-          nomComplet
-        );
-
-        if (!resultatEnvoi.success) {
-          logger.error('Échec envoi WhatsApp conducteur', { 
-            telephone: phoneProcessed, 
-            error: resultatEnvoi.error 
-          });
-          verificationEnvoyee = false;
-        } else {
-          logger.info('Code WhatsApp envoyé au conducteur', { 
-            userId: nouvelUtilisateur._id 
-          });
-          verificationEnvoyee = true;
-          
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`📱 Code conducteur envoyé à ${phoneProcessed}: ${codeWhatsApp}`);
-          }
-        }
-      } catch (whatsappError) {
-        logger.error('Erreur envoi WhatsApp conducteur:', whatsappError);
-        verificationEnvoyee = false;
-      }
-
-      messageVerification = verificationEnvoyee 
-        ? 'Inscription conducteur réussie ! Un code de vérification a été envoyé sur WhatsApp.'
-        : 'Inscription réussie mais l\'envoi du code WhatsApp a échoué. Contactez le support.';
-      actionSuivante = 'VERIFY_WHATSAPP';
-      routeSuivante = '/api/auth/verify-code';
-
-    } else if (methodVerification === 'email') {
-      // ========== VÉRIFICATION PAR EMAIL ==========
-      const confirmationToken = userData._confirmationTokenPlain;
-      const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
-      
-      try {
-        const emailHtml = chargerTemplate('envoiEmail-template.html', {
-          'newUser.prenom': nouvelUtilisateur.prenom,
-          'confirmationUrl': confirmationUrl
-        });
-
-        await sendEmail({
-          to: nouvelUtilisateur.email,
-          subject: 'Confirmez votre compte conducteur - WAYZ-ECO',
-          html: emailHtml
-        });
-
-        logger.info('Email de confirmation envoyé au conducteur', { 
-          userId: nouvelUtilisateur._id, 
-          email: nouvelUtilisateur.email 
-        });
-        verificationEnvoyee = true;
-
-      } catch (emailError) {
-        logger.error('Erreur envoi email confirmation conducteur:', emailError);
-        verificationEnvoyee = false;
-      }
-
-      messageVerification = verificationEnvoyee
-        ? 'Inscription conducteur réussie ! Un email de confirmation a été envoyé.'
-        : 'Inscription réussie mais l\'envoi de l\'email a échoué. Contactez le support.';
-      actionSuivante = 'VERIFY_EMAIL';
-      routeSuivante = '/api/auth/confirm-email/:token';
-    }
-
-    // ========================================
-    // 🔑 GÉNÉRATION DES TOKENS D'AUTHENTIFICATION
-    // ========================================
-    const accessToken = nouvelUtilisateur.getSignedJwtToken();
-    const deviceInfo = {
-      userAgent: req.headers['user-agent'] || 'Unknown',
-      ip: req.ip || req.connection.remoteAddress,
-      deviceType: detectDeviceType(req.headers['user-agent']),
-      os: detectOS(req.headers['user-agent']),
-      browser: detectBrowser(req.headers['user-agent'])
-    };
-    const refreshToken = await nouvelUtilisateur.generateRefreshToken(deviceInfo);
-
-    logger.info('Inscription conducteur réussie', { 
-      userId: nouvelUtilisateur._id,
-      hasVehicule: !!vehiculeCreated,
-      methodVerification: methodVerification
+    logger.info('Passage passager → conducteur réussi', { 
+      userId: utilisateur._id,
+      vehiculeId: vehiculeCreated._id
     });
 
     // ========================================
     // 📤 RÉPONSE FINALE
     // ========================================
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      message: messageVerification + (messageVehicule ? ` ${messageVehicule}` : ''),
+      message: 'Vous êtes maintenant conducteur ! Complétez les documents de votre véhicule pour validation.',
       data: {
         utilisateur: {
-          id: nouvelUtilisateur._id,
-          nom: nouvelUtilisateur.nom,
-          prenom: nouvelUtilisateur.prenom,
-          nomComplet: nouvelUtilisateur.nomComplet,
-          email: nouvelUtilisateur.email,
-          telephone: nouvelUtilisateur.telephone,
-          role: nouvelUtilisateur.role,
-          statutCompte: nouvelUtilisateur.statutCompte,
-          estVerifie: nouvelUtilisateur.estVerifie,
-          whatsappVerifieLe: nouvelUtilisateur.whatsappVerifieLe,
-          badges: nouvelUtilisateur.badges,
+          id: utilisateur._id,
+          nom: utilisateur.nom,
+          prenom: utilisateur.prenom,
+          nomComplet: utilisateur.nomComplet,
+          email: utilisateur.email,
+          telephone: utilisateur.telephone,
+          role: utilisateur.role,
+          statutCompte: utilisateur.statutCompte,
+          estVerifie: utilisateur.estVerifie,
+          badges: utilisateur.badges,
           compteCovoiturage: {
-            solde: nouvelUtilisateur.compteCovoiturage.solde,
-            estRecharge: nouvelUtilisateur.compteCovoiturage.estRecharge
+            solde: utilisateur.compteCovoiturage.solde,
+            estRecharge: utilisateur.compteCovoiturage.estRecharge
           }
         },
-        vehicule: vehiculeCreated ? {
+        vehicule: {
           id: vehiculeCreated._id,
           marque: vehiculeCreated.marque,
           modele: vehiculeCreated.modele,
@@ -793,39 +622,23 @@ const inscrireConducteur = async (req, res, next) => {
           carburant: vehiculeCreated.carburant,
           typeCarrosserie: vehiculeCreated.typeCarrosserie,
           transmission: vehiculeCreated.transmission
-        } : null,
-        tokens: {
-          accessToken,
-          refreshToken,
-          expiresIn: process.env.JWT_EXPIRE || '15m',
-          refreshTokenExpiresIn: `${process.env.REFRESH_TOKEN_DAYS || 30} jours`
-        },
-        verification: {
-          method: methodVerification,
-          emailEnvoye: methodVerification === 'email' && verificationEnvoyee,
-          whatsappEnvoye: methodVerification === 'whatsapp' && verificationEnvoyee,
-          requiresEmailVerification: methodVerification === 'email',
-          requiresWhatsAppVerification: methodVerification === 'whatsapp',
-          requiresDocumentVerification: !!vehiculeCreated,
-          expiration: methodVerification === 'whatsapp' 
-            ? nouvelUtilisateur.codeVerificationWhatsAppExpire 
-            : nouvelUtilisateur.expirationTokenConfirmation
         }
       },
       nextStep: {
-        action: actionSuivante,
-        message: methodVerification === 'email' 
-          ? 'Veuillez vérifier votre email et cliquer sur le lien de confirmation'
-          : 'Veuillez saisir le code reçu sur WhatsApp pour activer votre compte',
-        route: routeSuivante,
-        ...(vehiculeCreated && {
-          vehiculeMessage: 'Votre véhicule a été enregistré. Complétez les documents pour validation.'
-        })
+        action: 'UPLOAD_VEHICLE_DOCUMENTS',
+        message: 'Uploadez les documents de votre véhicule (carte grise, assurance, visite technique) pour validation',
+        route: '/api/vehicule/upload-documents',
+        documentsRequis: [
+          'Carte grise',
+          'Assurance valide',
+          'Visite technique (contrôle technique)',
+          'Photos du véhicule (avant, arrière, intérieur)'
+        ]
       }
     });
 
   } catch (error) {
-    logger.error('Erreur inscription conducteur:', error);
+    logger.error('Erreur passage conducteur:', error);
 
     // Gestion des erreurs de validation Mongoose
     if (error.name === 'ValidationError') {
@@ -844,29 +657,14 @@ const inscrireConducteur = async (req, res, next) => {
 
     // Erreur de duplication MongoDB
     if (error.code === 11000) {
-      let duplicatedField = 'unknown';
-      let message = 'Un compte avec ces informations existe déjà';
-
-      if (error.message.includes('telephone')) {
-        duplicatedField = 'telephone';
-        message = 'Un compte avec ce numéro de téléphone existe déjà';
-      } else if (error.message.includes('email')) {
-        duplicatedField = 'email';
-        message = 'Un compte avec cet email existe déjà';
-      } else if (error.message.includes('immatriculation')) {
-        duplicatedField = 'immatriculation';
-        message = 'Un véhicule avec cette immatriculation existe déjà';
-      }
-
       return res.status(409).json({
         success: false,
-        message: message,
-        errorType: 'DUPLICATE_ERROR',
-        field: duplicatedField
+        message: 'Un véhicule avec cette immatriculation existe déjà',
+        errorType: 'DUPLICATE_IMMATRICULATION'
       });
     }
 
-    return next(AppError.serverError('Erreur serveur lors de l\'inscription conducteur', { 
+    return next(AppError.serverError('Erreur serveur lors du passage conducteur', { 
       originalError: error.message
     }));
   }
@@ -4110,7 +3908,7 @@ module.exports = {
   // Inscription
   inscription,
   inscriptionSMS,
-  inscrireConducteur,
+  passerConducteur,
   register,
   verifyCode,
   resendCode,
