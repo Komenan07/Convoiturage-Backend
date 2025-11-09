@@ -10,7 +10,7 @@ const {
   // Inscription
   inscription,              
   inscriptionSMS, 
-   inscrireConducteur,
+  passerConducteur,
   register,
   verifyCode,
   resendCode,          
@@ -360,8 +360,9 @@ router.post('/inscription-sms',
 router.post('/inscription-conducteur',
   inscriptionLimiter,
   validateConducteurInscription,
+  authMiddleware,
   handleValidationErrors,
-  inscrireConducteur
+  passerConducteur
 );
 
 // =============== ROUTES PUBLIQUES - CONNEXION ===============
