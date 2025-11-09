@@ -1,5 +1,4 @@
 // controllers/vehiculeController.js
-// Contrôleur complet pour la gestion des véhicules
 
 const Vehicule = require('../models/Vehicule');
 const { logger } = require('../utils/logger');
@@ -24,21 +23,54 @@ const creerVehicule = async (req, res, next) => {
     };
 
     // Si c'est le premier véhicule, le définir comme principal
-    const vehiculesExistants = await Vehicule.countDocuments({ proprietaireId: req.user.userId });
+    const vehiculesExistants = await Vehicule.countDocuments({ 
+      proprietaireId: req.user.userId 
+    });
+    
     if (vehiculesExistants === 0) {
       vehiculeData.estPrincipal = true;
     }
 
-    // Gestion de l'upload de photo si présent
-    if (req.file) {
-      vehiculeData.photoVehicule = `/uploads/vehicules/${req.file.filename}`;
+    // Gestion des photos multiples si présentes
+    if (req.files) {
+      if (!vehiculeData.photos) vehiculeData.photos = {};
+      
+      if (req.files.avant) {
+        vehiculeData.photos.avant = `/uploads/vehicules/${req.files.avant[0].filename}`;
+      }
+      if (req.files.arriere) {
+        vehiculeData.photos.arriere = `/uploads/vehicules/${req.files.arriere[0].filename}`;
+      }
+      if (req.files.lateral_gauche) {
+        vehiculeData.photos.lateral_gauche = `/uploads/vehicules/${req.files.lateral_gauche[0].filename}`;
+      }
+      if (req.files.lateral_droit) {
+        vehiculeData.photos.lateral_droit = `/uploads/vehicules/${req.files.lateral_droit[0].filename}`;
+      }
+      if (req.files.interieur) {
+        vehiculeData.photos.interieur = `/uploads/vehicules/${req.files.interieur[0].filename}`;
+      }
+      if (req.files.tableau_bord) {
+        vehiculeData.photos.tableau_bord = `/uploads/vehicules/${req.files.tableau_bord[0].filename}`;
+      }
+    }
+
+    // Initialiser les équipements obligatoires
+    if (!vehiculeData.equipements) {
+      vehiculeData.equipements = {
+        ceintures: 'AVANT_UNIQUEMENT',
+        trousseSecours: false,
+        extincteur: false,
+        triangleSignalisation: false,
+        giletSecurite: false,
+        roueDeSecours: false,
+        cricCle: false
+      };
     }
 
     const nouveauVehicule = new Vehicule(vehiculeData);
     await nouveauVehicule.save();
-
-    // Populate pour avoir les détails du propriétaire si nécessaire
-    await nouveauVehicule.populate('proprietaireId', 'nom prenom email');
+    await nouveauVehicule.populate('proprietaireId', 'nom prenom email telephone');
 
     logger.info('Véhicule créé avec succès', { 
       vehiculeId: nouveauVehicule._id, 
@@ -46,18 +78,24 @@ const creerVehicule = async (req, res, next) => {
       immatriculation: nouveauVehicule.immatriculation 
     });
 
+    // Obtenir infos complètes
+    const documentsManquants = nouveauVehicule.documentsManquants();
+
     res.status(201).json({
       success: true,
       message: 'Véhicule créé avec succès',
       data: {
-        vehicule: nouveauVehicule
+        vehicule: nouveauVehicule,
+        documentsManquants: documentsManquants,
+        prochaines_etapes: documentsManquants.complet 
+          ? 'Soumettez votre véhicule pour validation administrative'
+          : `Complétez les documents manquants (${documentsManquants.nombreManquants} restants)`
       }
     });
 
   } catch (error) {
     logger.error('Erreur création véhicule:', error);
 
-    // Gestion des erreurs de validation Mongoose
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
@@ -67,7 +105,6 @@ const creerVehicule = async (req, res, next) => {
       });
     }
 
-    // Gestion de l'erreur de duplication (immatriculation unique)
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -82,13 +119,21 @@ const creerVehicule = async (req, res, next) => {
 };
 
 /**
- * @desc Obtenir tous les véhicules de l'utilisateur connecté
+ * @desc Obtenir tous les véhicules de l'utilisateur
  * @route GET /api/vehicules/mes-vehicules
- * @access Privé (utilisateur authentifié)
+ * @access Privé
  */
 const obtenirMesVehicules = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, tri = 'createdAt', ordre = 'desc' } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      tri = 'createdAt', 
+      ordre = 'desc',
+      statut,
+      documentsComplets
+    } = req.query;
+    
     const skip = (page - 1) * limit;
 
     logger.info('Récupération des véhicules', { 
@@ -97,14 +142,17 @@ const obtenirMesVehicules = async (req, res, next) => {
       limit 
     });
 
-    // Critères de recherche
     const criteres = { proprietaireId: req.user.userId };
 
-    // Tri
+    // Filtres optionnels
+    if (statut) criteres.statut = statut;
+    if (documentsComplets !== undefined) {
+      criteres.documentsComplets = documentsComplets === 'true';
+    }
+
     const sortOptions = {};
     sortOptions[tri] = ordre === 'desc' ? -1 : 1;
     
-    // Toujours prioriser le véhicule principal
     if (tri !== 'estPrincipal') {
       sortOptions.estPrincipal = -1;
     }
@@ -113,21 +161,25 @@ const obtenirMesVehicules = async (req, res, next) => {
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit))
-      .populate('proprietaireId', 'nom prenom email');
+      .populate('proprietaireId', 'nom prenom email telephone photo');
 
     const total = await Vehicule.countDocuments(criteres);
 
-    // Ajouter les informations de validité des documents
-    const vehiculesAvecValidite = vehicules.map(vehicule => {
+    // Enrichir avec informations de validité
+    const vehiculesEnrichis = vehicules.map(vehicule => {
       const vehiculeObj = vehicule.toObject();
       vehiculeObj.documentsValidite = vehicule.documentsValides();
+      vehiculeObj.documentsManquants = vehicule.documentsManquants();
+      vehiculeObj.scoreSecurity = vehicule.scoreSecurity;
+      vehiculeObj.scoreConfort = vehicule.scoreConfort;
+      vehiculeObj.tauxFiabilite = vehicule.tauxFiabilite;
       return vehiculeObj;
     });
 
     res.json({
       success: true,
       data: {
-        vehicules: vehiculesAvecValidite,
+        vehicules: vehiculesEnrichis,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -138,23 +190,24 @@ const obtenirMesVehicules = async (req, res, next) => {
         },
         statistiques: {
           total: vehicules.length,
-          principal: vehicules.filter(v => v.estPrincipal).length
+          principal: vehicules.filter(v => v.estPrincipal).length,
+          actifs: vehicules.filter(v => v.statut === 'ACTIF').length,
+          disponibles: vehicules.filter(v => v.statut === 'DISPONIBLE').length,
+          documentsComplets: vehicules.filter(v => v.documentsComplets).length
         }
       }
     });
 
   } catch (error) {
     logger.error('Erreur récupération véhicules:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération des véhicules', { 
-      originalError: error.message 
-    }));
+    return next(AppError.serverError('Erreur serveur lors de la récupération des véhicules'));
   }
 };
 
 /**
- * @desc Obtenir un véhicule spécifique par ID
+ * @desc Obtenir un véhicule spécifique
  * @route GET /api/vehicules/:vehiculeId
- * @access Privé (utilisateur authentifié)
+ * @access Privé
  */
 const obtenirVehicule = async (req, res, next) => {
   try {
@@ -167,12 +220,10 @@ const obtenirVehicule = async (req, res, next) => {
       });
     }
 
-    logger.info('Récupération véhicule', { vehiculeId, userId: req.user.userId });
-    
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
-    }).populate('proprietaireId', 'nom prenom email');
+    }).populate('proprietaireId', 'nom prenom email telephone photo noteMoyenne estCertifie');
 
     if (!vehicule) {
       return res.status(404).json({
@@ -181,9 +232,15 @@ const obtenirVehicule = async (req, res, next) => {
       });
     }
 
-    // Ajouter les informations de validité des documents
+    // Enrichir avec toutes les informations
     const vehiculeObj = vehicule.toObject();
     vehiculeObj.documentsValidite = vehicule.documentsValides();
+    vehiculeObj.documentsManquants = vehicule.documentsManquants();
+    vehiculeObj.scoreSecurity = vehicule.scoreSecurity;
+    vehiculeObj.scoreConfort = vehicule.scoreConfort;
+    vehiculeObj.tauxFiabilite = vehicule.tauxFiabilite;
+    vehiculeObj.scoreEligibilite = vehicule.calculerScoreEligibilite();
+    vehiculeObj.disponibilitePourTrajet = vehicule.estDisponiblePourTrajet();
 
     res.json({
       success: true,
@@ -194,16 +251,14 @@ const obtenirVehicule = async (req, res, next) => {
 
   } catch (error) {
     logger.error('Erreur récupération véhicule:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération du véhicule', { 
-      originalError: error.message 
-    }));
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
 /**
  * @desc Modifier un véhicule
  * @route PUT /api/vehicules/:vehiculeId
- * @access Privé (utilisateur authentifié)
+ * @access Privé
  */
 const modifierVehicule = async (req, res, next) => {
   try {
@@ -216,8 +271,6 @@ const modifierVehicule = async (req, res, next) => {
       });
     }
 
-    logger.info('Mise à jour véhicule', { vehiculeId, userId: req.user.userId });
-    
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
@@ -230,14 +283,16 @@ const modifierVehicule = async (req, res, next) => {
       });
     }
 
-    // Champs interdits de modification
-    const champsProteges = ['proprietaireId', '_id', 'createdAt', 'updatedAt'];
+    // Champs protégés
+    const champsProteges = [
+      'proprietaireId', '_id', 'createdAt', 'updatedAt', 
+      'statistiques', 'validation', 'audit'
+    ];
     
-    // Mise à jour des champs autorisés
+    // Mise à jour
     Object.keys(req.body).forEach(key => {
       if (!champsProteges.includes(key)) {
-        // Gestion spéciale pour les objets imbriqués
-        if (key === 'assurance' || key === 'visiteTechnique') {
+        if (typeof req.body[key] === 'object' && !Array.isArray(req.body[key])) {
           vehicule[key] = { ...vehicule[key], ...req.body[key] };
         } else {
           vehicule[key] = req.body[key];
@@ -245,30 +300,48 @@ const modifierVehicule = async (req, res, next) => {
       }
     });
 
-    // Gestion de l'upload de nouvelle photo
-    if (req.file) {
-      // Supprimer l'ancienne photo si elle existe
-      if (vehicule.photoVehicule && vehicule.photoVehicule.startsWith('/uploads/')) {
-        try {
-          const oldPhotoPath = path.join(process.cwd(), 'public', vehicule.photoVehicule);
-          await fs.unlink(oldPhotoPath);
-        } catch (unlinkError) {
-          logger.warn('Erreur suppression ancienne photo:', unlinkError);
+    // Gestion des nouvelles photos
+    if (req.files) {
+      if (!vehicule.photos) vehicule.photos = {};
+      
+      const typesPhotos = ['avant', 'arriere', 'lateral_gauche', 'lateral_droit', 'interieur', 'tableau_bord'];
+      
+      for (const type of typesPhotos) {
+        if (req.files[type]) {
+          // Supprimer l'ancienne photo
+          if (vehicule.photos[type] && vehicule.photos[type].startsWith('/uploads/')) {
+            try {
+              const oldPath = path.join(process.cwd(), 'public', vehicule.photos[type]);
+              await fs.unlink(oldPath);
+            } catch (err) {
+              logger.warn(`Erreur suppression ancienne photo ${type}:`, err);
+            }
+          }
+          vehicule.photos[type] = `/uploads/vehicules/${req.files[type][0].filename}`;
         }
       }
-      vehicule.photoVehicule = `/uploads/vehicules/${req.file.filename}`;
     }
+
+    // Audit
+    if (!vehicule.audit) vehicule.audit = { derniereModification: {}, tentativesAcces: [] };
+    vehicule.audit.derniereModification = {
+      date: new Date(),
+      modifiePar: req.user.userId,
+      champsModifies: Object.keys(req.body),
+      raisonModification: req.body.raisonModification || 'Mise à jour utilisateur'
+    };
 
     await vehicule.save();
     await vehicule.populate('proprietaireId', 'nom prenom email');
 
-    logger.info('Véhicule mis à jour avec succès', { vehiculeId, userId: req.user.userId });
+    logger.info('Véhicule mis à jour', { vehiculeId, userId: req.user.userId });
     
     res.json({
       success: true,
       message: 'Véhicule mis à jour avec succès',
       data: {
-        vehicule
+        vehicule,
+        documentsManquants: vehicule.documentsManquants()
       }
     });
 
@@ -284,23 +357,14 @@ const modifierVehicule = async (req, res, next) => {
       });
     }
 
-    if (error.code === 11000) {
-      return res.status(409).json({
-        success: false,
-        message: 'Un véhicule avec cette immatriculation existe déjà'
-      });
-    }
-
-    return next(AppError.serverError('Erreur serveur lors de la mise à jour du véhicule', { 
-      originalError: error.message 
-    }));
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
 /**
  * @desc Supprimer un véhicule
  * @route DELETE /api/vehicules/:vehiculeId
- * @access Privé (utilisateur authentifié)
+ * @access Privé
  */
 const supprimerVehicule = async (req, res, next) => {
   try {
@@ -313,8 +377,6 @@ const supprimerVehicule = async (req, res, next) => {
       });
     }
 
-    logger.info('Suppression véhicule', { vehiculeId, userId: req.user.userId });
-    
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
@@ -327,7 +389,15 @@ const supprimerVehicule = async (req, res, next) => {
       });
     }
 
-    // Vérifier si c'est le véhicule principal et s'il y en a d'autres
+    // Empêcher la suppression si véhicule en course
+    if (vehicule.statut === 'EN_COURSE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Impossible de supprimer un véhicule en course active'
+      });
+    }
+
+    // Gérer le véhicule principal
     if (vehicule.estPrincipal) {
       const autresVehicules = await Vehicule.find({
         proprietaireId: req.user.userId,
@@ -335,31 +405,26 @@ const supprimerVehicule = async (req, res, next) => {
       });
 
       if (autresVehicules.length > 0) {
-        // Définir un autre véhicule comme principal
-        const nouveauPrincipal = autresVehicules[0];
-        nouveauPrincipal.estPrincipal = true;
-        await nouveauPrincipal.save();
-        
-        logger.info('Nouveau véhicule principal défini', { 
-          nouveauPrincipalId: nouveauPrincipal._id,
-          userId: req.user.userId 
-        });
+        await autresVehicules[0].definirCommePrincipal();
       }
     }
 
-    // Supprimer la photo si elle existe
-    if (vehicule.photoVehicule && vehicule.photoVehicule.startsWith('/uploads/')) {
-      try {
-        const photoPath = path.join(process.cwd(), 'public', vehicule.photoVehicule);
-        await fs.unlink(photoPath);
-      } catch (unlinkError) {
-        logger.warn('Erreur suppression photo véhicule:', unlinkError);
+    // Supprimer toutes les photos
+    const typesPhotos = ['avant', 'arriere', 'lateral_gauche', 'lateral_droit', 'interieur', 'tableau_bord'];
+    for (const type of typesPhotos) {
+      if (vehicule.photos?.[type] && vehicule.photos[type].startsWith('/uploads/')) {
+        try {
+          const photoPath = path.join(process.cwd(), 'public', vehicule.photos[type]);
+          await fs.unlink(photoPath);
+        } catch (err) {
+          logger.warn(`Erreur suppression photo ${type}:`, err);
+        }
       }
     }
 
     await Vehicule.findByIdAndDelete(vehiculeId);
     
-    logger.info('Véhicule supprimé avec succès', { vehiculeId, userId: req.user.userId });
+    logger.info('Véhicule supprimé', { vehiculeId, userId: req.user.userId });
     
     res.json({
       success: true,
@@ -368,32 +433,22 @@ const supprimerVehicule = async (req, res, next) => {
 
   } catch (error) {
     logger.error('Erreur suppression véhicule:', error);
-    return next(AppError.serverError('Erreur serveur lors de la suppression du véhicule', { 
-      originalError: error.message 
-    }));
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
-// =============== MÉTHODES SPÉCIFIQUES ===============
+// =============== GESTION DES DOCUMENTS ===============
 
 /**
- * @desc Définir un véhicule comme principal
- * @route PATCH /api/vehicules/:vehiculeId/principal
- * @access Privé (utilisateur authentifié)
+ * @desc Compléter les documents d'un véhicule
+ * @route PUT /api/vehicules/:vehiculeId/documents
+ * @access Privé
  */
-const definirVehiculePrincipal = async (req, res, next) => {
+const completerDocuments = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
-    
-    if (!vehiculeId.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID de véhicule invalide'
-      });
-    }
+    const documents = req.body;
 
-    logger.info('Définition véhicule principal', { vehiculeId, userId: req.user.userId });
-    
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
@@ -406,161 +461,46 @@ const definirVehiculePrincipal = async (req, res, next) => {
       });
     }
 
-    if (vehicule.estPrincipal) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ce véhicule est déjà défini comme principal'
-      });
-    }
+    await vehicule.completerDocuments(documents);
 
-    // Utiliser la méthode du modèle
-    await vehicule.definirCommePrincipal();
-    
-    logger.info('Véhicule défini comme principal', { vehiculeId, userId: req.user.userId });
-    
-    res.json({
-      success: true,
-      message: 'Véhicule défini comme principal avec succès',
-      data: {
-        vehicule
-      }
+    const documentsManquants = vehicule.documentsManquants();
+    const documentsValidite = vehicule.documentsValides();
+
+    logger.info('Documents complétés', { 
+      vehiculeId, 
+      userId: req.user.userId,
+      complet: documentsManquants.complet
     });
-
-  } catch (error) {
-    logger.error('Erreur définition véhicule principal:', error);
-    return next(AppError.serverError('Erreur serveur lors de la définition du véhicule principal', { 
-      originalError: error.message 
-    }));
-  }
-};
-
-/**
- * @desc Obtenir le véhicule principal de l'utilisateur
- * @route GET /api/vehicules/principal
- * @access Privé (utilisateur authentifié)
- */
-const obtenirVehiculePrincipal = async (req, res, next) => {
-  try {
-    logger.info('Récupération véhicule principal', { userId: req.user.userId });
-    
-    const vehiculePrincipal = await Vehicule.findOne({
-      proprietaireId: req.user.userId,
-      estPrincipal: true
-    }).populate('proprietaireId', 'nom prenom email');
-
-    if (!vehiculePrincipal) {
-      return res.status(404).json({
-        success: false,
-        message: 'Aucun véhicule principal trouvé'
-      });
-    }
-
-    // Ajouter les informations de validité des documents
-    const vehiculeObj = vehiculePrincipal.toObject();
-    vehiculeObj.documentsValidite = vehiculePrincipal.documentsValides();
 
     res.json({
       success: true,
-      data: {
-        vehicule: vehiculeObj
-      }
-    });
-
-  } catch (error) {
-    logger.error('Erreur récupération véhicule principal:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération du véhicule principal', { 
-      originalError: error.message 
-    }));
-  }
-};
-
-/**
- * @desc Mettre à jour la photo d'un véhicule
- * @route PUT /api/vehicules/:vehiculeId/photo
- * @access Privé (utilisateur authentifié)
- */
-const mettreAJourPhotoVehicule = async (req, res, next) => {
-  try {
-    const { vehiculeId } = req.params;
-    
-    if (!vehiculeId.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID de véhicule invalide'
-      });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'Photo requise'
-      });
-    }
-
-    logger.info('Mise à jour photo véhicule', { vehiculeId, userId: req.user.userId });
-    
-    const vehicule = await Vehicule.findOne({
-      _id: vehiculeId,
-      proprietaireId: req.user.userId
-    });
-
-    if (!vehicule) {
-      return res.status(404).json({
-        success: false,
-        message: 'Véhicule non trouvé'
-      });
-    }
-
-    // Supprimer l'ancienne photo si elle existe
-    if (vehicule.photoVehicule && vehicule.photoVehicule.startsWith('/uploads/')) {
-      try {
-        const oldPhotoPath = path.join(process.cwd(), 'public', vehicule.photoVehicule);
-        await fs.unlink(oldPhotoPath);
-      } catch (unlinkError) {
-        logger.warn('Erreur suppression ancienne photo:', unlinkError);
-      }
-    }
-
-    vehicule.photoVehicule = `/uploads/vehicules/${req.file.filename}`;
-    await vehicule.save();
-
-    logger.info('Photo véhicule mise à jour', { vehiculeId, userId: req.user.userId });
-    
-    res.json({
-      success: true,
-      message: 'Photo du véhicule mise à jour avec succès',
+      message: documentsManquants.complet 
+        ? 'Documents complétés ! Votre véhicule est en attente de vérification administrative'
+        : 'Documents mis à jour',
       data: {
         vehicule,
-        nouvellePhoto: vehicule.photoVehicule
+        documentsManquants,
+        documentsValidite,
+        statut: vehicule.statut,
+        pourcentageCompletion: documentsManquants.pourcentageCompletion
       }
     });
 
   } catch (error) {
-    logger.error('Erreur mise à jour photo véhicule:', error);
-    return next(AppError.serverError('Erreur serveur lors de la mise à jour de la photo', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur complétion documents:', error);
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
 /**
- * @desc Vérifier la validité des documents (assurance, visite technique)
+ * @desc Vérifier validité des documents
  * @route GET /api/vehicules/:vehiculeId/validite-documents
- * @access Privé (utilisateur authentifié)
+ * @access Privé
  */
 const verifierValiditeDocuments = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
-    
-    if (!vehiculeId.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID de véhicule invalide'
-      });
-    }
 
-    logger.info('Vérification validité documents', { vehiculeId, userId: req.user.userId });
-    
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
@@ -573,8 +513,7 @@ const verifierValiditeDocuments = async (req, res, next) => {
       });
     }
 
-    // Utiliser la méthode du modèle
-    const validiteDocuments = vehicule.documentsValides();
+    const validite = vehicule.documentsValides();
 
     res.json({
       success: true,
@@ -585,143 +524,40 @@ const verifierValiditeDocuments = async (req, res, next) => {
           marque: vehicule.marque,
           modele: vehicule.modele
         },
-        documentsValidite: validiteDocuments
+        documentsValidite: validite,
+        recommandations: validite.alertes.filter(a => a.severite === 'CRITIQUE').length > 0
+          ? 'Action urgente requise : documents expirés'
+          : validite.alertes.length > 0
+          ? 'Renouvelez vos documents bientôt'
+          : 'Tous les documents sont valides'
       }
     });
 
   } catch (error) {
-    logger.error('Erreur vérification validité documents:', error);
-    return next(AppError.serverError('Erreur serveur lors de la vérification des documents', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur vérification documents:', error);
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
 /**
- * @desc Rechercher des véhicules par critères
- * @route GET /api/vehicules/recherche
- * @access Privé (utilisateur authentifié)
- */
-const rechercherVehicules = async (req, res, next) => {
-  try {
-    const { 
-      marque, 
-      modele, 
-      couleur, 
-      statut, 
-      carburant,
-      anneeMin,
-      anneeMax,
-      page = 1, 
-      limit = 10 
-    } = req.query;
-    
-    const skip = (page - 1) * limit;
-
-    logger.info('Recherche véhicules', { 
-      userId: req.user.userId, 
-      criteres: req.query 
-    });
-    
-    const criteres = { proprietaireId: req.user.userId };
-
-    // Filtres de recherche
-    if (marque) criteres.marque = new RegExp(marque, 'i');
-    if (modele) criteres.modele = new RegExp(modele, 'i');
-    if (couleur) criteres.couleur = new RegExp(couleur, 'i');
-    if (statut) criteres.statut = statut;
-    if (carburant) criteres.carburant = carburant;
-    
-    // Filtre par année
-    if (anneeMin || anneeMax) {
-      criteres.annee = {};
-      if (anneeMin) criteres.annee.$gte = parseInt(anneeMin);
-      if (anneeMax) criteres.annee.$lte = parseInt(anneeMax);
-    }
-
-    const vehicules = await Vehicule.find(criteres)
-      .sort({ estPrincipal: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate('proprietaireId', 'nom prenom');
-
-    const total = await Vehicule.countDocuments(criteres);
-
-    // Ajouter les informations de validité
-    const vehiculesAvecValidite = vehicules.map(vehicule => {
-      const vehiculeObj = vehicule.toObject();
-      vehiculeObj.documentsValidite = vehicule.documentsValides();
-      return vehiculeObj;
-    });
-
-    res.json({
-      success: true,
-      data: {
-        vehicules: vehiculesAvecValidite,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
-    });
-
-  } catch (error) {
-    logger.error('Erreur recherche véhicules:', error);
-    return next(AppError.serverError('Erreur serveur lors de la recherche des véhicules', { 
-      originalError: error.message 
-    }));
-  }
-};
-
-// =============== MÉTHODES SUPPLÉMENTAIRES ===============
-
-/**
- * @desc Obtenir les documents expirés/expiration proche
+ * @desc Obtenir documents expirés/proches expiration
  * @route GET /api/vehicules/documents-expires
- * @access Privé (utilisateur authentifié)
+ * @access Privé
  */
 const obtenirDocumentsExpires = async (req, res, next) => {
   try {
     const { joursAvance = 30 } = req.query;
-    
-    logger.info('Récupération documents expirés', { 
-      userId: req.user.userId,
-      joursAvance 
-    });
 
-    // Utiliser la méthode statique du modèle
     const vehiculesExpires = await Vehicule.documentsExpiresOuBientot(parseInt(joursAvance));
     
-    // Filtrer par propriétaire
     const vehiculesUtilisateur = vehiculesExpires.filter(
       v => v.proprietaireId.toString() === req.user.userId
     );
 
-    // Ajouter le détail des alertes
     const vehiculesAvecAlertes = vehiculesUtilisateur.map(vehicule => {
       const vehiculeObj = vehicule.toObject();
-      const validite = vehicule.documentsValides();
-      
-      const alertes = [];
-      const maintenant = new Date();
-      
-      if (vehicule.assurance.dateExpiration < maintenant) {
-        alertes.push({ type: 'ASSURANCE_EXPIREE', severite: 'CRITIQUE' });
-      } else if (!validite.assurance.valide) {
-        alertes.push({ type: 'ASSURANCE_EXPIRATION_PROCHE', severite: 'ATTENTION' });
-      }
-
-      if (vehicule.visiteTechnique.dateExpiration < maintenant) {
-        alertes.push({ type: 'VISITE_TECHNIQUE_EXPIREE', severite: 'CRITIQUE' });
-      } else if (!validite.visiteTechnique.valide) {
-        alertes.push({ type: 'VISITE_TECHNIQUE_EXPIRATION_PROCHE', severite: 'ATTENTION' });
-      }
-
-      vehiculeObj.alertes = alertes;
-      vehiculeObj.documentsValidite = validite;
-      
+      vehiculeObj.alertes = vehicule.genererAlertes();
+      vehiculeObj.documentsValidite = vehicule.documentsValides();
       return vehiculeObj;
     });
 
@@ -734,30 +570,541 @@ const obtenirDocumentsExpires = async (req, res, next) => {
           critiques: vehiculesAvecAlertes.filter(v => 
             v.alertes.some(a => a.severite === 'CRITIQUE')
           ).length,
-          attention: vehiculesAvecAlertes.filter(v => 
-            v.alertes.some(a => a.severite === 'ATTENTION')
+          avertissements: vehiculesAvecAlertes.filter(v => 
+            v.alertes.some(a => a.severite === 'ELEVE')
           ).length
         }
       }
     });
 
   } catch (error) {
-    logger.error('Erreur récupération documents expirés:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération des documents expirés', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur documents expirés:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+// =============== GESTION COVOITURAGE ===============
+
+/**
+ * @desc Activer véhicule pour covoiturage
+ * @route POST /api/vehicules/:vehiculeId/activer-covoiturage
+ * @access Privé
+ */
+const activerPourCovoiturage = async (req, res, next) => {
+  let vehicule; 
+  try {
+    const { vehiculeId } = req.params;
+
+    vehicule = await Vehicule.findOne({
+      _id: vehiculeId,
+      proprietaireId: req.user.userId
+    });
+
+    if (!vehicule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Véhicule non trouvé'
+      });
+    }
+
+    await vehicule.activerPourCovoiturage();
+
+    logger.info('Véhicule activé pour covoiturage', { vehiculeId, userId: req.user.userId });
+
+    res.json({
+      success: true,
+      message: 'Véhicule activé pour le covoiturage',
+      data: {
+        vehicule,
+        scoreEligibilite: vehicule.calculerScoreEligibilite()
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur activation covoiturage:', error);
+    
+    if (error.message.includes('documents invalides') || 
+        error.message.includes('non validé') ||
+        error.message.includes('Équipements')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        details: vehicule ? vehicule.documentsValides() : null
+      });
+    }
+
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
 /**
- * @desc Obtenir les statistiques des véhicules
+ * @desc Désactiver véhicule pour covoiturage
+ * @route POST /api/vehicules/:vehiculeId/desactiver-covoiturage
+ * @access Privé
+ */
+const desactiverPourCovoiturage = async (req, res, next) => {
+  try {
+    const { vehiculeId } = req.params;
+    const { raison } = req.body;
+
+    const vehicule = await Vehicule.findOne({
+      _id: vehiculeId,
+      proprietaireId: req.user.userId
+    });
+
+    if (!vehicule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Véhicule non trouvé'
+      });
+    }
+
+    await vehicule.desactiverPourCovoiturage(raison);
+
+    logger.info('Véhicule désactivé pour covoiturage', { vehiculeId, raison, userId: req.user.userId });
+
+    res.json({
+      success: true,
+      message: 'Véhicule désactivé pour le covoiturage',
+      data: { vehicule }
+    });
+
+  } catch (error) {
+    logger.error('Erreur désactivation covoiturage:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Vérifier disponibilité pour trajet
+ * @route GET /api/vehicules/:vehiculeId/disponibilite-trajet
+ * @access Privé
+ */
+const verifierDisponibiliteTrajet = async (req, res, next) => {
+  try {
+    const { vehiculeId } = req.params;
+    const { nombrePlaces = 1 } = req.query;
+
+    const vehicule = await Vehicule.findOne({
+      _id: vehiculeId,
+      proprietaireId: req.user.userId
+    });
+
+    if (!vehicule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Véhicule non trouvé'
+      });
+    }
+
+    const disponibilite = vehicule.estDisponiblePourTrajet(parseInt(nombrePlaces));
+
+    res.json({
+      success: true,
+      data: {
+        vehicule: {
+          id: vehicule._id,
+          immatriculation: vehicule.immatriculation,
+          marque: vehicule.marque,
+          modele: vehicule.modele,
+          placesDisponibles: vehicule.placesDisponibles
+        },
+        disponibilite: disponibilite.disponible,
+        raisons: disponibilite.raisons,
+        scoreEligibilite: disponibilite.score
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur vérification disponibilité:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Rechercher véhicules disponibles (pour matching)
+ * @route GET /api/vehicules/disponibles
+ * @access Privé
+ */
+const rechercherVehiculesDisponibles = async (req, res, next) => {
+  try {
+    const criteres = {
+      nombrePlacesMin: req.query.nombrePlaces,
+      noteMinimale: req.query.noteMin,
+      ville: req.query.ville,
+      anneeMinimum: req.query.anneeMin,
+      carburant: req.query.carburant,
+      equipements: {},
+      commodites: {},
+      preferences: {}
+    };
+
+    // Parse équipements
+    if (req.query.climatisation) criteres.equipements.climatisation = true;
+    if (req.query.wifi) criteres.commodites.wifi = true;
+    if (req.query.chargeur) criteres.commodites.chargeurTelephone = true;
+    if (req.query.animaux) criteres.preferences.animauxAutorises = req.query.animaux === 'true';
+    if (req.query.fumeur) criteres.preferences.fumeurAutorise = req.query.fumeur === 'true';
+
+    const vehicules = await Vehicule.trouverDisponibles(criteres);
+
+    // Enrichir résultats
+    const vehiculesEnrichis = vehicules.map(v => ({
+      ...v.toObject(),
+      scoreSecurity: v.scoreSecurity,
+      scoreConfort: v.scoreConfort,
+      tauxFiabilite: v.tauxFiabilite
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        vehicules: vehiculesEnrichis,
+        total: vehiculesEnrichis.length
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur recherche véhicules disponibles:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+// =============== GESTION MAINTENANCE ===============
+
+/**
+ * @desc Ajouter une entrée de maintenance
+ * @route POST /api/vehicules/:vehiculeId/maintenance
+ * @access Privé
+ */
+const ajouterMaintenance = async (req, res, next) => {
+  try {
+    const { vehiculeId } = req.params;
+    const maintenanceData = req.body;
+
+    const vehicule = await Vehicule.findOne({
+      _id: vehiculeId,
+      proprietaireId: req.user.userId
+    });
+
+    if (!vehicule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Véhicule non trouvé'
+      });
+    }
+
+    await vehicule.ajouterMaintenance(maintenanceData);
+
+    logger.info('Maintenance ajoutée', { vehiculeId, type: maintenanceData.type });
+
+    res.json({
+      success: true,
+      message: 'Entrée de maintenance ajoutée',
+      data: {
+        vehicule,
+        maintenance: vehicule.maintenance
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur ajout maintenance:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Mettre à jour position du véhicule
+ * @route PUT /api/vehicules/:vehiculeId/position
+ * @access Privé
+ */
+const mettreAJourPosition = async (req, res, next) => {
+  try {
+    const { vehiculeId } = req.params;
+    const { latitude, longitude, adresse, ville } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude et longitude requises'
+      });
+    }
+
+    const vehicule = await Vehicule.findOne({
+      _id: vehiculeId,
+      proprietaireId: req.user.userId
+    });
+
+    if (!vehicule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Véhicule non trouvé'
+      });
+    }
+
+    await vehicule.mettreAJourPosition(latitude, longitude, adresse, ville);
+
+    res.json({
+      success: true,
+      message: 'Position mise à jour',
+      data: {
+        dernierePosition: vehicule.dernierePosition
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur mise à jour position:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+// =============== GESTION ADMINISTRATIVE ===============
+
+/**
+ * @desc Valider un véhicule (Admin)
+ * @route POST /api/vehicules/:vehiculeId/valider
+ * @access Privé (Admin)
+ */
+const validerVehicule = async (req, res, next) => {
+   let vehicule = null;
+  try {
+    const { vehiculeId } = req.params;
+    const { commentaire } = req.body;
+
+    vehicule = await Vehicule.findById(vehiculeId)
+      .populate('proprietaireId', 'nom prenom email telephone');
+
+    if (!vehicule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Véhicule non trouvé'
+      });
+    }
+
+    await vehicule.valider(req.user.userId, commentaire);
+
+    logger.info('Véhicule validé par admin', { 
+      vehiculeId, 
+      adminId: req.user.userId,
+      proprietaire: vehicule.proprietaireId._id
+    });
+
+    // TODO: Envoyer notification au propriétaire
+
+    res.json({
+      success: true,
+      message: 'Véhicule validé avec succès',
+      data: {
+        vehicule,
+        validation: vehicule.validation
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur validation véhicule:', error);
+    
+    if (error.message.includes('documents incomplets')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        documentsManquants: vehicule ? vehicule.documentsManquants() : null
+      });
+    }
+
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Rejeter un véhicule (Admin)
+ * @route POST /api/vehicules/:vehiculeId/rejeter
+ * @access Privé (Admin)
+ */
+const rejeterVehicule = async (req, res, next) => {
+  try {
+    const { vehiculeId } = req.params;
+    const { raison } = req.body;
+
+    if (!raison || raison.trim().length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Raison du rejet requise (minimum 10 caractères)'
+      });
+    }
+
+    const vehicule = await Vehicule.findById(vehiculeId)
+      .populate('proprietaireId', 'nom prenom email telephone');
+
+    if (!vehicule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Véhicule non trouvé'
+      });
+    }
+
+    await vehicule.rejeter(raison, req.user.userId);
+
+    logger.info('Véhicule rejeté par admin', { 
+      vehiculeId, 
+      adminId: req.user.userId,
+      raison
+    });
+
+    // TODO: Envoyer notification au propriétaire
+
+    res.json({
+      success: true,
+      message: 'Véhicule rejeté',
+      data: {
+        vehicule,
+        raisonRejet: raison
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur rejet véhicule:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Obtenir véhicules en attente de validation (Admin)
+ * @route GET /api/vehicules/admin/en-attente-validation
+ * @access Privé (Admin)
+ */
+const obtenirVehiculesEnAttenteValidation = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const vehicules = await Vehicule.enAttenteValidation()
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Vehicule.countDocuments({
+      documentsComplets: true,
+      'validation.statutValidation': { $in: ['NON_VALIDE', 'EN_COURS'] },
+      statut: 'EN_ATTENTE_VERIFICATION'
+    });
+
+    // Enrichir avec infos complètes
+    const vehiculesEnrichis = vehicules.map(v => ({
+      ...v.toObject(),
+      documentsValidite: v.documentsValides(),
+      scoreEligibilite: v.calculerScoreEligibilite(),
+      scoreSecurity: v.scoreSecurity
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        vehicules: vehiculesEnrichis,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur récupération véhicules en attente:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Ajouter un signalement
+ * @route POST /api/vehicules/:vehiculeId/signaler
+ * @access Privé
+ */
+const signalerVehicule = async (req, res, next) => {
+  try {
+    const { vehiculeId } = req.params;
+    const { motif, description } = req.body;
+
+    if (!motif || !description) {
+      return res.status(400).json({
+        success: false,
+        message: 'Motif et description requis'
+      });
+    }
+
+    const vehicule = await Vehicule.findById(vehiculeId);
+
+    if (!vehicule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Véhicule non trouvé'
+      });
+    }
+
+    await vehicule.ajouterSignalement({
+      signalePar: req.user.userId,
+      motif,
+      description
+    });
+
+    logger.info('Véhicule signalé', { 
+      vehiculeId, 
+      signalePar: req.user.userId,
+      motif 
+    });
+
+    res.json({
+      success: true,
+      message: 'Signalement enregistré',
+      data: {
+        signalement: vehicule.signalements[vehicule.signalements.length - 1]
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur signalement:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Obtenir véhicules avec signalements (Admin)
+ * @route GET /api/vehicules/admin/signalements
+ * @access Privé (Admin)
+ */
+const obtenirVehiculesSignales = async (req, res, next) => {
+  try {
+    const vehicules = await Vehicule.avecSignalementsNonTraites();
+
+    const vehiculesEnrichis = vehicules.map(v => ({
+      ...v.toObject(),
+      signalementsCritiques: v.signalements.filter(s => 
+        ['DOCUMENTS_INVALIDES', 'SECURITE'].includes(s.motif) && !s.traite
+      ).length
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        vehicules: vehiculesEnrichis,
+        total: vehiculesEnrichis.length
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur récupération signalements:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+// =============== STATISTIQUES ===============
+
+/**
+ * @desc Obtenir statistiques des véhicules de l'utilisateur
  * @route GET /api/vehicules/statistiques
- * @access Privé (utilisateur authentifié)
+ * @access Privé
  */
 const obtenirStatistiques = async (req, res, next) => {
   try {
-    logger.info('Récupération statistiques véhicules', { userId: req.user.userId });
-    
     const stats = await Vehicule.aggregate([
       { $match: { proprietaireId: req.user.userId } },
       {
@@ -765,40 +1112,42 @@ const obtenirStatistiques = async (req, res, next) => {
           _id: null,
           total: { $sum: 1 },
           actifs: { $sum: { $cond: [{ $eq: ['$statut', 'ACTIF'] }, 1, 0] } },
-          inactifs: { $sum: { $cond: [{ $eq: ['$statut', 'INACTIF'] }, 1, 0] } },
-          enReparation: { $sum: { $cond: [{ $eq: ['$statut', 'EN_REPARATION'] }, 1, 0] } },
-          horsService: { $sum: { $cond: [{ $eq: ['$statut', 'HORS_SERVICE'] }, 1, 0] } },
-          principal: { $sum: { $cond: ['$estPrincipal', 1, 0] } },
-          avgAge: { 
-            $avg: { 
-              $subtract: [new Date().getFullYear(), '$annee'] 
-            } 
-          }
+          disponibles: { $sum: { $cond: [{ $eq: ['$statut', 'DISPONIBLE'] }, 1, 0] } },
+          enCourse: { $sum: { $cond: [{ $eq: ['$statut', 'EN_COURSE'] }, 1, 0] } },
+          documentsComplets: { $sum: { $cond: ['$documentsComplets', 1, 0] } },
+          avgAge: { $avg: { $subtract: [new Date().getFullYear(), '$annee'] } },
+          totalTrajets: { $sum: '$statistiques.nombreTrajets' },
+          totalPassagers: { $sum: '$statistiques.nombrePassagers' },
+          totalKilometres: { $sum: '$statistiques.kilometresParcourus' },
+          noteMoyenne: { $avg: '$statistiques.noteMoyenne' }
         }
       }
     ]);
 
-    // Statistiques par carburant
+    // Stats par carburant
     const statsCarburant = await Vehicule.aggregate([
       { $match: { proprietaireId: req.user.userId } },
       { $group: { _id: '$carburant', count: { $sum: 1 } } }
     ]);
 
+    // Stats par statut
+    const statsStatut = await Vehicule.aggregate([
+      { $match: { proprietaireId: req.user.userId } },
+      { $group: { _id: '$statut', count: { $sum: 1 } } }
+    ]);
+
     const statistiques = stats[0] || {
       total: 0,
       actifs: 0,
-      inactifs: 0,
-      enReparation: 0,
-      horsService: 0,
-      principal: 0,
-      avgAge: 0
+      disponibles: 0,
+      enCourse: 0,
+      documentsComplets: 0,
+      avgAge: 0,
+      totalTrajets: 0,
+      totalPassagers: 0,
+      totalKilometres: 0,
+      noteMoyenne: 0
     };
-
-    // Formater les stats carburant
-    const carburantStats = {};
-    statsCarburant.forEach(stat => {
-      carburantStats[stat._id || 'NON_SPECIFIE'] = stat.count;
-    });
 
     res.json({
       success: true,
@@ -806,131 +1155,86 @@ const obtenirStatistiques = async (req, res, next) => {
         statistiques: {
           ...statistiques,
           ageMoyen: Math.round(statistiques.avgAge || 0),
-          repartitionCarburant: carburantStats
+          repartitionCarburant: statsCarburant.reduce((acc, s) => {
+            acc[s._id || 'NON_SPECIFIE'] = s.count;
+            return acc;
+          }, {}),
+          repartitionStatut: statsStatut.reduce((acc, s) => {
+            acc[s._id] = s.count;
+            return acc;
+          }, {})
         }
       }
     });
 
   } catch (error) {
-    logger.error('Erreur récupération statistiques:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur statistiques:', error);
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
 /**
- * @desc Renouveler l'assurance d'un véhicule
- * @route PUT /api/vehicules/:vehiculeId/assurance
- * @access Privé (utilisateur authentifié)
+ * @desc Obtenir statistiques globales (Admin)
+ * @route GET /api/vehicules/admin/statistiques-globales
+ * @access Privé (Admin)
  */
-const renouvelerAssurance = async (req, res, next) => {
+const obtenirStatistiquesGlobales = async (req, res, next) => {
   try {
-    const { vehiculeId } = req.params;
-    const { numeroPolice, dateExpiration, compagnie } = req.body;
+    const stats = await Vehicule.statistiquesGlobales();
 
-    if (!vehiculeId.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID de véhicule invalide'
-      });
-    }
-
-    // Validation des données requises
-    if (!numeroPolice || !dateExpiration || !compagnie) {
-      return res.status(400).json({
-        success: false,
-        message: 'Numéro de police, date d\'expiration et compagnie sont requis'
-      });
-    }
-
-    logger.info('Renouvellement assurance véhicule', { vehiculeId, userId: req.user.userId });
-    
-    const vehicule = await Vehicule.findOne({
-      _id: vehiculeId,
-      proprietaireId: req.user.userId
-    });
-
-    if (!vehicule) {
-      return res.status(404).json({
-        success: false,
-        message: 'Véhicule non trouvé'
-      });
-    }
-
-    // Vérifier que la nouvelle date est future
-    const nouvelleDate = new Date(dateExpiration);
-    if (nouvelleDate <= new Date()) {
-      return res.status(400).json({
-        success: false,
-        message: 'La date d\'expiration doit être future'
-      });
-    }
-
-    vehicule.assurance = {
-      numeroPolice: numeroPolice.trim(),
-      dateExpiration: nouvelleDate,
-      compagnie: compagnie.trim()
-    };
-
-    await vehicule.save();
-    
-    logger.info('Assurance renouvelée', { vehiculeId, userId: req.user.userId });
-    
     res.json({
       success: true,
-      message: 'Assurance renouvelée avec succès',
+      data: { statistiques: stats }
+    });
+
+  } catch (error) {
+    logger.error('Erreur statistiques globales:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Obtenir top véhicules par note
+ * @route GET /api/vehicules/top-notes
+ * @access Public
+ */
+const obtenirTopVehicules = async (req, res, next) => {
+  try {
+    const { limite = 10 } = req.query;
+
+    const vehicules = await Vehicule.topParNote(parseInt(limite));
+
+    const vehiculesEnrichis = vehicules.map(v => ({
+      ...v.toPublicJSON(),
+      scoreSecurity: v.scoreSecurity,
+      scoreConfort: v.scoreConfort
+    }));
+
+    res.json({
+      success: true,
       data: {
-        vehicule,
-        documentsValidite: vehicule.documentsValides()
+        vehicules: vehiculesEnrichis,
+        total: vehiculesEnrichis.length
       }
     });
 
   } catch (error) {
-    logger.error('Erreur renouvellement assurance:', error);
-    
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Données invalides',
-        erreurs: messages
-      });
-    }
-
-    return next(AppError.serverError('Erreur serveur lors du renouvellement de l\'assurance', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur top véhicules:', error);
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
+// =============== MÉTHODES SPÉCIFIQUES ===============
+
 /**
- * @desc Renouveler la visite technique d'un véhicule
- * @route PUT /api/vehicules/:vehiculeId/visite-technique
- * @access Privé (utilisateur authentifié)
+ * @desc Définir véhicule comme principal
+ * @route PATCH /api/vehicules/:vehiculeId/principal
+ * @access Privé
  */
-const renouvelerVisiteTechnique = async (req, res, next) => {
+const definirVehiculePrincipal = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
-    const { dateExpiration, certificatUrl } = req.body;
 
-    if (!vehiculeId.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID de véhicule invalide'
-      });
-    }
-
-    // Validation des données requises
-    if (!dateExpiration) {
-      return res.status(400).json({
-        success: false,
-        message: 'Date d\'expiration requise'
-      });
-    }
-
-    logger.info('Renouvellement visite technique véhicule', { vehiculeId, userId: req.user.userId });
-    
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
@@ -943,78 +1247,80 @@ const renouvelerVisiteTechnique = async (req, res, next) => {
       });
     }
 
-    // Vérifier que la nouvelle date est future
-    const nouvelleDate = new Date(dateExpiration);
-    if (nouvelleDate <= new Date()) {
+    if (vehicule.estPrincipal) {
       return res.status(400).json({
         success: false,
-        message: 'La date d\'expiration doit être future'
+        message: 'Ce véhicule est déjà principal'
       });
     }
 
-    vehicule.visiteTechnique = {
-      dateExpiration: nouvelleDate,
-      certificatUrl: certificatUrl || vehicule.visiteTechnique.certificatUrl
-    };
+    await vehicule.definirCommePrincipal();
 
-    await vehicule.save();
-    
-    logger.info('Visite technique renouvelée', { vehiculeId, userId: req.user.userId });
-    
+    logger.info('Véhicule défini comme principal', { vehiculeId, userId: req.user.userId });
+
     res.json({
       success: true,
-      message: 'Visite technique renouvelée avec succès',
-      data: {
-        vehicule,
-        documentsValidite: vehicule.documentsValides()
-      }
+      message: 'Véhicule défini comme principal',
+      data: { vehicule }
     });
 
   } catch (error) {
-    logger.error('Erreur renouvellement visite technique:', error);
-    
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Données invalides',
-        erreurs: messages
-      });
-    }
-
-    return next(AppError.serverError('Erreur serveur lors du renouvellement de la visite technique', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur définition principal:', error);
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
 /**
- * @desc Changer le statut d'un véhicule
- * @route PATCH /api/vehicules/:vehiculeId/statut
- * @access Privé (utilisateur authentifié)
+ * @desc Obtenir véhicule principal
+ * @route GET /api/vehicules/principal
+ * @access Privé
  */
-const changerStatutVehicule = async (req, res, next) => {
+const obtenirVehiculePrincipal = async (req, res, next) => {
+  try {
+    const vehiculePrincipal = await Vehicule.findOne({
+      proprietaireId: req.user.userId,
+      estPrincipal: true
+    }).populate('proprietaireId', 'nom prenom email telephone photo');
+
+    if (!vehiculePrincipal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Aucun véhicule principal trouvé'
+      });
+    }
+
+    const vehiculeObj = vehiculePrincipal.toObject();
+    vehiculeObj.documentsValidite = vehiculePrincipal.documentsValides();
+    vehiculeObj.scoreSecurity = vehiculePrincipal.scoreSecurity;
+    vehiculeObj.scoreConfort = vehiculePrincipal.scoreConfort;
+
+    res.json({
+      success: true,
+      data: { vehicule: vehiculeObj }
+    });
+
+  } catch (error) {
+    logger.error('Erreur récupération véhicule principal:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Mettre à jour photos multiples
+ * @route PUT /api/vehicules/:vehiculeId/photos
+ * @access Privé
+ */
+const mettreAJourPhotos = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
-    const { statut } = req.body;
 
-    if (!vehiculeId.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!req.files || Object.keys(req.files).length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'ID de véhicule invalide'
+        message: 'Au moins une photo requise'
       });
     }
 
-    const statutsValides = ['ACTIF', 'INACTIF', 'EN_REPARATION', 'HORS_SERVICE'];
-    if (!statut || !statutsValides.includes(statut)) {
-      return res.status(400).json({
-        success: false,
-        message: `Statut invalide. Statuts valides: ${statutsValides.join(', ')}`
-      });
-    }
-
-    logger.info('Changement statut véhicule', { vehiculeId, nouveauStatut: statut, userId: req.user.userId });
-    
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
@@ -1027,76 +1333,62 @@ const changerStatutVehicule = async (req, res, next) => {
       });
     }
 
-    const ancienStatut = vehicule.statut;
-    vehicule.statut = statut;
+    if (!vehicule.photos) vehicule.photos = {};
 
-    // Si le véhicule est mis hors service et qu'il était principal
-    if (statut === 'HORS_SERVICE' && vehicule.estPrincipal) {
-      const autresVehiculesActifs = await Vehicule.find({
-        proprietaireId: req.user.userId,
-        _id: { $ne: vehiculeId },
-        statut: { $in: ['ACTIF', 'INACTIF'] }
-      });
+    const typesPhotos = ['avant', 'arriere', 'lateral_gauche', 'lateral_droit', 'interieur', 'tableau_bord'];
+    const photosAjoutees = [];
 
-      if (autresVehiculesActifs.length > 0) {
-        vehicule.estPrincipal = false;
-        // Définir un autre véhicule comme principal
-        const nouveauPrincipal = autresVehiculesActifs[0];
-        nouveauPrincipal.estPrincipal = true;
-        await nouveauPrincipal.save();
+    for (const type of typesPhotos) {
+      if (req.files[type]) {
+        // Supprimer ancienne photo
+        if (vehicule.photos[type] && vehicule.photos[type].startsWith('/uploads/')) {
+          try {
+            const oldPath = path.join(process.cwd(), 'public', vehicule.photos[type]);
+            await fs.unlink(oldPath);
+          } catch (err) {
+            logger.warn(`Erreur suppression photo ${type}:`, err);
+          }
+        }
         
-        logger.info('Nouveau véhicule principal défini suite à mise hors service', { 
-          nouveauPrincipalId: nouveauPrincipal._id,
-          userId: req.user.userId 
-        });
+        vehicule.photos[type] = `/uploads/vehicules/${req.files[type][0].filename}`;
+        photosAjoutees.push(type);
       }
     }
 
     await vehicule.save();
-    
-    logger.info('Statut véhicule modifié', { 
+
+    logger.info('Photos mises à jour', { 
       vehiculeId, 
-      ancienStatut, 
-      nouveauStatut: statut, 
+      photosAjoutees, 
       userId: req.user.userId 
     });
-    
+
     res.json({
       success: true,
-      message: `Statut du véhicule modifié de ${ancienStatut} vers ${statut}`,
+      message: `${photosAjoutees.length} photo(s) mise(s) à jour`,
       data: {
         vehicule,
-        ancienStatut,
-        nouveauStatut: statut
+        photosAjoutees,
+        photos: vehicule.photos
       }
     });
 
   } catch (error) {
-    logger.error('Erreur changement statut véhicule:', error);
-    return next(AppError.serverError('Erreur serveur lors du changement de statut', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur mise à jour photos:', error);
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
 /**
- * @desc Archiver un véhicule (méthode alternative à la suppression)
+ * @desc Archiver véhicule
  * @route PATCH /api/vehicules/:vehiculeId/archiver
- * @access Privé (utilisateur authentifié)
+ * @access Privé
  */
 const archiverVehicule = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
+    const { raison } = req.body;
 
-    if (!vehiculeId.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID de véhicule invalide'
-      });
-    }
-
-    logger.info('Archivage véhicule', { vehiculeId, userId: req.user.userId });
-    
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
@@ -1109,49 +1401,43 @@ const archiverVehicule = async (req, res, next) => {
       });
     }
 
-    // Utiliser la méthode du modèle
-    await vehicule.archiver();
-    
-    logger.info('Véhicule archivé', { vehiculeId, userId: req.user.userId });
-    
+    await vehicule.archiver(raison);
+
+    logger.info('Véhicule archivé', { vehiculeId, raison, userId: req.user.userId });
+
     res.json({
       success: true,
-      message: 'Véhicule archivé avec succès',
-      data: {
-        vehicule
-      }
+      message: 'Véhicule archivé',
+      data: { vehicule }
     });
 
   } catch (error) {
-    logger.error('Erreur archivage véhicule:', error);
-    return next(AppError.serverError('Erreur serveur lors de l\'archivage', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur archivage:', error);
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
 /**
- * @desc Obtenir l'historique d'un véhicule (modifications, maintenances, etc.)
- * @route GET /api/vehicules/:vehiculeId/historique
- * @access Privé (utilisateur authentifié)
+ * @desc Enregistrer un trajet complété
+ * @route POST /api/vehicules/:vehiculeId/enregistrer-trajet
+ * @access Privé
  */
-const obtenirHistoriqueVehicule = async (req, res, next) => {
+const enregistrerTrajet = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
+    const { nombrePassagers, kilometresParcourus } = req.body;
 
-    if (!vehiculeId.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!nombrePassagers || nombrePassagers < 1) {
       return res.status(400).json({
         success: false,
-        message: 'ID de véhicule invalide'
+        message: 'Nombre de passagers invalide'
       });
     }
 
-    logger.info('Récupération historique véhicule', { vehiculeId, userId: req.user.userId });
-    
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
-    }).populate('proprietaireId', 'nom prenom email');
+    });
 
     if (!vehicule) {
       return res.status(404).json({
@@ -1160,84 +1446,190 @@ const obtenirHistoriqueVehicule = async (req, res, next) => {
       });
     }
 
-    // Construire l'historique basé sur les timestamps et les données
-    const historique = {
-      vehicule: {
-        id: vehicule._id,
-        immatriculation: vehicule.immatriculation,
-        marque: vehicule.marque,
-        modele: vehicule.modele
-      },
-      evenements: [
-        {
-          type: 'CREATION',
-          date: vehicule.createdAt,
-          description: 'Véhicule créé'
-        },
-        {
-          type: 'ASSURANCE_ACTUELLE',
-          date: vehicule.assurance.dateExpiration,
-          description: `Assurance ${vehicule.assurance.compagnie} - Police: ${vehicule.assurance.numeroPolice}`,
-          statut: vehicule.documentsValides().assurance.valide ? 'VALIDE' : 'EXPIRE'
-        },
-        {
-          type: 'VISITE_TECHNIQUE_ACTUELLE',
-          date: vehicule.visiteTechnique.dateExpiration,
-          description: 'Visite technique',
-          statut: vehicule.documentsValides().visiteTechnique.valide ? 'VALIDE' : 'EXPIRE'
-        }
-      ].sort((a, b) => new Date(b.date) - new Date(a.date)),
-      statistiques: {
-        age: vehicule.age,
-        kilometrage: vehicule.kilometrage,
-        derniereMiseAJour: vehicule.updatedAt,
-        statutActuel: vehicule.statut
+    await vehicule.enregistrerTrajet(
+      parseInt(nombrePassagers), 
+      parseInt(kilometresParcourus) || 0
+    );
+
+    logger.info('Trajet enregistré', { 
+      vehiculeId, 
+      nombrePassagers, 
+      kilometresParcourus,
+      userId: req.user.userId 
+    });
+
+    res.json({
+      success: true,
+      message: 'Trajet enregistré',
+      data: {
+        statistiques: vehicule.statistiques,
+        kilometrageTotal: vehicule.kilometrage
       }
+    });
+
+  } catch (error) {
+    logger.error('Erreur enregistrement trajet:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Mettre à jour note du véhicule
+ * @route POST /api/vehicules/:vehiculeId/noter
+ * @access Privé
+ */
+const noterVehicule = async (req, res, next) => {
+  try {
+    const { vehiculeId } = req.params;
+    const { note } = req.body;
+
+    if (!note || note < 0 || note > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Note invalide (0-5 requis)'
+      });
+    }
+
+    const vehicule = await Vehicule.findById(vehiculeId);
+
+    if (!vehicule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Véhicule non trouvé'
+      });
+    }
+
+    await vehicule.mettreAJourNote(parseFloat(note));
+
+    logger.info('Note ajoutée', { vehiculeId, note, userId: req.user.userId });
+
+    res.json({
+      success: true,
+      message: 'Note enregistrée',
+      data: {
+        noteMoyenne: vehicule.statistiques.noteMoyenne,
+        nombreAvis: vehicule.statistiques.nombreAvis
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur notation:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Recherche avancée de véhicules
+ * @route GET /api/vehicules/recherche-avancee
+ * @access Privé
+ */
+const rechercheAvancee = async (req, res, next) => {
+  try {
+    const filtres = {
+      marque: req.query.marque,
+      modele: req.query.modele,
+      couleur: req.query.couleur,
+      anneeMin: req.query.anneeMin ? parseInt(req.query.anneeMin) : undefined,
+      anneeMax: req.query.anneeMax ? parseInt(req.query.anneeMax) : undefined,
+      nombrePlacesMin: req.query.nombrePlaces ? parseInt(req.query.nombrePlaces) : undefined,
+      noteMin: req.query.noteMin ? parseFloat(req.query.noteMin) : undefined,
+      carburant: req.query.carburant,
+      typeCarrosserie: req.query.typeCarrosserie,
+      transmission: req.query.transmission,
+      climatisation: req.query.climatisation === 'true',
+      ville: req.query.ville,
+      scoreSecuriteMin: req.query.scoreSecuriteMin ? parseInt(req.query.scoreSecuriteMin) : undefined
     };
 
+    const vehicules = await Vehicule.rechercheAvancee(filtres);
+
+    const vehiculesEnrichis = vehicules.map(v => ({
+      ...v.toObject(),
+      scoreSecurity: v.scoreSecurity,
+      scoreConfort: v.scoreConfort,
+      tauxFiabilite: v.tauxFiabilite
+    }));
+
     res.json({
       success: true,
-      data: historique
+      data: {
+        vehicules: vehiculesEnrichis,
+        total: vehiculesEnrichis.length,
+        filtresAppliques: Object.keys(filtres).filter(k => filtres[k] !== undefined)
+      }
     });
 
   } catch (error) {
-    logger.error('Erreur récupération historique véhicule:', error);
-    return next(AppError.serverError('Erreur serveur lors de la récupération de l\'historique', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur recherche avancée:', error);
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
 /**
- * @desc Mettre à jour le kilométrage d'un véhicule
- * @route PATCH /api/vehicules/:vehiculeId/kilometrage
- * @access Privé (utilisateur authentifié)
+ * @desc Obtenir véhicules nécessitant maintenance
+ * @route GET /api/vehicules/maintenance-requise
+ * @access Privé
  */
-const mettreAJourKilometrage = async (req, res, next) => {
+const obtenirVehiculesMaintenanceRequise = async (req, res, next) => {
+  try {
+    const vehicules = await Vehicule.maintenanceRequise();
+
+        const vehiculesUtilisateur = vehicules.filter(v => {
+      if (!v.proprietaireId) {
+        logger.warn('Véhicule sans propriétaire trouvé', { vehiculeId: v._id });
+        return false;
+      }
+      
+      const proprietaireIdStr = typeof v.proprietaireId === 'string' 
+        ? v.proprietaireId 
+        : v.proprietaireId.toString();
+      
+      return proprietaireIdStr === req.user.userId;
+    });
+
+    const vehiculesEnrichis = vehiculesUtilisateur.map(v => {
+      const vehiculeObj = v.toObject();
+      
+      const raisons = [];
+      if (v.maintenance?.prochainEntretien && v.maintenance.prochainEntretien <= new Date()) {
+        raisons.push('Date d\'entretien dépassée');
+      }
+      if (v.maintenance?.prochainEntretienKm && v.kilometrage >= v.maintenance.prochainEntretienKm) {
+        raisons.push('Kilométrage d\'entretien atteint');
+      }
+
+      vehiculeObj.raisons = raisons;
+      return vehiculeObj;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        vehicules: vehiculesEnrichis,
+        total: vehiculesEnrichis.length
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur maintenance requise:', error);
+    return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * @desc Exporter données véhicule (PDF/Excel)
+ * @route GET /api/vehicules/:vehiculeId/exporter
+ * @access Privé
+ */
+const exporterDonneesVehicule = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
-    const { kilometrage } = req.body;
+    const { format = 'json' } = req.query;
 
-    if (!vehiculeId.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID de véhicule invalide'
-      });
-    }
-
-    if (!kilometrage || kilometrage < 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Kilométrage valide requis (nombre positif)'
-      });
-    }
-
-    logger.info('Mise à jour kilométrage véhicule', { vehiculeId, kilometrage, userId: req.user.userId });
-    
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
-    });
+    }).populate('proprietaireId', 'nom prenom email telephone');
 
     if (!vehicule) {
       return res.status(404).json({
@@ -1246,155 +1638,72 @@ const mettreAJourKilometrage = async (req, res, next) => {
       });
     }
 
-    // Vérifier que le nouveau kilométrage est supérieur à l'ancien
-    if (vehicule.kilometrage && parseInt(kilometrage) < vehicule.kilometrage) {
-      return res.status(400).json({
+    const donneesExport = vehicule.toAdminJSON();
+
+    if (format === 'json') {
+      res.json({
+        success: true,
+        data: donneesExport
+      });
+    } else {
+      // TODO: Implémenter export PDF/Excel
+      res.status(501).json({
         success: false,
-        message: 'Le nouveau kilométrage doit être supérieur ou égal à l\'ancien'
+        message: 'Format non encore supporté'
       });
     }
-
-    const ancienKilometrage = vehicule.kilometrage;
-    vehicule.kilometrage = parseInt(kilometrage);
-    await vehicule.save();
-    
-    logger.info('Kilométrage mis à jour', { 
-      vehiculeId, 
-      ancienKilometrage, 
-      nouveauKilometrage: kilometrage, 
-      userId: req.user.userId 
-    });
-    
-    res.json({
-      success: true,
-      message: 'Kilométrage mis à jour avec succès',
-      data: {
-        vehicule,
-        ancienKilometrage,
-        nouveauKilometrage: parseInt(kilometrage)
-      }
-    });
 
   } catch (error) {
-    logger.error('Erreur mise à jour kilométrage:', error);
-    return next(AppError.serverError('Erreur serveur lors de la mise à jour du kilométrage', { 
-      originalError: error.message 
-    }));
-  }
-};
-
-/**
- * @desc Dupliquer un véhicule (pour créer un véhicule similaire)
- * @route POST /api/vehicules/:vehiculeId/dupliquer
- * @access Privé (utilisateur authentifié)
- */
-const dupliquerVehicule = async (req, res, next) => {
-  try {
-    const { vehiculeId } = req.params;
-    const { nouvelleImmatriculation } = req.body;
-
-    if (!vehiculeId.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID de véhicule invalide'
-      });
-    }
-
-    if (!nouvelleImmatriculation) {
-      return res.status(400).json({
-        success: false,
-        message: 'Nouvelle immatriculation requise'
-      });
-    }
-
-    logger.info('Duplication véhicule', { vehiculeId, nouvelleImmatriculation, userId: req.user.userId });
-    
-    const vehiculeOriginal = await Vehicule.findOne({
-      _id: vehiculeId,
-      proprietaireId: req.user.userId
-    });
-
-    if (!vehiculeOriginal) {
-      return res.status(404).json({
-        success: false,
-        message: 'Véhicule original non trouvé'
-      });
-    }
-
-    // Créer une copie sans les champs uniques/sensibles
-    const vehiculeData = vehiculeOriginal.toObject();
-    delete vehiculeData._id;
-    delete vehiculeData.createdAt;
-    delete vehiculeData.updatedAt;
-    delete vehiculeData.__v;
-    
-    // Modifier les champs spécifiques
-    vehiculeData.immatriculation = nouvelleImmatriculation.toUpperCase();
-    vehiculeData.estPrincipal = false; // Le nouveau véhicule n'est jamais principal par défaut
-    vehiculeData.photoVehicule = null; // Pas de photo par défaut
-    
-    const nouveauVehicule = new Vehicule(vehiculeData);
-    await nouveauVehicule.save();
-    
-    logger.info('Véhicule dupliqué avec succès', { 
-      vehiculeOriginalId: vehiculeId,
-      nouveauVehiculeId: nouveauVehicule._id, 
-      userId: req.user.userId 
-    });
-    
-    res.status(201).json({
-      success: true,
-      message: 'Véhicule dupliqué avec succès',
-      data: {
-        vehiculeOriginal: {
-          id: vehiculeOriginal._id,
-          immatriculation: vehiculeOriginal.immatriculation
-        },
-        nouveauVehicule
-      }
-    });
-
-  } catch (error) {
-    logger.error('Erreur duplication véhicule:', error);
-    
-    if (error.code === 11000) {
-      return res.status(409).json({
-        success: false,
-        message: 'Un véhicule avec cette immatriculation existe déjà'
-      });
-    }
-
-    return next(AppError.serverError('Erreur serveur lors de la duplication du véhicule', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur export:', error);
+    return next(AppError.serverError('Erreur serveur'));
   }
 };
 
 // =============== EXPORTS ===============
 
 module.exports = {
-  // Méthodes CRUD standard
+  // CRUD standard
   creerVehicule,
   obtenirMesVehicules,
   obtenirVehicule,
   modifierVehicule,
   supprimerVehicule,
 
+  // Gestion documents
+  completerDocuments,
+  verifierValiditeDocuments,
+  obtenirDocumentsExpires,
+
+  // Covoiturage
+  activerPourCovoiturage,
+  desactiverPourCovoiturage,
+  verifierDisponibiliteTrajet,
+  rechercherVehiculesDisponibles,
+
+  // Maintenance
+  ajouterMaintenance,
+  mettreAJourPosition,
+  obtenirVehiculesMaintenanceRequise,
+
+  // Administration
+  validerVehicule,
+  rejeterVehicule,
+  obtenirVehiculesEnAttenteValidation,
+  signalerVehicule,
+  obtenirVehiculesSignales,
+
+  // Statistiques
+  obtenirStatistiques,
+  obtenirStatistiquesGlobales,
+  obtenirTopVehicules,
+
   // Méthodes spécifiques
   definirVehiculePrincipal,
   obtenirVehiculePrincipal,
-  mettreAJourPhotoVehicule,
-  verifierValiditeDocuments,
-  rechercherVehicules,
-
-  // Méthodes supplémentaires
-  obtenirDocumentsExpires,
-  obtenirStatistiques,
-  renouvelerAssurance,
-  renouvelerVisiteTechnique,
-  changerStatutVehicule,
+  mettreAJourPhotos,
   archiverVehicule,
-  obtenirHistoriqueVehicule,
-  mettreAJourKilometrage,
-  dupliquerVehicule
+  enregistrerTrajet,
+  noterVehicule,
+  rechercheAvancee,
+  exporterDonneesVehicule
 };

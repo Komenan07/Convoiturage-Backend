@@ -80,7 +80,7 @@
     "socket.io": "^4.8.1",
     "twilio": "^5.8.2",
     "validator": "^13.11.0",
-    "winston": "^3.11.0",
+    "winston": "^3.18.3",
     "winston-daily-rotate-file": "^5.0.0",
     "xss-clean": "^0.1.4"
   },

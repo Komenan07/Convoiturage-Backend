@@ -44,18 +44,7 @@ const { uploadProfilPhoto, uploadDocument } = require('../middlewares/uploadMidd
 // });
 
 // // Helper pour construire l'URL complète des images
-const buildFullImageUrl = (imagePath, req) => {
-  if (!imagePath) return null;
-  
-  // Si c'est déjà une URL complète, la retourner telle quelle
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
-  }
-  
-  // Construire l'URL complète
-  const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-  return `${baseUrl}${imagePath}`;
-};
+
 //=============== FONCTIONS CRUD DE BASE ===============
 
 /**
@@ -2108,7 +2097,7 @@ const mettreAJourProfil = async (req, res, next) => {
         dateNaissance: user.dateNaissance,
         age: user.age,
         sexe: user.sexe,
-        photoProfil: buildFullImageUrl(user.photoProfil, req),
+        photoProfil: user.photoProfil,
         role: user.role,
         adresse: user.adresse,
         preferences: user.preferences,
