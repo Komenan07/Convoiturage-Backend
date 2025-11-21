@@ -382,7 +382,7 @@ router.post('/resend-code', resendCode);
  * @access  Public
  */
 router.post('/inscription', 
-  inscriptionLimiter,
+  // inscriptionLimiter,
   [
     body('nom').trim().notEmpty().withMessage('Le nom est requis'),
     body('prenom').trim().notEmpty().withMessage('Le prénom est requis'),

@@ -1667,11 +1667,6 @@ utilisateurSchema.statics.obtenirConducteursInactifs = function(joursInactivite 
 
 // Hash password avant sauvegarde
 utilisateurSchema.pre('save', async function(next) {
-  // Hash password si modifié
-  if (this.isModified('motDePasse')) {
-    const salt = await bcrypt.genSalt(12);
-    this.motDePasse = await bcrypt.hash(this.motDePasse, salt);
-  }
 
   // Autres middleware existants...
   if (this.isModified('documentIdentite.statutVerification')) {
