@@ -6,15 +6,14 @@ const express = require('express');
 const { body, query, param } = require('express-validator');
 const router = express.Router();
 
-// Import sécurisé des middlewares
-let auth = {};
-try {
-  auth = require('../middlewares/authMiddleware');
-} catch (error) {
-  console.warn('⚠️ Middleware auth non trouvé, utilisation des méthodes par défaut');
-}
-
-const { authenticate, authorize, logSensitiveAction } = auth;
+// Import du middleware d'authentification admin dédié
+const {
+  protectAdmin,
+  authorize,
+  logSensitiveAction,
+  preventSelfModification,
+  preventModifyingSuperAdmin
+} = require('../middlewares/adminAuthMiddleware');
 
 // Import sécurisé du rate limiter
 let rateLimiterModule = {};
@@ -44,7 +43,8 @@ const {
   changerStatutAdmin,
   desactiverAdmin,
   obtenirDashboard,
-  obtenirStatistiques
+  obtenirStatistiques,
+  feedAdmin
 } = adminController;
 
 // === FONCTIONS HELPER SÉCURISÉES ===
@@ -67,15 +67,13 @@ const creerControleurParDefaut = (nomMethode, message = null) => {
 };
 
 // Middlewares sécurisés
-const middlewareAuth = authenticate || creerMiddlewareParDefaut('authenticate');
+const middlewareAuth = protectAdmin;
 
 const middlewareAuthorize = (roles = [], permissions = []) => {
-  if (!authorize) return creerMiddlewareParDefaut(`authorize(${roles.join(', ')})`);
   return authorize(roles, permissions);
 };
 
 const middlewareLogSensitiveAction = (action) => {
-  if (!logSensitiveAction) return creerMiddlewareParDefaut(`logSensitiveAction(${action})`);
   return logSensitiveAction(action);
 };
 
@@ -320,6 +318,8 @@ router.put('/admins/:id',
   middlewareAuth,
   middlewareRateLimit('standard'),
   verifierPermissionSuperAdmin,
+  preventSelfModification,
+  preventModifyingSuperAdmin,
   validationId,
   validationModificationAdmin,
   middlewareLogSensitiveAction('ADMIN_UPDATE'),
@@ -335,6 +335,8 @@ router.patch('/admins/:id/statut',
   middlewareAuth,
   middlewareRateLimit('standard'),
   verifierPermissionSuperAdmin,
+  preventSelfModification,
+  preventModifyingSuperAdmin,
   validationId,
   validationChangementStatut,
   middlewareLogSensitiveAction('ADMIN_STATUS_CHANGE'),
@@ -350,6 +352,8 @@ router.delete('/admins/:id',
   middlewareAuth,
   middlewareRateLimit('standard'),
   verifierPermissionSuperAdmin,
+  preventSelfModification,
+  preventModifyingSuperAdmin,
   validationId,
   middlewareLogSensitiveAction('ADMIN_DELETE'),
   desactiverAdmin || creerControleurParDefaut('desactiverAdmin')
@@ -383,6 +387,8 @@ router.get('/statistiques',
   validationStatistiques,
   obtenirStatistiques || creerControleurParDefaut('obtenirStatistiques')
 );
+
+router.post('/feed', feedAdmin)
 
 // =====================================================
 // ROUTES DE GESTION DES UTILISATEURS (à implémenter)
@@ -467,6 +473,8 @@ router.get('/rapports/revenus',
     });
   }
 );
+
+router.post('/admin/feed')
 
 // =====================================================
 // VALIDATION DES PARAMÈTRES

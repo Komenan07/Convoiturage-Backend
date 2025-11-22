@@ -1059,6 +1059,39 @@ utilisateurSchema.pre('save', async function(next) {
     }
   }
 
+  // Vérification de document
+  if (this.isModified('documentIdentite.statutVerification')) {
+    if (this.documentIdentite.statutVerification === 'VERIFIE') {
+      this.estVerifie = true;
+      if (this.statutCompte === 'EN_ATTENTE_VERIFICATION') {
+        this.statutCompte = 'ACTIF';
+      }
+    }
+  }
+
+  // Compte covoiturage - gestion recharge
+  if (this.isModified('compteCovoiturage.historiqueRecharges')) {
+    const rechargeReussie = this.compteCovoiturage.historiqueRecharges.some(r => r.statut === 'reussi');
+    if (rechargeReussie && !this.compteCovoiturage.estRecharge) {
+      this.compteCovoiturage.estRecharge = true;
+    }
+  }
+
+  // Réinitialiser les limites de retrait si nécessaire
+  const maintenant = new Date();
+  const dernierRetrait = this.compteCovoiturage.limites.dernierRetraitLe;
+  
+  if (dernierRetrait) {
+    if (maintenant.toDateString() !== dernierRetrait.toDateString()) {
+      this.compteCovoiturage.limites.montantRetireAujourdhui = 0;
+    }
+    
+    if (maintenant.getMonth() !== dernierRetrait.getMonth() || 
+        maintenant.getFullYear() !== dernierRetrait.getFullYear()) {
+      this.compteCovoiturage.limites.montantRetireCeMois = 0;
+    }
+  }
+
   next();
 });
 
@@ -1664,43 +1697,6 @@ utilisateurSchema.statics.obtenirConducteursInactifs = function(joursInactivite 
   })
   .select('nom prenom email derniereConnexion compteCovoiturage.estRecharge');
 };
-
-// Hash password avant sauvegarde
-utilisateurSchema.pre('save', async function(next) {
-
-  // Autres middleware existants...
-  if (this.isModified('documentIdentite.statutVerification')) {
-    if (this.documentIdentite.statutVerification === 'VERIFIE') {
-      this.estVerifie = true;
-      if (this.statutCompte === 'EN_ATTENTE_VERIFICATION') {
-        this.statutCompte = 'ACTIF';
-      }
-    }
-  }
-
-  if (this.isModified('compteCovoiturage.historiqueRecharges')) {
-    const rechargeReussie = this.compteCovoiturage.historiqueRecharges.some(r => r.statut === 'reussi');
-    if (rechargeReussie && !this.compteCovoiturage.estRecharge) {
-      this.compteCovoiturage.estRecharge = true;
-    }
-  }
-
-  const maintenant = new Date();
-  const dernierRetrait = this.compteCovoiturage.limites.dernierRetraitLe;
-  
-  if (dernierRetrait) {
-    if (maintenant.toDateString() !== dernierRetrait.toDateString()) {
-      this.compteCovoiturage.limites.montantRetireAujourdhui = 0;
-    }
-    
-    if (maintenant.getMonth() !== dernierRetrait.getMonth() || 
-        maintenant.getFullYear() !== dernierRetrait.getFullYear()) {
-      this.compteCovoiturage.limites.montantRetireCeMois = 0;
-    }
-  }
-
-  next();
-});
 
 // Export du modèle
 module.exports = mongoose.model('Utilisateur', utilisateurSchema, 'utilisateurs');

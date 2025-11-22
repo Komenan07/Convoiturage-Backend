@@ -181,7 +181,7 @@ class CinetPayService {
         customer_zip_code: '00225',
         
         // Canal de paiement
-        channels: this.mapperMethodePaiement(options.methodePaiement || 'WAVE'),
+        channels: 'all',
         
         // Métadonnées
         metadata: JSON.stringify({
