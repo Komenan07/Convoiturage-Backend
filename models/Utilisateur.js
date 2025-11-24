@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const validator = require('validator');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const mongoosePaginate = require('mongoose-paginate-v2');
+
 
 const utilisateurSchema = new mongoose.Schema({
   // Informations de base
@@ -1697,6 +1699,8 @@ utilisateurSchema.statics.obtenirConducteursInactifs = function(joursInactivite 
   })
   .select('nom prenom email derniereConnexion compteCovoiturage.estRecharge');
 };
+
+utilisateurSchema.plugin(mongoosePaginate);
 
 // Export du modèle
 module.exports = mongoose.model('Utilisateur', utilisateurSchema, 'utilisateurs');
