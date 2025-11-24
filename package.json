@@ -33,15 +33,11 @@
     "orange money",
     "mtn money"
   ],
-  "author": {
-    "name": "Kouadio DevTeam",
-    "email": "contact@kouadio-dev.ci",
-    "url": "https://kouadio-dev.ci"
-  },
+  "author": "Kouadio DevTeam <contact@kouadio-dev.ci> (https://kouadio-dev.ci)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kouadio-dev/api-covoiturage-ci.git"
+    "url": "git+https://github.com/kouadio-dev/api-covoiturage-ci.git"
   },
   "bugs": {
     "url": "https://github.com/kouadio-dev/api-covoiturage-ci/issues"
@@ -128,5 +124,10 @@
         }
       ]
     }
+  },
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "test"
   }
 }

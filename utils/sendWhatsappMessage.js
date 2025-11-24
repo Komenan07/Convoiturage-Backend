@@ -1,7 +1,7 @@
 const axios = require('axios');
 
-const idInstance = process.env.GREEN_API_ID_INSTANCE;
-const apiToken = process.env.GREEN_API_TOKEN_INSTANCE;
+const idInstance = process.env.GREEN_API_INSTANCE_ID;
+const apiToken = process.env.GREEN_API_TOKEN;
 
 async function sendWhatsappMessage(phone, message) {
   try {

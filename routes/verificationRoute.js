@@ -12,7 +12,14 @@ const {
   envoyerRappelVerification,
   obtenirDocumentsExpires,
   demanderRenouvellement,
-  approuverEnLot
+  approuverEnLot,
+  // user endpoints
+  soumettreDocumentVerification,
+  obtenirStatutVerification,
+  // admin endpoints
+  obtenirDocumentsEnAttente,
+  approuverDocument,
+  rejeterDocument
 } = require('../controllers/verificationController');
 
 // Import du contrôleur principal de vérification (assumé)
@@ -26,9 +33,15 @@ const {
 
 // =============== IMPORTS MIDDLEWARES ===============
 const {
-  //authMiddleware,
+  authMiddleware,
   adminMiddleware
 } = require('../middlewares/authMiddleware');
+
+const {
+  limitDocumentSubmissions,
+  validateDocumentData,
+  checkVerificationStatus
+} = require('../middlewares/verification');
 
 // =============== RATE LIMITING ===============
 
@@ -110,6 +123,14 @@ const validateReminderRequest = [
     .trim()
     .isLength({ max: 500 })
     .withMessage('Le message personnalisé ne peut dépasser 500 caractères')
+];
+
+const validateRejectRequest = [
+  body('raison')
+    .optional()
+    .trim()
+    .isLength({ min: 5, max: 500 })
+    .withMessage('La raison doit contenir entre 5 et 500 caractères')
 ];
 
 const validateExpiredDocsQuery = [
@@ -229,6 +250,17 @@ router.get('/admin/documents-expires',
   obtenirDocumentsExpires
 );
 
+/**
+ * @route   GET /api/verification/admin/en-attente
+ * @desc    Liste des documents en attente (ADMIN)
+ * @access  Privé - Admin seulement
+ */
+router.get('/admin/en-attente',
+  adminMiddleware,
+  verificationLimiter,
+  obtenirDocumentsEnAttente
+);
+
 // =============== ROUTES ADMIN - COMMUNICATIONS ===============
 
 /**
@@ -242,6 +274,33 @@ router.post('/admin/rappel-verification',
   validateReminderRequest,
   handleValidationErrors,
   envoyerRappelVerification
+);
+
+/**
+ * @route   PUT /api/verification/admin/document/:userId/approuver
+ * @desc    Approuver un document (ADMIN)
+ * @access  Privé - Admin seulement
+ */
+router.put('/admin/document/:userId/approuver',
+  adminMiddleware,
+  adminActionLimiter,
+  validateUserId,
+  handleValidationErrors,
+  approuverDocument
+);
+
+/**
+ * @route   PUT /api/verification/admin/document/:userId/rejeter
+ * @desc    Rejeter un document (ADMIN)
+ * @access  Privé - Admin seulement
+ */
+router.put('/admin/document/:userId/rejeter',
+  adminMiddleware,
+  adminActionLimiter,
+  validateUserId,
+  validateRejectRequest,
+  handleValidationErrors,
+  rejeterDocument
 );
 
 // =============== ROUTES DE MONITORING ET STATISTIQUES ===============
@@ -402,7 +461,7 @@ router.get('/types-documents', (req, res) => {
         {
           code: 'CNI',
           nom: 'Carte Nationale d\'Identité',
-          format: 'XX00000000',
+          format: 'CI00000000',
           description: 'Carte d\'identité ivoirienne valide'
         },
         {
@@ -464,6 +523,30 @@ router.get('/statuts', (req, res) => {
     }
   });
 });
+
+/**
+ * @route   POST /api/verification/soumettre
+ * @desc    Soumettre un document d'identité (USER)
+ * @access  Privé
+ */
+router.post('/soumettre',
+  authMiddleware,
+  limitDocumentSubmissions,
+  validateDocumentData,
+  handleValidationErrors,
+  soumettreDocumentVerification
+);
+
+/**
+ * @route   GET /api/verification/statut
+ * @desc    Obtenir le statut de vérification de l'utilisateur (USER)
+ * @access  Privé
+ */
+router.get('/statut',
+  authMiddleware,
+  checkVerificationStatus,
+  obtenirStatutVerification
+);
 
 // =============== GESTION CENTRALISÉE DES ERREURS ===============
 

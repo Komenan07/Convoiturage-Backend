@@ -151,7 +151,8 @@ const routesConfig = [
   { nom: 'paiements', chemins: ['./routes/paiements.js'], url: '/api/paiements' },
   { nom: 'admin', chemins: ['./routes/admin.js'], url: '/api/admin' },
   { nom: 'conversations', chemins: ['./routes/conversation.js'], url: '/api/conversations' },
-  { nom: 'places', chemins: ['./routes/placesV2Routes.js'], url: '/api/places' }
+  { nom: 'places', chemins: ['./routes/placesV2Routes.js'], url: '/api/places' },
+  { nom: 'verifications', chemins: ['./routes/verificationRoute.js'], url: '/api/verification/' },
 ];
 
 let routesChargees = 0;

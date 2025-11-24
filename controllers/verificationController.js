@@ -459,6 +459,229 @@ const approuverEnLot = async (req, res, next) => {
   }
 };
 
+// module.exports temporarily removed and re-declared at end of file
+
+/**
+ * Soumettre un document de vérification (USER)
+ */
+const soumettreDocumentVerification = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { type, numero, dateExpiration, photoDocument } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    const ancienStatut = user.documentIdentite?.statutVerification || 'NOT_SUBMITTED';
+
+    user.documentIdentite = {
+      type,
+      numero,
+      dateExpiration: dateExpiration ? new Date(dateExpiration) : null,
+      photoDocument,
+      statutVerification: 'EN_ATTENTE',
+      dateUpload: new Date()
+    };
+
+    user.historiqueStatuts = user.historiqueStatuts || [];
+    user.historiqueStatuts.push({
+      ancienStatut,
+      nouveauStatut: 'EN_ATTENTE',
+      raison: 'Soumission du document',
+      dateModification: new Date()
+    });
+
+    await user.save();
+
+    logger.info('Document soumis pour vérification', { userId });
+
+    return res.json({ success: true, message: 'Document soumis, en attente de vérification' });
+  } catch (error) {
+    logger.error('Erreur soumission document:', error);
+    return next(AppError.serverError('Erreur serveur lors de la soumission', { originalError: error.message }));
+  }
+};
+
+/**
+ * Obtenir le statut de vérification de l'utilisateur (USER)
+ */
+const obtenirStatutVerification = async (req, res, next) => {
+  try {
+    // Si le middleware a déjà calculé le statut
+    if (req.verificationStatus) {
+      return res.json({ success: true, data: req.verificationStatus });
+    }
+
+    const userId = req.user.userId;
+    const user = await User.findById(userId).select('documentIdentite');
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+
+    const doc = user.documentIdentite;
+    const status = doc ? {
+      hasDocument: true,
+      status: doc.statutVerification,
+      dateVerification: doc.dateVerification || null,
+      dateUpload: doc.dateUpload || null,
+      isVerified: doc.statutVerification === 'VERIFIE',
+      isPending: doc.statutVerification === 'EN_ATTENTE',
+      isRejected: doc.statutVerification === 'REJETE'
+    } : { hasDocument: false, status: 'NOT_SUBMITTED' };
+
+    return res.json({ success: true, data: status });
+  } catch (error) {
+    logger.error('Erreur obtenir statut vérification:', error);
+    return next(AppError.serverError('Erreur serveur', { originalError: error.message }));
+  }
+};
+
+/**
+ * Obtenir la liste des documents en attente (ADMIN)
+ */
+const obtenirDocumentsEnAttente = async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+    const limit = Math.min(parseInt(req.query.limit || '20', 10), 100);
+    const skip = (page - 1) * limit;
+
+    const query = { 'documentIdentite.statutVerification': 'EN_ATTENTE' };
+
+    const total = await User.countDocuments(query);
+    const users = await User.find(query)
+      .select('nom prenom email documentIdentite')
+      .sort({ 'documentIdentite.dateUpload': -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const results = users.map(u => ({
+      userId: u._id,
+      nomComplet: `${u.prenom} ${u.nom}`,
+      email: u.email,
+      document: u.documentIdentite
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        page,
+        limit,
+        total,
+        results
+      }
+    });
+  } catch (error) {
+    logger.error('Erreur obtenir documents en attente:', error);
+    return next(AppError.serverError('Erreur serveur', { originalError: error.message }));
+  }
+};
+
+/**
+ * Approuver un document (ADMIN)
+ */
+const approuverDocument = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const adminId = req.user.userId;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+
+    if (!user.documentIdentite || user.documentIdentite.statutVerification !== 'EN_ATTENTE') {
+      return res.status(400).json({ success: false, message: 'Aucun document en attente pour cet utilisateur' });
+    }
+
+    const ancienStatut = user.documentIdentite.statutVerification;
+
+    user.documentIdentite.statutVerification = 'VERIFIE';
+    user.documentIdentite.dateVerification = new Date();
+    user.documentIdentite.verificateurId = adminId;
+    user.documentIdentite.raisonRejet = null;
+
+    user.historiqueStatuts = user.historiqueStatuts || [];
+    user.historiqueStatuts.push({
+      ancienStatut,
+      nouveauStatut: 'VERIFIE',
+      raison: 'Approbation manuelle',
+      verificateurId: adminId,
+      dateModification: new Date()
+    });
+
+    await user.save();
+
+    // Notification optionnelle (email)
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Vérification de compte - Approuvé',
+        html: `<p>Bonjour ${user.prenom}, votre document a été vérifié et approuvé.</p>`
+      });
+    } catch (notifErr) {
+      logger.warn('Impossible d\'envoyer l\'email d\'approbation:', notifErr.message || notifErr);
+    }
+
+    logger.info('Document approuvé', { userId, adminId });
+
+    return res.json({ success: true, message: 'Document approuvé' });
+  } catch (error) {
+    logger.error('Erreur approuver document:', error);
+    return next(AppError.serverError('Erreur serveur', { originalError: error.message }));
+  }
+};
+
+/**
+ * Rejeter un document (ADMIN)
+ */
+const rejeterDocument = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { raison } = req.body;
+    const adminId = req.user.userId;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+
+    if (!user.documentIdentite || user.documentIdentite.statutVerification !== 'EN_ATTENTE') {
+      return res.status(400).json({ success: false, message: 'Aucun document en attente pour cet utilisateur' });
+    }
+
+    const ancienStatut = user.documentIdentite.statutVerification;
+
+    user.documentIdentite.statutVerification = 'REJETE';
+    user.documentIdentite.raisonRejet = raison || 'Rejeté par l\'administrateur';
+
+    user.historiqueStatuts = user.historiqueStatuts || [];
+    user.historiqueStatuts.push({
+      ancienStatut,
+      nouveauStatut: 'REJETE',
+      raison: raison || 'Rejeté par l\'administrateur',
+      verificateurId: adminId,
+      dateModification: new Date()
+    });
+
+    await user.save();
+
+    // Notification optionnelle (email)
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Vérification de compte - Rejeté',
+        html: `<p>Bonjour ${user.prenom}, votre document a été rejeté. Raison : ${user.documentIdentite.raisonRejet}</p>`
+      });
+    } catch (notifErr) {
+      logger.warn('Impossible d\'envoyer l\'email de rejet:', notifErr.message || notifErr);
+    }
+
+    logger.info('Document rejeté', { userId, adminId });
+
+    return res.json({ success: true, message: 'Document rejeté' });
+  } catch (error) {
+    logger.error('Erreur rejeter document:', error);
+    return next(AppError.serverError('Erreur serveur', { originalError: error.message }));
+  }
+};
+
+// Exporter toutes les fonctions du contrôleur
 module.exports = {
   telechargerPhotoDocument,
   marquerEnCoursRevision,
@@ -466,5 +689,12 @@ module.exports = {
   envoyerRappelVerification,
   obtenirDocumentsExpires,
   demanderRenouvellement,
-  approuverEnLot
+  approuverEnLot,
+  // User endpoints
+  soumettreDocumentVerification,
+  obtenirStatutVerification,
+  // Admin endpoints
+  obtenirDocumentsEnAttente,
+  approuverDocument,
+  rejeterDocument
 };
