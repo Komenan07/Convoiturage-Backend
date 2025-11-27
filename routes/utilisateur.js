@@ -62,7 +62,8 @@ const {
 } = utilisateursController;
 
 // Import des middlewares
-const { authMiddleware, adminMiddleware, moderateurMiddleware } = require('../middlewares/authMiddleware');
+const { authMiddleware, moderateurMiddleware } = require('../middlewares/authMiddleware');
+const { protectAdmin:adminMiddleware} = require('../middlewares/adminAuthMiddleware');
 const AppError = require('../utils/AppError');
 
 // =============== RATE LIMITING ===============
@@ -232,7 +233,7 @@ const validateSearchQuery = [
   
   query('role')
     .optional()
-    .isIn(['conducteur', 'passager', 'les_deux', 'admin', 'moderateur'])
+    .isIn(['conducteur', 'passager'])
     .withMessage('Rôle de filtrage invalide'),
   
   query('statutCompte')
@@ -417,8 +418,7 @@ const getUpdateFunction = () => {
  * @access  Privé - Admin/Modérateur uniquement
  */
 router.get('/', 
-  generalLimiter,
-  authMiddleware, 
+  // generalLimiter,
   adminMiddleware,
   validateSearchQuery,
   handleValidationErrors,
