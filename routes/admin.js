@@ -1,5 +1,5 @@
 // =====================================================
-// ROUTES ADMINISTRATEUR - Version corrigée
+// ROUTES ADMINISTRATEUR 
 // =====================================================
 
 const express = require('express');
@@ -46,6 +46,53 @@ const {
   obtenirStatistiques,
   feedAdmin
 } = adminController;
+
+// =====================================================
+// CONSTANTES - PERMISSIONS VALIDES
+// =====================================================
+
+const PERMISSIONS_VALIDES = [
+  // Permissions système
+  'ALL',
+  
+  // Gestion des utilisateurs
+  'GESTION_UTILISATEURS',
+  'GESTION_CONDUCTEURS',        
+  'GESTION_PASSAGERS',
+  'GESTION_ADMINS',
+  
+  // Vérification et modération
+  'VERIFICATION_DOCUMENTS',
+  'VERIFICATION_IDENTITE',
+  'MODERATION_CONTENUS',
+  'MODERATION',
+  
+  // Gestion des trajets et réservations
+  'GESTION_TRAJETS',
+  'GESTION_RESERVATIONS',
+  'ANNULATION_TRAJETS',
+  
+  // Gestion financière
+  'GESTION_PAIEMENTS',
+  'RAPPORTS_FINANCIERS',
+  'GESTION_COMMISSIONS',
+  'REMBOURSEMENTS',
+  
+  // Support et assistance
+  'SUPPORT_CLIENT',
+  'GESTION_RECLAMATIONS',
+  'CHAT_SUPPORT',
+  
+  // Analytics et rapports
+  'ANALYTICS',
+  'RAPPORTS_DETAILLES',
+  'EXPORT_DONNEES',
+  
+  // Configuration
+  'CONFIGURATION_SYSTEME',
+  'GESTION_NOTIFICATIONS',
+  'GESTION_TARIFS'
+];
 
 // === FONCTIONS HELPER SÉCURISÉES ===
 
@@ -138,7 +185,7 @@ const validationCreationAdmin = [
     .withMessage('Les permissions doivent être un tableau'),
   body('permissions.*')
     .optional()
-    .isIn(['ALL', 'GESTION_UTILISATEURS', 'MODERATION', 'ANALYTICS', 'RAPPORTS_FINANCIERS', 'CONFIGURATION_SYSTEME'])
+    .isIn(PERMISSIONS_VALIDES)
     .withMessage('Permission invalide')
 ];
 
@@ -168,7 +215,7 @@ const validationModificationAdmin = [
     .withMessage('Les permissions doivent être un tableau'),
   body('permissions.*')
     .optional()
-    .isIn(['ALL', 'GESTION_UTILISATEURS', 'MODERATION', 'ANALYTICS', 'RAPPORTS_FINANCIERS', 'CONFIGURATION_SYSTEME'])
+    .isIn(PERMISSIONS_VALIDES)
     .withMessage('Permission invalide'),
   body('statutCompte')
     .optional()
@@ -235,7 +282,7 @@ const validationStatistiques = [
 // =====================================================
 
 // Middleware pour vérifier les permissions spécifiques
-const verifierPermissionGestionAdmins = middlewareAuthorize(['SUPER_ADMIN'], ['ALL', 'GESTION_UTILISATEURS']);
+const verifierPermissionGestionAdmins = middlewareAuthorize(['SUPER_ADMIN'], ['ALL', 'GESTION_UTILISATEURS', 'GESTION_ADMINS']);
 const verifierPermissionAnalytics = middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'ANALYTICS']);
 const verifierPermissionSuperAdmin = middlewareAuthorize(['SUPER_ADMIN'], ['ALL']);
 
@@ -244,11 +291,11 @@ const verifierPermissionSuperAdmin = middlewareAuthorize(['SUPER_ADMIN'], ['ALL'
 // =====================================================
 
 /**
- * @route   POST /api/admin/auth/login
+ * @route   POST /api/admin/login
  * @desc    Connexion administrateur
  * @access  Public
  */
-router.post('/auth/login', 
+router.post('/login', 
   middlewareRateLimit('auth'),
   validationConnexion,
   middlewareLogSensitiveAction('ADMIN_LOGIN_ATTEMPT'),
@@ -264,6 +311,13 @@ router.get('/auth/profil',
   middlewareAuth,
   obtenirProfil || creerControleurParDefaut('obtenirProfil')
 );
+
+/**
+ * @route   POST /api/admin/feed
+ * @desc    Créer l'administrateur principal (seed)
+ * @access  Public
+ */
+router.post('/feed', feedAdmin || creerControleurParDefaut('feedAdmin'));
 
 // =====================================================
 // ROUTES CRUD ADMINISTRATEURS
@@ -388,8 +442,6 @@ router.get('/statistiques',
   obtenirStatistiques || creerControleurParDefaut('obtenirStatistiques')
 );
 
-router.post('/feed', feedAdmin)
-
 // =====================================================
 // ROUTES DE GESTION DES UTILISATEURS (à implémenter)
 // =====================================================
@@ -473,8 +525,6 @@ router.get('/rapports/revenus',
     });
   }
 );
-
-router.post('/admin/feed')
 
 // =====================================================
 // VALIDATION DES PARAMÈTRES

@@ -70,7 +70,7 @@ const obtenirUtilisateurs = async (req, res, next) => {
     let query = {};
     
     // Filtre par rôle
-    if (role && ['conducteur', 'passager', 'les_deux', 'admin', 'moderateur'].includes(role)) {
+    if (role && ['conducteur', 'passager'].includes(role)) {
       query.role = role;
     }
     

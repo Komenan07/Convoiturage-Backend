@@ -2,6 +2,10 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// =====================================================
+// PARTIE 1 : VOTRE CODE EXISTANT (CONSERVÉ)
+// =====================================================
+
 // Créer les dossiers s'ils n'existent pas
 const ensureDirectoryExists = (dirPath) => {
   if (!fs.existsSync(dirPath)) {
@@ -140,7 +144,89 @@ const cloudinary = {
   }
 };
 
+// =====================================================
+// PARTIE 2 : NOUVEAU CODE POUR VÉRIFICATION D'IDENTITÉ
+// =====================================================
+
+// ✅ Storage en MÉMOIRE (buffer) pour upload direct vers Cloudinary
+const memoryStorage = multer.memoryStorage();
+
+// Filtre pour images de vérification (JPG/PNG uniquement, pas de PDF)
+const verificationImageFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error(`Format non supporté pour ${file.fieldname}. Utilisez JPG ou PNG uniquement.`));
+  }
+};
+
+// Configuration Multer pour la vérification d'identité (2 images)
+const uploadVerificationImages = multer({
+  storage: memoryStorage, // ✅ En mémoire pour Cloudinary
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max par image
+    files: 2 // Maximum 2 fichiers
+  },
+  fileFilter: verificationImageFilter
+});
+
+// ✅ Middleware pour uploader 2 images (document + selfie)
+const uploadTwoImages = uploadVerificationImages.fields([
+  { name: 'documentImage', maxCount: 1 },
+  { name: 'selfieWithDocumentImage', maxCount: 1 }
+]);
+
+// ✅ Gestion des erreurs Multer pour la vérification
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        code: 'FILE_TOO_LARGE',
+        message: 'Fichier trop volumineux (max 10MB par image)',
+        timestamp: new Date().toISOString()
+      });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        code: 'TOO_MANY_FILES',
+        message: 'Maximum 2 fichiers autorisés',
+        timestamp: new Date().toISOString()
+      });
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        success: false,
+        code: 'UNEXPECTED_FILE',
+        message: 'Champs de fichiers attendus: documentImage et selfieWithDocumentImage',
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+  
+  if (err.message && err.message.includes('Format non supporté')) {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_FILE_TYPE',
+      message: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  next(err);
+};
+
+// =====================================================
+// EXPORTS (TOUT COMBINÉ)
+// =====================================================
+
 module.exports = {
+  // ✅ Exports existants (votre code conservé)
   cloudinary,
   uploadProfile,
   uploadVehicle,
@@ -149,5 +235,9 @@ module.exports = {
   deleteFile,
   optimizeImageUrl,
   getTransformedImageUrl,
-  isCloudinaryConfigured
+  isCloudinaryConfigured,
+  
+  // ✅ Nouveaux exports pour la vérification d'identité
+  uploadTwoImages,
+  handleMulterError
 };

@@ -142,12 +142,14 @@ const authorize = (roles = [], permissions = []) => {
       }
 
       const admin = req.admin;
+      const userPermissions = req.user.permissions || admin.permissions || [];
+      const userRole = req.user.role || admin.role;
 
       // Vérifier le rôle
-      if (roles.length > 0 && !roles.includes(admin.role)) {
+      if (roles.length > 0 && !roles.includes(userRole)) {
         securityLogger.warn('Accès refusé - Rôle insuffisant', {
           adminId: admin._id,
-          roleAdmin: admin.role,
+          roleAdmin: userRole,
           rolesRequis: roles,
           endpoint: `${req.method} ${req.originalUrl}`
         });
@@ -157,18 +159,24 @@ const authorize = (roles = [], permissions = []) => {
           message: `Rôle insuffisant. Rôles autorisés: ${roles.join(', ')}`,
           code: 'INSUFFICIENT_ROLE',
           requiredRoles: roles,
-          currentRole: admin.role
+          currentRole: userRole
         });
       }
 
       // Vérifier les permissions (si spécifiées)
       if (permissions.length > 0) {
-        const hasPermission = permissions.some(p => admin.aPermission(p));
+        // ✅ Vérification améliorée des permissions
+        const hasPermission = permissions.some(p => {
+          // Si l'admin a la permission ALL, il a toutes les permissions
+          if (userPermissions.includes('ALL')) return true;
+          // Sinon vérifier si la permission spécifique existe
+          return userPermissions.includes(p);
+        });
         
         if (!hasPermission) {
           securityLogger.warn('Accès refusé - Permission insuffisante', {
             adminId: admin._id,
-            permissionsAdmin: admin.permissions,
+            permissionsAdmin: userPermissions,
             permissionsRequises: permissions,
             endpoint: `${req.method} ${req.originalUrl}`
           });
@@ -178,7 +186,7 @@ const authorize = (roles = [], permissions = []) => {
             message: `Permission insuffisante. Permissions requises: ${permissions.join(' ou ')}`,
             code: 'INSUFFICIENT_PERMISSION',
             requiredPermissions: permissions,
-            currentPermissions: admin.permissions
+            currentPermissions: userPermissions
           });
         }
       }

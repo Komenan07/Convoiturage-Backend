@@ -147,7 +147,7 @@ const utilisateurSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: {
-      values: ['conducteur', 'passager', 'les_deux', 'admin'],
+      values: ['conducteur', 'passager'],
       message: 'Rôle invalide'
     },
     default: 'passager'
@@ -158,7 +158,7 @@ const utilisateurSchema = new mongoose.Schema({
     type: {
       type: String,
       enum: {
-        values: ['CNI', 'PASSEPORT'],
+        values: ['CNI', 'PASSEPORT','PERMIS_CONDUIRE'],
         message: 'Type de document invalide'
       }
     },
@@ -173,6 +173,9 @@ const utilisateurSchema = new mongoose.Schema({
           } else if (this.documentIdentite.type === 'PASSEPORT') {
             return /^[A-Z0-9]{6,9}$/.test(numero);
           }
+          else if (this.documentIdentite.type === 'PERMIS_CONDUIRE') {
+            return /^[A-Z0-9]{6,12}$/.test(numero);
+          }
           return true;
         },
         message: 'Numéro de document invalide'
@@ -182,17 +185,27 @@ const utilisateurSchema = new mongoose.Schema({
       type: String,
       default: null
     },
+    photoSelfie: {
+      type: String,
+      default: null
+    },
     statutVerification: {
       type: String,
-      enum: ['EN_ATTENTE', 'VERIFIE', 'REJETE'],
-      default: 'EN_ATTENTE'
+      enum: ['NON_SOUMIS','EN_ATTENTE', 'VERIFIE', 'REJETE'],
+      default: 'NON_SOUMIS'
     },
     dateVerification: Date,
     verificateurId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Administrateur'
     },
-    raisonRejet: String
+    raisonRejet: String,
+    cloudinaryPublicIdDocument: String,
+    cloudinaryPublicIdSelfie: String,
+    dateUpload: {
+      type: Date,
+      default: null
+    }
   },
 
   // Localisation
@@ -335,7 +348,7 @@ const utilisateurSchema = new mongoose.Schema({
     ]
   }],
 
-  // ===== NOUVEAU : SYSTÈME DE COMPTE COVOITURAGE (REMPLACEMENT DU PORTEFEUILLE) =====
+  // SYSTÈME DE COMPTE COVOITURAGE (REMPLACEMENT DU PORTEFEUILLE) =====
   compteCovoiturage: {
     // Solde du compte rechargé (pour conducteurs)
     solde: { 
@@ -670,7 +683,7 @@ utilisateurSchema.virtual('estDocumentVerifie').get(function() {
 
 // NOUVEAUX VIRTUALS COMPTE COVOITURAGE
 utilisateurSchema.virtual('peutAccepterCourses').get(function() {
-  return this.role === 'conducteur' || this.role === 'les_deux';
+  return this.role === 'conducteur' || this.role === 'conducteur';
 });
 
 utilisateurSchema.virtual('compteRechargeActif').get(function() {

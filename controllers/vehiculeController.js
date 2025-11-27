@@ -1,6 +1,7 @@
 // controllers/vehiculeController.js
 
 const Vehicule = require('../models/Vehicule');
+const User = require('../models/Utilisateur');
 const { logger } = require('../utils/logger');
 const AppError = require('../utils/AppError');
 const path = require('path');
@@ -8,14 +9,54 @@ const fs = require('fs').promises;
 
 // =============== MÉTHODES CRUD STANDARD ===============
 
+// controllers/vehiculeController.js - creerVehicule (MODIFIÉ)
+
 /**
- * @desc Créer un nouveau véhicule
- * @route POST /api/vehicules
- * @access Privé (utilisateur authentifié)
+ * @desc    Créer un nouveau véhicule
+ * @route   POST /api/vehicules
+ * @access  Private (conducteur authentifié)
  */
 const creerVehicule = async (req, res, next) => {
   try {
-    logger.info('Tentative de création de véhicule', { userId: req.user.userId });
+    logger.info('🚗 Tentative de création de véhicule', { 
+      userId: req.user.userId,
+      role: req.user.role 
+    });
+
+    // ===== VÉRIFICATIONS =====
+    
+    // 1. Vérifier que l'utilisateur est conducteur
+    if (req.user.role !== 'conducteur') {
+      return res.status(403).json({
+        success: false,
+        message: 'Seuls les conducteurs peuvent ajouter des véhicules',
+        code: 'NOT_DRIVER',
+        action: 'Devenez conducteur via POST /api/auth/passer-conducteur'
+      });
+    }
+
+    // 2. Récupérer l'utilisateur complet
+    const utilisateur = await User.findById(req.user.userId);
+    
+    if (!utilisateur) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    // 3. Vérifier vérification d'identité
+    if (utilisateur.documentIdentite?.statutVerification !== 'VERIFIE') {
+      return res.status(403).json({
+        success: false,
+        message: 'Votre identité doit être vérifiée pour ajouter un véhicule',
+        code: 'IDENTITY_NOT_VERIFIED',
+        currentStatus: utilisateur.documentIdentite?.statutVerification || 'NON_SOUMIS'
+      });
+    }
+
+    // ===== PRÉPARATION DES DONNÉES =====
     
     const vehiculeData = {
       ...req.body,
@@ -29,33 +70,28 @@ const creerVehicule = async (req, res, next) => {
     
     if (vehiculesExistants === 0) {
       vehiculeData.estPrincipal = true;
+      logger.info('✅ Premier véhicule → défini comme principal');
     }
 
-    // Gestion des photos multiples si présentes
+    // ===== GESTION DES PHOTOS MULTIPLES =====
+    
     if (req.files) {
       if (!vehiculeData.photos) vehiculeData.photos = {};
       
-      if (req.files.avant) {
-        vehiculeData.photos.avant = `/uploads/vehicules/${req.files.avant[0].filename}`;
-      }
-      if (req.files.arriere) {
-        vehiculeData.photos.arriere = `/uploads/vehicules/${req.files.arriere[0].filename}`;
-      }
-      if (req.files.lateral_gauche) {
-        vehiculeData.photos.lateral_gauche = `/uploads/vehicules/${req.files.lateral_gauche[0].filename}`;
-      }
-      if (req.files.lateral_droit) {
-        vehiculeData.photos.lateral_droit = `/uploads/vehicules/${req.files.lateral_droit[0].filename}`;
-      }
-      if (req.files.interieur) {
-        vehiculeData.photos.interieur = `/uploads/vehicules/${req.files.interieur[0].filename}`;
-      }
-      if (req.files.tableau_bord) {
-        vehiculeData.photos.tableau_bord = `/uploads/vehicules/${req.files.tableau_bord[0].filename}`;
-      }
+      const typesPhotos = [
+        'avant', 'arriere', 'lateral_gauche', 
+        'lateral_droit', 'interieur', 'tableau_bord'
+      ];
+      
+      typesPhotos.forEach(type => {
+        if (req.files[type]) {
+          vehiculeData.photos[type] = `/uploads/vehicules/${req.files[type][0].filename}`;
+          logger.info(`📸 Photo ${type} ajoutée`);
+        }
+      });
     }
 
-    // Initialiser les équipements obligatoires
+    // Initialiser équipements obligatoires si non fournis
     if (!vehiculeData.equipements) {
       vehiculeData.equipements = {
         ceintures: 'AVANT_UNIQUEMENT',
@@ -68,51 +104,98 @@ const creerVehicule = async (req, res, next) => {
       };
     }
 
+    // ===== CRÉATION DU VÉHICULE =====
+    
     const nouveauVehicule = new Vehicule(vehiculeData);
     await nouveauVehicule.save();
-    await nouveauVehicule.populate('proprietaireId', 'nom prenom email telephone');
+    await nouveauVehicule.populate('proprietaireId', 'nom prenom email telephone photo');
 
-    logger.info('Véhicule créé avec succès', { 
+    logger.info('✅ Véhicule créé avec succès', { 
       vehiculeId: nouveauVehicule._id, 
       userId: req.user.userId,
-      immatriculation: nouveauVehicule.immatriculation 
+      immatriculation: nouveauVehicule.immatriculation,
+      statut: nouveauVehicule.statut
     });
 
-    // Obtenir infos complètes
+    // ===== ANALYSE DE COMPLÉTUDE =====
+    
     const documentsManquants = nouveauVehicule.documentsManquants();
+    const documentsValidite = nouveauVehicule.documentsValides();
 
+    // ===== RÉPONSE =====
+    
     res.status(201).json({
       success: true,
-      message: 'Véhicule créé avec succès',
+      message: '🚗 Véhicule créé avec succès !',
       data: {
-        vehicule: nouveauVehicule,
-        documentsManquants: documentsManquants,
-        prochaines_etapes: documentsManquants.complet 
-          ? 'Soumettez votre véhicule pour validation administrative'
-          : `Complétez les documents manquants (${documentsManquants.nombreManquants} restants)`
-      }
+        vehicule: {
+          id: nouveauVehicule._id,
+          marque: nouveauVehicule.marque,
+          modele: nouveauVehicule.modele,
+          immatriculation: nouveauVehicule.immatriculation,
+          couleur: nouveauVehicule.couleur,
+          annee: nouveauVehicule.annee,
+          nombrePlaces: nouveauVehicule.nombrePlaces,
+          placesDisponibles: nouveauVehicule.placesDisponibles,
+          statut: nouveauVehicule.statut,
+          estPrincipal: nouveauVehicule.estPrincipal,
+          documentsComplets: nouveauVehicule.documentsComplets,
+          photos: nouveauVehicule.photos,
+          proprietaire: {
+            id: nouveauVehicule.proprietaireId._id,
+            nom: nouveauVehicule.proprietaireId.nom,
+            prenom: nouveauVehicule.proprietaireId.prenom,
+            telephone: nouveauVehicule.proprietaireId.telephone
+          }
+        },
+        documentsManquants: {
+          liste: documentsManquants.manquants,
+          nombre: documentsManquants.nombreManquants,
+          pourcentageCompletion: documentsManquants.pourcentageCompletion
+        },
+        documentsValidite: documentsValidite
+      },
+      nextSteps: documentsManquants.complet 
+        ? {
+            etape: 2,
+            action: 'ATTENDRE_VALIDATION',
+            titre: 'Validation administrative',
+            description: 'Votre véhicule est en attente de validation par notre équipe (24-48h)',
+            statut: 'EN_ATTENTE_VERIFICATION'
+          }
+        : {
+            etape: 2,
+            action: 'COMPLETER_DOCUMENTS',
+            titre: 'Complétez les documents manquants',
+            description: `Il vous reste ${documentsManquants.nombreManquants} documents à fournir`,
+            route: `/api/vehicules/${nouveauVehicule._id}/documents`,
+            method: 'PUT',
+            documentsManquants: documentsManquants.manquants
+          }
     });
 
   } catch (error) {
-    logger.error('Erreur création véhicule:', error);
+    logger.error('❌ Erreur création véhicule:', error);
 
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
         success: false,
         message: 'Données invalides',
-        erreurs: messages
+        code: 'VALIDATION_ERROR',
+        errors: messages
       });
     }
 
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: 'Un véhicule avec cette immatriculation existe déjà'
+        message: 'Un véhicule avec cette immatriculation existe déjà',
+        code: 'DUPLICATE_VEHICLE'
       });
     }
 
-    return next(AppError.serverError('Erreur serveur lors de la création du véhicule', { 
+    return next(AppError.serverError('Erreur lors de la création du véhicule', { 
       originalError: error.message 
     }));
   }

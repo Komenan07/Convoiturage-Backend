@@ -1,4 +1,8 @@
 // routes/verificationRoute.js
+// =====================================================
+// ROUTES DE VÉRIFICATION 
+// =====================================================
+
 const express = require('express');
 const router = express.Router();
 const { body, param, query, validationResult } = require('express-validator');
@@ -6,78 +10,71 @@ const rateLimit = require('express-rate-limit');
 
 // =============== IMPORTS CONTRÔLEURS ===============
 const {
+  // Fonctions UTILISATEUR (Flutter compatible)
+  soumettreVerification,
+  obtenirStatutVerification,
+  annulerVerification,
+  
+  // Fonctions ADMIN
+  obtenirDocumentsEnAttente,
   telechargerPhotoDocument,
+  approuverDocument,
+  rejeterDocument,
   marquerEnCoursRevision,
   obtenirHistoriqueVerifications,
   envoyerRappelVerification,
   obtenirDocumentsExpires,
   demanderRenouvellement,
-  approuverEnLot,
-  // user endpoints
-  soumettreDocumentVerification,
-  obtenirStatutVerification,
-  // admin endpoints
-  obtenirDocumentsEnAttente,
-  approuverDocument,
-  rejeterDocument
+  approuverEnLot
 } = require('../controllers/verificationController');
 
-// Import du contrôleur principal de vérification (assumé)
-// const {
-//   soumettreDocumentVerification,
-//   approuverDocument,
-//   rejeterDocument,
-//   obtenirDocumentsEnAttente,
-//   obtenirStatutVerification
-// } = require('../controllers/auth/verificationController');
-
 // =============== IMPORTS MIDDLEWARES ===============
-const {
-  authMiddleware,
-  adminMiddleware
-} = require('../middlewares/authMiddleware');
+// ✅ Compatible avec le système admin
+const { protectAdmin, authorize } = require('../middlewares/adminAuthMiddleware');
+const { protect: protectUser } = require('../middlewares/authMiddleware');
 
-const {
-  limitDocumentSubmissions,
-  validateDocumentData,
-  checkVerificationStatus
-} = require('../middlewares/verification');
+// ✅ Multer pour Flutter (2 images)
+const { uploadTwoImages, handleMulterError } = require('../utils/cloudinaryConfig');
 
 // =============== RATE LIMITING ===============
 
 const verificationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // 20 actions de vérification max par IP
+  max: 20,
   message: {
     success: false,
-    message: 'Trop d\'actions de vérification. Réessayez dans 15 minutes.'
+    message: 'Trop d\'actions de vérification. Réessayez dans 15 minutes.',
+    code: 'RATE_LIMIT_EXCEEDED'
   }
 });
 
 const downloadLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 50, // 50 téléchargements max par 5 minutes
+  max: 50,
   message: {
     success: false,
-    message: 'Trop de téléchargements. Réessayez dans 5 minutes.'
+    message: 'Trop de téléchargements. Réessayez dans 5 minutes.',
+    code: 'RATE_LIMIT_EXCEEDED'
   }
 });
 
 const adminActionLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 100, // 100 actions admin max par 10 minutes
+  max: 100,
   message: {
     success: false,
-    message: 'Trop d\'actions administratives. Réessayez dans 10 minutes.'
+    message: 'Trop d\'actions administratives. Réessayez dans 10 minutes.',
+    code: 'RATE_LIMIT_EXCEEDED'
   }
 });
 
 const bulkActionLimiter = rateLimit({
   windowMs: 30 * 60 * 1000, // 30 minutes
-  max: 10, // 10 actions en lot max par 30 minutes
+  max: 10,
   message: {
     success: false,
-    message: 'Trop d\'actions en lot. Réessayez dans 30 minutes.'
+    message: 'Trop d\'actions en lot. Réessayez dans 30 minutes.',
+    code: 'RATE_LIMIT_EXCEEDED'
   }
 });
 
@@ -99,8 +96,8 @@ const validateRenewalRequest = [
 
 const validateBulkApproval = [
   body('userIds')
-    .isArray({ min: 1, max: 20 })
-    .withMessage('Liste d\'utilisateurs requise (1-20 utilisateurs max pour approbation en lot)'),
+    .isArray({ min: 1, max: 50 })
+    .withMessage('Liste d\'utilisateurs requise (1-50 utilisateurs max)'),
   body('userIds.*')
     .isMongoId()
     .withMessage('ID utilisateur invalide'),
@@ -127,10 +124,24 @@ const validateReminderRequest = [
 
 const validateRejectRequest = [
   body('raison')
-    .optional()
     .trim()
-    .isLength({ min: 5, max: 500 })
-    .withMessage('La raison doit contenir entre 5 et 500 caractères')
+    .notEmpty()
+    .withMessage('La raison est requise')
+    .isLength({ min: 10, max: 500 })
+    .withMessage('La raison doit contenir entre 10 et 500 caractères')
+];
+
+// ✅ Validation pour Flutter (form-data, pas de body validation)
+const validateFlutterSubmission = [
+  body('type')
+    .isIn(['CNI', 'PASSEPORT', 'PERMIS_CONDUIRE', 'ATTESTATION_IDENTITE'])
+    .withMessage('Type de document invalide'),
+  body('numero')
+    .trim()
+    .notEmpty()
+    .withMessage('Numéro de document requis')
+    .isLength({ min: 5, max: 50 })
+    .withMessage('Numéro de document invalide (5-50 caractères)')
 ];
 
 const validateExpiredDocsQuery = [
@@ -148,6 +159,29 @@ const validateExpiredDocsQuery = [
     .withMessage('Le seuil de jours doit être entre 1 et 365')
 ];
 
+const validatePaginationQuery = [
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page invalide'),
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limite invalide (1-100)'),
+  query('sortBy')
+    .optional()
+    .isIn(['dateUpload', 'nom', 'type'])
+    .withMessage('Critère de tri invalide'),
+  query('sortOrder')
+    .optional()
+    .isIn(['asc', 'desc'])
+    .withMessage('Ordre de tri invalide'),
+  query('type')
+    .optional()
+    .isIn(['CNI', 'PASSEPORT', 'PERMIS_CONDUIRE', 'ATTESTATION_IDENTITE'])
+    .withMessage('Type de document invalide')
+];
+
 // Middleware de gestion des erreurs de validation
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
@@ -155,8 +189,9 @@ const handleValidationErrors = (req, res, next) => {
     return res.status(400).json({
       success: false,
       message: 'Erreurs de validation',
+      code: 'VALIDATION_ERROR',
       errors: errors.array().map(error => ({
-        field: error.param,
+        field: error.path,
         message: error.msg,
         value: error.value
       }))
@@ -165,30 +200,132 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// =============== ROUTES ADMIN - TÉLÉCHARGEMENTS ===============
+// =============== MIDDLEWARES DE PERMISSIONS ===============
+
+// ✅ Compatible avec le système admin
+const requireVerificationPermission = authorize(
+  ['SUPER_ADMIN', 'MODERATEUR'], 
+  ['ALL', 'VERIFICATION_DOCUMENTS', 'VERIFICATION_IDENTITE']
+);
+
+const requireModificationPermission = authorize(
+  ['SUPER_ADMIN'], 
+  ['ALL', 'VERIFICATION_DOCUMENTS']
+);
+
+// =====================================================
+// ROUTES UTILISATEUR (FLUTTER COMPATIBLE)
+// =====================================================
 
 /**
- * @route   GET /api/verification/admin/document/:userId/photo
- * @desc    Télécharger la photo d'un document d'identité
- * @access  Privé - Admin seulement
+ * @route   POST /api/verification/submit
+ * @desc    Soumettre une demande de vérification (2 images via Flutter)
+ * @access  Private (utilisateur connecté)
+ * @body    form-data:
+ *          - type (text): CNI, PASSEPORT, PERMIS_CONDUIRE, ATTESTATION_IDENTITE
+ *          - numero (text): Numéro du document
+ *          - documentImage (file): Photo du document (JPG/PNG)
+ *          - selfieWithDocumentImage (file): Photo selfie avec document (JPG/PNG)
  */
-router.get('/admin/document/:userId/photo',
-  adminMiddleware,
+router.post('/submit',
+  protectUser,
+  verificationLimiter,
+  uploadTwoImages,              // ✅ Multer pour 2 images
+  validateFlutterSubmission,
+  handleValidationErrors,
+  soumettreVerification
+);
+
+/**
+ * @route   GET /api/verification/status
+ * @desc    Obtenir le statut de vérification de l'utilisateur connecté
+ * @access  Private (utilisateur connecté)
+ */
+router.get('/status',
+  protectUser,
+  obtenirStatutVerification
+);
+
+/**
+ * @route   DELETE /api/verification/cancel
+ * @desc    Annuler une demande de vérification en attente
+ * @access  Private (utilisateur connecté)
+ */
+router.delete('/cancel',
+  protectUser,
+  verificationLimiter,
+  annulerVerification
+);
+
+// =====================================================
+// ROUTES ADMIN - GESTION DES DOCUMENTS
+// =====================================================
+
+/**
+ * @route   GET /api/verification/admin/pending
+ * @desc    Liste des documents en attente de vérification
+ * @access  Private - Admin avec permission VERIFICATION_DOCUMENTS
+ */
+router.get('/admin/pending',
+  protectAdmin,
+  requireVerificationPermission,
+  verificationLimiter,
+  validatePaginationQuery,
+  handleValidationErrors,
+  obtenirDocumentsEnAttente
+);
+
+/**
+ * @route   GET /api/verification/admin/photos/:userId
+ * @desc    Obtenir les URLs des photos (document + selfie)
+ * @access  Private - Admin avec permission VERIFICATION_DOCUMENTS
+ */
+router.get('/admin/photos/:userId',
+  protectAdmin,
+  requireVerificationPermission,
   downloadLimiter,
   validateUserId,
   handleValidationErrors,
   telechargerPhotoDocument
 );
 
-// =============== ROUTES ADMIN - GESTION DES DOCUMENTS ===============
+/**
+ * @route   PUT /api/verification/admin/approve/:userId
+ * @desc    Approuver un document
+ * @access  Private - Admin avec permission VERIFICATION_DOCUMENTS
+ */
+router.put('/admin/approve/:userId',
+  protectAdmin,
+  requireVerificationPermission,
+  adminActionLimiter,
+  validateUserId,
+  handleValidationErrors,
+  approuverDocument
+);
 
 /**
- * @route   PUT /api/verification/admin/document/:userId/en-cours
- * @desc    Marquer un document comme en cours de révision
- * @access  Privé - Admin seulement
+ * @route   PUT /api/verification/admin/reject/:userId
+ * @desc    Rejeter un document avec raison (min 10 caractères)
+ * @access  Private - Admin avec permission VERIFICATION_DOCUMENTS
  */
-router.put('/admin/document/:userId/en-cours',
-  adminMiddleware,
+router.put('/admin/reject/:userId',
+  protectAdmin,
+  requireVerificationPermission,
+  adminActionLimiter,
+  validateUserId,
+  validateRejectRequest,
+  handleValidationErrors,
+  rejeterDocument
+);
+
+/**
+ * @route   PUT /api/verification/admin/mark-reviewing/:userId
+ * @desc    Marquer un document comme en cours de révision
+ * @access  Private - Admin avec permission VERIFICATION_DOCUMENTS
+ */
+router.put('/admin/mark-reviewing/:userId',
+  protectAdmin,
+  requireVerificationPermission,
   adminActionLimiter,
   validateUserId,
   handleValidationErrors,
@@ -196,12 +333,55 @@ router.put('/admin/document/:userId/en-cours',
 );
 
 /**
- * @route   PUT /api/verification/admin/document/:userId/renouvellement
- * @desc    Demander un renouvellement de vérification
- * @access  Privé - Admin seulement
+ * @route   GET /api/verification/admin/history/:userId
+ * @desc    Obtenir l'historique des vérifications d'un utilisateur
+ * @access  Private - Admin avec permission VERIFICATION_DOCUMENTS
  */
-router.put('/admin/document/:userId/renouvellement',
-  adminMiddleware,
+router.get('/admin/history/:userId',
+  protectAdmin,
+  requireVerificationPermission,
+  verificationLimiter,
+  validateUserId,
+  handleValidationErrors,
+  obtenirHistoriqueVerifications
+);
+
+/**
+ * @route   POST /api/verification/admin/send-reminders
+ * @desc    Envoyer des rappels de vérification (max 100 utilisateurs)
+ * @access  Private - Admin avec permission VERIFICATION_DOCUMENTS
+ */
+router.post('/admin/send-reminders',
+  protectAdmin,
+  requireVerificationPermission,
+  bulkActionLimiter,
+  validateReminderRequest,
+  handleValidationErrors,
+  envoyerRappelVerification
+);
+
+/**
+ * @route   GET /api/verification/admin/expired
+ * @desc    Obtenir les documents expirés ou à renouveler
+ * @access  Private - Admin avec permission VERIFICATION_DOCUMENTS
+ */
+router.get('/admin/expired',
+  protectAdmin,
+  requireVerificationPermission,
+  verificationLimiter,
+  validateExpiredDocsQuery,
+  handleValidationErrors,
+  obtenirDocumentsExpires
+);
+
+/**
+ * @route   POST /api/verification/admin/request-renewal/:userId
+ * @desc    Demander un renouvellement de vérification à un utilisateur
+ * @access  Private - Super Admin
+ */
+router.post('/admin/request-renewal/:userId',
+  protectAdmin,
+  requireModificationPermission,
   adminActionLimiter,
   validateUserId,
   validateRenewalRequest,
@@ -210,113 +390,35 @@ router.put('/admin/document/:userId/renouvellement',
 );
 
 /**
- * @route   POST /api/verification/admin/approuver-lot
- * @desc    Approuver plusieurs documents en lot
- * @access  Privé - Admin seulement
+ * @route   POST /api/verification/admin/approve-batch
+ * @desc    Approuver plusieurs documents en lot (max 50)
+ * @access  Private - Admin avec permission VERIFICATION_DOCUMENTS
  */
-router.post('/admin/approuver-lot',
-  adminMiddleware,
+router.post('/admin/approve-batch',
+  protectAdmin,
+  requireVerificationPermission,
   bulkActionLimiter,
   validateBulkApproval,
   handleValidationErrors,
   approuverEnLot
 );
 
-// =============== ROUTES ADMIN - CONSULTATION ===============
-
-/**
- * @route   GET /api/verification/admin/historique/:userId
- * @desc    Obtenir l'historique des vérifications d'un utilisateur
- * @access  Privé - Admin seulement
- */
-router.get('/admin/historique/:userId',
-  adminMiddleware,
-  verificationLimiter,
-  validateUserId,
-  handleValidationErrors,
-  obtenirHistoriqueVerifications
-);
-
-/**
- * @route   GET /api/verification/admin/documents-expires
- * @desc    Obtenir la liste des documents expirés ou à renouveler
- * @access  Privé - Admin seulement
- */
-router.get('/admin/documents-expires',
-  adminMiddleware,
-  verificationLimiter,
-  validateExpiredDocsQuery,
-  handleValidationErrors,
-  obtenirDocumentsExpires
-);
-
-/**
- * @route   GET /api/verification/admin/en-attente
- * @desc    Liste des documents en attente (ADMIN)
- * @access  Privé - Admin seulement
- */
-router.get('/admin/en-attente',
-  adminMiddleware,
-  verificationLimiter,
-  obtenirDocumentsEnAttente
-);
-
-// =============== ROUTES ADMIN - COMMUNICATIONS ===============
-
-/**
- * @route   POST /api/verification/admin/rappel-verification
- * @desc    Envoyer des rappels de vérification aux utilisateurs
- * @access  Privé - Admin seulement
- */
-router.post('/admin/rappel-verification',
-  adminMiddleware,
-  bulkActionLimiter,
-  validateReminderRequest,
-  handleValidationErrors,
-  envoyerRappelVerification
-);
-
-/**
- * @route   PUT /api/verification/admin/document/:userId/approuver
- * @desc    Approuver un document (ADMIN)
- * @access  Privé - Admin seulement
- */
-router.put('/admin/document/:userId/approuver',
-  adminMiddleware,
-  adminActionLimiter,
-  validateUserId,
-  handleValidationErrors,
-  approuverDocument
-);
-
-/**
- * @route   PUT /api/verification/admin/document/:userId/rejeter
- * @desc    Rejeter un document (ADMIN)
- * @access  Privé - Admin seulement
- */
-router.put('/admin/document/:userId/rejeter',
-  adminMiddleware,
-  adminActionLimiter,
-  validateUserId,
-  validateRejectRequest,
-  handleValidationErrors,
-  rejeterDocument
-);
-
-// =============== ROUTES DE MONITORING ET STATISTIQUES ===============
+// =====================================================
+// ROUTES DE MONITORING ET STATISTIQUES
+// =====================================================
 
 /**
  * @route   GET /api/verification/admin/statistiques
  * @desc    Obtenir les statistiques de vérification
- * @access  Privé - Admin seulement
+ * @access  Private - Admin avec permission ANALYTICS
  */
 router.get('/admin/statistiques',
-  adminMiddleware,
+  protectAdmin,
+  authorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'ANALYTICS']),
   async (req, res, next) => {
     try {
-      const User = require('../../models/Utilisateur');
+      const User = require('../models/Utilisateur');
       
-      // Statistiques générales
       const stats = await User.aggregate([
         {
           $group: {
@@ -326,22 +428,20 @@ router.get('/admin/statistiques',
         }
       ]);
 
-      // Documents en attente depuis plus de X jours
       const maintenant = new Date();
       const il7Jours = new Date(maintenant.getTime() - 7 * 24 * 60 * 60 * 1000);
       const il30Jours = new Date(maintenant.getTime() - 30 * 24 * 60 * 60 * 1000);
 
       const enAttenteDepuis7Jours = await User.countDocuments({
         'documentIdentite.statutVerification': 'EN_ATTENTE',
-        createdAt: { $lt: il7Jours }
+        'documentIdentite.dateUpload': { $lt: il7Jours }
       });
 
       const enAttenteDepuis30Jours = await User.countDocuments({
         'documentIdentite.statutVerification': 'EN_ATTENTE',
-        createdAt: { $lt: il30Jours }
+        'documentIdentite.dateUpload': { $lt: il30Jours }
       });
 
-      // Statistiques par type de document
       const statsParType = await User.aggregate([
         {
           $match: {
@@ -359,6 +459,11 @@ router.get('/admin/statistiques',
         }
       ]);
 
+      // ✅ Statistiques sur les selfies
+      const avecSelfie = await User.countDocuments({
+        'documentIdentite.photoSelfie': { $exists: true, $ne: null }
+      });
+
       const statistiques = {
         global: stats.reduce((acc, item) => {
           acc[item._id || 'non_defini'] = item.count;
@@ -369,6 +474,12 @@ router.get('/admin/statistiques',
           enAttenteDepuis30Jours
         },
         parType: statsParType,
+        selfies: {
+          avecSelfie,
+          pourcentage: stats.length > 0 
+            ? ((avecSelfie / stats.reduce((sum, s) => sum + s.count, 0)) * 100).toFixed(2)
+            : 0
+        },
         derniereMiseAJour: new Date()
       };
 
@@ -379,12 +490,15 @@ router.get('/admin/statistiques',
 
     } catch (error) {
       console.error('Erreur statistiques vérification:', error);
-      return next(error);
+      const AppError = require('../utils/AppError');
+      return next(AppError.serverError('Erreur serveur', { originalError: error.message }));
     }
   }
 );
 
-// =============== ROUTES DE MONITORING SYSTÈME ===============
+// =====================================================
+// ROUTES DE MONITORING SYSTÈME
+// =====================================================
 
 /**
  * @route   GET /api/verification/health
@@ -396,38 +510,69 @@ router.get('/health', (req, res) => {
     success: true,
     message: 'Service de vérification opérationnel',
     timestamp: new Date().toISOString(),
-    version: '1.1.0',
+    version: '4.0.0',
     features: {
-      documentUpload: true,
+      flutterCompatible: true,
+      twoImagesUpload: true,
+      cloudinaryIntegration: true,
+      separateFolders: true,
       automaticVerification: false,
       manualVerification: true,
       bulkApproval: true,
       renewalRequests: true,
       expiredDocuments: true,
       verificationHistory: true,
-      reminderSystem: true
+      reminderSystem: true,
+      inputValidation: true,
+      rateLimiting: true,
+      performanceOptimized: true,
+      adminSystemIntegrated: true,
+      emailNotifications: true
     },
     routes: {
+      user: [
+        'POST /submit (Flutter - 2 images)',
+        'GET /status',
+        'DELETE /cancel'
+      ],
       admin: [
-        'GET /admin/document/:userId/photo',
-        'PUT /admin/document/:userId/en-cours',
-        'PUT /admin/document/:userId/renouvellement',
-        'POST /admin/approuver-lot',
-        'GET /admin/historique/:userId',
-        'GET /admin/documents-expires',
-        'POST /admin/rappel-verification',
+        'GET /admin/pending',
+        'GET /admin/photos/:userId',
+        'PUT /admin/approve/:userId',
+        'PUT /admin/reject/:userId',
+        'PUT /admin/mark-reviewing/:userId',
+        'GET /admin/history/:userId',
+        'POST /admin/send-reminders (max 100)',
+        'GET /admin/expired',
+        'POST /admin/request-renewal/:userId',
+        'POST /admin/approve-batch (max 50)',
         'GET /admin/statistiques'
       ],
       monitoring: [
         'GET /health',
-        'GET /test'
+        'GET /test',
+        'GET /types-documents',
+        'GET /statuts'
       ]
+    },
+    permissions: {
+      verification: 'VERIFICATION_DOCUMENTS, VERIFICATION_IDENTITE',
+      modification: 'SUPER_ADMIN only',
+      analytics: 'ANALYTICS permission'
     },
     limits: {
       verificationActions: '20/15min',
       downloads: '50/5min',
       adminActions: '100/10min',
-      bulkActions: '10/30min'
+      bulkActions: '10/30min',
+      bulkApprovalMaxUsers: 50,
+      reminderMaxUsers: 100,
+      maxImageSize: '10MB',
+      allowedFormats: ['JPG', 'PNG']
+    },
+    cloudinary: {
+      documentFolder: 'wayz-eco/documents/{userId}/',
+      selfieFolder: 'wayz-eco/selfies/{userId}/'
     }
   });
 });
@@ -442,11 +587,17 @@ router.get('/test', (req, res) => {
     success: true,
     message: 'Service de vérification accessible',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    controllerVersion: '4.0.0-complete-fusion',
+    flutterCompatible: true,
+    multerEnabled: true,
+    cloudinaryEnabled: true
   });
 });
 
-// =============== ROUTES D'INFORMATION ===============
+// =====================================================
+// ROUTES D'INFORMATION
+// =====================================================
 
 /**
  * @route   GET /api/verification/types-documents
@@ -469,20 +620,42 @@ router.get('/types-documents', (req, res) => {
           nom: 'Passeport',
           format: 'Alphanumerique 6-9 caractères',
           description: 'Passeport ivoirien ou étranger valide'
+        },
+        {
+          code: 'PERMIS_CONDUIRE',
+          nom: 'Permis de Conduire',
+          format: 'Variable',
+          description: 'Permis de conduire valide'
+        },
+        {
+          code: 'ATTESTATION_IDENTITE',
+          nom: 'Attestation d\'Identité',
+          format: 'Variable',
+          description: 'Attestation d\'identité officielle'
         }
       ],
       exigences: {
         qualiteImage: 'Haute résolution, texte lisible',
-        format: 'JPEG, PNG ou PDF',
-        tailleFichier: 'Maximum 5MB',
-        validite: 'Document non expiré'
+        format: 'JPEG, PNG (stockage sécurisé sur Cloudinary)',
+        tailleFichier: 'Maximum 10MB par image',
+        validite: 'Document non expiré',
+        photosSelfie: 'Photo selfie avec le document obligatoire'
       },
       delaiTraitement: '24-48 heures ouvrables',
       criteresValidation: [
         'Lisibilité du texte',
         'Authenticité du document',
         'Correspondance des informations',
-        'Validité du document'
+        'Validité du document (date d\'expiration)',
+        'Concordance entre document et selfie'
+      ],
+      processusFlutter: [
+        'Prendre photo du document avec ImagePicker',
+        'Prendre selfie avec le document avec ImagePicker',
+        'Soumettre les 2 images via POST /submit',
+        'Upload automatique vers Cloudinary (dossiers séparés)',
+        'Vérification manuelle par administrateur sous 24-48h',
+        'Notification email avec résultat'
       ]
     }
   });
@@ -499,74 +672,97 @@ router.get('/statuts', (req, res) => {
     data: {
       statuts: [
         {
+          code: 'NON_SOUMIS',
+          nom: 'Non soumis',
+          description: 'Aucun document n\'a encore été soumis',
+          actions: ['Soumettre 2 images via /submit']
+        },
+        {
           code: 'EN_ATTENTE',
           nom: 'En attente',
-          description: 'Document soumis, en cours de vérification'
+          description: 'Document soumis, en cours de vérification',
+          actions: ['Annuler via /cancel', 'Attendre résultat 24-48h']
         },
         {
           code: 'VERIFIE',
           nom: 'Vérifié',
-          description: 'Document approuvé et vérifié'
+          description: 'Document approuvé et vérifié',
+          actions: ['Compte entièrement activé']
         },
         {
           code: 'REJETE',
           nom: 'Rejeté',
-          description: 'Document rejeté, soumission requise'
+          description: 'Document rejeté, nouvelle soumission requise',
+          actions: ['Consulter raison du rejet', 'Soumettre de nouveaux documents']
         }
       ],
       processus: [
-        'Soumission du document par l\'utilisateur',
+        'Soumission de 2 images par l\'utilisateur (document + selfie)',
+        'Upload sécurisé sur Cloudinary dans dossiers séparés',
         'Vérification manuelle par un administrateur',
-        'Approbation ou rejet avec commentaires',
-        'Notification à l\'utilisateur'
-      ]
+        'Approbation ou rejet avec raison détaillée (min 10 caractères)',
+        'Notification email automatique à l\'utilisateur',
+        'Mise à jour du statut compte et historique'
+      ],
+      booleans: {
+        isVerified: 'Compte vérifié',
+        isPending: 'Vérification en cours',
+        isRejected: 'Document rejeté',
+        isNotSubmitted: 'Aucun document soumis'
+      }
     }
   });
 });
 
-/**
- * @route   POST /api/verification/soumettre
- * @desc    Soumettre un document d'identité (USER)
- * @access  Privé
- */
-router.post('/soumettre',
-  authMiddleware,
-  limitDocumentSubmissions,
-  validateDocumentData,
-  handleValidationErrors,
-  soumettreDocumentVerification
-);
-
-/**
- * @route   GET /api/verification/statut
- * @desc    Obtenir le statut de vérification de l'utilisateur (USER)
- * @access  Privé
- */
-router.get('/statut',
-  authMiddleware,
-  checkVerificationStatus,
-  obtenirStatutVerification
-);
-
-// =============== GESTION CENTRALISÉE DES ERREURS ===============
+// =====================================================
+// GESTION CENTRALISÉE DES ERREURS
+// =====================================================
 
 /**
  * Middleware d'erreurs spécifique au router de vérification
  */
 router.use((error, req, res, next) => {
-  console.error('Erreur dans le router vérification:', {
+  console.error('💥 Erreur dans le router vérification:', {
     message: error.message,
-    stack: error.stack,
+    stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     url: req.url,
     method: req.method,
     timestamp: new Date().toISOString(),
     userAgent: req.get('User-Agent'),
     ip: req.ip,
-    userId: req.user?.userId,
-    isAdmin: req.user?.role === 'admin'
+    userId: req.user?.id || req.user?.userId,
+    isAdmin: req.user?.type === 'admin'
   });
 
-  // Gestion des erreurs de fichier non trouvé
+  // Gestion des erreurs Multer
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({
+      success: false,
+      code: 'FILE_TOO_LARGE',
+      message: 'Fichier trop volumineux (max 10MB par image)',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  if (error.code === 'LIMIT_FILE_COUNT') {
+    return res.status(400).json({
+      success: false,
+      code: 'TOO_MANY_FILES',
+      message: 'Maximum 2 fichiers autorisés',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+    return res.status(400).json({
+      success: false,
+      code: 'UNEXPECTED_FILE',
+      message: 'Champs de fichiers attendus: documentImage et selfieWithDocumentImage',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Gestion des erreurs de fichier
   if (error.code === 'ENOENT') {
     return res.status(404).json({
       success: false,
@@ -576,7 +772,6 @@ router.use((error, req, res, next) => {
     });
   }
 
-  // Gestion des erreurs de permission de fichier
   if (error.code === 'EACCES') {
     return res.status(500).json({
       success: false,
@@ -627,10 +822,25 @@ router.use((error, req, res, next) => {
     });
   }
 
-  // Pour toutes les autres erreurs, les propager au handler global
+  // Gestion des erreurs Cloudinary
+  if (error.message && (error.message.includes('cloudinary') || error.message.includes('Cloudinary'))) {
+    return res.status(500).json({
+      success: false,
+      code: 'CLOUDINARY_ERROR',
+      message: 'Erreur lors du traitement de l\'image',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Propager au handler global
   return next(error);
 });
 
-// =============== EXPORT DU ROUTER ===============
+// ✅ Gestion des erreurs Multer à la fin
+router.use(handleMulterError);
+
+// =====================================================
+// EXPORT DU ROUTER
+// =====================================================
 
 module.exports = router;

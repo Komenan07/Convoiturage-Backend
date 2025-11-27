@@ -415,15 +415,13 @@ router.post('/inscription-sms',
 );
 
 /**
- * @route   POST /api/auth/inscription-conducteur
- * @desc     Inscription d'un conducteur avec son véhicule
- * @access  Public
+ * @desc    Passage passager → conducteur 
+ * @route   POST /api/auth/passer-conducteur
+ * @access  Private (passager vérifié)
  */
-router.post('/inscription-conducteur',
+router.post('/passer-conducteur',
   // inscriptionLimiter,
-  validateConducteurInscription,
   authMiddleware,
-  handleValidationErrors,
   passerConducteur
 );
 

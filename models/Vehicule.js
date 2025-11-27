@@ -359,7 +359,6 @@ const vehiculeSchema = new mongoose.Schema({
     }
   },
   
-  // 6. CERTIFICAT DE CONFORMITÉ (Pour véhicules importés)
   certificatConformite: {
     numero: {
       type: String,
@@ -386,7 +385,6 @@ const vehiculeSchema = new mongoose.Schema({
     }
   },
   
-  // 7. INFORMATIONS CGI (Centre de Gestion Intégrée)
   informationsCGI: {
     numeroReference: {
       type: String,

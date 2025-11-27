@@ -120,24 +120,58 @@ const obtenirProfil = async (req, res, next) => {
     return next(AppError.serverError('Erreur serveur lors de la récupération du profil', { originalError: erreur.message }));
   }
 };
-
-
 const feedAdmin = async (req, res, next) => {
-  await Administrateur.create({
-    nom: 'Admin',
-    prenom: 'Principal',
-    email: 'admin@example.com',
-    motDePasse: 'admin2024!',
-    role: 'SUPER_ADMIN',
-    permissions: ['ALL']
-  })
   try {
-    res.status(200).json({
-      success: true,
-      message: 'Feed admin accessible'
+    // Vérifier si admin existe déjà
+    const adminExiste = await Administrateur.findOne({ 
+      email: 'komenanjean07@gmail.com' 
     });
+    
+    if (adminExiste) {
+      return res.status(200).json({
+        success: true,
+        message: 'Admin principal existe déjà',
+        data: {
+          id: adminExiste._id,
+          email: adminExiste.email,
+          role: adminExiste.role
+        }
+      });
+    }
+
+    // Créer l'admin
+    const admin = await Administrateur.create({
+      nom: 'Admin',
+      prenom: 'Principal',
+      email: 'komenanjean07@gmail.com',
+      motDePasse: 'Je@nM@rc79',
+      role: 'SUPER_ADMIN',
+      permissions: ['ALL']
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Admin principal créé avec succès',
+      data: {
+        id: admin._id,
+        email: admin.email,
+        role: admin.role
+      }
+    });
+
   } catch (erreur) {
-    return next(AppError.serverError('Erreur serveur lors de l\'accès au feed admin', { originalError: erreur.message }));
+    // Gérer duplication d'email
+    if (erreur.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Un admin avec cet email existe déjà',
+        code: 'DUPLICATE_EMAIL'
+      });
+    }
+    
+    return next(AppError.serverError('Erreur création admin', { 
+      originalError: erreur.message 
+    }));
   }
 };
 
@@ -168,24 +202,62 @@ const creerAdmin = async (req, res, next) => {
 
     const { email, motDePasse, nom, prenom, role, permissions } = req.body;
 
-    // Créer l'administrateur
-    const admin = await Administrateur.creerAdmin({
+    // ✅ Vérifier si l'email existe déjà
+    const adminExistant = await Administrateur.findOne({ email });
+    if (adminExistant) {
+      return res.status(409).json({
+        success: false,
+        message: 'Un administrateur avec cet email existe déjà',
+        code: 'DUPLICATE_EMAIL'
+      });
+    }
+
+    // ✅ Créer l'administrateur DIRECTEMENT avec .create()
+    const admin = await Administrateur.create({
       email,
       motDePasse,
       nom,
       prenom,
-      role,
-      permissions
-    }, currentAdminId);
+      role: role || 'SUPPORT',
+      permissions: permissions || ['MODERATION'],
+      createdBy: currentAdminId,
+      statutCompte: 'ACTIF'
+    });
+
+    // ✅ Retourner l'admin sans le mot de passe
+    const adminResponse = {
+      id: admin._id,
+      email: admin.email,
+      nom: admin.nom,
+      prenom: admin.prenom,
+      nomComplet: `${admin.prenom} ${admin.nom}`,
+      role: admin.role,
+      permissions: admin.permissions,
+      statutCompte: admin.statutCompte,
+      createdAt: admin.createdAt
+    };
 
     res.status(201).json({
       success: true,
       message: 'Administrateur créé avec succès',
-      data: { admin }
+      data: { admin: adminResponse }
     });
 
   } catch (erreur) {
-    return next(AppError.serverError('Erreur serveur lors de la création de l\'administrateur', { originalError: erreur.message }));
+    console.error('❌ Erreur création admin:', erreur);
+    
+    // Gérer duplication d'email (sécurité supplémentaire)
+    if (erreur.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Un administrateur avec cet email existe déjà',
+        code: 'DUPLICATE_EMAIL'
+      });
+    }
+    
+    return next(AppError.serverError('Erreur serveur lors de la création de l\'administrateur', { 
+      originalError: erreur.message 
+    }));
   }
 };
 
@@ -208,21 +280,84 @@ const listerAdmins = async (req, res, next) => {
       dateFin
     } = req.query;
 
+    // Validation des paramètres de pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
+    if (isNaN(pageNum) || pageNum < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numéro de page invalide',
+        code: 'INVALID_PAGE'
+      });
+    }
+
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Limite invalide (min: 1, max: 100)',
+        code: 'INVALID_LIMIT'
+      });
+    }
+
+    // Construction des filtres
     const filtres = {};
-    if (email) filtres.email = email;
-    if (nom) filtres.nom = nom;
-    if (role) filtres.role = role;
-    if (statutCompte) filtres.statutCompte = statutCompte;
+    
+    if (email) {
+      filtres.email = email;
+    }
+    
+    if (nom) {
+      filtres.nom = nom;
+    }
+    
+    if (role) {
+      // Validation du rôle
+      const rolesValides = ['SUPER_ADMIN', 'MODERATEUR', 'SUPPORT'];
+      if (!rolesValides.includes(role)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Rôle invalide',
+          code: 'INVALID_ROLE',
+          data: { rolesValides }
+        });
+      }
+      filtres.role = role;
+    }
+    
+    if (statutCompte) {
+      // Validation du statut
+      const statutsValides = ['ACTIF', 'SUSPENDU'];
+      if (!statutsValides.includes(statutCompte)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Statut invalide',
+          code: 'INVALID_STATUS',
+          data: { statutsValides }
+        });
+      }
+      filtres.statutCompte = statutCompte;
+    }
+    
     if (dateDebut || dateFin) {
-      filtres.dateCreation = { debut: dateDebut, fin: dateFin };
+      filtres.dateCreation = {};
+      if (dateDebut) {
+        filtres.dateCreation.debut = dateDebut;
+      }
+      if (dateFin) {
+        filtres.dateCreation.fin = dateFin;
+      }
     }
 
     const options = {
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page: pageNum,
+      limit: limitNum,
       sort,
       populate: true
     };
+
+    console.log('📋 Recherche admins avec filtres:', filtres);
+    console.log('📋 Options:', options);
 
     const resultat = await Administrateur.rechercheAvancee(filtres, options);
 
@@ -233,7 +368,14 @@ const listerAdmins = async (req, res, next) => {
     });
 
   } catch (erreur) {
-    return next(AppError.serverError('Erreur serveur lors de la récupération de la liste des administrateurs', { originalError: erreur.message }));
+    console.error('❌ Erreur listerAdmins:', erreur);
+    return next(AppError.serverError(
+      'Erreur serveur lors de la récupération de la liste des administrateurs', 
+      { 
+        originalError: erreur.message,
+        stack: process.env.NODE_ENV === 'development' ? erreur.stack : undefined
+      }
+    ));
   }
 };
 
@@ -245,7 +387,8 @@ const listerAdmins = async (req, res, next) => {
 const obtenirAdminParId = async (req, res, next) => {
   try {
     const admin = await Administrateur.findById(req.params.id)
-      .populate('createdBy modifiedBy', 'nom prenom email');
+      .populate('createdBy', 'nom prenom email')
+      .populate('modifiedBy', 'nom prenom email')
 
     if (!admin) {
       return res.status(404).json({
@@ -274,9 +417,16 @@ const modifierAdmin = async (req, res, next) => {
   try {
     const currentAdminId = req.user.id;
 
+    console.log('🔄 Début modification admin:', {
+      adminId: req.params.id,
+      currentAdminId,
+      body: req.body
+    });
+
     // Validation des erreurs
     const erreurs = validationResult(req);
     if (!erreurs.isEmpty()) {
+      console.log('❌ Erreurs de validation:', erreurs.array());
       return res.status(400).json({
         success: false,
         message: 'Données invalides',
@@ -285,9 +435,11 @@ const modifierAdmin = async (req, res, next) => {
       });
     }
 
+    // Vérifier si l'admin existe
     const admin = await Administrateur.findById(req.params.id);
 
     if (!admin) {
+      console.log('❌ Admin non trouvé:', req.params.id);
       return res.status(404).json({
         success: false,
         message: 'Administrateur introuvable',
@@ -295,6 +447,13 @@ const modifierAdmin = async (req, res, next) => {
       });
     }
 
+    console.log('✅ Admin trouvé:', {
+      id: admin._id,
+      email: admin.email,
+      role: admin.role
+    });
+
+    // Construire les modifications
     const champsModifiables = ['nom', 'prenom', 'role', 'permissions', 'statutCompte'];
     const modifications = {};
 
@@ -304,13 +463,28 @@ const modifierAdmin = async (req, res, next) => {
       }
     });
 
+    // Ajouter les métadonnées
     modifications.modifiedBy = currentAdminId;
 
-    const adminModifie = await Administrateur.findByIdAndUpdate(
-      req.params.id,
-      modifications,
-      { new: true, runValidators: true }
-    ).populate('createdBy modifiedBy', 'nom prenom email');
+    console.log('📝 Modifications à appliquer:', modifications);
+
+    // Appliquer les modifications manuellement
+    Object.keys(modifications).forEach(key => {
+      admin[key] = modifications[key];
+    });
+
+    // Sauvegarder avec validation
+    await admin.save();
+
+    console.log('✅ Admin sauvegardé avec succès');
+
+    // Récupérer l'admin modifié avec les relations
+    const adminModifie = await Administrateur.findById(req.params.id)
+      .populate('createdBy', 'nom prenom email')
+      .populate('modifiedBy', 'nom prenom email')
+      .lean();
+
+    console.log('✅ Admin modifié récupéré:', adminModifie);
 
     res.status(200).json({
       success: true,
@@ -319,7 +493,44 @@ const modifierAdmin = async (req, res, next) => {
     });
 
   } catch (erreur) {
-    return next(AppError.serverError('Erreur serveur lors de la modification de l\'administrateur', { originalError: erreur.message }));
+    console.error('❌ Erreur modifierAdmin:', {
+      message: erreur.message,
+      name: erreur.name,
+      stack: erreur.stack,
+      code: erreur.code
+    });
+
+    // Gestion d'erreurs spécifiques
+    if (erreur.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreur de validation',
+        code: 'VALIDATION_ERROR',
+        data: {
+          erreurs: Object.values(erreur.errors).map(e => ({
+            field: e.path,
+            message: e.message
+          }))
+        }
+      });
+    }
+
+    if (erreur.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'ID invalide',
+        code: 'INVALID_ID'
+      });
+    }
+
+    return next(AppError.serverError(
+      'Erreur serveur lors de la modification de l\'administrateur', 
+      { 
+        originalError: erreur.message,
+        errorName: erreur.name,
+        errorCode: erreur.code
+      }
+    ));
   }
 };
 

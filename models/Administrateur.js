@@ -51,13 +51,54 @@ const administrateurSchema = new mongoose.Schema({
   },
 
   permissions: {
-    type: [String],
-    enum: {
-      values: ['ALL', 'GESTION_UTILISATEURS', 'MODERATION', 'ANALYTICS', 'RAPPORTS_FINANCIERS', 'CONFIGURATION_SYSTEME'],
-      message: 'Permission invalide'
-    },
-    default: ['ALL']
+  type: [String],
+  enum: {
+    values: [
+      // Permissions système
+      'ALL',
+      
+      // Gestion des utilisateurs
+      'GESTION_UTILISATEURS',
+      'GESTION_CONDUCTEURS',        
+      'GESTION_PASSAGERS',
+      'GESTION_ADMINS',
+      
+      // Vérification et modération
+      'VERIFICATION_DOCUMENTS',
+      'VERIFICATION_IDENTITE',
+      'MODERATION_CONTENUS',
+      'MODERATION',
+      
+      // Gestion des trajets et réservations
+      'GESTION_TRAJETS',
+      'GESTION_RESERVATIONS',
+      'ANNULATION_TRAJETS',
+      
+      // Gestion financière
+      'GESTION_PAIEMENTS',
+      'RAPPORTS_FINANCIERS',
+      'GESTION_COMMISSIONS',
+      'REMBOURSEMENTS',
+      
+      // Support et assistance
+      'SUPPORT_CLIENT',
+      'GESTION_RECLAMATIONS',
+      'CHAT_SUPPORT',
+      
+      // Analytics et rapports
+      'ANALYTICS',
+      'RAPPORTS_DETAILLES',
+      'EXPORT_DONNEES',
+      
+      // Configuration
+      'CONFIGURATION_SYSTEME',
+      'GESTION_NOTIFICATIONS',
+      'GESTION_TARIFS'
+    ],
+    message: 'Permission invalide'
   },
+  default: ['ALL']
+},
 
   // Activité et statut
   derniereConnexion: {
@@ -111,7 +152,7 @@ administrateurSchema.virtual('nomComplet').get(function() {
 });
 
 administrateurSchema.virtual('estSuperAdmin').get(function() {
-  return this.role === 'SUPER_ADMIN' || this.permissions.includes('ALL');
+  return this.role === 'SUPER_ADMIN' || (this.permissions && this.permissions.includes('ALL'));
 });
 
 administrateurSchema.virtual('estActif').get(function() {
@@ -235,67 +276,95 @@ administrateurSchema.statics.obtenirStatistiques = async function() {
 };
 
 // Recherche avancée
+// Recherche avancée
 administrateurSchema.statics.rechercheAvancee = async function(filtres, options = {}) {
-  const {
-    page = 1,
-    limit = 10,
-    sort = '-createdAt',
-    populate = false
-  } = options;
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      sort = '-createdAt',
+      populate = false
+    } = options;
 
-  const query = {};
+    const query = {};
 
-  // Filtres
-  if (filtres.email) {
-    query.email = { $regex: filtres.email, $options: 'i' };
-  }
-
-  if (filtres.nom) {
-    query.$or = [
-      { nom: { $regex: filtres.nom, $options: 'i' } },
-      { prenom: { $regex: filtres.nom, $options: 'i' } }
-    ];
-  }
-
-  if (filtres.role) {
-    query.role = filtres.role;
-  }
-
-  if (filtres.statutCompte) {
-    query.statutCompte = filtres.statutCompte;
-  }
-
-  if (filtres.dateCreation) {
-    const { debut, fin } = filtres.dateCreation;
-    if (debut || fin) {
-      query.createdAt = {};
-      if (debut) query.createdAt.$gte = new Date(debut);
-      if (fin) query.createdAt.$lte = new Date(fin);
+    // Filtres
+    if (filtres.email) {
+      query.email = { $regex: filtres.email, $options: 'i' };
     }
-  }
 
-  // Exécution de la requête
-  let queryBuilder = this.find(query)
-    .sort(sort)
-    .limit(limit * 1)
-    .skip((page - 1) * limit);
-
-  if (populate) {
-    queryBuilder = queryBuilder.populate('createdBy modifiedBy', 'nom prenom email');
-  }
-
-  const admins = await queryBuilder;
-  const total = await this.countDocuments(query);
-
-  return {
-    admins,
-    pagination: {
-      page,
-      limit,
-      total,
-      pages: Math.ceil(total / limit)
+    if (filtres.nom) {
+      query.$or = [
+        { nom: { $regex: filtres.nom, $options: 'i' } },
+        { prenom: { $regex: filtres.nom, $options: 'i' } }
+      ];
     }
-  };
+
+    if (filtres.role) {
+      query.role = filtres.role;
+    }
+
+    if (filtres.statutCompte) {
+      query.statutCompte = filtres.statutCompte;
+    }
+
+    if (filtres.dateCreation) {
+      const { debut, fin } = filtres.dateCreation;
+      if (debut || fin) {
+        query.createdAt = {};
+        if (debut) {
+          // Validation de la date
+          const dateDebut = new Date(debut);
+          if (!isNaN(dateDebut.getTime())) {
+            query.createdAt.$gte = dateDebut;
+          }
+        }
+        if (fin) {
+          // Validation de la date
+          const dateFin = new Date(fin);
+          if (!isNaN(dateFin.getTime())) {
+            query.createdAt.$lte = dateFin;
+          }
+        }
+      }
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Exécution de la requête
+    let queryBuilder = this.find(query)
+      .select('-motDePasse') // ✅ Exclure explicitement le mot de passe
+      .sort(sort)
+      .limit(limitNum)
+      .skip(skip);
+
+    if (populate) {
+      queryBuilder = queryBuilder.populate('createdBy modifiedBy', 'nom prenom email');
+    }
+
+    const admins = await queryBuilder.lean(); // ✅ Utiliser .lean() pour de meilleures performances
+    const total = await this.countDocuments(query);
+
+    const totalPages = Math.ceil(total / limitNum);
+
+    return {
+      admins,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
+      }
+    };
+  } catch (error) {
+    console.error('❌ Erreur rechercheAvancee:', error);
+    throw error; // ✅ Propager l'erreur pour qu'elle soit catchée par le contrôleur
+  }
 };
 
 // =====================================================
