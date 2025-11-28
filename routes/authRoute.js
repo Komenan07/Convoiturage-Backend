@@ -221,122 +221,122 @@ const validateRecharge = [
 /**
  * Validations pour l'inscription conducteur
  */
-const validateConducteurInscription = [
-  // Validation du véhicule (OBLIGATOIRE pour devenir conducteur)
-  body('vehicule').notEmpty().withMessage('Les informations du véhicule sont obligatoires'),
+// const validateConducteurInscription = [
+//   // Validation du véhicule (OBLIGATOIRE pour devenir conducteur)
+//   body('vehicule').notEmpty().withMessage('Les informations du véhicule sont obligatoires'),
   
-  // Champs obligatoires du véhicule
-  // body('vehicule.marque')
-  //   .trim()
-  //   .notEmpty()
-  //   .withMessage('La marque du véhicule est obligatoire'),
-  // body('vehicule.modele')
-  //   .trim()
-  //   .notEmpty()
-  //   .withMessage('Le modèle du véhicule est obligatoire'),
-  // body('vehicule.couleur')
-  //   .trim()
-  //   .notEmpty()
-  //   .withMessage('La couleur du véhicule est obligatoire'),
-  // body('vehicule.annee')
-  //   .isInt({ min: 2010, max: new Date().getFullYear() + 1 })
-  //   .withMessage('L\'année du véhicule doit être entre 2010 et ' + (new Date().getFullYear() + 1)),
-  // body('vehicule.nombrePlaces')
-  //   .isInt({ min: 2, max: 9 })
-  //   .withMessage('Le nombre de places doit être entre 2 et 9'),
-  // body('vehicule.immatriculation')
-  //   .trim()
-  //   .notEmpty()
-  //   .withMessage('L\'immatriculation est obligatoire')
-  //   .matches(/^([A-Z]{2}-\d{3}-[A-Z]{2}|\d{4}\s[A-Z]{2}\s\d{2})$/i)
-  //   .withMessage('Format d\'immatriculation invalide (AB-123-CD ou 1234 AB 01)'),
+//   // Champs obligatoires du véhicule
+//   // body('vehicule.marque')
+//   //   .trim()
+//   //   .notEmpty()
+//   //   .withMessage('La marque du véhicule est obligatoire'),
+//   // body('vehicule.modele')
+//   //   .trim()
+//   //   .notEmpty()
+//   //   .withMessage('Le modèle du véhicule est obligatoire'),
+//   // body('vehicule.couleur')
+//   //   .trim()
+//   //   .notEmpty()
+//   //   .withMessage('La couleur du véhicule est obligatoire'),
+//   // body('vehicule.annee')
+//   //   .isInt({ min: 2010, max: new Date().getFullYear() + 1 })
+//   //   .withMessage('L\'année du véhicule doit être entre 2010 et ' + (new Date().getFullYear() + 1)),
+//   // body('vehicule.nombrePlaces')
+//   //   .isInt({ min: 2, max: 9 })
+//   //   .withMessage('Le nombre de places doit être entre 2 et 9'),
+//   // body('vehicule.immatriculation')
+//   //   .trim()
+//   //   .notEmpty()
+//   //   .withMessage('L\'immatriculation est obligatoire')
+//   //   .matches(/^([A-Z]{2}-\d{3}-[A-Z]{2}|\d{4}\s[A-Z]{2}\s\d{2})$/i)
+//   //   .withMessage('Format d\'immatriculation invalide (AB-123-CD ou 1234 AB 01)'),
 
-  // // Champs optionnels du véhicule avec valeurs par défaut
-  // body('vehicule.carburant')
-  //   .optional()
-  //   .isIn(['ESSENCE', 'DIESEL', 'HYBRIDE', 'ELECTRIQUE', 'GPL'])
-  //   .withMessage('Type de carburant invalide'),
-  // // body('vehicule.typeCarrosserie')
-  // //   .optional()
-  // //   .isIn(['BERLINE', 'BREAK', 'COUPE', 'CABRIOLET', 'SUV', '4X4', 'MONOSPACE', 'UTILITAIRE'])
-  // //   .withMessage('Type de carrosserie invalide'),
-  // body('vehicule.transmission')
-  //   .optional()
-  //   .isIn(['MANUELLE', 'AUTOMATIQUE'])
-  //   .withMessage('Type de transmission invalide'),
-  // body('vehicule.kilometrage')
-  //   .optional()
-  //   .isInt({ min: 0 })
-  //   .withMessage('Kilométrage invalide'),
+//   // // Champs optionnels du véhicule avec valeurs par défaut
+//   // body('vehicule.carburant')
+//   //   .optional()
+//   //   .isIn(['ESSENCE', 'DIESEL', 'HYBRIDE', 'ELECTRIQUE', 'GPL'])
+//   //   .withMessage('Type de carburant invalide'),
+//   // // body('vehicule.typeCarrosserie')
+//   // //   .optional()
+//   // //   .isIn(['BERLINE', 'BREAK', 'COUPE', 'CABRIOLET', 'SUV', '4X4', 'MONOSPACE', 'UTILITAIRE'])
+//   // //   .withMessage('Type de carrosserie invalide'),
+//   // body('vehicule.transmission')
+//   //   .optional()
+//   //   .isIn(['MANUELLE', 'AUTOMATIQUE'])
+//   //   .withMessage('Type de transmission invalide'),
+//   // body('vehicule.kilometrage')
+//   //   .optional()
+//   //   .isInt({ min: 0 })
+//   //   .withMessage('Kilométrage invalide'),
 
-  // // Documents légaux (optionnels)
-  // body('vehicule.assurance.numeroPolice')
-  //   .optional()
-  //   .trim()
-  //   .isLength({ min: 1 })
-  //   .withMessage('Numéro de police d\'assurance invalide'),
-  // body('vehicule.assurance.dateExpiration')
-  //   .optional()
-  //   .isISO8601()
-  //   .withMessage('Date d\'expiration assurance invalide'),
-  // body('vehicule.assurance.compagnie')
-  //   .optional()
-  //   .trim()
-  //   .isLength({ min: 2 })
-  //   .withMessage('Nom de la compagnie d\'assurance invalide'),
+//   // // Documents légaux (optionnels)
+//   // body('vehicule.assurance.numeroPolice')
+//   //   .optional()
+//   //   .trim()
+//   //   .isLength({ min: 1 })
+//   //   .withMessage('Numéro de police d\'assurance invalide'),
+//   // body('vehicule.assurance.dateExpiration')
+//   //   .optional()
+//   //   .isISO8601()
+//   //   .withMessage('Date d\'expiration assurance invalide'),
+//   // body('vehicule.assurance.compagnie')
+//   //   .optional()
+//   //   .trim()
+//   //   .isLength({ min: 2 })
+//   //   .withMessage('Nom de la compagnie d\'assurance invalide'),
 
-  // body('vehicule.visiteTechnique.dateExpiration')
-  //   .optional()
-  //   .isISO8601()
-  //   .withMessage('Date d\'expiration visite technique invalide'),
-  // body('vehicule.visiteTechnique.resultat')
-  //   .optional()
-  //   .isIn(['FAVORABLE', 'DEFAVORABLE', 'FAVORABLE_AVEC_RESERVES'])
-  //   .withMessage('Résultat visite technique invalide'),
+//   // body('vehicule.visiteTechnique.dateExpiration')
+//   //   .optional()
+//   //   .isISO8601()
+//   //   .withMessage('Date d\'expiration visite technique invalide'),
+//   // body('vehicule.visiteTechnique.resultat')
+//   //   .optional()
+//   //   .isIn(['FAVORABLE', 'DEFAVORABLE', 'FAVORABLE_AVEC_RESERVES'])
+//   //   .withMessage('Résultat visite technique invalide'),
 
-  // body('vehicule.carteGrise.numero')
-  //   .optional()
-  //   .trim()
-  //   .isLength({ min: 1 })
-  //   .withMessage('Numéro carte grise invalide'),
-  // body('vehicule.carteGrise.numeroChassis')
-  //   .optional()
-  //   .trim()
-  //   .isLength({ min: 10, max: 20 })
-  //   .withMessage('Numéro de châssis invalide'),
+//   // body('vehicule.carteGrise.numero')
+//   //   .optional()
+//   //   .trim()
+//   //   .isLength({ min: 1 })
+//   //   .withMessage('Numéro carte grise invalide'),
+//   // body('vehicule.carteGrise.numeroChassis')
+//   //   .optional()
+//   //   .trim()
+//   //   .isLength({ min: 10, max: 20 })
+//   //   .withMessage('Numéro de châssis invalide'),
 
-  // // Équipements (optionnels)
-  // body('vehicule.equipements.ceintures')
-  //   .optional()
-  //   .isIn(['AVANT_UNIQUEMENT', 'AVANT_ARRIERE', 'TOUS_POSTES'])
-  //   .withMessage('Configuration ceintures invalide'),
-  // body('vehicule.equipements.nombreAirbags')
-  //   .optional()
-  //   .isInt({ min: 0, max: 10 })
-  //   .withMessage('Nombre d\'airbags invalide'),
+//   // // Équipements (optionnels)
+//   // body('vehicule.equipements.ceintures')
+//   //   .optional()
+//   //   .isIn(['AVANT_UNIQUEMENT', 'AVANT_ARRIERE', 'TOUS_POSTES'])
+//   //   .withMessage('Configuration ceintures invalide'),
+//   // body('vehicule.equipements.nombreAirbags')
+//   //   .optional()
+//   //   .isInt({ min: 0, max: 10 })
+//   //   .withMessage('Nombre d\'airbags invalide'),
 
-  // // Commodités (optionnels)
-  // body('vehicule.commodites.espaceBagages')
-  //   .optional()
-  //   .isIn(['PETIT', 'MOYEN', 'GRAND', 'TRES_GRAND'])
-  //   .withMessage('Espace bagages invalide'),
+//   // // Commodités (optionnels)
+//   // body('vehicule.commodites.espaceBagages')
+//   //   .optional()
+//   //   .isIn(['PETIT', 'MOYEN', 'GRAND', 'TRES_GRAND'])
+//   //   .withMessage('Espace bagages invalide'),
 
-  // // Méthode de vérification (optionnelle)
-  // body('methodVerification')
-  //   .optional()
-  //   .isIn(['email', 'whatsapp'])
-  //   .withMessage('Méthode de vérification invalide'),
+//   // // Méthode de vérification (optionnelle)
+//   // body('methodVerification')
+//   //   .optional()
+//   //   .isIn(['email', 'whatsapp'])
+//   //   .withMessage('Méthode de vérification invalide'),
 
-  // // Données utilisateur mises à jour (optionnelles)
-  // // body('telephone')
-  // //   .optional()
-  // //   .matches(/^(\+225)?[0-9]{8,10}$/)
-  // //   .withMessage('Numéro de téléphone invalide'),
-  // body('email')
-  //   .optional()
-  //   .isEmail()
-  //   .withMessage('Email invalide')
-];
+//   // // Données utilisateur mises à jour (optionnelles)
+//   // // body('telephone')
+//   // //   .optional()
+//   // //   .matches(/^(\+225)?[0-9]{8,10}$/)
+//   // //   .withMessage('Numéro de téléphone invalide'),
+//   // body('email')
+//   //   .optional()
+//   //   .isEmail()
+//   //   .withMessage('Email invalide')
+// ];
 
 // Middleware de gestion des erreurs de validation
 const handleValidationErrors = (req, res, next) => {
