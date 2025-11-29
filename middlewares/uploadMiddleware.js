@@ -7,11 +7,15 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { logger } = require('../utils/logger');
 
-// Configuration des dossiers d'upload
+// =====================================================
+// CONFIGURATION DES DOSSIERS D'UPLOAD
+// =====================================================
+
 const UPLOAD_PATHS = {
   vehicules: 'uploads/vehicules',
   documents: 'uploads/documents',
   profils: 'uploads/profils',
+  selfies: 'uploads/selfies', // Nouveau dossier pour les selfies
   temp: 'uploads/temp'
 };
 
@@ -23,7 +27,10 @@ Object.values(UPLOAD_PATHS).forEach(uploadPath => {
   }
 });
 
-// Configuration des types de fichiers autorisés
+// =====================================================
+// CONFIGURATION DES TYPES DE FICHIERS AUTORISÉS
+// =====================================================
+
 const FILE_TYPES = {
   images: {
     mimeTypes: [
@@ -54,7 +61,13 @@ const FILE_TYPES = {
   }
 };
 
-// Fonction utilitaire pour générer un nom de fichier unique
+// =====================================================
+// FONCTION UTILITAIRE
+// =====================================================
+
+/**
+ * Générer un nom de fichier unique
+ */
 const generateUniqueFilename = (originalname) => {
   const timestamp = Date.now();
   const randomString = crypto.randomBytes(8).toString('hex');
@@ -65,6 +78,308 @@ const generateUniqueFilename = (originalname) => {
   
   return `${timestamp}_${randomString}_${baseName}${extension}`;
 };
+
+// =====================================================
+// CONFIGURATION SPÉCIALE POUR VÉRIFICATION D'IDENTITÉ
+// =====================================================
+
+/**
+ * Configuration Multer spécifique pour la vérification d'identité
+ * Accepte 2 fichiers : document + selfie
+ */
+const verificationStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Déterminer le dossier selon le type de fichier
+    const destination = file.fieldname === 'selfieWithDocumentImage' 
+      ? UPLOAD_PATHS.selfies
+      : UPLOAD_PATHS.documents;
+    
+    // Créer le dossier s'il n'existe pas (sécurité supplémentaire)
+    if (!fs.existsSync(destination)) {
+      fs.mkdirSync(destination, { recursive: true });
+    }
+    
+    cb(null, destination);
+  },
+  filename: (req, file, cb) => {
+    const filename = generateUniqueFilename(file.originalname);
+    
+    logger.info('📤 Upload vérification', { 
+      fieldname: file.fieldname,
+      originalName: file.originalname,
+      newFilename: filename,
+      userId: req.user?.userId 
+    });
+    
+    cb(null, filename);
+  }
+});
+
+/**
+ * Filtre de validation pour les images de vérification
+ */
+const verificationFileFilter = (req, file, cb) => {
+  const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  const allowedFields = ['documentImage', 'selfieWithDocumentImage'];
+  
+  // Vérifier que le champ est autorisé
+  if (!allowedFields.includes(file.fieldname)) {
+    const error = new Error(`Champ non autorisé: ${file.fieldname}. Champs acceptés: documentImage, selfieWithDocumentImage`);
+    error.code = 'INVALID_FIELD_NAME';
+    logger.error('❌ Champ invalide:', { fieldname: file.fieldname });
+    return cb(error, false);
+  }
+  
+  // Vérifier le type MIME
+  if (!allowedMimes.includes(file.mimetype)) {
+    const error = new Error(`Type de fichier non autorisé: ${file.mimetype}. Types acceptés: JPG, PNG, WEBP`);
+    error.code = 'INVALID_FILE_TYPE';
+    logger.error('❌ Type MIME invalide:', { mimetype: file.mimetype });
+    return cb(error, false);
+  }
+  
+  // Vérifier l'extension
+  const fileExtension = path.extname(file.originalname).toLowerCase();
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+  
+  if (!allowedExtensions.includes(fileExtension)) {
+    const error = new Error(`Extension non autorisée: ${fileExtension}. Extensions acceptées: .jpg, .png, .webp`);
+    error.code = 'INVALID_FILE_EXTENSION';
+    logger.error('❌ Extension invalide:', { extension: fileExtension });
+    return cb(error, false);
+  }
+  
+  logger.info('✅ Fichier vérification validé', {
+    fieldname: file.fieldname,
+    filename: file.originalname,
+    mimetype: file.mimetype,
+    size: file.size,
+    userId: req.user?.userId
+  });
+  
+  cb(null, true);
+};
+
+/**
+ * Configuration des limites pour la vérification
+ */
+const verificationLimits = {
+  fileSize: 10 * 1024 * 1024, // 10MB par fichier
+  files: 2, // Maximum 2 fichiers (document + selfie)
+  fields: 10, // Nombre de champs form-data
+  parts: 15 // Nombre total de parties dans multipart/form-data
+};
+
+/**
+ * Instance Multer pour la vérification d'identité
+ */
+const uploadVerification = multer({
+  storage: verificationStorage,
+  fileFilter: verificationFileFilter,
+  limits: verificationLimits
+});
+
+/**
+ * Middleware pour gérer les 2 fichiers de vérification
+ * - documentImage: Photo du document d'identité
+ * - selfieWithDocumentImage: Selfie avec le document
+ */
+const uploadVerificationFiles = uploadVerification.fields([
+  { name: 'documentImage', maxCount: 1 },
+  { name: 'selfieWithDocumentImage', maxCount: 1 }
+]);
+
+/**
+ * Middleware de gestion d'erreurs spécifique à la vérification
+ */
+const handleVerificationUploadError = (error, req, res, next) => {
+  // Log détaillé de l'erreur
+  logger.error('❌ Erreur upload vérification:', {
+    errorType: error.constructor.name,
+    errorCode: error.code,
+    errorMessage: error.message,
+    errorField: error.field,
+    filesReceived: req.files ? Object.keys(req.files) : [],
+    userId: req.user?.userId
+  });
+  
+  // Erreurs Multer
+  if (error instanceof multer.MulterError) {
+    switch (error.code) {
+      case 'LIMIT_FILE_SIZE':
+        return res.status(400).json({
+          success: false,
+          code: 'FILE_TOO_LARGE',
+          message: 'Fichier trop volumineux',
+          details: 'Taille maximale autorisée: 10MB par fichier',
+          field: error.field,
+          timestamp: new Date().toISOString()
+        });
+      
+      case 'LIMIT_FILE_COUNT':{
+        const receivedCount = req.files 
+          ? Object.keys(req.files).reduce((acc, key) => acc + req.files[key].length, 0) 
+          : 0;
+        
+        return res.status(400).json({
+          success: false,
+          code: 'TOO_MANY_FILES',
+          message: 'Trop de fichiers envoyés',
+          details: {
+            maximum: 2,
+            received: receivedCount,
+            expected: 'Envoyez exactement 2 fichiers: documentImage + selfieWithDocumentImage'
+          },
+          timestamp: new Date().toISOString()
+        });
+      }
+      case 'LIMIT_UNEXPECTED_FILE':
+        return res.status(400).json({
+          success: false,
+          code: 'UNEXPECTED_FILE_FIELD',
+          message: `Champ de fichier inattendu: ${error.field}`,
+          details: {
+            receivedField: error.field,
+            expectedFields: ['documentImage', 'selfieWithDocumentImage']
+          },
+          timestamp: new Date().toISOString()
+        });
+      
+      case 'LIMIT_PART_COUNT':
+        return res.status(400).json({
+          success: false,
+          code: 'TOO_MANY_PARTS',
+          message: 'Trop de parties dans la requête multipart',
+          details: 'Vérifiez que vous n\'envoyez pas de champs en double',
+          timestamp: new Date().toISOString()
+        });
+      
+      case 'LIMIT_FIELD_COUNT':
+        return res.status(400).json({
+          success: false,
+          code: 'TOO_MANY_FIELDS',
+          message: 'Trop de champs dans la requête',
+          timestamp: new Date().toISOString()
+        });
+      
+      default:
+        return res.status(400).json({
+          success: false,
+          code: 'MULTER_ERROR',
+          message: 'Erreur lors de l\'upload',
+          details: error.message,
+          errorCode: error.code,
+          timestamp: new Date().toISOString()
+        });
+    }
+  }
+  
+  
+  // Erreurs personnalisées de validation
+  if (error.code === 'INVALID_FILE_TYPE' || 
+      error.code === 'INVALID_FILE_EXTENSION' || 
+      error.code === 'INVALID_FIELD_NAME') {
+    return res.status(400).json({
+      success: false,
+      code: error.code,
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  // Autres erreurs
+  next(error);
+};
+
+/**
+ * Middleware de débogage pour les uploads de vérification
+ */
+const debugVerificationUpload = (req, res, next) => {
+  console.log('\n' + '='.repeat(70));
+  console.log('🔍 DEBUG - UPLOAD VÉRIFICATION');
+  console.log('='.repeat(70));
+  
+  console.log('\n📋 Headers:');
+  console.log('  Content-Type:', req.headers['content-type']);
+  console.log('  Content-Length:', req.headers['content-length']);
+  console.log('  Authorization:', req.headers.authorization ? '✅ Présent' : '❌ Manquant');
+  
+  console.log('\n📦 Body (champs texte):');
+  console.log('  Keys:', Object.keys(req.body));
+  Object.keys(req.body).forEach(key => {
+    console.log(`  ${key}:`, req.body[key]);
+  });
+  
+  console.log('\n📁 Files:');
+  if (req.files) {
+    const fields = Object.keys(req.files);
+    console.log('  Nombre de champs:', fields.length);
+    console.log('  Champs:', fields);
+    
+    fields.forEach(field => {
+      const fileArray = req.files[field];
+      console.log(`\n  📄 ${field}:`);
+      fileArray.forEach((file, index) => {
+        console.log(`    [${index}] Nom: ${file.originalname}`);
+        console.log(`        Taille: ${(file.size / 1024).toFixed(2)} KB`);
+        console.log(`        Type: ${file.mimetype}`);
+        console.log(`        Chemin: ${file.path}`);
+      });
+    });
+    
+    const totalFiles = fields.reduce((acc, key) => acc + req.files[key].length, 0);
+    console.log(`\n  ✅ Total fichiers: ${totalFiles}`);
+  } else {
+    console.log('  ❌ Aucun fichier reçu');
+  }
+  
+  if (req.file) {
+    console.log('\n⚠️  req.file (mode single) détecté - Ceci ne devrait pas arriver!');
+    console.log('    Fieldname:', req.file.fieldname);
+    console.log('    Filename:', req.file.originalname);
+  }
+  
+  console.log('\n' + '='.repeat(70) + '\n');
+  
+  next();
+};
+
+/**
+ * Middleware de nettoyage des fichiers de vérification en cas d'erreur
+ */
+const cleanupVerificationFiles = (req, res, next) => {
+  const originalSend = res.send;
+  
+  res.send = function(data) {
+    // Si la réponse est une erreur, supprimer les fichiers uploadés
+    if (res.statusCode >= 400 && req.files) {
+      Object.keys(req.files).forEach(field => {
+        req.files[field].forEach(file => {
+          if (file.path && fs.existsSync(file.path)) {
+            fs.unlink(file.path, (err) => {
+              if (err) {
+                logger.warn('⚠️ Erreur suppression fichier vérification:', {
+                  path: file.path,
+                  error: err.message
+                });
+              } else {
+                logger.info('🗑️ Fichier vérification supprimé après erreur:', file.path);
+              }
+            });
+          }
+        });
+      });
+    }
+    
+    originalSend.call(this, data);
+  };
+  
+  next();
+};
+
+// =====================================================
+// CONFIGURATIONS POUR AUTRES TYPES D'UPLOADS
+// =====================================================
 
 // Configuration de stockage pour les véhicules
 const vehiculeStorage = multer.diskStorage({
@@ -106,10 +421,10 @@ const profilStorage = multer.diskStorage({
   filename: (req, file, cb) => {
     const filename = generateUniqueFilename(file.originalname);
     logger.info('Upload profil', { 
-    originalName: file.originalname,
-    newFilename: filename,
-    destination: UPLOAD_PATHS.profils, 
-    userId: req.user?.userId 
+      originalName: file.originalname,
+      newFilename: filename,
+      destination: UPLOAD_PATHS.profils, 
+      userId: req.user?.userId 
     });
     cb(null, filename);
   }
@@ -341,9 +656,13 @@ const validateFileOwnership = (req, res, next) => {
   }
 
   if (req.files && req.user) {
-    req.files.forEach(file => {
-      file.uploadedBy = req.user.userId;
-      file.uploadDate = new Date();
+    Object.keys(req.files).forEach(field => {
+      if (Array.isArray(req.files[field])) {
+        req.files[field].forEach(file => {
+          file.uploadedBy = req.user.userId;
+          file.uploadDate = new Date();
+        });
+      }
     });
   }
 
@@ -421,9 +740,21 @@ const cleanupOldTempFiles = () => {
 // Démarrer le nettoyage automatique des fichiers temporaires
 setInterval(cleanupOldTempFiles, 60 * 60 * 1000); // Chaque heure
 
-// =============== EXPORTS ===============
+// =====================================================
+// EXPORTS
+// =====================================================
 
 module.exports = {
+  // 🆕 CONFIGURATION POUR VÉRIFICATION D'IDENTITÉ (2 fichiers)
+  uploadVerification,
+  uploadVerificationFiles,
+  handleVerificationUploadError,
+  debugVerificationUpload,
+  cleanupVerificationFiles,
+  verificationStorage,
+  verificationFileFilter,
+  verificationLimits,
+
   // Configurations multer principales
   uploadVehiculePhoto,
   uploadDocument,

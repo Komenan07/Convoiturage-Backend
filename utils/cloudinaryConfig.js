@@ -221,6 +221,39 @@ const handleMulterError = (err, req, res, next) => {
   next(err);
 };
 
+// === Helpers pour sauvegarder en local les images issues du buffer/base64 ===
+const saveBufferToLocal = async (buffer, userId, type = 'document') => {
+  try {
+    const folder = path.join('uploads', 'documents', String(userId));
+    ensureDirectoryExists(folder);
+    const ext = '.jpg';
+    const filename = `${type}-${Date.now()}-${Math.random().toString(36).slice(2,8)}${ext}`;
+    const fullPath = path.join(folder, filename);
+    fs.writeFileSync(fullPath, buffer);
+    return { url: `/${fullPath.replace(/\\/g, '/')}`, publicId: fullPath };
+  } catch (err) {
+    throw new Error(`Erreur sauvegarde locale: ${err.message}`);
+  }
+};
+
+const saveBase64ToLocal = async (base64Image, userId, type = 'document') => {
+  try {
+    const match = base64Image.match(/^data:(.+);base64,(.+)$/);
+    if (!match) throw new Error('Base64 invalide');
+    const mime = match[1] || 'image/jpeg';
+    const data = Buffer.from(match[2], 'base64');
+    const ext = mime.includes('png') ? '.png' : '.jpg';
+    const folder = path.join('uploads', 'documents', String(userId));
+    ensureDirectoryExists(folder);
+    const filename = `${type}-${Date.now()}-${Math.random().toString(36).slice(2,8)}${ext}`;
+    const fullPath = path.join(folder, filename);
+    fs.writeFileSync(fullPath, data);
+    return { url: `/${fullPath.replace(/\\/g, '/')}`, publicId: fullPath };
+  } catch (err) {
+    throw new Error(`Erreur sauvegarde base64 locale: ${err.message}`);
+  }
+};
+
 // =====================================================
 // EXPORTS (TOUT COMBINÉ)
 // =====================================================
@@ -240,4 +273,8 @@ module.exports = {
   // ✅ Nouveaux exports pour la vérification d'identité
   uploadTwoImages,
   handleMulterError
+  ,
+  // Helpers pour stockage local des uploads en mémoire
+  saveBufferToLocal,
+  saveBase64ToLocal
 };
