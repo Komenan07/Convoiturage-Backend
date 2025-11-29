@@ -1,14 +1,15 @@
 // controllers/verificationController.js
 // =====================================================
-// CONTRÔLEUR DE VÉRIFICATION - Version Complète
-// Compatible Admin + Flutter (2 images)
+// CONTRÔLEUR DE VÉRIFICATION - Version Locale (CORRIGÉE)
+// Compatible Admin + Flutter (2 images) - Stockage LOCAL
 // =====================================================
 
 const User = require('../models/Utilisateur');
 const { logger } = require('../utils/logger');
 const AppError = require('../utils/AppError');
 const sendEmail = require('../utils/emailService');
-const cloudinary = require('../utils/cloudinaryConfig');
+const path = require('path');
+const fs = require('fs').promises;
 
 // =====================================================
 // CONSTANTES
@@ -33,94 +34,89 @@ const STATUT_VERIFICATION = {
 const TAILLE_MAX_IMAGE = 10 * 1024 * 1024; // 10MB
 const FORMATS_IMAGE_VALIDES = ['image/jpeg', 'image/png', 'image/jpg'];
 
+// Chemins de base pour les uploads
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+// Note: UPLOAD_BASE_PATH retiré car non utilisé (fichiers déjà dans uploads/documents via Multer)
+
 // =====================================================
-// FONCTIONS UTILITAIRES D'UPLOAD
+// FONCTIONS UTILITAIRES DE GESTION DE FICHIERS
 // =====================================================
 
 /**
- * Uploader un buffer vers Cloudinary (pour Flutter/Multer)
- * @param {Buffer} buffer - Buffer du fichier
- * @param {String} userId - ID de l'utilisateur
- * @param {String} type - Type d'upload ('document' ou 'selfie')
- * @returns {Promise<Object>} - {url, publicId}
+ * Générer l'URL publique d'un fichier
+ * @param {String} filePath - Chemin relatif du fichier
+ * @returns {String} - URL complète
  */
-const uploaderBufferVersCloudinary = (buffer, userId, type = 'document') => {
-  return new Promise((resolve, reject) => {
-    const folder = type === 'selfie' 
-      ? `wayz-eco/selfies/${userId}`
-      : `wayz-eco/documents/${userId}`;
+const genererUrlPublique = (filePath) => {
+  if (!filePath) return null;
+  // Retourne l'URL complète accessible depuis le frontend
+  return `${BASE_URL}/${filePath}`;
+};
 
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: folder,
-        resource_type: 'auto',
-        transformation: [
-          { quality: 'auto:good' },
-          { fetch_format: 'auto' }
-        ]
-      },
-      (error, result) => {
-        if (error) {
-          logger.error(`Erreur upload Cloudinary (${type}):`, error);
-          reject(error);
-        } else {
-          resolve({
-            url: result.secure_url,
-            publicId: result.public_id
-          });
-        }
+/**
+ * Supprimer un fichier local de manière sécurisée
+ * @param {String} filePath - Chemin relatif du fichier (ex: uploads/documents/xxx.jpg)
+ */
+const supprimerFichierLocal = async (filePath) => {
+  try {
+    if (!filePath) {
+      logger.info('Chemin de fichier vide, ignoré');
+      return;
+    }
+    
+    // Construire le chemin absolu
+    const absolutePath = path.join(process.cwd(), filePath);
+    
+    logger.info(`🗑️ Tentative de suppression: ${absolutePath}`);
+    
+    // Vérifier si le fichier existe
+    try {
+      await fs.access(absolutePath);
+      // Le fichier existe, on le supprime
+      await fs.unlink(absolutePath);
+      logger.info('✅ Fichier local supprimé:', filePath);
+      return true;
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        // Fichier introuvable, ce n'est pas grave
+        logger.warn('⚠️ Fichier introuvable (déjà supprimé?):', filePath);
+        return false;
+      } else {
+        // Autre erreur (permissions, etc.)
+        logger.error('❌ Erreur lors de la suppression:', {
+          fichier: filePath,
+          erreur: err.message,
+          code: err.code
+        });
+        throw err;
       }
-    );
-
-    // Convertir le buffer en stream
-    const stream = require('stream');
-    const bufferStream = new stream.PassThrough();
-    bufferStream.end(buffer);
-    bufferStream.pipe(uploadStream);
-  });
-};
-
-/**
- * Uploader une image base64 vers Cloudinary (pour compatibilité)
- * @param {String} base64Image - Image en base64
- * @param {String} userId - ID de l'utilisateur
- * @returns {Promise<Object>} - {url, publicId}
- */
-const uploaderBase64VersCloudinary = async (base64Image, userId) => {
-  try {
-    const result = await cloudinary.uploader.upload(base64Image, {
-      folder: `wayz-eco/documents/${userId}`,
-      resource_type: 'image',
-      format: 'jpg',
-      transformation: [
-        { quality: 'auto:good' },
-        { fetch_format: 'auto' }
-      ]
-    });
-
-    return {
-      url: result.secure_url,
-      publicId: result.public_id
-    };
-  } catch (error) {
-    logger.error('Erreur upload Cloudinary (base64):', error);
-    throw new Error('Échec de l\'upload de l\'image');
-  }
-};
-
-/**
- * Supprimer une image de Cloudinary
- * @param {String} publicId - Public ID Cloudinary
- */
-const supprimerDeCloudinary = async (publicId) => {
-  try {
-    if (publicId) {
-      await cloudinary.uploader.destroy(publicId);
-      logger.info('Image supprimée de Cloudinary:', publicId);
     }
   } catch (error) {
-    logger.warn('Erreur suppression Cloudinary:', error);
+    logger.error('💥 Erreur critique suppression fichier local:', {
+      fichier: filePath,
+      erreur: error.message,
+      stack: error.stack
+    });
+    // Ne pas throw pour ne pas bloquer l'annulation de la vérification
+    return false;
   }
+};
+
+/**
+ * Supprimer les anciennes images d'un utilisateur
+ * @param {Object} documentIdentite - Objet documentIdentite de l'utilisateur
+ */
+const supprimerAnciennesImages = async (documentIdentite) => {
+  if (!documentIdentite) return;
+
+  const fichiersASupprimer = [
+    documentIdentite.photoDocument,
+    documentIdentite.photoSelfie
+  ].filter(Boolean);
+
+  await Promise.allSettled(
+    fichiersASupprimer.map(fichier => supprimerFichierLocal(fichier))
+  );
 };
 
 // =====================================================
@@ -236,12 +232,17 @@ const validerDonneesDocument = (type, numero, dateExpiration, photoDocument) => 
  */
 const soumettreVerification = async (req, res, next) => {
   try {
-    const userId = req.user.id;
-    const { type, numero } = req.body;
+    console.log('🔍 [1] Début soumettreVerification');
     
-    // Les fichiers uploadés via Multer
+    const userId = req.user.userId || req.user.id;
+    console.log('🔍 [2] userId:', userId);
+    
+    const { type, numero } = req.body;
+    console.log('🔍 [3] type:', type, 'numero:', numero);
+    
     const documentImage = req.files?.documentImage?.[0];
     const selfieImage = req.files?.selfieWithDocumentImage?.[0];
+    console.log('🔍 [4] documentImage:', !!documentImage, 'selfieImage:', !!selfieImage);
 
     logger.info('Soumission vérification:', { 
       userId, 
@@ -250,15 +251,19 @@ const soumettreVerification = async (req, res, next) => {
       hasSelfie: !!selfieImage 
     });
 
-    // Validation des données
+    console.log('🔍 [5] Validation des données...');
     const erreursValidation = validerDonneesVerification(
       type, 
       numero, 
       !!documentImage, 
       !!selfieImage
     );
+    console.log('🔍 [6] Erreurs validation:', erreursValidation);
 
     if (erreursValidation.length > 0) {
+      if (documentImage) await supprimerFichierLocal(documentImage.path);
+      if (selfieImage) await supprimerFichierLocal(selfieImage.path);
+      
       return res.status(400).json({
         success: false,
         message: 'Erreurs de validation',
@@ -267,9 +272,14 @@ const soumettreVerification = async (req, res, next) => {
       });
     }
 
-    // Récupérer l'utilisateur
+    console.log('🔍 [7] Recherche utilisateur...');
     const user = await User.findById(userId);
+    console.log('🔍 [8] Utilisateur trouvé:', !!user);
+    
     if (!user) {
+      if (documentImage) await supprimerFichierLocal(documentImage.path);
+      if (selfieImage) await supprimerFichierLocal(selfieImage.path);
+      
       return res.status(404).json({ 
         success: false, 
         message: 'Utilisateur non trouvé',
@@ -277,8 +287,12 @@ const soumettreVerification = async (req, res, next) => {
       });
     }
 
-    // Vérifier si un document est déjà en attente
+    console.log('🔍 [9] Statut actuel:', user.documentIdentite?.statutVerification);
+
     if (user.documentIdentite?.statutVerification === STATUT_VERIFICATION.EN_ATTENTE) {
+      if (documentImage) await supprimerFichierLocal(documentImage.path);
+      if (selfieImage) await supprimerFichierLocal(selfieImage.path);
+      
       return res.status(400).json({
         success: false,
         message: 'Une demande de vérification est déjà en cours de traitement',
@@ -286,8 +300,10 @@ const soumettreVerification = async (req, res, next) => {
       });
     }
 
-    // Vérifier si déjà vérifié
     if (user.documentIdentite?.statutVerification === STATUT_VERIFICATION.VERIFIE) {
+      if (documentImage) await supprimerFichierLocal(documentImage.path);
+      if (selfieImage) await supprimerFichierLocal(selfieImage.path);
+      
       return res.status(400).json({
         success: false,
         message: 'Votre identité est déjà vérifiée',
@@ -295,92 +311,45 @@ const soumettreVerification = async (req, res, next) => {
       });
     }
 
+    console.log('🔍 [10] Préparation des données...');
     const ancienStatut = user.documentIdentite?.statutVerification || STATUT_VERIFICATION.NON_SOUMIS;
 
-    // ===== UPLOAD DU DOCUMENT VERS CLOUDINARY =====
-    let documentUrl, documentPublicId;
+    const documentPath = documentImage.path;
+    const selfiePath = selfieImage.path;
+
+    console.log('🔍 [11] Génération URLs...');
+    const documentUrl = genererUrlPublique(documentPath);
+    const selfieUrl = genererUrlPublique(selfiePath);
+
+    logger.info('Fichiers sauvegardés localement', {
+      documentPath,
+      selfiePath,
+      documentUrl,
+      selfieUrl
+    });
+
+    console.log('🔍 [12] Suppression anciennes images...');
     try {
-      logger.info('Upload document vers Cloudinary...', { 
-        size: documentImage.size, 
-        mimetype: documentImage.mimetype 
-      });
-
-      const uploadResult = await uploaderBufferVersCloudinary(
-        documentImage.buffer, 
-        userId, 
-        'document'
-      );
-      
-      documentUrl = uploadResult.url;
-      documentPublicId = uploadResult.publicId;
-
-      logger.info('Document uploadé avec succès:', documentPublicId);
-    } catch (uploadError) {
-      logger.error('Erreur upload document:', uploadError);
-      return res.status(500).json({
-        success: false,
-        message: 'Erreur lors du téléchargement du document',
-        code: 'DOCUMENT_UPLOAD_ERROR',
-        details: uploadError.message
-      });
+      await supprimerAnciennesImages(user.documentIdentite);
+      console.log('✅ [12a] Anciennes images supprimées');
+    } catch (deleteError) {
+      console.warn('⚠️ [12b] Erreur suppression (non bloquant):', deleteError.message);
     }
 
-    // ===== UPLOAD DU SELFIE VERS CLOUDINARY =====
-    let selfieUrl, selfiePublicId;
-    try {
-      logger.info('Upload selfie vers Cloudinary...', { 
-        size: selfieImage.size, 
-        mimetype: selfieImage.mimetype 
-      });
-
-      const uploadResult = await uploaderBufferVersCloudinary(
-        selfieImage.buffer, 
-        userId, 
-        'selfie'
-      );
-      
-      selfieUrl = uploadResult.url;
-      selfiePublicId = uploadResult.publicId;
-
-      logger.info('Selfie uploadé avec succès:', selfiePublicId);
-    } catch (uploadError) {
-      logger.error('Erreur upload selfie:', uploadError);
-      
-      // Supprimer le document déjà uploadé
-      await supprimerDeCloudinary(documentPublicId);
-
-      return res.status(500).json({
-        success: false,
-        message: 'Erreur lors du téléchargement du selfie',
-        code: 'SELFIE_UPLOAD_ERROR',
-        details: uploadError.message
-      });
-    }
-
-    // ===== SUPPRIMER LES ANCIENNES IMAGES =====
-    if (user.documentIdentite?.cloudinaryPublicIdDocument) {
-      await supprimerDeCloudinary(user.documentIdentite.cloudinaryPublicIdDocument);
-    }
-    if (user.documentIdentite?.cloudinaryPublicIdSelfie) {
-      await supprimerDeCloudinary(user.documentIdentite.cloudinaryPublicIdSelfie);
-    }
-
-    // ===== MISE À JOUR DE L'UTILISATEUR =====
+    console.log('🔍 [13] Mise à jour documentIdentite...');
     if (!user.documentIdentite) {
       user.documentIdentite = {};
     }
 
     user.documentIdentite.type = type;
     user.documentIdentite.numero = numero.trim().toUpperCase();
-    user.documentIdentite.photoDocument = documentUrl;
-    user.documentIdentite.cloudinaryPublicIdDocument = documentPublicId;
-    user.documentIdentite.photoSelfie = selfieUrl;
-    user.documentIdentite.cloudinaryPublicIdSelfie = selfiePublicId;
+    user.documentIdentite.photoDocument = documentPath;
+    user.documentIdentite.photoSelfie = selfiePath;
     user.documentIdentite.statutVerification = STATUT_VERIFICATION.EN_ATTENTE;
     user.documentIdentite.dateUpload = new Date();
-    user.documentIdentite.raisonRejet = null;
+    user.documentIdentite.raisonRejet = undefined;
 
-    // Ajouter à l'historique
+    console.log('🔍 [14] Ajout historique...');
     if (!user.historiqueStatuts) {
       user.historiqueStatuts = [];
     }
@@ -394,16 +363,18 @@ const soumettreVerification = async (req, res, next) => {
       dateModification: new Date()
     });
 
+    console.log('🔍 [15] Sauvegarde utilisateur...');
     await user.save();
+    console.log('✅ [16] Utilisateur sauvegardé');
 
     logger.info('Vérification soumise avec succès', { 
       userId, 
       type,
-      documentUrl,
-      selfieUrl
+      documentPath,
+      selfiePath
     });
 
-    // ===== ENVOYER EMAIL DE CONFIRMATION =====
+    console.log('🔍 [17] Envoi email...');
     try {
       await sendEmail({
         to: user.email,
@@ -434,11 +405,13 @@ const soumettreVerification = async (req, res, next) => {
           </div>
         `
       });
+      console.log('✅ [18] Email envoyé');
     } catch (emailError) {
+      console.warn('⚠️ [18] Erreur email (non bloquant):', emailError.message);
       logger.warn('Impossible d\'envoyer l\'email de confirmation:', emailError.message);
     }
 
-    // ===== RÉPONSE DE SUCCÈS =====
+    console.log('✅ [19] Envoi réponse succès');
     return res.status(200).json({ 
       success: true, 
       message: 'Demande de vérification envoyée avec succès. Vous serez notifié sous 24-48h.',
@@ -449,14 +422,31 @@ const soumettreVerification = async (req, res, next) => {
         documentNumero: numero.trim().toUpperCase(),
         hasDocument: true,
         hasSelfie: true,
-        delaiTraitement: '24-48 heures'
+        delaiTraitement: '24-48 heures',
+        documentUrl: documentUrl,
+        selfieUrl: selfieUrl
       }
     });
 
   } catch (error) {
+    console.error('💥 [CATCH] Erreur capturée:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
     logger.error('Erreur soumission vérification:', error);
-    return next(new AppError('Une erreur est survenue lors de la soumission', 500, { 
-      originalError: error.message 
+    
+    if (req.files?.documentImage?.[0]) {
+      await supprimerFichierLocal(req.files.documentImage[0].path).catch(() => {});
+    }
+    if (req.files?.selfieWithDocumentImage?.[0]) {
+      await supprimerFichierLocal(req.files.selfieWithDocumentImage[0].path).catch(() => {});
+    }
+    
+    return next(AppError.serverError('Une erreur est survenue lors de la soumission', { 
+      originalError: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }));
   }
 };
@@ -492,6 +482,9 @@ const obtenirStatutVerification = async (req, res, next) => {
       dateVerification: doc.dateVerification || null,
       raisonRejet: doc.raisonRejet || null,
       
+      documentUrl: genererUrlPublique(doc.photoDocument),
+      selfieUrl: genererUrlPublique(doc.photoSelfie),
+      
       isVerified: doc.statutVerification === STATUT_VERIFICATION.VERIFIE,
       isPending: doc.statutVerification === STATUT_VERIFICATION.EN_ATTENTE,
       isRejected: doc.statutVerification === STATUT_VERIFICATION.REJETE,
@@ -508,6 +501,8 @@ const obtenirStatutVerification = async (req, res, next) => {
       dateUpload: null,
       dateVerification: null,
       raisonRejet: null,
+      documentUrl: null,
+      selfieUrl: null,
       
       isVerified: false,
       isPending: false,
@@ -538,7 +533,7 @@ const obtenirStatutVerification = async (req, res, next) => {
  */
 const annulerVerification = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     const user = await User.findById(userId);
     
@@ -558,27 +553,30 @@ const annulerVerification = async (req, res, next) => {
       });
     }
 
-    // Supprimer les images de Cloudinary
-    if (user.documentIdentite.cloudinaryPublicIdDocument) {
-      await supprimerDeCloudinary(user.documentIdentite.cloudinaryPublicIdDocument);
-    }
-    if (user.documentIdentite.cloudinaryPublicIdSelfie) {
-      await supprimerDeCloudinary(user.documentIdentite.cloudinaryPublicIdSelfie);
+    // Suppression des images
+    try {
+      await supprimerAnciennesImages(user.documentIdentite);
+    } catch (deleteError) {
+      logger.warn('Erreur suppression images (non bloquant):', deleteError);
     }
 
-    // Réinitialiser les données
-    user.documentIdentite = {
-      type: null,
-      numero: null,
-      photoDocument: null,
-      photoSelfie: null,
-      cloudinaryPublicIdDocument: null,
-      cloudinaryPublicIdSelfie: null,
+    // ✅ Réinitialiser en gardant la structure mais avec undefined
+    Object.assign(user.documentIdentite, {
+      type: undefined,
+      numero: undefined,
+      photoDocument: undefined,
+      photoSelfie: undefined,
       statutVerification: STATUT_VERIFICATION.NON_SOUMIS,
-      dateUpload: null
-    };
+      dateUpload: undefined
+    });
 
-    user.historiqueStatuts = user.historiqueStatuts || [];
+    user.markModified('documentIdentite'); // Important pour Mongoose
+
+    // Historique
+    if (!user.historiqueStatuts) {
+      user.historiqueStatuts = [];
+    }
+    
     user.historiqueStatuts.push({
       ancienStatut: STATUT_VERIFICATION.EN_ATTENTE,
       nouveauStatut: STATUT_VERIFICATION.NON_SOUMIS,
@@ -588,16 +586,17 @@ const annulerVerification = async (req, res, next) => {
 
     await user.save();
 
-    logger.info('Vérification annulée', { userId });
+    logger.info('✅ Vérification annulée avec succès', { userId });
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-      message: 'Demande de vérification annulée avec succès'
+      message: 'Demande de vérification annulée avec succès',
+      code: 'VERIFICATION_CANCELLED'
     });
 
   } catch (error) {
-    logger.error('Erreur annulation vérification:', error);
-    return next(new AppError('Erreur lors de l\'annulation', 500, { 
+    logger.error('❌ Erreur annulation vérification:', error);
+    return next(AppError.serverError('Erreur lors de l\'annulation', { 
       originalError: error.message 
     }));
   }
@@ -646,8 +645,8 @@ const obtenirDocumentsEnAttente = async (req, res, next) => {
         numero: u.documentIdentite.numero,
         dateUpload: u.documentIdentite.dateUpload,
         dateExpiration: u.documentIdentite.dateExpiration,
-        photoDocumentUrl: u.documentIdentite.photoDocument,
-        photoSelfieUrl: u.documentIdentite.photoSelfie,
+        photoDocumentUrl: genererUrlPublique(u.documentIdentite.photoDocument),
+        photoSelfieUrl: genererUrlPublique(u.documentIdentite.photoSelfie),
         hasSelfie: !!u.documentIdentite.photoSelfie
       }
     }));
@@ -700,8 +699,8 @@ const telechargerPhotoDocument = async (req, res, next) => {
     return res.json({
       success: true,
       data: {
-        photoDocumentUrl: user.documentIdentite.photoDocument,
-        photoSelfieUrl: user.documentIdentite.photoSelfie || null,
+        photoDocumentUrl: genererUrlPublique(user.documentIdentite.photoDocument),
+        photoSelfieUrl: genererUrlPublique(user.documentIdentite.photoSelfie),
         hasSelfie: !!user.documentIdentite.photoSelfie
       }
     });
@@ -992,7 +991,9 @@ const obtenirHistoriqueVerifications = async (req, res, next) => {
         dateVerification: user.documentIdentite.dateVerification,
         verificateur: user.documentIdentite.verificateurId,
         raisonRejet: user.documentIdentite.raisonRejet,
-        hasSelfie: !!user.documentIdentite.photoSelfie
+        hasSelfie: !!user.documentIdentite.photoSelfie,
+        documentUrl: genererUrlPublique(user.documentIdentite.photoDocument),
+        selfieUrl: genererUrlPublique(user.documentIdentite.photoSelfie)
       } : null,
       historiqueStatuts: historiqueVerification,
       statistiques: {
@@ -1389,7 +1390,6 @@ module.exports = {
   // Fonctions utilitaires
   validerDonneesVerification,
   validerDonneesDocument,
-  uploaderBufferVersCloudinary,
-  uploaderBase64VersCloudinary,
-  supprimerDeCloudinary
+  supprimerFichierLocal,
+  genererUrlPublique
 };

@@ -202,8 +202,18 @@ const utilisateurSchema = new mongoose.Schema({
       ref: 'Administrateur'
     },
     raisonRejet: String,
+    // (Deprecated) ancien champ utilisé pour Cloudinary - remplacé par documentPath/selfiePath
     cloudinaryPublicIdDocument: String,
     cloudinaryPublicIdSelfie: String,
+    // Nouveau: chemin/identifiant de stockage local ou remote (standardisé)
+    documentPath: {
+      type: String,
+      default: null
+    },
+    selfiePath: {
+      type: String,
+      default: null
+    },
     dateUpload: {
       type: Date,
       default: null

@@ -1,6 +1,6 @@
 // routes/verificationRoute.js
 // =====================================================
-// ROUTES DE VÉRIFICATION 
+// ROUTES DE VÉRIFICATION - STOCKAGE LOCAL
 // =====================================================
 
 const express = require('express');
@@ -33,8 +33,12 @@ const {
 const { protectAdmin, authorize } = require('../middlewares/adminAuthMiddleware');
 const { protect: protectUser } = require('../middlewares/authMiddleware');
 
-// ✅ Multer pour Flutter (2 images)
-const { uploadTwoImages, handleMulterError } = require('../utils/cloudinaryConfig');
+// ✅ CORRECTION : Importer depuis uploadMiddleware au lieu de cloudinaryConfig
+const { 
+   uploadVerificationFiles,    
+   handleVerificationUploadError,      
+  debugVerificationUpload,                
+} = require('../middlewares/uploadMiddleware');
 
 // =============== RATE LIMITING ===============
 
@@ -230,7 +234,8 @@ const requireModificationPermission = authorize(
 router.post('/submit',
   protectUser,
   verificationLimiter,
-  uploadTwoImages,              // ✅ Multer pour 2 images
+  debugVerificationUpload,      // 🔍 Debug - voir les fichiers reçus
+  uploadVerificationFiles,
   validateFlutterSubmission,
   handleValidationErrors,
   soumettreVerification
@@ -510,11 +515,11 @@ router.get('/health', (req, res) => {
     success: true,
     message: 'Service de vérification opérationnel',
     timestamp: new Date().toISOString(),
-    version: '4.0.0',
+    version: '5.0.0-local-storage',
     features: {
       flutterCompatible: true,
       twoImagesUpload: true,
-      cloudinaryIntegration: true,
+      localStorage: true, // ✅ Stockage local au lieu de Cloudinary
       separateFolders: true,
       automaticVerification: false,
       manualVerification: true,
@@ -570,9 +575,10 @@ router.get('/health', (req, res) => {
       maxImageSize: '10MB',
       allowedFormats: ['JPG', 'PNG']
     },
-    cloudinary: {
-      documentFolder: 'wayz-eco/documents/{userId}/',
-      selfieFolder: 'wayz-eco/selfies/{userId}/'
+    storage: {
+      type: 'LOCAL', // ✅ Type de stockage
+      documentFolder: 'uploads/documents/',
+      baseUrl: process.env.BASE_URL || 'http://localhost:5000'
     }
   });
 });
@@ -588,10 +594,10 @@ router.get('/test', (req, res) => {
     message: 'Service de vérification accessible',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    controllerVersion: '4.0.0-complete-fusion',
+    controllerVersion: '5.0.0-local-storage',
     flutterCompatible: true,
     multerEnabled: true,
-    cloudinaryEnabled: true
+    localStorage: true // ✅ Stockage local confirmé
   });
 });
 
@@ -636,7 +642,7 @@ router.get('/types-documents', (req, res) => {
       ],
       exigences: {
         qualiteImage: 'Haute résolution, texte lisible',
-        format: 'JPEG, PNG (stockage sécurisé sur Cloudinary)',
+        format: 'JPEG, PNG (stockage local sécurisé)',
         tailleFichier: 'Maximum 10MB par image',
         validite: 'Document non expiré',
         photosSelfie: 'Photo selfie avec le document obligatoire'
@@ -653,7 +659,7 @@ router.get('/types-documents', (req, res) => {
         'Prendre photo du document avec ImagePicker',
         'Prendre selfie avec le document avec ImagePicker',
         'Soumettre les 2 images via POST /submit',
-        'Upload automatique vers Cloudinary (dossiers séparés)',
+        'Sauvegarde locale automatique dans uploads/documents/',
         'Vérification manuelle par administrateur sous 24-48h',
         'Notification email avec résultat'
       ]
@@ -698,7 +704,7 @@ router.get('/statuts', (req, res) => {
       ],
       processus: [
         'Soumission de 2 images par l\'utilisateur (document + selfie)',
-        'Upload sécurisé sur Cloudinary dans dossiers séparés',
+        'Sauvegarde locale sécurisée dans uploads/documents/',
         'Vérification manuelle par un administrateur',
         'Approbation ou rejet avec raison détaillée (min 10 caractères)',
         'Notification email automatique à l\'utilisateur',
@@ -822,22 +828,12 @@ router.use((error, req, res, next) => {
     });
   }
 
-  // Gestion des erreurs Cloudinary
-  if (error.message && (error.message.includes('cloudinary') || error.message.includes('Cloudinary'))) {
-    return res.status(500).json({
-      success: false,
-      code: 'CLOUDINARY_ERROR',
-      message: 'Erreur lors du traitement de l\'image',
-      timestamp: new Date().toISOString()
-    });
-  }
-
   // Propager au handler global
   return next(error);
 });
 
-// ✅ Gestion des erreurs Multer à la fin
-router.use(handleMulterError);
+// ✅ CORRECTION : Utiliser handleUploadError au lieu de handleMulterError
+router.use(handleVerificationUploadError);
 
 // =====================================================
 // EXPORT DU ROUTER
