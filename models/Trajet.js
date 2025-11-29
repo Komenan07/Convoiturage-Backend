@@ -1,100 +1,15 @@
 const mongoose = require('mongoose');
-const mongoosePaginate = require('mongoose-paginate-v2'); 
+const mongoosePaginate = require('mongoose-paginate-v2');
+const { localisationCompletSchema, vehiculeReferenceSchema } = require('./schemas');
 
-// Schéma pour les points géographiques (départ, arrivée, arrêts)
-const pointSchema = new mongoose.Schema({
-  nom: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  adresse: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  ville: {                    
-    type: String,
-    trim: true,
-    maxlength: 100
-  },
-  commune: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  quartier: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  coordonnees: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      required: true
-    },
-    coordinates: {
-      type: [Number],
-      required: true,
-      validate: {
-        validator: function(coordinates) {
-          return coordinates.length === 2 && 
-                 coordinates[0] >= -180 && coordinates[0] <= 180 && // longitude
-                 coordinates[1] >= -90 && coordinates[1] <= 90;    // latitude
-        },
-        message: 'Les coordonnées doivent être [longitude, latitude] avec longitude entre -180 et 180, latitude entre -90 et 90'
-      }
-    }
-  }
-}, { _id: false });
+// ⭐ REFACTORING: Utilisation des schémas réutilisables
+// Les schémas pointSchema et vehiculeUtiliseSchema ont été remplacés par:
+// - localisationCompletSchema (pour points de départ/arrivée)
+// - vehiculeReferenceSchema (pour véhicule utilisé)
 
-// Schéma pour les arrêts intermédiaires
+// Schéma pour les arrêts intermédiaires (étendu à partir de localisationCompletSchema)
 const arretIntermediaireSchema = new mongoose.Schema({
-  nom: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  adresse: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  ville: {                    
-    type: String,
-    trim: true,
-    maxlength: 100
-  },
-  commune: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  quartier: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  coordonnees: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      required: true
-    },
-    coordinates: {
-      type: [Number],
-      required: true,
-      validate: {
-        validator: function(coordinates) {
-          return coordinates.length === 2 && 
-                 coordinates[0] >= -180 && coordinates[0] <= 180 && // longitude
-                 coordinates[1] >= -90 && coordinates[1] <= 90;    // latitude
-        },
-        message: 'Les coordonnées doivent être [longitude, latitude] avec longitude entre -180 et 180, latitude entre -90 et 90'
-      }
-    }
-  },
+  ...localisationCompletSchema.obj, // Hérite de tous les champs de localisationCompletSchema
   ordreArret: {
     type: Number,
     required: true,
@@ -102,7 +17,7 @@ const arretIntermediaireSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
-// Schéma pour la récurrence
+// Schéma pour la récurrence (conservé tel quel)
 const recurrenceSchema = new mongoose.Schema({
   jours: [{
     type: String,
@@ -120,38 +35,14 @@ const recurrenceSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
-// Schéma pour le véhicule utilisé
-const vehiculeUtiliseSchema = new mongoose.Schema({
-  marque: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  modele: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  couleur: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  immatriculation: {
-    type: String,
-    required: true,
-    trim: true,
-    uppercase: true
-  },
-  nombrePlaces: {
-    type: Number,
-    required: true,
-    min: 1,
-    max: 8
-  }
-}, { _id: false });
+// ⭐ REFACTORING: vehiculeUtiliseSchema supprimé
+// Remplacé par vehiculeReferenceSchema qui gère:
+// - La référence au véhicule (vehiculeId)
+// - Le snapshot des données du véhicule pour performance et historique
+// - La validation de l'immatriculation Côte d'Ivoire (AB-123-CD ou 1234 AB 01)
+// - Les méthodes utilitaires (formater, versJSON, snapshotEstAJour, etc.)
 
-// Schéma pour les préférences
+// Schéma pour les préférences (conservé tel quel)
 const preferencesSchema = new mongoose.Schema({
   accepteFemmesSeulement: {
     type: Boolean,
@@ -208,13 +99,14 @@ const trajetSchema = new mongoose.Schema({
     required: true
   },
 
+  // ⭐ REFACTORING: Utilisation de localisationCompletSchema
   // Itinéraire
   pointDepart: {
-    type: pointSchema,
+    type: localisationCompletSchema,
     required: true
   },
   pointArrivee: {
-    type: pointSchema,
+    type: localisationCompletSchema,
     required: true
   },
   arretsIntermediaires: [arretIntermediaireSchema],
@@ -339,9 +231,10 @@ const trajetSchema = new mongoose.Schema({
     default: false
   },
 
-  // Véhicule utilisé
+  // ⭐ REFACTORING: Utilisation de vehiculeReferenceSchema
+  // Véhicule utilisé avec référence + snapshot pour performance
   vehiculeUtilise: {
-    type: vehiculeUtiliseSchema,
+    type: vehiculeReferenceSchema,
     required: true
   },
 

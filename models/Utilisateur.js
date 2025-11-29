@@ -514,43 +514,19 @@ const utilisateurSchema = new mongoose.Schema({
     }
   },
 
-  // Véhicule (pour conducteurs)
-  vehicule: {
-    marque: {
-      type: String,
-      trim: true
-    },
-    modele: {
-      type: String,
-      trim: true
-    },
-    couleur: {
-      type: String,
-      trim: true
-    },
-    immatriculation: {
-      type: String,
-      trim: true,
-      uppercase: true
-    },
-    nombrePlaces: {
-      type: Number,
-      min: [1, 'Le nombre de places doit être au moins 1'],
-      max: [8, 'Le nombre de places ne peut dépasser 8']
-    },
-    photoVehicule: {
-      type: String,
-      default: null
-    },
-    assurance: {
-      numeroPolice: String,
-      dateExpiration: Date,
-      compagnie: String
-    },
-    visiteTechnique: {
-      dateExpiration: Date,
-      certificatUrl: String
-    }
+  // ⭐ REFACTORING: Véhicule maintenant géré par référence
+  // Anciennement objet embarqué, maintenant array de références vers modèle Vehicule
+  // Permet gestion multi-véhicules et données centralisées
+  // Voir AUDIT.md pour détails du refactoring
+  vehicules: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Vehicule'
+  }],
+  
+  // Véhicule principal (pour compatibilité)
+  vehiculePrincipalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Vehicule'
   },
 
   // Statut du compte

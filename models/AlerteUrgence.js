@@ -1,5 +1,10 @@
 // models/AlerteUrgence.js - ADAPTÉ POUR CÔTE D'IVOIRE
 const mongoose = require('mongoose');
+const { coordonneesSchema } = require('./schemas');
+
+// ⭐ REFACTORING: Utilisation de coordonneesSchema
+// Le schéma positionSchema a été remplacé par coordonneesSchema
+// Voir AUDIT.md pour détails du refactoring
 
 // === SCHÉMAS EMBARQUÉS ===
 
@@ -75,27 +80,12 @@ const contactAlerteSchema = new mongoose.Schema({
   }
 }, { _id: true });
 
-// Position géographique
-const positionSchema = new mongoose.Schema({
-  type: {
-    type: String,
-    enum: ['Point'],
-    required: true,
-    default: 'Point'
-  },
-  coordinates: {
-    type: [Number],
-    required: [true, 'Coordonnées GPS requises'],
-    validate: {
-      validator: function(coords) {
-        return coords.length === 2 && 
-               coords[0] >= -180 && coords[0] <= 180 && // longitude
-               coords[1] >= -90 && coords[1] <= 90;     // latitude
-      },
-      message: 'Coordonnées GPS invalides [longitude, latitude]'
-    }
-  }
-}, { _id: false });
+// ⭐ REFACTORING: positionSchema supprimé
+// Remplacé par coordonneesSchema qui offre:
+// - Validation GeoJSON MongoDB standard
+// - Validation Côte d'Ivoire (avertissement si hors territoire)
+// - Virtuals: longitude, latitude, estEnCoteDIvoire
+// - Méthodes: distanceVers(), formater(), versGoogleMaps()
 
 // === SCHÉMA PRINCIPAL ===
 
@@ -121,9 +111,10 @@ const alerteUrgenceSchema = new mongoose.Schema({
     index: true
   },
   
+  // ⭐ REFACTORING: Utilisation de coordonneesSchema
   // Localisation
   position: {
-    type: positionSchema,
+    type: coordonneesSchema,
     required: [true, 'La position GPS est requise']
   },
   

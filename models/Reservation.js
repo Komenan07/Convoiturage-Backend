@@ -1,48 +1,12 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
+const { localisationSimpleSchema, coordonneesSchema } = require('./schemas');
 
-// Schéma pour les coordonnées géospatiales
-const CoordinatesSchema = new Schema({
-  type: {
-    type: String,
-    enum: ['Point'],
-    default: 'Point',
-    required: true
-  },
-  coordinates: {
-    type: [Number],
-    required: true,
-    validate: {
-      validator: function(coords) {
-        return coords.length === 2 && 
-               coords[0] >= -180 && coords[0] <= 180 && // longitude
-               coords[1] >= -90 && coords[1] <= 90;     // latitude
-      },
-      message: 'Les coordonnées doivent être [longitude, latitude] avec longitude entre -180 et 180, latitude entre -90 et 90'
-    }
-  }
-}, { _id: false });
-
-// Schéma pour les points de prise en charge et dépose
-const PointSchema = new Schema({
-  nom: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 100
-  },
-  adresse: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 200
-  },
-  coordonnees: {
-    type: CoordinatesSchema,
-    required: true,
-    index: '2dsphere'
-  }
-}, { _id: false });
+// ⭐ REFACTORING: Utilisation des schémas réutilisables
+// Les schémas CoordinatesSchema et PointSchema ont été remplacés par:
+// - coordonneesSchema (pour positions géospatiales simples)
+// - localisationSimpleSchema (pour points de prise en charge/dépose)
+// Voir AUDIT.md pour détails du refactoring
 
 // Schéma pour les bagages
 const BagagesSchema = new Schema({
@@ -68,7 +32,7 @@ const BagagesSchema = new Schema({
 // Schéma pour le suivi en temps réel
 const PositionTempsReelSchema = new Schema({
   coordonnees: {
-    type: CoordinatesSchema,
+    type: coordonneesSchema,  // ⭐ REFACTORING: Utilisation de coordonneesSchema
     required: true
   },
   lastUpdate: {
@@ -121,11 +85,11 @@ const ReservationSchema = new Schema({
     }
   },
   pointPriseEnCharge: {
-    type: PointSchema,
+    type: localisationSimpleSchema,  // ⭐ REFACTORING: Utilisation de localisationSimpleSchema
     required: true
   },
   pointDepose: {
-    type: PointSchema,
+    type: localisationSimpleSchema,  // ⭐ REFACTORING: Utilisation de localisationSimpleSchema
     required: true
   },
 

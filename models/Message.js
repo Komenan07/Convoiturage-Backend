@@ -1,5 +1,10 @@
 // MongoDB Schema pour l'entité Message
 const mongoose = require('mongoose');
+const { coordonneesSchema } = require('./schemas');
+
+// ⭐ REFACTORING: Utilisation de coordonneesSchema
+// Le schéma inline pieceJointe.coordonnees a été remplacé par coordonneesSchema
+// Voir AUDIT.md pour détails du refactoring
 
 const messageSchema = new mongoose.Schema({
   conversationId: {
@@ -38,6 +43,7 @@ const messageSchema = new mongoose.Schema({
     maxlength: 200
   },
   
+  // ⭐ REFACTORING: Utilisation de coordonneesSchema
   // Pièces jointes
   pieceJointe: {
     type: {
@@ -45,24 +51,7 @@ const messageSchema = new mongoose.Schema({
       enum: ['IMAGE', 'LOCALISATION']
     },
     url: String,
-    coordonnees: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        default: 'Point'
-      },
-      coordinates: {
-        type: [Number],
-        validate: {
-          validator: function(coords) {
-            return coords.length === 2 && 
-                   coords[0] >= -180 && coords[0] <= 180 &&
-                   coords[1] >= -90 && coords[1] <= 90;
-          },
-          message: 'Coordonnées invalides'
-        }
-      }
-    }
+    coordonnees: coordonneesSchema  // Utilisation du schéma réutilisable
   },
   
   // Modération

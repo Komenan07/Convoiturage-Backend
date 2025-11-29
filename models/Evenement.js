@@ -1,5 +1,10 @@
 // models/Evenement.js
 const mongoose = require('mongoose');
+const { localisationSimpleSchema } = require('./schemas');
+
+// ⭐ REFACTORING: Utilisation de localisationSimpleSchema
+// Le schéma lieuSchema a été remplacé par localisationSimpleSchema
+// Voir AUDIT.md pour détails du refactoring
 
 // Schéma pour les groupes de covoiturage
 const groupeCovoiturageSchema = new mongoose.Schema({
@@ -36,46 +41,12 @@ const groupeCovoiturageSchema = new mongoose.Schema({
   }
 }, { _id: true });
 
-// Schéma pour la localisation
-const lieuSchema = new mongoose.Schema({
-  nom: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 200
-  },
-  adresse: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 300
-  },
-  ville: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 100
-  },
-  coordonnees: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      required: true
-    },
-    coordinates: {
-      type: [Number],
-      required: true,
-      validate: {
-        validator: function(coords) {
-          return coords.length === 2 && 
-                 coords[0] >= -180 && coords[0] <= 180 && // longitude
-                 coords[1] >= -90 && coords[1] <= 90;     // latitude
-        },
-        message: 'Coordonnées invalides [longitude, latitude]'
-      }
-    }
-  }
-}, { _id: false });
+// ⭐ REFACTORING: lieuSchema supprimé
+// Remplacé par localisationSimpleSchema qui offre:
+// - Validation GeoJSON MongoDB standard
+// - Validation Côte d'Ivoire (avertissement non bloquant)
+// - Virtuals: longitude, latitude, adresseComplete
+// - Méthodes: distanceVers(), formater(), resumer()
 
 // Schéma principal de l'événement
 const evenementSchema = new mongoose.Schema({
@@ -93,9 +64,10 @@ const evenementSchema = new mongoose.Schema({
     maxlength: [2000, 'La description ne peut pas dépasser 2000 caractères']
   },
   
+  // ⭐ REFACTORING: Utilisation de localisationSimpleSchema
   // Localisation
   lieu: {
-    type: lieuSchema,
+    type: localisationSimpleSchema,
     required: [true, 'Le lieu est requis']
   },
   
