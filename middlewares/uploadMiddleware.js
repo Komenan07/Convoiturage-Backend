@@ -41,7 +41,7 @@ const FILE_TYPES = {
       'image/gif'
     ],
     extensions: ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
-    maxSize: 5 * 1024 * 1024 // 5MB
+    maxSize: 10 * 1024 * 1024 // 5MB
   },
   documents: {
     mimeTypes: [
@@ -473,12 +473,13 @@ const createFileFilter = (allowedTypes = 'images') => {
 };
 
 // Configuration des limites
-const createLimits = (allowedTypes = 'images') => {
+const createLimits = (allowedTypes = 'images', maxFiles = 1) => {
   const config = FILE_TYPES[allowedTypes] || FILE_TYPES.images;
   return {
     fileSize: config.maxSize,
-    files: 1,
-    fields: 10
+    files: maxFiles,
+    fields: 30, // 🔥 Augmenté de 10 à 30 pour supporter plus de champs texte
+    parts: 50  // 🔥 Ajouté: limite totale de parties dans multipart/form-data
   };
 };
 
@@ -564,12 +565,29 @@ const cleanupTempFiles = (req, res, next) => {
 
 // =============== CONFIGURATIONS MULTER ===============
 
-// Upload pour photos de véhicules
+// Upload pour photos de véhicules (supporte plusieurs fichiers)
 const uploadVehiculePhoto = multer({
   storage: vehiculeStorage,
   fileFilter: createFileFilter('images'),
-  limits: createLimits('images')
+  limits: {
+    fileSize: FILE_TYPES.images.maxSize,
+    files: 10, // 🔥 Support jusqu'à 10 photos de véhicule
+    fields: 30, // 🔥 Support de nombreux champs texte
+    parts: 50 // 🔥 Nombre total de parties multipart
+  }
 });
+
+// 🔥 NOUVEAU: Middleware spécifique pour accepter N'IMPORTE QUEL fichier photo/document de véhicule
+const uploadVehiculeMultiple = multer({
+  storage: vehiculeStorage,
+  fileFilter: createFileFilter('images'),
+  limits: {
+    fileSize: FILE_TYPES.images.maxSize,
+    files: 15, // 🔥 Accepte jusqu'à 15 fichiers (photos + documents)
+    fields: 30,
+    parts: 60
+  }
+}).any(); // 🔥 .any() accepte tous les champs de fichiers
 
 // Upload pour documents d'identité
 const uploadDocument = multer({
@@ -757,6 +775,7 @@ module.exports = {
 
   // Configurations multer principales
   uploadVehiculePhoto,
+  uploadVehiculeMultiple, // 🔥 NOUVEAU: Upload flexible pour véhicules
   uploadDocument,
   uploadProfilPhoto,
   uploadTemp,

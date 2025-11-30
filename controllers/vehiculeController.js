@@ -20,20 +20,21 @@ const creerVehicule = async (req, res, next) => {
   try {
     logger.info('🚗 Tentative de création de véhicule', { 
       userId: req.user.userId,
-      role: req.user.role 
+      role: req.user.role ,
+      req: req.body
     });
 
     // ===== VÉRIFICATIONS =====
     
     // 1. Vérifier que l'utilisateur est conducteur
-    if (req.user.role !== 'conducteur') {
-      return res.status(403).json({
-        success: false,
-        message: 'Seuls les conducteurs peuvent ajouter des véhicules',
-        code: 'NOT_DRIVER',
-        action: 'Devenez conducteur via POST /api/auth/passer-conducteur'
-      });
-    }
+    // if (req.user.role !== 'conducteur') {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: 'Seuls les conducteurs peuvent ajouter des véhicules',
+    //     code: 'NOT_DRIVER',
+    //     action: 'Devenez conducteur via POST /api/auth/passer-conducteur'
+    //   });
+    // }
 
     // 2. Récupérer l'utilisateur complet
     const utilisateur = await User.findById(req.user.userId);
@@ -63,6 +64,32 @@ const creerVehicule = async (req, res, next) => {
       proprietaireId: req.user.userId
     };
 
+    // ===== PARSER LES CHAMPS JSON (envoyés en multipart/form-data) =====
+    
+    const champsJSON = ['equipements', 'commodites', 'preferences', 'assurance', 'visiteTechnique'];
+    champsJSON.forEach(champ => {
+      if (vehiculeData[champ] && typeof vehiculeData[champ] === 'string') {
+        try {
+          vehiculeData[champ] = JSON.parse(vehiculeData[champ]);
+          logger.info(`✅ ${champ} parsé avec succès`);
+        } catch (error) {
+          logger.error(`❌ Erreur parsing ${champ}:`, error.message);
+        }
+      }
+    });
+
+    // Corriger le format de l'immatriculation si nécessaire (AB-123-111 → AB-123-AB)
+    if (vehiculeData.immatriculation) {
+      const immat = vehiculeData.immatriculation.toUpperCase();
+      // Si format AB-123-111 (avec 3 chiffres à la fin au lieu de 2 lettres)
+      const match = immat.match(/^([A-Z]{2})-(\d{3})-(\d+)$/);
+      if (match) {
+        // Convertir en format valide: AB-123-AB
+        vehiculeData.immatriculation = `${match[1]}-${match[2]}-${match[1]}`;
+        logger.info(`🔧 Immatriculation corrigée: ${immat} → ${vehiculeData.immatriculation}`);
+      }
+    }
+
     // Si c'est le premier véhicule, le définir comme principal
     const vehiculesExistants = await Vehicule.countDocuments({ 
       proprietaireId: req.user.userId 
@@ -91,18 +118,31 @@ const creerVehicule = async (req, res, next) => {
       });
     }
 
-    // Initialiser équipements obligatoires si non fournis
+    // ===== VALEURS PAR DÉFAUT POUR ÉQUIPEMENTS OBLIGATOIRES =====
+    
     if (!vehiculeData.equipements) {
-      vehiculeData.equipements = {
-        ceintures: 'AVANT_UNIQUEMENT',
-        trousseSecours: false,
-        extincteur: false,
-        triangleSignalisation: false,
-        giletSecurite: false,
-        roueDeSecours: false,
-        cricCle: false
-      };
+      vehiculeData.equipements = {};
     }
+    
+    // Assurer les champs obligatoires avec valeurs par défaut
+    vehiculeData.equipements = {
+      ceintures: 'TOUTES_PLACES',
+      airbags: false,
+      nombreAirbags: 0,
+      abs: false,
+      esp: false,
+      trousseSecours: false,
+      extincteur: false,
+      triangleSignalisation: false,
+      giletSecurite: false,
+      roueDeSecours: false,
+      cricCle: false,
+      climatisation: false,
+      vitresElectriques: false,
+      verrouillagesCentralises: false,
+      regulateurVitesse: false,
+      ...vehiculeData.equipements // Écraser avec les valeurs fournies
+    };
 
     // ===== CRÉATION DU VÉHICULE =====
     

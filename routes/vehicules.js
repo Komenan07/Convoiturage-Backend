@@ -27,12 +27,17 @@ try {
 
 // Middleware d'upload - fallback si non disponible
 let upload = {
-  fields: (_fields) => (req, res, next) => next()
+  fields: (_fields) => (req, res, next) => next(),
+  any: () => (req, res, next) => next()
 };
+
+let uploadVehiculeMultiple = (req, res, next) => next();
 
 try {
   const uploadMiddleware = require('../middlewares/uploadMiddleware');
   upload = uploadMiddleware.upload || upload;
+  uploadVehiculeMultiple = uploadMiddleware.uploadVehiculeMultiple || uploadVehiculeMultiple;
+  console.log('✅ Middleware d\'upload chargé avec succès');
 } catch (error) {
   console.warn('⚠️ Middleware d\'upload non trouvé, utilisation fallback');
 }
@@ -56,14 +61,8 @@ const loggerVehicules = (req, res, next) => {
   next();
 };
 
-const champsPhotosMultiples = upload.fields([
-  { name: 'avant', maxCount: 1 },
-  { name: 'arriere', maxCount: 1 },
-  { name: 'lateral_gauche', maxCount: 1 },
-  { name: 'lateral_droit', maxCount: 1 },
-  { name: 'interieur', maxCount: 1 },
-  { name: 'tableau_bord', maxCount: 1 }
-]);
+// 🔥 SUPPRIMÉ: ancienne configuration rigide
+// Remplacé par uploadVehiculeMultiple qui accepte tous les champs de fichiers
 
 router.use(loggerVehicules);
 
@@ -143,7 +142,7 @@ router.get('/admin/statistiques-globales', auth, isAdmin, vehiculeController.obt
  * @route   POST /api/vehicules
  * @desc    Créer un véhicule
  */
-router.post('/', auth, champsPhotosMultiples, vehiculeController.creerVehicule);
+router.post('/', auth, uploadVehiculeMultiple, vehiculeController.creerVehicule);
 
 /**
  * @route   GET /api/vehicules/:vehiculeId
@@ -155,7 +154,7 @@ router.get('/:vehiculeId', auth, validerIdMongoDB, vehiculeController.obtenirVeh
  * @route   PUT /api/vehicules/:vehiculeId
  * @desc    Modifier un véhicule
  */
-router.put('/:vehiculeId', auth, validerIdMongoDB, champsPhotosMultiples, vehiculeController.modifierVehicule);
+router.put('/:vehiculeId', auth, validerIdMongoDB, uploadVehiculeMultiple, vehiculeController.modifierVehicule);
 
 /**
  * @route   DELETE /api/vehicules/:vehiculeId
@@ -243,7 +242,7 @@ router.patch('/:vehiculeId/principal', auth, validerIdMongoDB, vehiculeControlle
  * @route   PUT /api/vehicules/:vehiculeId/photos
  * @desc    Mettre à jour photos
  */
-router.put('/:vehiculeId/photos', auth, validerIdMongoDB, champsPhotosMultiples, vehiculeController.mettreAJourPhotos);
+router.put('/:vehiculeId/photos', auth, validerIdMongoDB, uploadVehiculeMultiple, vehiculeController.mettreAJourPhotos);
 
 /**
  * @route   PATCH /api/vehicules/:vehiculeId/archiver
@@ -272,7 +271,7 @@ router.get('/:vehiculeId/exporter', auth, validerIdMongoDB, vehiculeController.e
 // =============== GESTION D'ERREURS ===============
 
 router.use((error, req, res, next) => {
-  console.error(`💥 [VEHICULES] Erreur ${req.method} ${req.originalUrl}:`, error.message);
+  console.error(`💥 [VEHICULES] Erreur ${req.method} ${req.originalUrl}:`, error);
   
   if (error.name === 'ValidationError') {
     return res.status(400).json({
