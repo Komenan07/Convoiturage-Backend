@@ -4,7 +4,7 @@
 
 const Administrateur = require('../models/Administrateur');
 const User = require('../models/Utilisateur');
-const Vehicule = require('../models/vehiculeModel');
+const Vehicule = require('../models/Vehicule');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const AppError = require('../utils/AppError');

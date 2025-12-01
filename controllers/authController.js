@@ -1,6 +1,6 @@
 // controllers/authController.js
 const User = require('../models/Utilisateur');
-const Vehicule = require('../models/vehiculeModel');
+const Vehicule = require('../models/Vehicule');
 const crypto = require('crypto');
 const sendEmail = require('../utils/emailService');
 const { sendSMS } = require('../services/smsService');
