@@ -1,5 +1,6 @@
 // controllers/authController.js
 const User = require('../models/Utilisateur');
+const Vehicule = require('../models/vehiculeModel');
 const crypto = require('crypto');
 const sendEmail = require('../utils/emailService');
 const { sendSMS } = require('../services/smsService');
@@ -146,7 +147,7 @@ const detectBrowser = (userAgent) => {
  * @route   POST /api/auth/passer-conducteur
  * @access  Private (passager vérifié)
  */
-const passerConducteur = async (req, res, next) => {
+  const passerConducteur = async (req, res, next) => {
   try {
     // ===== VÉRIFICATIONS =====
     if (!req.user || !req.user.userId) {
@@ -177,6 +178,21 @@ const passerConducteur = async (req, res, next) => {
       });
     }
 
+    // Vérifier si déjà en attente de validation
+    if (utilisateur.statutCompte === 'CONDUCTEUR_EN_ATTENTE_VERIFICATION') {
+      return res.status(400).json({
+        success: false,
+        message: 'Votre demande pour devenir conducteur est déjà en cours de traitement',
+        code: 'ALREADY_PENDING',
+        data: {
+          statutActuel: utilisateur.statutCompte,
+          dateDemandeInitiale: utilisateur.historiqueStatuts
+            .filter(h => h.nouveauStatut === 'CONDUCTEUR_EN_ATTENTE_VERIFICATION')
+            .sort((a, b) => b.dateModification - a.dateModification)[0]?.dateModification
+        }
+      });
+    }
+
     // Vérifier vérification d'identité
     if (!utilisateur.estVerifie || 
         utilisateur.documentIdentite?.statutVerification !== 'VERIFIE') {
@@ -184,20 +200,21 @@ const passerConducteur = async (req, res, next) => {
         success: false,
         message: 'Votre identité doit être vérifiée avant de devenir conducteur',
         code: 'IDENTITY_NOT_VERIFIED',
-        currentStatus: utilisateur.documentIdentite?.statutVerification || 'NON_SOUMIS'
+        currentStatus: utilisateur.documentIdentite?.statutVerification || 'NON_SOUMIS',
+        action: 'Veuillez soumettre vos documents d\'identité pour vérification'
       });
     }
 
-    // ===== CHANGEMENT DE RÔLE =====
-    utilisateur.role = 'conducteur';
-    utilisateur.statutCompte = 'ACTIF'; // Compte actif mais sans véhicule
+    // ===== PASSAGE EN ATTENTE DE VALIDATION =====
+    const ancienStatut = utilisateur.statutCompte;
     
-    // Ajouter badge nouveau conducteur
-    if (!utilisateur.badges.includes('NOUVEAU')) {
-      utilisateur.badges.push('NOUVEAU');
-    }
+    // NE PAS changer le rôle immédiatement - il reste "passager"
+    // Le rôle sera changé à "conducteur" uniquement après validation admin
+    
+    // Changer le statut pour indiquer qu'il est en attente de validation
+    utilisateur.statutCompte = 'CONDUCTEUR_EN_ATTENTE_VERIFICATION';
 
-    // Initialiser compte covoiturage
+    // Initialiser compte covoiturage (pour préparer le futur rôle conducteur)
     if (!utilisateur.compteCovoiturage) {
       utilisateur.compteCovoiturage = {
         solde: 0,
@@ -222,61 +239,107 @@ const passerConducteur = async (req, res, next) => {
 
     // Historique de changement de statut
     utilisateur.historiqueStatuts.push({
-      ancienStatut: 'passager',
-      nouveauStatut: 'conducteur',
-      raison: 'Passage volontaire en conducteur',
+      ancienStatut: ancienStatut,
+      nouveauStatut: 'CONDUCTEUR_EN_ATTENTE_VERIFICATION',
+      raison: 'Demande de passage en conducteur - En attente de validation administrative',
       dateModification: new Date()
     });
 
     await utilisateur.save({ validateBeforeSave: false });
 
-    logger.info('✅ Passage passager → conducteur réussi', { 
+    logger.info('📝 Demande passage conducteur soumise', { 
       userId: utilisateur._id,
-      email: utilisateur.email 
+      email: utilisateur.email,
+      statutActuel: utilisateur.statutCompte
     });
 
     // ===== RÉPONSE =====
     res.status(200).json({
       success: true,
-      message: '🎉 Félicitations ! Vous êtes maintenant conducteur sur WAYZ-ECO.',
+      message: '📝 Votre demande pour devenir conducteur a été enregistrée.',
       data: {
         utilisateur: {
           id: utilisateur._id,
           nom: utilisateur.nom,
           prenom: utilisateur.prenom,
           email: utilisateur.email,
-          role: utilisateur.role,
-          statutCompte: utilisateur.statutCompte,
+          role: utilisateur.role, // Reste "passager" jusqu'à validation
+          statutCompte: utilisateur.statutCompte, // CONDUCTEUR_EN_ATTENTE_VERIFICATION
           badges: utilisateur.badges,
           estVerifie: utilisateur.estVerifie,
           compteCovoiturage: {
             solde: utilisateur.compteCovoiturage.solde,
             estRecharge: utilisateur.compteCovoiturage.estRecharge
           }
+        },
+        demande: {
+          statut: 'EN_ATTENTE',
+          dateDemande: new Date(),
+          etapeActuelle: 'AJOUT_VEHICULE',
+          prochainEtape: 'VALIDATION_ADMINISTRATIVE'
         }
       },
       nextSteps: {
-        etape: 1,
-        action: 'AJOUTER_VEHICULE',
-        titre: 'Ajoutez votre véhicule',
-        description: 'Pour proposer des trajets, vous devez d\'abord ajouter un véhicule',
-        route: '/api/vehicules',
-        method: 'POST',
-        required: true,
-        documentsNecessaires: [
-          'Photos du véhicule (avant, arrière, intérieur)',
-          'Carte grise',
-          'Assurance valide',
-          'Visite technique valide',
-          'Vignette à jour',
-          'Carte de transport (si applicable)'
+        etapes: [
+          {
+            numero: 1,
+            statut: 'EN_COURS',
+            action: 'AJOUTER_VEHICULE',
+            titre: '🚗 Étape 1 : Ajoutez votre véhicule',
+            description: 'Vous devez ajouter au moins un véhicule avec tous les documents requis',
+            route: '/api/vehicules',
+            method: 'POST',
+            required: true,
+            documentsNecessaires: [
+              'Photos du véhicule (avant, arrière, intérieur)',
+              'Carte grise (numéro, date d\'émission, numéro de châssis)',
+              'Assurance valide (type transport de personnes)',
+              'Visite technique valide',
+              'Vignette à jour',
+              'Carte de transport',
+              'Équipements de sécurité obligatoires'
+            ]
+          },
+          {
+            numero: 2,
+            statut: 'EN_ATTENTE',
+            action: 'VALIDATION_ADMINISTRATIVE',
+            titre: '✅ Étape 2 : Validation administrative',
+            description: 'Un administrateur vérifiera vos documents et votre véhicule avant de valider votre compte conducteur',
+            delaiEstime: '24-48 heures',
+            required: true,
+            criteres: [
+              'Identité vérifiée',
+              'Véhicule conforme aux normes',
+              'Documents valides et à jour',
+              'Équipements de sécurité présents'
+            ]
+          },
+          {
+            numero: 3,
+            statut: 'A_VENIR',
+            action: 'ACTIVATION_COMPTE_CONDUCTEUR',
+            titre: '🎉 Étape 3 : Activation du compte conducteur',
+            description: 'Une fois validé, vous pourrez proposer des trajets',
+            automatique: true
+          }
+        ],
+        informationsImportantes: [
+          '⚠️ Votre rôle reste "passager" jusqu\'à validation administrative',
+          '📱 Vous serez notifié par email et SMS lors de la validation',
+          '⏱️ Le délai de validation est généralement de 24 à 48 heures',
+          '❌ En cas de rejet, vous pourrez corriger et resoumettre'
         ]
+      },
+      avertissement: {
+        titre: '⚠️ Important',
+        message: 'Votre compte conducteur sera activé uniquement après validation par un administrateur. En attendant, vous pouvez continuer à utiliser la plateforme en tant que passager.'
       }
     });
 
   } catch (error) {
-    logger.error('❌ Erreur passage conducteur:', error);
-    return next(AppError.serverError('Erreur lors du passage conducteur', { 
+    logger.error('❌ Erreur demande passage conducteur:', error);
+    return next(AppError.serverError('Erreur lors de la demande de passage conducteur', { 
       originalError: error.message
     }));
   }
@@ -1914,6 +1977,14 @@ const obtenirUtilisateurConnecte = async (req, res, next) => {
       });
     }
 
+    // Récupérer tous les véhicules de l'utilisateur (exclure ceux hors service)
+    const vehicules = await Vehicule.find({ 
+      proprietaireId: req.user.userId,
+      statut: { $ne: 'HORS_SERVICE' }
+    })
+    .select('-audit -signalements -notesInternes')
+    .sort({ estPrincipal: -1, createdAt: -1 }); // Véhicule principal en premier
+
     // Enrichir les données avec les informations virtuelles
     const userData = {
       id: user._id,
@@ -1941,16 +2012,126 @@ const obtenirUtilisateurConnecte = async (req, res, next) => {
       derniereConnexion: user.derniereConnexion,
       estVerifie: user.estVerifie,
       estDocumentVerifie: user.estDocumentVerifie,
-      vehicule: user.vehicule,
+      vehicule: user.vehicule, // Ancien champ (legacy)
+      
+      // Liste complète des véhicules avec informations enrichies
+      vehicules: vehicules.map(v => ({
+        id: v._id,
+        marque: v.marque,
+        modele: v.modele,
+        annee: v.annee,
+        age: v.age, // Virtual
+        couleur: v.couleur,
+        immatriculation: v.immatriculation,
+        nombrePlaces: v.nombrePlaces,
+        placesDisponibles: v.placesDisponibles,
+        carburant: v.carburant,
+        typeCarrosserie: v.typeCarrosserie,
+        transmission: v.transmission,
+        kilometrage: v.kilometrage,
+        
+        // Photos
+        photos: v.photos,
+        
+        // Documents légaux
+        carteGrise: {
+          numero: v.carteGrise?.numero,
+          dateExpiration: v.carteGrise?.dateExpiration,
+          numeroChassis: v.carteGrise?.numeroChassis
+        },
+        assurance: {
+          numeroPolice: v.assurance?.numeroPolice,
+          compagnie: v.assurance?.compagnie,
+          type: v.assurance?.type,
+          dateExpiration: v.assurance?.dateExpiration
+        },
+        visiteTechnique: {
+          dateExpiration: v.visiteTechnique?.dateExpiration,
+          resultat: v.visiteTechnique?.resultat,
+          numeroAttestation: v.visiteTechnique?.numeroAttestation
+        },
+        vignette: {
+          annee: v.vignette?.annee,
+          numero: v.vignette?.numero,
+          dateExpiration: v.vignette?.dateExpiration
+        },
+        carteTransport: {
+          numero: v.carteTransport?.numero,
+          dateExpiration: v.carteTransport?.dateExpiration,
+          categorieAutorisee: v.carteTransport?.categorieAutorisee,
+          typeVehicule: v.carteTransport?.typeVehicule
+        },
+        
+        // Équipements et commodités
+        equipements: v.equipements,
+        commodites: v.commodites,
+        preferences: v.preferences,
+        
+        // Statut et validation
+        statut: v.statut,
+        estPrincipal: v.estPrincipal,
+        disponibilitePourCourse: v.disponibilitePourCourse,
+        documentsComplets: v.documentsComplets,
+        raisonRejet: v.raisonRejet,
+        
+        validation: {
+          statutValidation: v.validation?.statutValidation,
+          dateValidation: v.validation?.dateValidation,
+          dateExpirationValidation: v.validation?.dateExpirationValidation,
+          commentairesAdmin: v.validation?.commentairesAdmin
+        },
+        
+        // Statistiques
+        statistiques: {
+          nombreTrajets: v.statistiques?.nombreTrajets || 0,
+          nombrePassagers: v.statistiques?.nombrePassagers || 0,
+          kilometresParcourus: v.statistiques?.kilometresParcourus || 0,
+          noteMoyenne: v.statistiques?.noteMoyenne || 0,
+          nombreAvis: v.statistiques?.nombreAvis || 0,
+          tauxAnnulation: v.statistiques?.tauxAnnulation || 0,
+          dernierTrajet: v.statistiques?.dernierTrajet
+        },
+        
+        // Scores virtuels
+        scoreSecurity: v.scoreSecurity,
+        scoreConfort: v.scoreConfort,
+        tauxFiabilite: v.tauxFiabilite,
+        
+        // Validation des documents
+        documentsValides: v.documentsValides(),
+        alertes: v.genererAlertes(),
+        
+        // Maintenance
+        maintenance: {
+          prochainEntretien: v.maintenance?.prochainEntretien,
+          prochainEntretienKm: v.maintenance?.prochainEntretienKm,
+          dernierEntretien: v.maintenance?.dernierEntretien
+        },
+        
+        // Position
+        dernierePosition: v.dernierePosition,
+        
+        // Dates
+        createdAt: v.createdAt,
+        updatedAt: v.updatedAt
+      })),
+      
       documentIdentite: user.documentIdentite ? {
         type: user.documentIdentite.type,
         statutVerification: user.documentIdentite.statutVerification,
         dateVerification: user.documentIdentite.dateVerification
       } : null,
+      
       compteCovoiturage: {
         ...user.obtenirResumeCompte()
       }
     };
+
+    logger.info('✅ Profil utilisateur récupéré avec succès', { 
+      userId: req.user.userId,
+      nombreVehicules: vehicules.length,
+      vehiculePrincipal: vehicules.find(v => v.estPrincipal)?._id || null
+    });
 
     res.json({
       success: true,
@@ -1958,7 +2139,7 @@ const obtenirUtilisateurConnecte = async (req, res, next) => {
     });
     
   } catch (error) {
-    logger.error('Erreur obtention profil:', error);
+    logger.error('❌ Erreur obtention profil:', error);
     return next(AppError.serverError('Erreur serveur lors de la récupération du profil', { originalError: error.message }));
   }
 };
