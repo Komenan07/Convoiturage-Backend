@@ -45,6 +45,8 @@ const {
   obtenirDashboard,
   obtenirStatistiques,
   feedAdmin,
+  validerPassageConducteur, 
+  listerDemandesPassageConducteur  ,
   // Gestion Trajets
   listerTrajets,
   obtenirTrajet,
@@ -320,7 +322,24 @@ const validationId = [
     .matches(/^[0-9a-fA-F]{24}$/)
     .withMessage('ID MongoDB invalide')
 ];
+// ✅ Ajout validation pour utilisateurId
+const validationUtilisateurId = [
+  param('utilisateurId')
+    .matches(/^[0-9a-fA-F]{24}$/)
+    .withMessage('ID utilisateur MongoDB invalide')
+];
 
+// ✅  Ajout validation pour validation passage conducteur
+const validationPassageConducteur = [
+  body('approuve')
+    .isBoolean()
+    .withMessage('Le champ approuve doit être un booléen'),
+  body('commentaire')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Le commentaire ne peut dépasser 500 caractères')
+];
 // Validation pour les statistiques
 const validationStatistiques = [
   query('periode')
@@ -337,6 +356,7 @@ const validationStatistiques = [
 const verifierPermissionGestionAdmins = middlewareAuthorize(['SUPER_ADMIN'], ['ALL', 'GESTION_UTILISATEURS', 'GESTION_ADMINS']);
 const verifierPermissionAnalytics = middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'ANALYTICS']);
 const verifierPermissionSuperAdmin = middlewareAuthorize(['SUPER_ADMIN'], ['ALL']);
+const verifierPermissionGestionConducteurs = middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'GESTION_CONDUCTEURS', 'GESTION_UTILISATEURS']);
 
 // =====================================================
 // ROUTES D'AUTHENTIFICATION
@@ -413,6 +433,34 @@ router.get('/admins/:id',
   verifierPermissionGestionAdmins,
   validationId,
   obtenirAdminParId || creerControleurParDefaut('obtenirAdminParId')
+);
+
+/**
+ * @route   GET /api/admin/demandes-conducteur
+ * @desc    Lister les demandes de passage conducteur en attente
+ * @access  Private (Admin avec permission GESTION_CONDUCTEURS)
+ */
+router.get('/demandes-conducteur',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  verifierPermissionGestionConducteurs,
+  middlewareLogSensitiveAction('DEMANDES_CONDUCTEUR_LIST'),
+  listerDemandesPassageConducteur || creerControleurParDefaut('listerDemandesPassageConducteur')
+);
+
+/**
+ * @route   PATCH /api/admin/demandes-conducteur/:utilisateurId/valider
+ * @desc    Valider ou refuser une demande de passage conducteur
+ * @access  Private (Admin avec permission GESTION_CONDUCTEURS)
+ */
+router.patch('/demandes-conducteur/:utilisateurId/valider',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  verifierPermissionGestionConducteurs,
+  validationUtilisateurId,
+  validationPassageConducteur,
+  middlewareLogSensitiveAction('DEMANDE_CONDUCTEUR_VALIDATION'),
+  validerPassageConducteur || creerControleurParDefaut('validerPassageConducteur')
 );
 
 /**
@@ -1208,16 +1256,30 @@ router.param('id', (req, res, next, id) => {
   next();
 });
 
+router.param('utilisateurId', (req, res, next, utilisateurId) => {
+  if (!utilisateurId.match(/^[0-9a-fA-F]{24}$/)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Format ID utilisateur invalide',
+      code: 'INVALID_UTILISATEUR_ID'
+    });
+  }
+  next();
+});
+
 // =====================================================
 // MIDDLEWARES GLOBAUX
 // =====================================================
 
 // Middleware de logging pour les actions admin
+// ✅ CORRECTION
 router.use((req, res, next) => {
   const originalSend = res.send;
   res.send = function(data) {
-    // Logger toutes les actions admin pour audit complet
-    console.log(`👑 ACTION ADMIN: ${req.method} ${req.originalUrl} - User: ${req.user?.id || 'Anonymous'} - Role: ${req.user?.role || 'N/A'}`);
+    // Support à la fois req.admin et req.user pour compatibilité
+    const userId = req.admin?.id || req.admin?._id || req.user?.id || 'Anonymous';
+    const userRole = req.admin?.role || req.user?.role || 'N/A';
+    console.log(`👑 ACTION ADMIN: ${req.method} ${req.originalUrl} - User: ${userId} - Role: ${userRole}`);
     return originalSend.call(this, data);
   };
   next();

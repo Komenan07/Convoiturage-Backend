@@ -364,8 +364,56 @@ const soumettreVerification = async (req, res, next) => {
     });
 
     console.log('🔍 [15] Sauvegarde utilisateur...');
-    await user.save();
-    console.log('✅ [16] Utilisateur sauvegardé');
+    
+    try {
+      await user.save();
+      console.log('✅ [16] Utilisateur sauvegardé');
+    } catch (saveError) {
+      console.error('💥 [16] Erreur lors de la sauvegarde:', saveError);
+      
+      // Supprimer les fichiers uploadés en cas d'erreur
+      if (documentImage) await supprimerFichierLocal(documentImage.path);
+      if (selfieImage) await supprimerFichierLocal(selfieImage.path);
+      
+      // Capturer les erreurs de validation Mongoose
+      if (saveError.name === 'ValidationError') {
+        const erreurs = Object.keys(saveError.errors).map(field => {
+          const error = saveError.errors[field];
+          
+          // Erreur spécifique pour le numéro d'identité
+          if (field === 'documentIdentite.numero') {
+            return {
+              champ: 'numero',
+              message: getNumeroErrorMessage(type, numero)
+            };
+          }
+          
+          return {
+            champ: field.replace('documentIdentite.', ''),
+            message: error.message
+          };
+        });
+        
+        return res.status(400).json({
+          success: false,
+          message: 'Erreur de validation des données',
+          code: 'VALIDATION_ERROR',
+          errors: erreurs
+        });
+      }
+      
+      // Autres erreurs Mongoose
+      if (saveError.name === 'MongoServerError' && saveError.code === 11000) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ce numéro de document existe déjà',
+          code: 'DUPLICATE_DOCUMENT_NUMBER'
+        });
+      }
+      
+      // Erreur générique
+      throw saveError;
+    }
 
     logger.info('Vérification soumise avec succès', { 
       userId, 
@@ -450,6 +498,20 @@ const soumettreVerification = async (req, res, next) => {
     }));
   }
 };
+
+// Fonction helper pour générer le message d'erreur approprié
+function getNumeroErrorMessage(type, numero) {
+  switch (type) {
+    case 'CNI':
+      return `Le numéro de CNI doit suivre le format: 2 lettres suivies de 8 chiffres (ex: CI12345678). Numéro fourni: ${numero}`;
+    case 'PASSEPORT':
+      return `Le numéro de passeport doit contenir entre 6 et 9 caractères alphanumériques (ex: AB123456). Numéro fourni: ${numero}`;
+    case 'PERMIS_CONDUIRE':
+      return `Le numéro de permis de conduire doit contenir entre 6 et 12 caractères alphanumériques. Numéro fourni: ${numero}`;
+    default:
+      return `Format de numéro de document invalide pour le type ${type}`;
+  }
+}
 
 /**
  * Obtenir le statut de vérification de l'utilisateur connecté
