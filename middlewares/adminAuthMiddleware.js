@@ -73,48 +73,51 @@ const protectAdmin = async (req, res, next) => {
       });
     }
 
-    // 5. Charger l'administrateur depuis la base de données
-    const admin = await Administrateur.findById(decoded.id).select('+motDePasse');
-    
-    if (!admin) {
-      return res.status(401).json({
-        success: false,
-        message: 'Administrateur introuvable.',
-        code: 'ADMIN_NOT_FOUND'
-      });
-    }
+   // 5. Charger l'administrateur depuis la base de données
+const admin = await Administrateur.findById(decoded.id).select('+motDePasse');
 
-    // 6. Vérifier le statut du compte
-    if (admin.statutCompte !== 'ACTIF') {
-      securityLogger.warn('Accès refusé - Compte administrateur suspendu', {
-        event: 'admin_account_suspended',
-        adminId: admin._id,
-        statut: admin.statutCompte,
-        ip: req.ip,
-        endpoint: `${req.method} ${req.originalUrl}`
-      });
-      
-      return res.status(403).json({
-        success: false,
-        message: 'Compte administrateur suspendu.',
-        code: 'ADMIN_ACCOUNT_SUSPENDED'
-      });
-    }
+if (!admin) {
+  return res.status(401).json({
+    success: false,
+    message: 'Administrateur introuvable.',
+    code: 'ADMIN_NOT_FOUND'
+  });
+}
 
-    // 7. Ajouter les informations admin à la requête
-    req.user = {
-      id: admin._id,
-      type: 'admin',
-      email: admin.email,
-      role: admin.role,
-      permissions: admin.permissions,
-      nom: admin.nom,
-      prenom: admin.prenom
-    };
+// 6. Vérifier le statut du compte
+if (admin.statutCompte !== 'ACTIF') {
+  securityLogger.warn('Accès refusé - Compte administrateur suspendu', {
+    event: 'admin_account_suspended',
+    adminId: admin._id,
+    statut: admin.statutCompte,
+    ip: req.ip,
+    endpoint: `${req.method} ${req.originalUrl}`
+  });
+  
+  return res.status(403).json({
+    success: false,
+    message: 'Compte administrateur suspendu.',
+    code: 'ADMIN_ACCOUNT_SUSPENDED'
+  });
+}
 
-    req.admin = admin;
+// 7. Ajouter les informations admin à la requête
+req.user = {
+  id: admin._id,
+  type: 'admin',
+  email: admin.email,
+  role: admin.role,
+  permissions: admin.permissions,
+  nom: admin.nom,
+  prenom: admin.prenom
+};
 
-    next();
+// ✅ Créer une copie sécurisée sans le mot de passe
+const adminSafe = admin.toObject();
+delete adminSafe.motDePasse;
+req.admin = adminSafe;  
+
+next();
 
   } catch (error) {
     console.error('Erreur dans protectAdmin:', error);
@@ -195,9 +198,11 @@ const authorize = (roles = [], permissions = []) => {
 
     } catch (error) {
       console.error('Erreur dans authorize:', error);
-      return next(AppError.serverError('Erreur lors de la vérification des autorisations', { 
-        originalError: error.message 
-      }));
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de la vérification des autorisations',
+        code: 'AUTHORIZATION_SERVER_ERROR'
+      });
     }
   };
 };
@@ -230,20 +235,26 @@ const logSensitiveAction = (actionType) => {
     securityLogger.info('Action administrative sensible', logData);
 
     // Logger aussi la réponse
-    const originalSend = res.send;
-    res.send = function(data) {
-      try {
-        const responseData = typeof data === 'string' ? JSON.parse(data) : data;
-        securityLogger.info('Résultat action administrative', {
-          ...logData,
-          statusCode: res.statusCode,
-          success: responseData.success || false
-        });
-      } catch (e) {
-        // Ignorer les erreurs de parsing
-      }
-      return originalSend.call(this, data);
-    };
+    // const originalSend = res.send;
+    // res.send = function(data) {
+    //   try {
+    //     const responseData = typeof data === 'string' ? JSON.parse(data) : data;
+    //     securityLogger.info('Résultat action administrative', {
+    //       ...logData,
+    //       statusCode: res.statusCode,
+    //       success: responseData.success || false
+    //     });
+    //   } catch (e) {
+    //     // Ignorer les erreurs de parsing
+    //   }
+    //   return originalSend.call(this, data);
+    // };
+    res.on('finish', () => {
+      securityLogger.info('Résultat action administrative', {
+        ...logData,
+        statusCode: res.statusCode
+      });
+    });
 
     next();
   };
@@ -268,9 +279,11 @@ const preventSelfModification = (req, res, next) => {
     next();
   } catch (error) {
     console.error('Erreur dans preventSelfModification:', error);
-    return next(AppError.serverError('Erreur lors de la vérification', { 
-      originalError: error.message 
-    }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la vérification',
+      code: 'SELF_MODIFICATION_CHECK_ERROR'
+    });
   }
 };
 
@@ -310,9 +323,11 @@ const preventModifyingSuperAdmin = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Erreur dans preventModifyingSuperAdmin:', error);
-    return next(AppError.serverError('Erreur lors de la vérification', { 
-      originalError: error.message 
-    }));
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la vérification',
+      code: 'SUPER_ADMIN_CHECK_ERROR'
+    });
   }
 };
 

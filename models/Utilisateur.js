@@ -688,47 +688,6 @@ utilisateurSchema.virtual('peutRetirerGains').get(function() {
          this.compteCovoiturage.parametresRetrait.operateur;
 });
 
-// MIDDLEWARE PRE-SAVE
-utilisateurSchema.pre('save', function(next) {
-  // Mettre à jour le statut de vérification
-  if (this.isModified('documentIdentite.statutVerification')) {
-    if (this.documentIdentite.statutVerification === 'VERIFIE') {
-      this.estVerifie = true;
-      if (this.statutCompte === 'EN_ATTENTE_VERIFICATION') {
-        this.statutCompte = 'ACTIF';
-      }
-    }
-  }
-
-  // Middleware pour compte covoiturage
-  if (this.isModified('compteCovoiturage.historiqueRecharges')) {
-    // Vérifier s'il y a une recharge réussie
-    const rechargeReussie = this.compteCovoiturage.historiqueRecharges.some(r => r.statut === 'reussi');
-    if (rechargeReussie && !this.compteCovoiturage.estRecharge) {
-      this.compteCovoiturage.estRecharge = true;
-    }
-  }
-
-  // Réinitialiser les limites quotidiennes et mensuelles
-  const maintenant = new Date();
-  const dernierRetrait = this.compteCovoiturage.limites.dernierRetraitLe;
-  
-  if (dernierRetrait) {
-    // Réinitialiser quotidien
-    if (maintenant.toDateString() !== dernierRetrait.toDateString()) {
-      this.compteCovoiturage.limites.montantRetireAujourdhui = 0;
-    }
-    
-    // Réinitialiser mensuel
-    if (maintenant.getMonth() !== dernierRetrait.getMonth() || 
-        maintenant.getFullYear() !== dernierRetrait.getFullYear()) {
-      this.compteCovoiturage.limites.montantRetireCeMois = 0;
-    }
-  }
-
-  next();
-});
-
 // MÉTHODES D'INSTANCE EXISTANTES
 utilisateurSchema.methods.peutSeConnecter = function() {
   const maintenant = new Date();
