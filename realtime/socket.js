@@ -11,6 +11,7 @@ const Reservation = require('../models/Reservation');
 const notificationService = require('../services/notificationService');
 const presenceService = require('../services/presenceService');
 //const locationService = require('../services/locationService');
+const { registerDriverValidationHandlers, notifyDriverValidation } = require('./handlers/driver_validation');
 
 /**
  * Récupère le token d'authentification depuis diverses sources possibles

@@ -1252,14 +1252,7 @@ vehiculeSchema.methods.completerDocuments = async function(documents) {
       ...this.photos,
       ...documents.photos
     };
-  }
-  
-  if (documents.equipements) {
-    this.equipements = {
-      ...this.equipements,
-      ...documents.equipements
-    };
-  }
+  }  
   
   return await this.save();
 };

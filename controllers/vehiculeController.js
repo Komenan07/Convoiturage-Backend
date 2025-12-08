@@ -97,12 +97,13 @@ const creerVehicule = async (req, res, next) => {
     
     if (vehiculesExistants === 0) {
       vehiculeData.estPrincipal = true;
-      logger.info('✅ Premier véhicule → défini comme principal');
+      logger.info('✅ Premier véhicule → défini comme principal :');
     }
 
     // ===== GESTION DES PHOTOS MULTIPLES =====
+
     
-    if (req.files) {
+    if (req.files && req.files.length > 0) {
       if (!vehiculeData.photos) vehiculeData.photos = {};
       
       const typesPhotos = [
@@ -110,12 +111,19 @@ const creerVehicule = async (req, res, next) => {
         'lateral_droit', 'interieur', 'tableau_bord'
       ];
       
-      typesPhotos.forEach(type => {
-        if (req.files[type]) {
-          vehiculeData.photos[type] = `/uploads/vehicules/${req.files[type][0].filename}`;
-          logger.info(`📸 Photo ${type} ajoutée`);
+      // 🔥 FIX: uploadVehiculeMultiple.any() retourne un tableau, pas un objet
+      req.files.forEach(file => {
+        const fieldName = file.fieldname;
+        
+        if (typesPhotos.includes(fieldName)) {
+          vehiculeData.photos[fieldName] = `/uploads/vehicules/${file.filename}`;
+          logger.info(`📸 Photo ${fieldName} ajoutée: ${file.filename}`);
+        } else {
+          logger.warn(`⚠️ Champ photo non reconnu: ${fieldName}`);
         }
       });
+      
+      logger.info(`✅ ${Object.keys(vehiculeData.photos).length}/${req.files.length} photos traitées`);
     }
 
     // ===== VALEURS PAR DÉFAUT POUR ÉQUIPEMENTS OBLIGATOIRES =====
@@ -406,6 +414,20 @@ const modifierVehicule = async (req, res, next) => {
       });
     }
 
+    // ===== PARSER LES CHAMPS JSON (envoyés en multipart/form-data) =====
+    
+    const champsJSON = ['equipements', 'commodites', 'preferences', 'assurance', 'visiteTechnique'];
+    champsJSON.forEach(champ => {
+      if (req.body[champ] && typeof req.body[champ] === 'string') {
+        try {
+          req.body[champ] = JSON.parse(req.body[champ]);
+          logger.info(`✅ ${champ} parsé avec succès`);
+        } catch (error) {
+          logger.error(`❌ Erreur parsing ${champ}:`, error.message);
+        }
+      }
+    });
+
     // Champs protégés
     const champsProteges = [
       'proprietaireId', '_id', 'createdAt', 'updatedAt', 
@@ -424,23 +446,27 @@ const modifierVehicule = async (req, res, next) => {
     });
 
     // Gestion des nouvelles photos
-    if (req.files) {
+    if (req.files && req.files.length > 0) {
       if (!vehicule.photos) vehicule.photos = {};
       
       const typesPhotos = ['avant', 'arriere', 'lateral_gauche', 'lateral_droit', 'interieur', 'tableau_bord'];
       
-      for (const type of typesPhotos) {
-        if (req.files[type]) {
+      // 🔥 FIX: uploadVehiculeMultiple.any() retourne un tableau
+      for (const file of req.files) {
+        const fieldName = file.fieldname;
+        
+        if (typesPhotos.includes(fieldName)) {
           // Supprimer l'ancienne photo
-          if (vehicule.photos[type] && vehicule.photos[type].startsWith('/uploads/')) {
+          if (vehicule.photos[fieldName] && vehicule.photos[fieldName].startsWith('/uploads/')) {
             try {
-              const oldPath = path.join(process.cwd(), 'public', vehicule.photos[type]);
+              const oldPath = path.join(process.cwd(), 'public', vehicule.photos[fieldName]);
               await fs.unlink(oldPath);
             } catch (err) {
-              logger.warn(`Erreur suppression ancienne photo ${type}:`, err);
+              logger.warn(`Erreur suppression ancienne photo ${fieldName}:`, err);
             }
           }
-          vehicule.photos[type] = `/uploads/vehicules/${req.files[type][0].filename}`;
+          vehicule.photos[fieldName] = `/uploads/vehicules/${file.filename}`;
+          logger.info(`📸 Photo ${fieldName} mise à jour`);
         }
       }
     }
@@ -1461,20 +1487,26 @@ const mettreAJourPhotos = async (req, res, next) => {
     const typesPhotos = ['avant', 'arriere', 'lateral_gauche', 'lateral_droit', 'interieur', 'tableau_bord'];
     const photosAjoutees = [];
 
-    for (const type of typesPhotos) {
-      if (req.files[type]) {
-        // Supprimer ancienne photo
-        if (vehicule.photos[type] && vehicule.photos[type].startsWith('/uploads/')) {
-          try {
-            const oldPath = path.join(process.cwd(), 'public', vehicule.photos[type]);
-            await fs.unlink(oldPath);
-          } catch (err) {
-            logger.warn(`Erreur suppression photo ${type}:`, err);
-          }
-        }
+    // 🔥 FIX: uploadVehiculeMultiple.any() retourne un tableau
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fieldName = file.fieldname;
         
-        vehicule.photos[type] = `/uploads/vehicules/${req.files[type][0].filename}`;
-        photosAjoutees.push(type);
+        if (typesPhotos.includes(fieldName)) {
+          // Supprimer ancienne photo
+          if (vehicule.photos[fieldName] && vehicule.photos[fieldName].startsWith('/uploads/')) {
+            try {
+              const oldPath = path.join(process.cwd(), 'public', vehicule.photos[fieldName]);
+              await fs.unlink(oldPath);
+            } catch (err) {
+              logger.warn(`Erreur suppression photo ${fieldName}:`, err);
+            }
+          }
+          
+          vehicule.photos[fieldName] = `/uploads/vehicules/${file.filename}`;
+          photosAjoutees.push(fieldName);
+          logger.info(`📸 Photo ${fieldName} ajoutée`);
+        }
       }
     }
 

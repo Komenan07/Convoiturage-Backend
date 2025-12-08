@@ -10,7 +10,6 @@ const { validationResult } = require('express-validator');
 const AppError = require('../utils/AppError');
 const Trajet = require('../models/Trajet');
 const Reservation = require('../models/Reservation');
-const User = require('../models/Utilisateur');
 const Paiement = require('../models/Paiement');
 const Signalement = require('../models/Signalement');
 const Evenement = require('../models/Evenement');
@@ -109,6 +108,7 @@ const connexionAdmin = async (req, res, next) => {
     });
 
   } catch (erreur) {
+    logger.error('❌ Erreur connexionAdmin:', erreur);
     return next(AppError.serverError('Erreur serveur lors de la connexion', { originalError: erreur.message }));
   }
 };
@@ -1132,6 +1132,30 @@ const obtenirReservationsUtilisateur = async (req, res, next) => {
 
   } catch (error) {
     return next(AppError.serverError('Erreur lors de la récupération des réservations', { originalError: error.message }));
+  }
+};
+
+/**
+ * @desc    Obtenir les véhicules d'un utilisateur (admin)
+ * @route   GET /api/admin/utilisateurs/:id/vehicules
+ * @access  Private (Admin)
+ */
+const obtenirVehiculesUtilisateur = async (req, res, next) => {
+  try {
+    const vehicules = await Vehicule.find({ 
+      proprietaireId: req.params.id 
+    })
+      .populate('proprietaireId', 'nom prenom email')
+      .sort('-createdAt')
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      data: { vehicules }
+    });
+
+  } catch (error) {
+    return next(AppError.serverError('Erreur lors de la récupération des véhicules', { originalError: error.message }));
   }
 };
 
@@ -2920,7 +2944,39 @@ const validerPassageConducteur = async (req, res, next) => {
         raison: commentaire
       });
 
-      // TODO: Envoyer notification email/SMS
+      // Envoyer notification de refus
+      try {
+        const { notifyDriverValidation } = require('../realtime/socket');
+        const io = req.app.get('io');
+        
+        if (io) {
+          notifyDriverValidation(io, utilisateur._id.toString(), {
+            userId: utilisateur._id.toString(),
+            approved: false,
+            reason: commentaire || 'Votre demande de passage conducteur a été refusée.',
+            timestamp: new Date(),
+            adminId: req.user.id
+          });
+          logger.info('🔔 Notification WebSocket envoyée (refus validation)', { userId: utilisateur._id });
+        }
+
+        // TODO: Push notification (pas encore disponible)
+        // await notificationService.sendPushNotification(
+        //   utilisateur._id,
+        //   'Demande Conducteur Refusée',
+        //   commentaire || 'Votre demande a été refusée.',
+        //   { type: 'DRIVER_VALIDATION_REJECTED' }
+        // );
+
+        // TODO: Email notification (à implémenter plus tard)
+        // await notificationService.sendEmail(
+        //   utilisateur.email,
+        //   'Demande Conducteur Refusée',
+        //   ...
+        // );
+      } catch (notifError) {
+        logger.error('Erreur envoi notification refus validation:', notifError);
+      }
       
       return res.status(200).json({
         success: true,
@@ -3035,7 +3091,41 @@ const validerPassageConducteur = async (req, res, next) => {
       avertissements: avertissements.length
     });
 
-    // TODO: Envoyer notification email/SMS de validation
+    // Envoyer notification d'approbation
+    try {
+      const { notifyDriverValidation } = require('../realtime/socket');
+      const io = req.app.get('io');
+      
+      if (io) {
+        notifyDriverValidation(io, utilisateur._id.toString(), {
+          userId: utilisateur._id.toString(),
+          approved: true,
+          reason: commentaire || 'Félicitations ! Vous êtes maintenant conducteur sur CoCovoi.',
+          timestamp: new Date(),
+          adminId: req.user.id,
+          userName: `${utilisateur.prenom} ${utilisateur.nom}`,
+          vehiculesCount: vehicules.length
+        });
+        logger.info('🔔 Notification WebSocket envoyée (approbation validation)', { userId: utilisateur._id });
+      }
+
+      // TODO: Push notification (pas encore disponible)
+      // await notificationService.sendPushNotification(
+      //   utilisateur._id,
+      //   '🎉 Validation Conducteur',
+      //   'Félicitations ! Vous êtes maintenant conducteur.',
+      //   { type: 'DRIVER_VALIDATION_APPROVED' }
+      // );
+
+      // TODO: Email notification (à implémenter plus tard)
+      // await notificationService.sendEmail(
+      //   utilisateur.email,
+      //   '🎉 Validation Conducteur - CoCovoi',
+      //   ...
+      // );
+    } catch (notifError) {
+      logger.error('Erreur envoi notification approbation validation:', notifError);
+    }
     
     res.status(200).json({
       success: true,
@@ -3663,6 +3753,7 @@ module.exports = {
   obtenirStatistiquesUtilisateur,
   obtenirTrajetsUtilisateur,
   obtenirReservationsUtilisateur,
+  obtenirVehiculesUtilisateur,
   suspendreUtilisateur,
   activerUtilisateur,
   supprimerUtilisateur,

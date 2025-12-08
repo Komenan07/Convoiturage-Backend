@@ -59,6 +59,7 @@ const {
   obtenirStatistiquesUtilisateur,
   obtenirTrajetsUtilisateur,
   obtenirReservationsUtilisateur,
+  obtenirVehiculesUtilisateur,
   suspendreUtilisateur,
   activerUtilisateur,
   supprimerUtilisateur,
@@ -691,6 +692,18 @@ router.get('/utilisateurs/:id/reservations',
   middlewareRateLimit('standard'),
   validationId,
   obtenirReservationsUtilisateur || creerControleurParDefaut('obtenirReservationsUtilisateur')
+);
+
+/**
+ * @route   GET /api/admin/utilisateurs/:id/vehicules
+ * @desc    Obtenir les véhicules d'un utilisateur
+ * @access  Private (Admin)
+ */
+router.get('/utilisateurs/:id/vehicules',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  validationId,
+  obtenirVehiculesUtilisateur || creerControleurParDefaut('obtenirVehiculesUtilisateur')
 );
 
 /**
