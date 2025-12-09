@@ -168,7 +168,7 @@ router.delete('/:vehiculeId', auth, validerIdMongoDB, vehiculeController.supprim
  * @route   PUT /api/vehicules/:vehiculeId/documents
  * @desc    Compléter documents
  */
-router.put('/:vehiculeId/documents', auth, validerIdMongoDB, vehiculeController.completerDocuments);
+router.put('/:vehiculeId/documents', auth, validerIdMongoDB, uploadVehiculeMultiple, vehiculeController.completerDocuments);
 
 /**
  * @route   GET /api/vehicules/:vehiculeId/validite-documents

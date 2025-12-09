@@ -3007,7 +3007,8 @@ const validerPassageConducteur = async (req, res, next) => {
       logger.warn('⚠️ Tentative validation avec erreurs critiques', {
         userId: utilisateur._id,
         adminId: req.user.id,  // ✅ CORRIGÉ
-        nombreErreurs: erreursCritiques.length
+        nombreErreurs: erreursCritiques.length,
+        error: erreursCritiques
       });
 
       return res.status(400).json({
