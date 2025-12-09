@@ -8,40 +8,41 @@ const router = express.Router();
 
 const vehiculeController = require('../controllers/vehiculeController');
 
+const { protectAdmin, authorize } = require('../middlewares/adminAuthMiddleware');
+
 // Middleware d'authentification - fallback si non disponible
 let auth = (req, res, next) => {
   req.user = { userId: 'user_test', role: 'USER' };
   next();
 };
 
-let isAdmin = (req, res, next) => next();
-
 try {
   const authMiddleware = require('../middlewares/authMiddleware');
-  // Utiliser authMiddleware, requireAuth ou protect selon ce qui est disponible
   auth = authMiddleware.authMiddleware || authMiddleware.requireAuth || authMiddleware.protect || auth;
-  isAdmin = authMiddleware.isAdmin || authMiddleware.adminMiddleware || isAdmin;
+  console.log('✅ Middleware authentification utilisateur chargé');
 } catch (error) {
   console.warn('⚠️ Middleware d\'authentification non trouvé, utilisation fallback');
 }
-
-// Middleware d'upload - fallback si non disponible
-let upload = {
-  fields: (_fields) => (req, res, next) => next(),
-  any: () => (req, res, next) => next()
-};
-
 let uploadVehiculeMultiple = (req, res, next) => next();
 
 try {
   const uploadMiddleware = require('../middlewares/uploadMiddleware');
-  upload = uploadMiddleware.upload || upload;
   uploadVehiculeMultiple = uploadMiddleware.uploadVehiculeMultiple || uploadVehiculeMultiple;
   console.log('✅ Middleware d\'upload chargé avec succès');
 } catch (error) {
   console.warn('⚠️ Middleware d\'upload non trouvé, utilisation fallback');
 }
 
+// ✅ PERMISSIONS GRANULAIRES
+const requireVehicleValidation = authorize(
+  ['SUPER_ADMIN', 'MODERATEUR'],
+  ['ALL', 'MODERATION']
+);
+
+const requireVehicleModification = authorize(
+  ['SUPER_ADMIN'],
+  ['ALL', 'GESTION_VEHICULES']
+);
 // =============== MIDDLEWARES UTILITAIRES ===============
 
 const validerIdMongoDB = (req, res, next) => {
@@ -122,19 +123,28 @@ router.get('/recherche-avancee', auth, vehiculeController.rechercheAvancee);
  * @route   GET /api/vehicules/admin/en-attente-validation
  * @desc    Véhicules en attente validation
  */
-router.get('/admin/en-attente-validation', auth, isAdmin, vehiculeController.obtenirVehiculesEnAttenteValidation);
+router.get('/admin/en-attente-validation',
+   protectAdmin,
+   requireVehicleValidation,
+   vehiculeController.obtenirVehiculesEnAttenteValidation);
 
 /**
  * @route   GET /api/vehicules/admin/signalements
  * @desc    Véhicules signalés
  */
-router.get('/admin/signalements', auth, isAdmin, vehiculeController.obtenirVehiculesSignales);
+router.get('/admin/signalements',
+  protectAdmin,
+  requireVehicleValidation,
+  vehiculeController.obtenirVehiculesSignales);
 
 /**
  * @route   GET /api/vehicules/admin/statistiques-globales
  * @desc    Statistiques globales
  */
-router.get('/admin/statistiques-globales', auth, isAdmin, vehiculeController.obtenirStatistiquesGlobales);
+router.get('/admin/statistiques-globales',
+   protectAdmin,
+   requireVehicleValidation, 
+   vehiculeController.obtenirStatistiquesGlobales);
 
 // =============== ROUTES CRUD STANDARD ===============
 
@@ -216,13 +226,21 @@ router.put('/:vehiculeId/position', auth, validerIdMongoDB, vehiculeController.m
  * @route   POST /api/vehicules/:vehiculeId/valider
  * @desc    Valider véhicule (Admin)
  */
-router.post('/:vehiculeId/valider', auth, isAdmin, validerIdMongoDB, vehiculeController.validerVehicule);
+router.post('/:vehiculeId/valider',
+   protectAdmin,
+   requireVehicleValidation,
+   validerIdMongoDB, 
+   vehiculeController.validerVehicule);
 
 /**
  * @route   POST /api/vehicules/:vehiculeId/rejeter
  * @desc    Rejeter véhicule (Admin)
  */
-router.post('/:vehiculeId/rejeter', auth, isAdmin, validerIdMongoDB, vehiculeController.rejeterVehicule);
+router.post('/:vehiculeId/rejeter',
+   protectAdmin,
+   requireVehicleModification, 
+   validerIdMongoDB, 
+   vehiculeController.rejeterVehicule);
 
 /**
  * @route   POST /api/vehicules/:vehiculeId/signaler
