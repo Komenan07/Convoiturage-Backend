@@ -596,7 +596,68 @@ const supprimerVehicule = async (req, res, next) => {
 const completerDocuments = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
-    const documents = req.body;
+    const documents = { ...req.body };
+
+    // Logger les fichiers reçus
+    if (req.files && req.files.length > 0) {
+      logger.info('📎 Fichiers de documents reçus:', {
+        count: req.files.length,
+        files: req.files.map(f => ({ fieldname: f.fieldname, filename: f.filename }))
+      });
+      
+      // Traiter les fichiers de documents
+      req.files.forEach(file => {
+        const relativePath = `/uploads/vehicules/${file.filename}`;
+        
+        switch (file.fieldname) {
+          case 'documentCarteGrise':
+            if (!documents.carteGrise) documents.carteGrise = {};
+            documents.carteGrise.documentUrl = relativePath;
+            logger.info(`  ✅ Document carte grise: ${relativePath}`);
+            break;
+            
+          case 'documentAssurance':
+            if (!documents.assurance) documents.assurance = {};
+            documents.assurance.attestationUrl = relativePath;
+            logger.info(`  ✅ Attestation assurance: ${relativePath}`);
+            break;
+            
+          case 'documentVisite':
+            if (!documents.visiteTechnique) documents.visiteTechnique = {};
+            documents.visiteTechnique.certificatUrl = relativePath;
+            logger.info(`  ✅ Certificat visite technique: ${relativePath}`);
+            break;
+            
+          case 'photoVignette':
+            if (!documents.vignette) documents.vignette = {};
+            documents.vignette.photoVignette = relativePath;
+            logger.info(`  ✅ Photo vignette: ${relativePath}`);
+            break;
+            
+          case 'documentCarteTransport':
+            if (!documents.carteTransport) documents.carteTransport = {};
+            documents.carteTransport.documentUrl = relativePath;
+            logger.info(`  ✅ Document carte transport: ${relativePath}`);
+            break;
+            
+          default:
+            logger.warn(`  ⚠️ Champ de fichier non reconnu: ${file.fieldname}`);
+        }
+      });
+    }
+
+    // Parser les champs JSON envoyés en multipart/form-data
+    const champsJSON = ['carteGrise', 'assurance', 'visiteTechnique', 'vignette', 'carteTransport'];
+    champsJSON.forEach(champ => {
+      if (documents[champ] && typeof documents[champ] === 'string') {
+        try {
+          documents[champ] = JSON.parse(documents[champ]);
+          logger.info(`  📝 ${champ} parsé depuis JSON`);
+        } catch (e) {
+          logger.warn(`  ⚠️ Impossible de parser ${champ}:`, e.message);
+        }
+      }
+    });
 
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
