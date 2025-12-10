@@ -221,7 +221,16 @@ router.post('/:vehiculeId/maintenance', auth, validerIdMongoDB, vehiculeControll
 router.put('/:vehiculeId/position', auth, validerIdMongoDB, vehiculeController.mettreAJourPosition);
 
 // =============== GESTION ADMINISTRATIVE ===============
-
+/**
+ * @route   POST /api/vehicules/:vehiculeId/notifier-documents-manquants
+ * @desc    Notifier propriétaire des documents manquants (Admin)
+ */
+router.post('/:vehiculeId/notifier-documents-manquants',
+   protectAdmin,
+   requireVehicleValidation,
+   validerIdMongoDB, 
+   vehiculeController.notifierProprietaireDocumentsManquants);
+   
 /**
  * @route   POST /api/vehicules/:vehiculeId/valider
  * @desc    Valider véhicule (Admin)

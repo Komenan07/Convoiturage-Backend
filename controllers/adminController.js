@@ -1301,7 +1301,7 @@ const listerReservations = async (req, res, next) => {
     const {
       page = 1,
       limit = 20,
-      search,
+      //search,
       statut,
       dateDebut,
       dateFin
@@ -2328,6 +2328,60 @@ const cloturerAlerte = async (req, res, next) => {
   }
 };
 
+function construireMessageDocumentsManquants(documentsManquants, commentaireAdmin, nombreTotal) {
+  let message = `🔔 Bonjour,\n\n`;
+  message += `Votre demande pour devenir conducteur nécessite quelques compléments.\n\n`;
+  message += `📋 **${nombreTotal} élément(s) à compléter** :\n\n`;
+
+  if (documentsManquants.identite.length > 0) {
+    message += `**📇 Documents d'identité :**\n`;
+    documentsManquants.identite.forEach(doc => {
+      message += `  • ${doc.message}\n`;
+    });
+    message += `\n`;
+  }
+
+  if (documentsManquants.vehicules.length > 0) {
+    message += `**🚗 Informations véhicule :**\n`;
+    documentsManquants.vehicules.forEach(doc => {
+      message += `  • ${doc.message}\n`;
+    });
+    message += `\n`;
+  }
+
+  if (documentsManquants.photos.length > 0) {
+    message += `**📸 Photos du véhicule :**\n`;
+    documentsManquants.photos.forEach(doc => {
+      message += `  • ${doc.message}\n`;
+    });
+    message += `\n`;
+  }
+
+  if (documentsManquants.documents.length > 0) {
+    message += `**📄 Documents obligatoires :**\n`;
+    documentsManquants.documents.forEach(doc => {
+      message += `  • ${doc.message}\n`;
+    });
+    message += `\n`;
+  }
+
+  if (documentsManquants.equipements.length > 0) {
+    message += `**🛡️ Équipements de sécurité :**\n`;
+    documentsManquants.equipements.forEach(doc => {
+      message += `  • ${doc.message}\n`;
+    });
+    message += `\n`;
+  }
+
+  if (commentaireAdmin) {
+    message += `**💬 Message de l'administrateur :**\n${commentaireAdmin}\n\n`;
+  }
+
+  message += `Merci de compléter ces informations depuis votre profil pour que nous puissions valider votre compte conducteur.\n\n`;
+  message += `L'équipe CoCovoi 🚗`;
+
+  return message;
+}
 /**
  * Valider le passage d'un utilisateur en conducteur (ADMIN UNIQUEMENT)
  * VÉRIFIE TOUS LES CRITÈRES REQUIS AVANT VALIDATION
@@ -2335,7 +2389,12 @@ const cloturerAlerte = async (req, res, next) => {
 const validerPassageConducteur = async (req, res, next) => {
   try {
     const { utilisateurId } = req.params;
-    const { approuve, commentaire } = req.body;
+    const { approuve,
+       commentaire,
+       validationForcee = false, 
+       action = 'valider'
+
+    } = req.body;
 
     const utilisateur = await User.findById(utilisateurId);
     
@@ -2920,9 +2979,209 @@ const validerPassageConducteur = async (req, res, next) => {
         severite: 'MOYEN'
       });
     }
+    if (action === 'demander_complement') {
+  const erreursCritiques = erreursValidation.filter(e => e.severite === 'CRITIQUE');
+  
+  if (erreursCritiques.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Aucun document manquant - le conducteur peut être validé',
+      code: 'NO_MISSING_DOCUMENTS'
+    });
+  }
+
+  // Créer un résumé clair pour le conducteur
+  const documentsManquants = {
+    identite: [],
+    vehicules: [],
+    documents: [],
+    equipements: [],
+    photos: []
+  };
+
+  erreursValidation.forEach(erreur => {
+    const categorie = erreur.categorie.toLowerCase();
+    if (categorie.includes('identite') || categorie.includes('contact')) {
+      documentsManquants.identite.push({
+        champ: erreur.champ,
+        message: erreur.message,
+        severite: erreur.severite
+      });
+    } else if (categorie.includes('vehicule') && !categorie.includes('photos')) {
+      documentsManquants.vehicules.push({
+        champ: erreur.champ,
+        message: erreur.message,
+        vehiculeId: erreur.vehiculeId,
+        severite: erreur.severite
+      });
+    } else if (categorie.includes('photos')) {
+      documentsManquants.photos.push({
+        champ: erreur.champ,
+        message: erreur.message,
+        vehiculeId: erreur.vehiculeId,
+        severite: erreur.severite
+      });
+    } else if (categorie.includes('documents')) {
+      documentsManquants.documents.push({
+        champ: erreur.champ,
+        message: erreur.message,
+        vehiculeId: erreur.vehiculeId,
+        severite: erreur.severite
+      });
+    } else if (categorie.includes('equipements')) {
+      documentsManquants.equipements.push({
+        champ: erreur.champ,
+        message: erreur.message,
+        vehiculeId: erreur.vehiculeId,
+        severite: erreur.severite
+      });
+    }
+  });
+
+  // Créer un message personnalisé
+  const messageComplet = construireMessageDocumentsManquants(
+    documentsManquants, 
+    commentaire,
+    erreursValidation.length
+  );
+
+  // Sauvegarder dans l'historique
+  utilisateur.historiqueStatuts.push({
+    ancienStatut: 'CONDUCTEUR_EN_ATTENTE_VERIFICATION',
+    nouveauStatut: 'CONDUCTEUR_EN_ATTENTE_VERIFICATION',
+    raison: `Documents incomplets - ${erreursValidation.length} élément(s) à compléter`,
+    dateModification: new Date(),
+    administrateurId: req.user.id
+  });
+
+  // Ajouter notification pour le conducteur
+  if (!utilisateur.notifications) {
+    utilisateur.notifications = [];
+  }
+
+  utilisateur.notifications.push({
+    type: 'DOCUMENTS_MANQUANTS',
+    titre: '📋 Documents à compléter',
+    message: messageComplet,
+    dateEnvoi: new Date(),
+    lue: false,
+    donnees: {
+      nombreDocuments: erreursValidation.length,
+      documentsManquants: documentsManquants,
+      commentaireAdmin: commentaire
+    }
+  });
+
+  await utilisateur.save({ validateBeforeSave: false });
+
+  logger.info('📨 Demande de complément envoyée', {
+    userId: utilisateur._id,
+    adminId: req.user.id,
+    nombreManquants: erreursValidation.length
+  });
+// ========================================
+  // ✅ ENVOI EMAIL ET WHATSAPP
+  // ========================================
+  let emailEnvoye = false;
+  let whatsappEnvoye = false;
+
+// Envoyer par Email si disponible
+if (utilisateur.email) {
+  try {
+    const emailService = require('../services/emailService');
+    // ✅ Filtrer seulement les erreurs CRITIQUES
+    const listeHTML = erreursCritiques  // ← CORRECTION ICI
+      .map((doc, index) => `
+        <li style="padding: 15px; margin-bottom: 12px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-left: 4px solid #FF9800; border-radius: 8px; color: #333; font-size: 15px; font-weight: 500; list-style: none;">
+          <span style="display: inline-block; width: 28px; height: 28px; background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); color: white; border-radius: 50%; text-align: center; line-height: 28px; font-size: 14px; font-weight: 700; margin-right: 15px;">${index + 1}</span>
+          ${doc.message}
+        </li>
+      `)
+      .join('');
+    
+      await emailService.envoyerEmail({
+        to: utilisateur.email,
+        subject: '📋 Documents à compléter - WAYZ-ECO',
+        template: 'documents-manquants',
+        data: {
+          nomComplet: `${utilisateur.prenom} ${utilisateur.nom}`,
+          prenom: utilisateur.prenom,
+          nombreTotal: erreursCritiques.length,
+          listeDocuments: listeHTML,  
+          commentaireAdmin: commentaire || 'Merci de compléter vos documents pour finaliser votre inscription conducteur.',
+          frontendUrl: process.env.FRONTEND_URL || 'https://wayzeco.com',
+          year: new Date().getFullYear()
+        }
+      });
+      
+      emailEnvoye = true;
+      logger.info('📧 Email documents manquants envoyé', { userId: utilisateur._id });
+    } catch (emailError) {
+      logger.error('❌ Erreur envoi email documents manquants:', emailError);
+    }
+  }
+  if (utilisateur.telephone) {
+    try {
+      const whatsappService = require('../services/whatsappService');
+      
+      await whatsappService.envoyerMessage(
+        utilisateur.telephone,
+        messageComplet
+      );
+      
+      whatsappEnvoye = true;
+      logger.info('📱 WhatsApp documents manquants envoyé', { userId: utilisateur._id });
+    } catch (whatsappError) {
+      logger.error('❌ Erreur envoi WhatsApp documents manquants:', whatsappError);
+    }
+  }
+
+  // ✅ WEBSOCKET - AJOUTE ICI
+  try {
+    const { notifyDocumentsManquants } = require('../realtime/socket');
+    const io = req.app.get('io');
+    
+    if (io) {
+      notifyDocumentsManquants(io, utilisateur._id.toString(), {
+        userId: utilisateur._id.toString(),
+        message: messageComplet,
+        documentsManquants: documentsManquants,
+        nombreTotal: erreursValidation.length,
+        timestamp: new Date()
+      });
+      logger.info('🔔 Notification WebSocket envoyée (documents manquants)', { userId: utilisateur._id });
+    }
+  } catch (notifError) {
+    logger.error('Erreur envoi notification WebSocket:', notifError);
+  }
+
+
+  return res.status(200).json({
+    success: true,
+    message: '📨 Demande de complément envoyée au conducteur',
+    data: {
+      utilisateur: {
+        id: utilisateur._id,
+        nom: utilisateur.nom,
+        prenom: utilisateur.prenom,
+        email: utilisateur.email,
+        telephone: utilisateur.telephone
+      },
+      documentsManquants: {
+        total: erreursValidation.length,
+        critiques: erreursCritiques.length,
+        details: documentsManquants
+      },
+      messageEnvoye: messageComplet,
+      notificationEnvoyee: true,
+      emailEnvoye: emailEnvoye,
+      whatsappEnvoye: whatsappEnvoye
+    }
+  });
+}
 
     // ===== SI REFUS, PAS BESOIN DE VÉRIFIER LES CRITÈRES =====
-    if (!approuve) {
+    if (!approuve && action === 'rejeter') {
       // Repasser en passager actif
       utilisateur.role = 'passager';
       utilisateur.statutCompte = 'ACTIF';
@@ -3003,6 +3262,206 @@ const validerPassageConducteur = async (req, res, next) => {
     // ===== SI APPROBATION, VÉRIFIER QU'IL N'Y A AUCUNE ERREUR CRITIQUE =====
     const erreursCritiques = erreursValidation.filter(e => e.severite === 'CRITIQUE');
     
+    if (approuve && validationForcee && erreursCritiques.length > 0) {
+  logger.warn('⚠️ VALIDATION FORCÉE par admin malgré erreurs critiques', {
+    userId: utilisateur._id,
+    adminId: req.user.id,
+    nombreErreurs: erreursCritiques.length,
+    commentaire: commentaire
+  });
+
+  // Changer le rôle en conducteur
+  utilisateur.role = 'conducteur';
+  utilisateur.statutCompte = 'ACTIF';
+  
+  // Ajouter badge
+  if (!utilisateur.badges.includes('NOUVEAU')) {
+    utilisateur.badges.push('NOUVEAU');
+  }
+
+  // Historique avec mention de validation forcée
+  utilisateur.historiqueStatuts.push({
+    ancienStatut: 'CONDUCTEUR_EN_ATTENTE_VERIFICATION',
+    nouveauStatut: 'ACTIF',
+    raison: `✅ VALIDATION FORCÉE par admin (${erreursCritiques.length} erreur(s) ignorée(s))${commentaire ? ` - ${commentaire}` : ''}`,
+    dateModification: new Date(),
+    administrateurId: req.user.id
+  });
+
+  await utilisateur.save({ validateBeforeSave: false });
+
+  // Mettre à jour les véhicules
+  await Promise.all(
+    vehicules.map(async (vehicule) => {
+      if (!vehicule.validation) {
+        vehicule.validation = {};
+      }
+      vehicule.validation.statutValidation = 'VALIDE';
+      vehicule.validation.validePar = req.user.id;
+      vehicule.validation.dateValidation = new Date();
+      vehicule.validation.commentairesAdmin = `VALIDATION FORCÉE - ${commentaire || 'Documents incomplets acceptés'}`;
+      vehicule.validation.validationForcee = true;
+      vehicule.statut = 'ACTIF';
+      await vehicule.save();
+    })
+  );
+
+  logger.info('✅ Passage conducteur validé (FORCÉ)', { 
+    userId: utilisateur._id,
+    adminId: req.user.id,
+    nombreVehicules: vehicules.length,
+    erreursIgnorees: erreursCritiques.length
+  });
+
+   // ========================================
+  // ✅ ENVOI EMAIL ET WHATSAPP - VALIDATION FORCÉE
+  // ========================================
+  // ========================================
+// ✅ ENVOI EMAIL - VALIDATION FORCÉE
+// ========================================
+let emailEnvoye = false;
+let whatsappEnvoye = false;
+
+const messageValidationForcee = `🎉 Félicitations ${utilisateur.prenom} !
+
+Votre compte conducteur a été validé sur CoCovoi !
+
+⚠️ Attention : Certains documents sont encore manquants (${erreursCritiques.length} élément(s)). Vous avez été validé de manière exceptionnelle.
+
+📋 Documents à compléter dès que possible :
+${erreursCritiques.map((e, i) => `${i + 1}. ${e.message}`).join('\n')}
+
+${commentaire ? `\n💬 Message de l'administrateur :\n${commentaire}\n` : ''}
+
+Vous pouvez maintenant créer des trajets et accepter des passagers. Merci de compléter vos documents rapidement.
+
+Bonne route ! 🚗
+L'équipe CoCovoi`;
+
+// Envoyer par Email si disponible
+if (utilisateur.email) {
+  try {
+    const emailService = require('../services/emailService');
+    
+    // ✅ Construire la liste HTML des documents manquants
+    const listeHTML = erreursCritiques
+      .map((doc, index) => `
+        <li style="padding: 12px; margin-bottom: 8px; background: #fff; border-left: 3px solid #FF9800; border-radius: 6px; color: #555; font-size: 14px; list-style: none;">
+          <span style="color: #FF9800; font-weight: 700; margin-right: 8px;">${index + 1}.</span>
+          ${doc.message}
+        </li>
+      `)
+      .join('');
+    
+    await emailService.envoyerEmail({
+      to: utilisateur.email,
+      subject: '🎉 Compte conducteur validé - WAYZ-ECO',
+      template: 'validation-forcee',
+      data: {
+        prenom: utilisateur.prenom,
+        nomComplet: `${utilisateur.prenom} ${utilisateur.nom}`,
+        nombreDocuments: erreursCritiques.length,
+        listeDocuments: listeHTML,
+        commentaireAdmin: commentaire || 'Votre compte a été validé de manière exceptionnelle. Merci de compléter vos documents rapidement.',
+        frontendUrl: process.env.FRONTEND_URL || 'https://wayzeco.com',
+        year: new Date().getFullYear()
+      }
+    });
+    
+    emailEnvoye = true;
+    logger.info('📧 Email validation forcée envoyé', { userId: utilisateur._id });
+  } catch (emailError) {
+    logger.error('❌ Erreur envoi email validation forcée:', emailError);
+  }
+}
+  // Envoyer par WhatsApp si disponible
+  if (utilisateur.telephone) {
+    try {
+      const whatsappService = require('../services/whatsappService');
+      
+      await whatsappService.envoyerMessage(
+        utilisateur.telephone,
+        messageValidationForcee
+      );
+      
+      whatsappEnvoye = true;
+      logger.info('📱 WhatsApp validation forcée envoyé', { userId: utilisateur._id });
+    } catch (whatsappError) {
+      logger.error('❌ Erreur envoi WhatsApp validation forcée:', whatsappError);
+    }
+  }
+
+  // Notification WebSocket
+  try {
+    const { notifyDriverValidation } = require('../realtime/socket');
+    const io = req.app.get('io');
+    
+    if (io) {
+      notifyDriverValidation(io, utilisateur._id.toString(), {
+        userId: utilisateur._id.toString(),
+        approved: true,
+        forced: true,
+        reason: commentaire || 'Félicitations ! Vous êtes maintenant conducteur sur CoCovoi.',
+        timestamp: new Date(),
+        adminId: req.user.id,
+        userName: `${utilisateur.prenom} ${utilisateur.nom}`,
+        vehiculesCount: vehicules.length,
+        documentsManquants: erreursCritiques.length
+      });
+    }
+  } catch (notifError) {
+    logger.error('Erreur envoi notification validation forcée:', notifError);
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: '✅ Demande de passage conducteur approuvée (VALIDATION FORCÉE)',
+    warning: `${erreursCritiques.length} erreur(s) critique(s) ont été ignorées`,
+    data: {
+      utilisateur: {
+        id: utilisateur._id,
+        nom: utilisateur.nom,
+        prenom: utilisateur.prenom,
+        email: utilisateur.email,
+        telephone: utilisateur.telephone,
+        role: utilisateur.role,
+        statutCompte: utilisateur.statutCompte,
+        badges: utilisateur.badges,
+        nombreVehicules: vehicules.length
+      },
+      validation: {
+        approuve: true,
+        validationForcee: true,
+        validePar: req.user.id,
+        dateValidation: new Date(),
+        commentaire: commentaire || null,
+        erreursIgnorees: {
+          nombre: erreursCritiques.length,
+          details: erreursCritiques
+        }
+      },
+      notifications: {
+        emailEnvoye: emailEnvoye,
+        whatsappEnvoye: whatsappEnvoye
+      },
+      avertissements: avertissements.length > 0 ? {
+        nombre: avertissements.length,
+        details: avertissements
+      } : null,
+      vehiculesValides: vehicules.map(v => ({
+        id: v._id,
+        marque: v.marque,
+        modele: v.modele,
+        immatriculation: v.immatriculation,
+        statut: 'ACTIF',
+        validationForcee: true
+      }))
+    }
+  });
+}
+
+  // Envoyer notification d'approbation
+
     if (erreursCritiques.length > 0) {
       logger.warn('⚠️ Tentative validation avec erreurs critiques', {
         userId: utilisateur._id,
@@ -3042,7 +3501,33 @@ const validerPassageConducteur = async (req, res, next) => {
         actions: {
           message: 'L\'utilisateur doit compléter les informations manquantes avant validation',
           priorite: 'Corriger d\'abord les erreurs critiques',
-          contactUtilisateur: true
+          contactUtilisateur: true,
+        validationForcee: {
+            description: 'Approuver malgré les documents manquants',
+            endpoint: 'PATCH /api/admin/users/:userId/valider-conducteur',
+            body: {
+              approuve: true,
+              validationForcee: true,
+              commentaire: 'Raison de la validation forcée'
+            }
+          },
+          demanderComplement: {
+            description: 'Demander au conducteur de compléter ses documents',
+            endpoint: 'PATCH /api/admin/users/:userId/valider-conducteur',
+            body: {
+              action: 'demander_complement',
+              commentaire: 'Message personnalisé pour le conducteur'
+            }
+          },
+          rejeter: {
+            description: 'Rejeter la demande',
+            endpoint: 'PATCH /api/admin/users/:userId/valider-conducteur',
+            body: {
+              approuve: false,
+              action: 'rejeter',
+              commentaire: 'Raison du rejet'
+            }
+          }
         }
       });
     }

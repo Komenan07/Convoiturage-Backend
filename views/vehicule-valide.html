@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Véhicule Validé - WAYZ-ECO</title>
+</head>
+<body style="margin: 0; padding: 0; background: linear-gradient(135deg, #f8f9fa 0%); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="padding: 20px 0; text-align: center;">
+                <!-- Container principal -->
+                <table role="presentation" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden;">
+                    <!-- Header avec logo et bannière -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #2E8B57 0%, #6A5ACD 100%); padding: 0; position: relative;">
+                            <div style="padding: 40px 30px; text-align: center; position: relative;">
+                                <!-- Logo WAYZ-ECO -->
+                                <div style="display: inline-block; margin-bottom: -150px; text-align: center;">
+                                    <img 
+                                        src="../uploads/photos/wayz1.png" 
+                                        alt="WAYZ-ECO Logo" 
+                                        style="
+                                            width: 250px; 
+                                            height: 250px; 
+                                            display: block; 
+                                            margin: 0 auto;
+                                            background: transparent;
+                                            object-fit: contain;
+                                            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+                                        "
+                                    />
+                                    <h1 style="
+                                        color: white; 
+                                        font-size: 32px; 
+                                        font-weight: 700; 
+                                        margin-top: -60px; 
+                                        margin-bottom: 0; 
+                                        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                                    ">
+                                        WayZ-ECO
+                                    </h1>
+                                </div>
+
+                                <p style="color: rgba(255,255,255,0.9); font-size: 16px; margin: 10px 0 0 0; font-weight: 300;">
+                                    WAYZ-ECO - Votre partenaire covoiturage en Côte d'Ivoire
+                                </p>
+                                <!-- Éléments décoratifs -->
+                                <div style="position: absolute; top: 10px; left: 10px; width: 20px; height: 20px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+                                <div style="position: absolute; top: 30px; right: 30px; width: 15px; height: 15px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+                                <div style="position: absolute; bottom: 20px; left: 50px; width: 25px; height: 25px; background: rgba(255,255,255,0.05); border-radius: 50%;"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Contenu principal -->
+                    <tr>
+                        <td style="padding: 50px 40px;">
+                            <!-- Badge de succès -->
+                            <div style="text-align: center; margin-bottom: 40px;">
+                                <div style="font-size: 80px; margin-bottom: 20px; animation: bounce 2s ease-in-out infinite;">
+                                    ✅
+                                </div>
+                                <h2 style="color: #2E8B57; font-size: 32px; font-weight: 700; margin: 0 0 15px 0;">
+                                    Félicitations {{nomComplet}} ! 🎉
+                                </h2>
+                                <p style="color: #666; font-size: 18px; line-height: 1.6; margin: 0;">
+                                    Votre véhicule a été validé avec succès
+                                </p>
+                            </div>
+
+                            <!-- Carte de succès -->
+                            <div style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-radius: 20px; padding: 35px; margin: 30px 0; border: 3px solid #2E8B57; box-shadow: 0 8px 25px rgba(46, 139, 87, 0.2);">
+                                <div style="text-align: center; margin-bottom: 25px;">
+                                    <div style="display: inline-block; background: white; padding: 20px; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                                        <span style="font-size: 50px;">🚗</span>
+                                    </div>
+                                </div>
+                                
+                                <div style="background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <tr>
+                                            <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef;">
+                                                <p style="color: #666; font-size: 14px; margin: 0; font-weight: 600;">
+                                                    Véhicule
+                                                </p>
+                                            </td>
+                                            <td style="padding: 12px 0; text-align: right; border-bottom: 1px solid #e9ecef;">
+                                                <p style="color: #2E8B57; font-size: 16px; margin: 0; font-weight: 700;">
+                                                    {{vehicule}}
+                                                </p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 12px 0; border-bottom: 1px solid #e9ecef;">
+                                                <p style="color: #666; font-size: 14px; margin: 0; font-weight: 600;">
+                                                    Immatriculation
+                                                </p>
+                                            </td>
+                                            <td style="padding: 12px 0; text-align: right; border-bottom: 1px solid #e9ecef;">
+                                                <p style="color: #333; font-size: 16px; margin: 0; font-weight: 600;">
+                                                    {{immatriculation}}
+                                                </p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 12px 0;">
+                                                <p style="color: #666; font-size: 14px; margin: 0; font-weight: 600;">
+                                                    Date de validation
+                                                </p>
+                                            </td>
+                                            <td style="padding: 12px 0; text-align: right;">
+                                                <p style="color: #333; font-size: 16px; margin: 0; font-weight: 600;">
+                                                    {{dateValidation}}
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Prochaines étapes -->
+                            <div style="background: linear-gradient(135deg, #f8fcf8 0%, #f5f3ff 100%); border-radius: 15px; padding: 30px; margin: 30px 0;">
+                                <h3 style="color: #6A5ACD; font-size: 20px; font-weight: 600; margin: 0 0 20px 0; text-align: center;">
+                                    🚀 Prochaines Étapes
+                                </h3>
+                                <div style="display: block;">
+                                    <div style="margin-bottom: 15px; display: flex; align-items: flex-start;">
+                                        <span style="color: #2E8B57; font-size: 24px; margin-right: 15px; font-weight: 600; min-width: 30px;">1</span>
+                                        <div>
+                                            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 0 0 5px 0;">
+                                                Créez votre premier trajet
+                                            </p>
+                                            <p style="color: #666; font-size: 14px; margin: 0; line-height: 1.5;">
+                                                Proposez un trajet et commencez à gagner de l'argent
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div style="margin-bottom: 15px; display: flex; align-items: flex-start;">
+                                        <span style="color: #2E8B57; font-size: 24px; margin-right: 15px; font-weight: 600; min-width: 30px;">2</span>
+                                        <div>
+                                            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 0 0 5px 0;">
+                                                Partagez votre véhicule
+                                            </p>
+                                            <p style="color: #666; font-size: 14px; margin: 0; line-height: 1.5;">
+                                                Offrez des places et réduisez vos frais de transport
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: flex-start;">
+                                        <span style="color: #2E8B57; font-size: 24px; margin-right: 15px; font-weight: 600; min-width: 30px;">3</span>
+                                        <div>
+                                            <p style="color: #333; font-size: 16px; font-weight: 600; margin: 0 0 5px 0;">
+                                                Collectez les avis
+                                            </p>
+                                            <p style="color: #666; font-size: 14px; margin: 0; line-height: 1.5;">
+                                                Obtenez des évaluations positives pour augmenter votre visibilité
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bouton CTA -->
+                            <div style="text-align: center; margin: 40px 0;">
+                                <a href="#" 
+                                   style="display: inline-block; background: linear-gradient(135deg, #2E8B57 0%, #6A5ACD 100%); 
+                                          color: white; padding: 18px 45px; text-decoration: none; 
+                                          border-radius: 50px; font-weight: 600; font-size: 16px; 
+                                          box-shadow: 0 8px 25px rgba(46, 139, 87, 0.3);">
+                                    🚗 Créer un Trajet Maintenant
+                                </a>
+                            </div>
+
+                            <!-- Message de remerciement -->
+                            <div style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border-radius: 12px; padding: 25px; margin: 30px 0; text-align: center; border-left: 5px solid #ffa726;">
+                                <div style="font-size: 40px; margin-bottom: 15px;">🙏</div>
+                                <p style="color: #f57c00; font-size: 18px; font-weight: 600; margin: 0 0 10px 0;">
+                                    Bonne Route !
+                                </p>
+                                <p style="color: #666; font-size: 14px; line-height: 1.5; margin: 0;">
+                                    L'équipe WAYZ-ECO vous souhaite d'excellents trajets et de belles rencontres.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background: #f8f9fa; padding: 40px; text-align: center; border-top: 1px solid #e9ecef;">
+                            <div style="margin-bottom: 20px;">
+                                <p style="color: #666; font-size: 14px; margin: 0 0 10px 0;">
+                                    Besoin d'aide ? Contactez-nous :
+                                </p>
+                                <p style="color: #2E8B57; font-size: 14px; font-weight: 600; margin: 0;">
+                                    📞 +225 0779947665 | 📧 support@wayzeco.com
+                                </p>
+                            </div>
+                            
+                            <!-- Réseaux sociaux -->
+                            <div style="margin: 30px 0 20px 0;">
+                                <a href="#" style="display: inline-block; margin: 0 10px; text-decoration: none;">
+                                    <div style="background: #2E8B57; color: white; width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold;">f</div>
+                                </a>
+                                <a href="#" style="display: inline-block; margin: 0 10px; text-decoration: none;">
+                                    <div style="background: #6A5ACD; color: white; width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold;">@</div>
+                                </a>
+                                <a href="#" style="display: inline-block; margin: 0 10px; text-decoration: none;">
+                                    <div style="background: linear-gradient(135deg, #2E8B57 0%, #6A5ACD 100%); color: white; width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold;">in</div>
+                                </a>
+                            </div>
+
+                            <!-- Copyright -->
+                            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+                                <p style="color: #999; font-size: 12px; margin: 0;">
+                                    © 2025 WAYZ-ECO - Tous droits réservés<br>
+                                    Abidjan, Côte d'Ivoire 🇨🇮
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
