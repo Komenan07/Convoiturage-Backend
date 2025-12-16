@@ -654,7 +654,65 @@ const utilisateurSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Administrateur'
     }
-  }]
+  }],
+  // 🔥 Firebase Cloud Messaging
+fcmTokens: [{
+  token: {
+    type: String,
+    required: true,
+    index: true
+  },
+  deviceType: {
+    type: String,
+    enum: ['android', 'ios', 'web'],
+    required: true
+  },
+  deviceInfo: {
+    model: String,
+    os: String,
+    appVersion: String
+  },
+  dateAjout: {
+    type: Date,
+    default: Date.now
+  },
+  derniereActivite: {
+    type: Date,
+    default: Date.now
+  },
+  actif: {
+    type: Boolean,
+    default: true
+  }
+}],
+
+// ⚙️ Préférences de notifications
+preferencesNotifications: {
+  activees: {
+    type: Boolean,
+    default: true
+  },
+  reservations: {
+    type: Boolean,
+    default: true
+  },
+  paiements: {
+    type: Boolean,
+    default: true
+  },
+  trajets: {
+    type: Boolean,
+    default: true
+  },
+  promotions: {
+    type: Boolean,
+    default: true
+  },
+  messages: {
+    type: Boolean,
+    default: true
+  }
+}
 
 }, {
   timestamps: true,
@@ -673,6 +731,10 @@ utilisateurSchema.index({ role: 1 });
 utilisateurSchema.index({ 'compteCovoiturage.estRecharge': 1 });
 utilisateurSchema.index({ 'compteCovoiturage.solde': -1 });
 utilisateurSchema.index({ 'compteCovoiturage.historiqueRecharges.date': -1 });
+
+utilisateurSchema.index({ 'fcmTokens.token': 1 });
+utilisateurSchema.index({ 'fcmTokens.actif': 1 });
+utilisateurSchema.index({ 'fcmTokens.derniereActivite': -1 });
 
 // VIRTUALS
 utilisateurSchema.virtual('nomComplet').get(function() {
@@ -1604,6 +1666,136 @@ utilisateurSchema.methods.verifierCodeWhatsApp = function(code) {
   this.codeVerificationWhatsApp = undefined;
   this.codeVerificationWhatsAppExpire = undefined;
   return { valide: true };
+};
+
+/**
+ * 🔥 Méthode pour enregistrer un token FCM
+ */
+utilisateurSchema.methods.enregistrerFCMToken = async function(token, deviceInfo = {}) {
+  try {
+    console.log('🔥 Enregistrement FCM Token:', {
+      userId: this._id,
+      token: token.substring(0, 20) + '...',
+      deviceType: deviceInfo.deviceType
+    });
+    
+    // Vérifier si le token existe déjà
+    const tokenExistant = this.fcmTokens.find(t => t.token === token);
+    
+    if (tokenExistant) {
+      // Mettre à jour l'activité
+      tokenExistant.derniereActivite = new Date();
+      tokenExistant.actif = true;
+      console.log('✅ Token existant réactivé');
+    } else {
+      // Ajouter le nouveau token
+      this.fcmTokens.push({
+        token: token,
+        deviceType: deviceInfo.deviceType || 'android',
+        deviceInfo: {
+          model: deviceInfo.model || 'Unknown',
+          os: deviceInfo.os || 'Unknown',
+          appVersion: deviceInfo.appVersion || '1.0.0'
+        },
+        dateAjout: new Date(),
+        derniereActivite: new Date(),
+        actif: true
+      });
+      console.log('✅ Nouveau token ajouté');
+    }
+    
+    await this.save();
+    
+    return { 
+      success: true, 
+      message: 'Token FCM enregistré avec succès',
+      tokensCount: this.fcmTokens.length
+    };
+    
+  } catch (error) {
+    console.error('❌ Erreur enregistrement FCM:', error);
+    return { 
+      success: false, 
+      message: error.message 
+    };
+  }
+};
+
+/**
+ * 🔥 Méthode pour désactiver un token FCM
+ */
+utilisateurSchema.methods.desactiverFCMToken = async function(token) {
+  try {
+    console.log('🗑️ Désactivation token FCM:', {
+      userId: this._id,
+      token: token.substring(0, 20) + '...'
+    });
+    
+    const tokenObj = this.fcmTokens.find(t => t.token === token);
+    
+    if (tokenObj) {
+      tokenObj.actif = false;
+      await this.save();
+      console.log('✅ Token désactivé');
+      return { success: true, message: 'Token désactivé' };
+    } else {
+      console.log('⚠️  Token non trouvé');
+      return { success: false, message: 'Token non trouvé' };
+    }
+    
+  } catch (error) {
+    console.error('❌ Erreur désactivation token:', error);
+    return { 
+      success: false, 
+      message: error.message 
+    };
+  }
+};
+
+/**
+ * 🔥 Méthode pour supprimer un token invalide
+ */
+utilisateurSchema.methods.supprimerFCMToken = async function(token) {
+  try {
+    console.log('🗑️ Suppression token FCM invalide:', {
+      userId: this._id,
+      token: token.substring(0, 20) + '...'
+    });
+    
+    this.fcmTokens = this.fcmTokens.filter(t => t.token !== token);
+    await this.save();
+    
+    console.log('✅ Token supprimé');
+    return { success: true };
+    
+  } catch (error) {
+    console.error('❌ Erreur suppression token:', error);
+    return { success: false, message: error.message };
+  }
+};
+
+/**
+ * 🔥 Récupérer tous les tokens actifs
+ */
+utilisateurSchema.methods.getTokensActifs = function() {
+  return this.fcmTokens
+    .filter(t => t.actif)
+    .map(t => t.token);
+};
+
+/**
+ * 🔥 Vérifier si les notifications sont activées
+ */
+utilisateurSchema.methods.notificationsActivees = function(type) {
+  if (!this.preferencesNotifications || !this.preferencesNotifications.activees) {
+    return false;
+  }
+  
+  if (type) {
+    return this.preferencesNotifications[type] !== false;
+  }
+  
+  return true;
 };
 
 // ===== MÉTHODES STATIQUES =====

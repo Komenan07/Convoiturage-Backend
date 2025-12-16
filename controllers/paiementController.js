@@ -2,6 +2,7 @@
 const CinetPayService = require('../services/CinetPayService');
 const Paiement = require('../models/Paiement');
 const Utilisateur = require('../models/Utilisateur');
+const firebaseService = require('../services/firebaseService');
 const Trajet = require('../models/Trajet');
 const Reservation = require('../models/Reservation');
 const { logger } = require('../utils/logger');
@@ -425,6 +426,51 @@ class PaiementController {
       // Envoyer notification
       await this.envoyerEmailConfirmationPaiement(conducteur, paiement);
 
+       // Notification Firebase au conducteur
+    try {
+      if (conducteur.notificationsActivees('paiements')) {
+        await firebaseService.notifyPaymentSuccess(
+          conducteur._id,
+          {
+            montant: paiement.montantTotal,
+            transactionId: paiement.referenceTransaction,
+            methode: 'especes'
+          },
+          Utilisateur
+        );
+        
+        logger.info('📱 Notification Firebase envoyée au conducteur', {
+          conducteurId: conducteur._id,
+          montant: paiement.montantTotal
+        });
+      }
+    } catch (notifError) {
+      logger.error('❌ Erreur notification Firebase conducteur:', notifError);
+    }
+    
+    // Notification Firebase au passager
+    try {
+      const passager = await Utilisateur.findById(paiement.payeurId);
+      if (passager && passager.notificationsActivees('paiements')) {
+        await firebaseService.notifyPaymentSuccess(
+          passager._id,
+          {
+            montant: paiement.montantTotal,
+            transactionId: paiement.referenceTransaction,
+            methode: 'especes'
+          },
+          Utilisateur
+        );
+        
+        logger.info('📱 Notification Firebase envoyée au passager', {
+          passagerId: passager._id,
+          montant: paiement.montantTotal
+        });
+      }
+    } catch (notifError) {
+      logger.error('❌ Erreur notification Firebase passager:', notifError);
+    }
+
       logger.info('Paiement espèces confirmé', {
         paiementId: paiement._id,
         referenceTransaction,
@@ -700,6 +746,28 @@ class PaiementController {
 
         // Envoyer email de confirmation
         await this.envoyerEmailConfirmationRecharge(user, paiement);
+        // Notification Firebase - Recharge réussie
+        try {
+          if (user.notificationsActivees('paiements')) {
+            await firebaseService.notifyPaymentSuccess(
+              user._id,
+              {
+                montant: montantACrediter,
+                transactionId: referenceTransaction,
+                methode: paiement.methodePaiement.toLowerCase()
+              },
+              Utilisateur
+            );
+            
+            logger.info('📱 Notification Firebase recharge réussie envoyée', {
+              userId: user._id,
+              montant: montantACrediter,
+              nouveauSolde: user.compteCovoiturage.solde
+            });
+          }
+        } catch (notifError) {
+          logger.error('❌ Erreur notification Firebase recharge:', notifError);
+        }
 
         paiement.ajouterLog('RECHARGE_CONFIRMEE', {
           montantCredite: montantACrediter,
@@ -750,6 +818,28 @@ class PaiementController {
 
         paiement.ajouterErreur('RECHARGE_ECHEC', 
           donneesCallback.messageErreur || 'Échec du paiement mobile money');
+
+          // Notification Firebase - Recharge échouée
+          try {
+            if (user.notificationsActivees('paiements')) {
+              await firebaseService.notifyPaymentFailed(
+                user._id,
+                {
+                  montant: paiement.montantTotal,
+                  transactionId: referenceTransaction,
+                  reason: donneesCallback.messageErreur || 'Échec du paiement'
+                },
+                Utilisateur
+              );
+              
+              logger.info('📱 Notification Firebase recharge échouée envoyée', {
+                userId: user._id,
+                raison: donneesCallback.messageErreur
+              });
+            }
+          } catch (notifError) {
+            logger.error('❌ Erreur notification Firebase échec:', notifError);
+          }
 
         res.json({
           success: true,
@@ -1161,6 +1251,60 @@ class PaiementController {
       logger.info('Webhook CinetPay reçu', webhookData);
 
       const result = await this.cinetPayService.traiterWebhook(webhookData);
+
+      // Envoyer notification Firebase selon le résultat
+      if (result.success && result.paiement) {
+        const paiement = result.paiement;
+        
+        try {
+          // Notification selon le statut du paiement
+          if (paiement.statutPaiement === 'COMPLETE') {
+            // Paiement réussi
+            const utilisateur = await Utilisateur.findById(paiement.payeurId);
+            
+            if (utilisateur && utilisateur.notificationsActivees('paiements')) {
+              await firebaseService.notifyPaymentSuccess(
+                utilisateur._id,
+                {
+                  montant: paiement.montantTotal,
+                  transactionId: paiement.referenceTransaction,
+                  methode: paiement.methodePaiement.toLowerCase()
+                },
+                Utilisateur
+              );
+              
+              logger.info('📱 Notification Firebase webhook (succès) envoyée', {
+                userId: utilisateur._id,
+                paiementId: paiement._id
+              });
+            }
+            
+          } else if (paiement.statutPaiement === 'ECHEC') {
+            // Paiement échoué
+            const utilisateur = await Utilisateur.findById(paiement.payeurId);
+            
+            if (utilisateur && utilisateur.notificationsActivees('paiements')) {
+              await firebaseService.notifyPaymentFailed(
+                utilisateur._id,
+                {
+                  montant: paiement.montantTotal,
+                  transactionId: paiement.referenceTransaction,
+                  reason: 'Échec du paiement'
+                },
+                Utilisateur
+              );
+              
+              logger.info('📱 Notification Firebase webhook (échec) envoyée', {
+                userId: utilisateur._id,
+                paiementId: paiement._id
+              });
+            }
+          }
+        } catch (notifError) {
+          // Ne pas bloquer le webhook si notification échoue
+          logger.error('❌ Erreur notification Firebase dans webhook:', notifError);
+        }
+      }
 
       return res.status(200).json(result);
 

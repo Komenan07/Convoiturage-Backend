@@ -33,3 +33,7 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 test
+
+# Firebase
+config/serviceAccountKey.json
+*.json
