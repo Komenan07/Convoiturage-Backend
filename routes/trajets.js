@@ -40,11 +40,11 @@ const validatePointDepart = [
     .notEmpty().withMessage('Le nom du point de départ est requis')
     .isLength({ min: 2, max: 200 }).withMessage('Le nom doit contenir entre 2 et 200 caractères'),
   body('pointDepart.adresse')
-    .notEmpty().withMessage('L\'adresse du point de départ est requise')
+    // .notEmpty().withMessage('L\'adresse du point de départ est requise')
     .trim()
     .isLength({ max: 500 }).withMessage('L\'adresse ne peut pas dépasser 500 caractères'),
   body('pointDepart.coordonnees')
-    .notEmpty().withMessage('Les coordonnées du point de départ sont requises')
+    // .notEmpty().withMessage('Les coordonnées du point de départ sont requises')
     .custom((value) => {
       // ✅ Accepter le format GeoJSON
       if (value.type === 'Point' && Array.isArray(value.coordinates)) {
@@ -81,11 +81,11 @@ const validatePointDepart = [
     .trim()
     .isLength({ max: 100 }).withMessage('Le nom de la ville ne peut pas dépasser 100 caractères'),
   body('pointDepart.commune')
-    .notEmpty().withMessage('La commune du point de départ est requise')
+    .optional()
     .trim()
     .isLength({ max: 100 }).withMessage('La commune ne peut pas dépasser 100 caractères'),
   body('pointDepart.quartier')
-    .notEmpty().withMessage('Le quartier du point de départ est requis')
+    .optional()
     .trim()
     .isLength({ max: 100 }).withMessage('Le quartier ne peut pas dépasser 100 caractères')
 ];
@@ -139,11 +139,11 @@ const validatePointArrivee = [
     .trim()
     .isLength({ max: 100 }).withMessage('Le nom de la ville ne peut pas dépasser 100 caractères'),
   body('pointArrivee.commune')
-    .notEmpty().withMessage('La commune du point d\'arrivée est requise')
+    .optional()
     .trim()
     .isLength({ max: 100 }).withMessage('La commune ne peut pas dépasser 100 caractères'),
   body('pointArrivee.quartier')
-    .notEmpty().withMessage('Le quartier du point d\'arrivée est requis')
+    .optional()
     .trim()
     .isLength({ max: 100 }).withMessage('Le quartier ne peut pas dépasser 100 caractères')
 ];
@@ -280,7 +280,7 @@ const validatePreferences = [
     .isBoolean().withMessage('La préférence musique doit être un booléen'),
   body('preferences.conversation')
     .optional()
-    .isIn(['AUCUNE', 'LIMITEE', 'LIBRE'])
+    .isIn(['AUCUNE', 'LIMITEE', 'MODERE', 'LIBRE'])
     .withMessage('Type de conversation invalide'),
   body('preferences.fumeur')
     .optional()

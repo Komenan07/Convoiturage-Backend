@@ -20,12 +20,12 @@ const pointSchema = new mongoose.Schema({
   },
   commune: {
     type: String,
-    required: true,
+    required: false,
     trim: true
   },
   quartier: {
     type: String,
-    required: true,
+    required: false,
     trim: true
   },
   coordonnees: {
@@ -68,12 +68,12 @@ const arretIntermediaireSchema = new mongoose.Schema({
   },
   commune: {
     type: String,
-    required: true,
+    required: false,
     trim: true
   },
   quartier: {
     type: String,
-    required: true,
+    required: false,
     trim: true
   },
   coordonnees: {
