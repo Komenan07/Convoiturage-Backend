@@ -7,7 +7,7 @@ const paiementSchema = new mongoose.Schema({
   reservationId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Reservation', 
-    required: [true, 'La réservation est requise'],
+    required: [false, 'La réservation est requise'],
     index: true
   },
   payeurId: { 
@@ -264,7 +264,14 @@ const paiementSchema = new mongoose.Schema({
 
   // ===== SÉCURITÉ =====
   securite: {
-    empreinteTransaction: { type: String, unique: true },
+    empreinteTransaction: { type: String, unique: true,
+
+      sparse: true,
+      index: true,
+      default: function() {
+        return `EMP_${Date.now()}_${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
+        }
+    },
     ipAddress: String,
     userAgent: String,
     deviceId: String,

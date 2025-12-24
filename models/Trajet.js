@@ -1,5 +1,11 @@
+// models/Trajet.js - VERSION COMPLÈTE CORRIGÉE
+
 const mongoose = require('mongoose');
 const mongoosePaginate = require('mongoose-paginate-v2'); 
+
+// ===============================================
+// SCHÉMAS IMBRIQUÉS
+// ===============================================
 
 // Schéma pour les points géographiques (départ, arrivée, arrêts)
 const pointSchema = new mongoose.Schema({
@@ -193,7 +199,10 @@ const preferencesSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
-// Schéma principal du TRAJET
+// ===============================================
+// SCHÉMA PRINCIPAL DU TRAJET
+// ===============================================
+
 const trajetSchema = new mongoose.Schema({
   titre: {
     type: String,
@@ -277,6 +286,47 @@ const trajetSchema = new mongoose.Schema({
       message: 'La distance doit être positive'
     }
   },
+  
+  // ⭐ Informations détaillées de distance (calculées automatiquement)
+  infoDistance: {
+    vehicle: {
+      distance: {
+        value: Number,  // en mètres
+        km: Number,     // en kilomètres
+        text: String    // ex: "8.5 km"
+      },
+      duration: {
+        value: Number,  // en secondes
+        minutes: Number, // en minutes
+        text: String    // ex: "25 min"
+      },
+      estimatedArrival: {
+        timestamp: Date,
+        formatted: String  // ex: "14:30"
+      }
+    },
+    walking: {
+      distance: {
+        value: Number,
+        km: Number,
+        text: String
+      },
+      duration: {
+        value: Number,
+        minutes: Number,
+        text: String
+      },
+      estimatedArrival: {
+        timestamp: Date,
+        formatted: String
+      }
+    },
+    calculatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  
   prixParPassager: {
     type: Number,
     required: true,
@@ -354,7 +404,7 @@ const trajetSchema = new mongoose.Schema({
   // Statut et état
   statutTrajet: {
     type: String,
-    enum: ['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE', 'EXPIRE'],  // ⭐ AJOUT: EXPIRE
+    enum: ['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE', 'EXPIRE'],
     default: 'PROGRAMME'
   },
   validationAutomatique: {
@@ -362,7 +412,7 @@ const trajetSchema = new mongoose.Schema({
     default: false
   },
 
-  // ⭐ NOUVEAU: Gestion de l'expiration
+  // Gestion de l'expiration
   dateExpiration: {
     type: Date,
     index: true
@@ -388,7 +438,9 @@ const trajetSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// =============== INDEX ===============
+// ===============================================
+// INDEX
+// ===============================================
 
 // Index géospatial pour les recherches par proximité
 trajetSchema.index({ "pointDepart.coordonnees": "2dsphere" });
@@ -404,7 +456,7 @@ trajetSchema.index({ trajetRecurrentId: 1, dateDepart: 1 });
 trajetSchema.index({ estInstanceRecurrente: 1, dateDepart: 1 });
 trajetSchema.index({ 'recurrence.dateFinRecurrence': 1 });
 
-// ⭐ NOUVEAUX INDEX pour l'expiration
+// Index pour l'expiration
 trajetSchema.index({ statutTrajet: 1, dateDepart: 1 });
 trajetSchema.index({ dateExpiration: 1 });
 trajetSchema.index({ 'recurrence.dateFinRecurrence': 1, typeTrajet: 1 });
@@ -414,7 +466,9 @@ trajetSchema.index({
   nombrePlacesDisponibles: 1 
 });
 
-// =============== MIDDLEWARES ===============
+// ===============================================
+// MIDDLEWARES PRE-SAVE
+// ===============================================
 
 // Middleware pre-save pour validation croisée
 trajetSchema.pre('save', function(next) {
@@ -440,7 +494,7 @@ trajetSchema.pre('save', function(next) {
     this.arretsIntermediaires.sort((a, b) => a.ordreArret - b.ordreArret);
   }
 
-  // ⭐ NOUVEAU: Vérifier l'expiration automatique
+  // Vérifier l'expiration automatique
   if (!this.isNew && this.estExpire() && this.statutTrajet === 'PROGRAMME') {
     this.statutTrajet = 'EXPIRE';
     this.dateExpiration = new Date();
@@ -450,7 +504,158 @@ trajetSchema.pre('save', function(next) {
   next();
 });
 
-// ⭐ NOUVEAU: Middleware pre-find pour filtrer les trajets expirés
+// ⭐ CALCUL AUTOMATIQUE DES DISTANCES
+trajetSchema.pre('save', async function(next) {
+  try {
+    // Calculer seulement si nouveau trajet OU coordonnées/date/heure modifiées
+    const shouldCalculate = this.isNew || 
+                           this.isModified('pointDepart.coordonnees') || 
+                           this.isModified('pointArrivee.coordonnees') ||
+                           this.isModified('dateDepart') ||
+                           this.isModified('heureDepart');
+    
+    if (shouldCalculate) {
+      const distanceService = require('../services/distanceService');
+      
+      console.log('📊 Calcul automatique des distances pour le trajet...');
+      
+      // ✅ Extraire les coordonnées du format GeoJSON
+      const originCoords = this.pointDepart.coordonnees.coordinates;
+      const destCoords = this.pointArrivee.coordonnees.coordinates;
+      
+      // Calculer les distances (voiture + piéton)
+      const distanceInfo = await distanceService.calculateMultiMode(
+        originCoords,
+        destCoords,
+        null,
+        this.conducteurId?.toString()  // userId pour rate limiting
+      );
+      
+      // ✅ Utiliser 'driving' (pas 'vehicle')
+      this.distance = parseFloat(distanceInfo.driving.distanceKm);
+      this.dureeEstimee = distanceInfo.driving.durationMinutes;
+      
+      // Calculer l'heure d'arrivée prévue
+      if (this.dateDepart && this.heureDepart) {
+        const arrivalInfo = distanceService.calculateArrivalTime(
+          this.heureDepart,
+          distanceInfo.driving.durationMinutes,
+          this.dateDepart
+        );
+        
+        if (arrivalInfo) {
+          this.heureArriveePrevue = arrivalInfo.heure;
+          
+          // Ajouter les infos d'arrivée
+          distanceInfo.driving.estimatedArrival = {
+            timestamp: new Date(arrivalInfo.date + 'T' + arrivalInfo.heure),
+            formatted: arrivalInfo.heure
+          };
+          
+          distanceInfo.walking.estimatedArrival = {
+            timestamp: new Date(arrivalInfo.date + 'T' + arrivalInfo.heure),
+            formatted: arrivalInfo.heure
+          };
+        }
+      }
+      
+      // ✅ Adapter la structure pour correspondre au schéma
+      this.infoDistance = {
+        vehicle: {
+          distance: {
+            value: distanceInfo.driving.distance,
+            km: parseFloat(distanceInfo.driving.distanceKm),
+            text: distanceInfo.driving.distanceText
+          },
+          duration: {
+            value: distanceInfo.driving.duration,
+            minutes: distanceInfo.driving.durationMinutes,
+            text: distanceInfo.driving.durationText
+          },
+          estimatedArrival: distanceInfo.driving.estimatedArrival || null
+        },
+        walking: {
+          distance: {
+            value: distanceInfo.walking.distance,
+            km: parseFloat(distanceInfo.walking.distanceKm),
+            text: distanceInfo.walking.distanceText
+          },
+          duration: {
+            value: distanceInfo.walking.duration,
+            minutes: distanceInfo.walking.durationMinutes,
+            text: distanceInfo.walking.durationText
+          },
+          estimatedArrival: distanceInfo.walking.estimatedArrival || null
+        },
+        calculatedAt: new Date()
+      };
+      
+      console.log('✅ Distances calculées:', {
+        distance: this.distance + ' km',
+        duree: this.dureeEstimee + ' min',
+        arrivee: this.heureArriveePrevue
+      });
+    }
+    
+    next();
+  } catch (error) {
+    console.error('⚠️ Erreur calcul distance:', error.message);
+    
+    // ✅ Fallback corrigé: utiliser Haversine
+    try {
+      const distanceService = require('../services/distanceService');
+      
+      const originCoords = this.pointDepart.coordonnees.coordinates;
+      const destCoords = this.pointArrivee.coordonnees.coordinates;
+      
+      const fallback = distanceService.calculateDistanceHaversine(
+        originCoords,
+        destCoords
+      );
+      
+      this.distance = parseFloat(fallback.distanceKm);
+      this.dureeEstimee = fallback.durationMinutes;
+      
+      if (this.dateDepart && this.heureDepart) {
+        const arrivalInfo = distanceService.calculateArrivalTime(
+          this.heureDepart,
+          fallback.durationMinutes,
+          this.dateDepart
+        );
+        
+        if (arrivalInfo) {
+          this.heureArriveePrevue = arrivalInfo.heure;
+        }
+      }
+      
+      this.infoDistance = {
+        vehicle: {
+          distance: {
+            value: fallback.distance,
+            km: parseFloat(fallback.distanceKm),
+            text: fallback.distanceText
+          },
+          duration: {
+            value: fallback.duration,
+            minutes: fallback.durationMinutes,
+            text: fallback.durationText
+          },
+          estimatedArrival: null
+        },
+        calculatedAt: new Date()
+      };
+      
+      console.log('✅ Distances calculées (fallback à vol d\'oiseau)');
+    } catch (fallbackError) {
+      console.error('❌ Erreur fallback:', fallbackError.message);
+      // Ne pas bloquer la sauvegarde si le calcul échoue
+    }
+    
+    next();
+  }
+});
+
+// Middleware pre-find pour filtrer les trajets expirés
 trajetSchema.pre(/^find/, function(next) {
   // Option pour inclure les trajets expirés
   if (!this.getOptions().includeExpired) {
@@ -491,7 +696,9 @@ trajetSchema.pre('save', async function(next) {
   }
 });
 
-// =============== MÉTHODES D'INSTANCE ===============
+// ===============================================
+// MÉTHODES D'INSTANCE
+// ===============================================
 
 trajetSchema.methods.peutEtreReserve = function() {
   return this.statutTrajet === 'PROGRAMME' && 
@@ -503,13 +710,11 @@ trajetSchema.methods.calculerTarifTotal = function(nombrePassagers = 1) {
   return this.prixParPassager * nombrePassagers;
 };
 
-// ⭐ NOUVEAU: Vérifier si un trajet est expiré
 trajetSchema.methods.estExpire = function() {
   const maintenant = new Date();
   return maintenant > this.dateDepart && this.statutTrajet === 'PROGRAMME';
 };
 
-// ⭐ NOUVEAU: Marquer ce trajet comme expiré
 trajetSchema.methods.marquerCommeExpire = async function() {
   if (this.estExpire()) {
     this.statutTrajet = 'EXPIRE';
@@ -521,7 +726,6 @@ trajetSchema.methods.marquerCommeExpire = async function() {
   return false;
 };
 
-// ⭐ NOUVEAU: Vérifier si la récurrence est expirée
 trajetSchema.methods.recurrenceEstExpiree = function() {
   if (this.typeTrajet === 'RECURRENT' && this.recurrence?.dateFinRecurrence) {
     return new Date() > this.recurrence.dateFinRecurrence;
@@ -529,7 +733,92 @@ trajetSchema.methods.recurrenceEstExpiree = function() {
   return false;
 };
 
-// Méthodes pour les trajets récurrents (existantes)
+// ⭐ RECALCULER LES DISTANCES MANUELLEMENT
+trajetSchema.methods.recalculerDistance = async function() {
+  const distanceService = require('../services/distanceService');
+  
+  try {
+    console.log('🔄 Recalcul manuel des distances...');
+    
+    // ✅ Extraire les coordonnées du format GeoJSON
+    const originCoords = this.pointDepart.coordonnees.coordinates;
+    const destCoords = this.pointArrivee.coordonnees.coordinates;
+    
+    const distanceInfo = await distanceService.calculateMultiMode(
+      originCoords,
+      destCoords,
+      null,
+      this.conducteurId?.toString()
+    );
+    
+    // ✅ Utiliser 'driving' (pas 'vehicle')
+    this.distance = parseFloat(distanceInfo.driving.distanceKm);
+    this.dureeEstimee = distanceInfo.driving.durationMinutes;
+    
+    if (this.dateDepart && this.heureDepart) {
+      const arrivalInfo = distanceService.calculateArrivalTime(
+        this.heureDepart,
+        distanceInfo.driving.durationMinutes,
+        this.dateDepart
+      );
+      
+      if (arrivalInfo) {
+        this.heureArriveePrevue = arrivalInfo.heure;
+        
+        distanceInfo.driving.estimatedArrival = {
+          timestamp: new Date(arrivalInfo.date + 'T' + arrivalInfo.heure),
+          formatted: arrivalInfo.heure
+        };
+        
+        distanceInfo.walking.estimatedArrival = {
+          timestamp: new Date(arrivalInfo.date + 'T' + arrivalInfo.heure),
+          formatted: arrivalInfo.heure
+        };
+      }
+    }
+    
+    // Adapter la structure
+    this.infoDistance = {
+      vehicle: {
+        distance: {
+          value: distanceInfo.driving.distance,
+          km: parseFloat(distanceInfo.driving.distanceKm),
+          text: distanceInfo.driving.distanceText
+        },
+        duration: {
+          value: distanceInfo.driving.duration,
+          minutes: distanceInfo.driving.durationMinutes,
+          text: distanceInfo.driving.durationText
+        },
+        estimatedArrival: distanceInfo.driving.estimatedArrival || null
+      },
+      walking: {
+        distance: {
+          value: distanceInfo.walking.distance,
+          km: parseFloat(distanceInfo.walking.distanceKm),
+          text: distanceInfo.walking.distanceText
+        },
+        duration: {
+          value: distanceInfo.walking.duration,
+          minutes: distanceInfo.walking.durationMinutes,
+          text: distanceInfo.walking.durationText
+        },
+        estimatedArrival: distanceInfo.walking.estimatedArrival || null
+      },
+      calculatedAt: new Date()
+    };
+    
+    await this.save();
+    
+    console.log('✅ Distances recalculées avec succès');
+    return this.infoDistance;
+  } catch (error) {
+    console.error('❌ Erreur recalcul distance:', error);
+    throw error;
+  }
+};
+
+// Méthodes pour les trajets récurrents
 trajetSchema.methods.estTrajetRecurrent = function() {
   return this.typeTrajet === 'RECURRENT';
 };
@@ -552,9 +841,10 @@ trajetSchema.methods.obtenirInstances = async function(dateDebut = null, dateFin
   return [];
 };
 
-// =============== MÉTHODES STATIQUES ===============
+// ===============================================
+// MÉTHODES STATIQUES
+// ===============================================
 
-// Méthodes existantes
 trajetSchema.statics.findTrajetsDisponibles = function(dateDebut, dateFin) {
   return this.find({
     dateDepart: { $gte: dateDebut, $lte: dateFin },
@@ -619,9 +909,7 @@ trajetSchema.statics.findTrajetsProches = function(longitude, latitude, distance
   });
 };
 
-// ⭐ NOUVELLES MÉTHODES pour la gestion de l'expiration
-
-// Trouver tous les trajets expirés
+// Méthodes pour la gestion de l'expiration
 trajetSchema.statics.findTrajetsExpires = function() {
   const maintenant = new Date();
   return this.find({
@@ -630,7 +918,6 @@ trajetSchema.statics.findTrajetsExpires = function() {
   });
 };
 
-// Trouver les trajets qui vont expirer dans X heures
 trajetSchema.statics.findTrajetsAExpirer = function(heures = 2) {
   const maintenant = new Date();
   const dateExpiration = new Date(maintenant.getTime() + (heures * 60 * 60 * 1000));
@@ -644,7 +931,6 @@ trajetSchema.statics.findTrajetsAExpirer = function(heures = 2) {
   });
 };
 
-// Trouver les trajets récurrents expirés
 trajetSchema.statics.findTrajetsRecurrentsExpires = function() {
   const maintenant = new Date();
   return this.find({
@@ -654,7 +940,6 @@ trajetSchema.statics.findTrajetsRecurrentsExpires = function() {
   });
 };
 
-// Marquer les trajets comme expirés
 trajetSchema.statics.marquerTrajetsExpires = async function() {
   const maintenant = new Date();
   
@@ -676,7 +961,6 @@ trajetSchema.statics.marquerTrajetsExpires = async function() {
   return result;
 };
 
-// Marquer les récurrences expirées
 trajetSchema.statics.marquerRecurrencesExpirees = async function() {
   const maintenant = new Date();
   
@@ -699,7 +983,6 @@ trajetSchema.statics.marquerRecurrencesExpirees = async function() {
   return result;
 };
 
-// Nettoyer les vieux trajets expirés (après X jours)
 trajetSchema.statics.nettoyerVieuxTrajetsExpires = async function(joursAGarder = 30) {
   const dateLimit = new Date();
   dateLimit.setDate(dateLimit.getDate() - joursAGarder);
@@ -713,7 +996,6 @@ trajetSchema.statics.nettoyerVieuxTrajetsExpires = async function(joursAGarder =
   return result;
 };
 
-// Obtenir des statistiques sur l'expiration
 trajetSchema.statics.getStatistiquesExpiration = async function() {
   const maintenant = new Date();
   
@@ -772,7 +1054,9 @@ trajetSchema.statics.getStatistiquesExpiration = async function() {
   };
 };
 
-// =============== VIRTUALS ===============
+// ===============================================
+// VIRTUALS
+// ===============================================
 
 trajetSchema.virtual('placesReservees').get(function() {
   return this.nombrePlacesTotal - this.nombrePlacesDisponibles;
@@ -782,13 +1066,18 @@ trajetSchema.virtual('tauxOccupation').get(function() {
   return Math.round((this.placesReservees / this.nombrePlacesTotal) * 100);
 });
 
-// ⭐ NOUVEAU: Virtual pour vérifier si expiré
 trajetSchema.virtual('isExpired').get(function() {
   return this.statutTrajet === 'EXPIRE' || this.estExpire();
 });
 
-// =============== PLUGINS ===============
+// ===============================================
+// PLUGINS
+// ===============================================
 
 trajetSchema.plugin(mongoosePaginate);
+
+// ===============================================
+// EXPORT
+// ===============================================
 
 module.exports = mongoose.model('Trajet', trajetSchema);

@@ -13,6 +13,13 @@ const crypto = require('crypto');
 class PaiementController {
   constructor() {
     this.cinetPayService = new CinetPayService();
+    
+    const proto = Object.getPrototypeOf(this);
+    Object.getOwnPropertyNames(proto)
+      .filter(name => typeof this[name] === 'function' && name !== 'constructor')
+      .forEach(name => {
+        this[name] = this[name].bind(this);
+      });
   }
 
   // =========================
@@ -230,7 +237,15 @@ class PaiementController {
             referenceInterne: paiement.referenceTransaction
           }
         );
-
+        // Si CinetPay renvoie une erreur (ex: solde marchand insuffisant), renvoyer code explicite
+        if (!result || result.success === false) {
+          logger.warn('CinetPay initiation failed', { reservationId, reference: paiement.referenceTransaction, err: result?.message });
+          return res.status(402).json({
+            success: false,
+            error: 'CINETPAY_ERREUR',
+            message: result?.message || 'Erreur lors de l\'initiation du paiement CinetPay. Solde ou configuration peut être insuffisante.'
+            });
+          }  
         return res.status(201).json({
           success: true,
           message: 'Paiement mobile initié',
@@ -508,8 +523,7 @@ class PaiementController {
   // =========================
   // GESTION DES RECHARGES
   // =========================
-
-  async initierRecharge(req, res) {
+    async initierRecharge(req, res) {
     try {
       const {
         montant,
@@ -630,13 +644,22 @@ class PaiementController {
 
       await paiement.save();
 
-      // Ajouter à l'historique des recharges de l'utilisateur
-      await user.rechargerCompte(
-        montant, 
-        methodePaiement.toLowerCase(),
-        paiement.referenceTransaction,
-        fraisTransaction
-      );
+      // ✅ CORRECTION : Ajouter seulement à l'historique SANS créditer le solde
+      // Le crédit effectif se fera dans confirmerRecharge() ou via webhook
+      if (!user.compteCovoiturage.historiqueRecharges) {
+        user.compteCovoiturage.historiqueRecharges = [];
+      }
+      
+      user.compteCovoiturage.historiqueRecharges.push({
+        montant,
+        methodePaiement: methodePaiement.toLowerCase(),
+        referenceTransaction: paiement.referenceTransaction,
+        fraisTransaction,
+        statut: 'en_attente', // ✅ Statut en_attente, pas "reussi"
+        dateRecharge: new Date()
+      });
+      
+      await user.save();
 
       paiement.ajouterLog('RECHARGE_INITIEE', {
         userId,
@@ -645,7 +668,8 @@ class PaiementController {
         fraisTransaction,
         bonusRecharge: paiement.bonus.bonusRecharge,
         methodePaiement,
-        operateur: operateur || methodePaiement.replace('_MONEY', '')
+        operateur: operateur || methodePaiement.replace('_MONEY', ''),
+        note: 'Recharge initiée - En attente de confirmation paiement'
       });
 
       logger.info('Recharge initiée', {
@@ -654,7 +678,8 @@ class PaiementController {
         montant,
         bonusRecharge: paiement.bonus.bonusRecharge,
         methodePaiement,
-        referenceTransaction: paiement.referenceTransaction
+        referenceTransaction: paiement.referenceTransaction,
+        statut: 'EN_ATTENTE'
       });
 
       res.status(201).json({
@@ -671,7 +696,13 @@ class PaiementController {
           methodePaiement,
           statutPaiement: paiement.statutPaiement,
           dateInitiation: paiement.dateInitiation,
-          instructions: this.genererInstructionsRecharge(methodePaiement, numeroTelephone, montant)
+          instructions: this.genererInstructionsRecharge(methodePaiement, numeroTelephone, montant),
+          important: [
+            '⏳ Votre recharge est en attente de confirmation',
+            '📱 Complétez le paiement mobile money',
+            '✅ Votre solde sera crédité après confirmation (sous 15 minutes)',
+            '💡 Conservez votre code de transaction'
+          ]
         }
       });
 
