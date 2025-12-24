@@ -28,20 +28,39 @@ const {
   validatePaiementId,
   validateTrajetId,
   validateHistoriquePaiements,
-  validateRemboursement,
-  
-  // Admin - Commissions
-  validateStatistiquesCommissions,
-  validateTraiterCommissionsEchec,
-  validateRapportCommissions,
-  
-  // Admin - Recharges
-  validateStatistiquesRecharges,
-  validateTraiterRechargesAttente,
-  
+
   // Webhooks
   validateWebhookCinetPay
 } = require('../middlewares/validation');
+
+// =========================
+// MIDDLEWARE CONDITIONNEL POUR WEBHOOK OU ADMIN
+// =========================
+const webhookOuAdmin = (req, res, next) => {
+  // Vérifier si c'est un webhook
+  const estWebhook = req.headers['x-webhook-signature'] || req.body.webhook === true;
+  
+  if (estWebhook) {
+    // Webhook → Passer sans authentification
+    return next();
+  }
+  
+  // Sinon, authentification obligatoire
+  authenticateToken(req, res, (err) => {
+    if (err) return;
+    
+    // Vérifier rôle admin pour confirmation manuelle
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'AUTORISATION_REQUISE',
+        message: 'Seuls les administrateurs peuvent confirmer manuellement une recharge'
+      });
+    }
+    
+    next();
+  });
+};
 
 // =========================
 // ROUTES PUBLIQUES (SANS AUTH)
@@ -163,12 +182,13 @@ router.post('/recharge/initier',
 );
 
 /**
- * @route   POST /api/paiements/recharge/confirmer
- * @desc    Confirmer une recharge (callback mobile money)
- * @access  Private (Conducteur)
+ * 🔒 @route   POST /api/paiements/recharge/confirmer
+ * @desc    Confirmer une recharge (webhook automatique OU admin manuel)
+ * @access  Public (Webhook) OU Private (Admin uniquement)
+ * @note    Utilise un middleware spécial pour autoriser webhooks sans auth
  */
 router.post('/recharge/confirmer', 
-  requireRole(['conducteur', 'les_deux']), 
+  webhookOuAdmin,  // ✅ Middleware conditionnel
   validateConfirmerRecharge, 
   paiementController.confirmerRecharge
 );
@@ -215,104 +235,6 @@ router.delete('/recharge/annuler/:referenceTransaction',
   requireRole(['conducteur', 'les_deux']), 
   validateAnnulerRecharge,
   paiementController.annulerRecharge
-);
-
-// =========================
-// ROUTES ADMIN
-// =========================
-
-/**
- * @route   POST /api/paiements/admin/rembourser
- * @desc    Rembourser un paiement (admin)
- * @access  Private (Admin)
- */
-router.post('/admin/rembourser', 
-  requireRole(['admin']), 
-  validateRemboursement,
-  paiementController.rembourserPaiement
-);
-
-// =========================
-// ADMIN - GESTION DES COMMISSIONS
-// =========================
-
-/**
- * @route   GET /api/paiements/admin/commissions/statistiques
- * @desc    Statistiques des commissions pour les admins
- * @access  Private (Admin)
- */
-router.get('/admin/commissions/statistiques', 
-  requireRole(['admin']), 
-  validateStatistiquesCommissions,
-  paiementController.obtenirStatistiquesCommissions
-);
-
-/**
- * @route   POST /api/paiements/admin/commissions/traiter-echecs
- * @desc    Traiter les commissions en échec
- * @access  Private (Admin)
- */
-router.post('/admin/commissions/traiter-echecs', 
-  requireRole(['admin']), 
-  validateTraiterCommissionsEchec,
-  paiementController.traiterCommissionsEnEchec
-);
-
-/**
- * @route   GET /api/paiements/admin/commissions/detail/:paiementId
- * @desc    Détail d'une commission spécifique
- * @access  Private (Admin ou propriétaire)
- */
-router.get('/admin/commissions/detail/:paiementId', 
-  validatePaiementId,
-  paiementController.obtenirDetailCommission
-);
-
-/**
- * @route   GET /api/paiements/admin/commissions/rapport
- * @desc    Générer un rapport des commissions (JSON, PDF, CSV)
- * @access  Private (Admin)
- */
-router.get('/admin/commissions/rapport', 
-  requireRole(['admin']), 
-  validateRapportCommissions,
-  paiementController.genererRapportCommissions
-);
-
-/**
- * @route   GET /api/paiements/admin/commissions/surveillance
- * @desc    Surveillance en temps réel des commissions
- * @access  Private (Admin)
- */
-router.get('/admin/commissions/surveillance', 
-  requireRole(['admin']), 
-  paiementController.surveillerCommissions
-);
-
-// =========================
-// ADMIN - GESTION DES RECHARGES
-// =========================
-
-/**
- * @route   GET /api/paiements/admin/recharges/statistiques
- * @desc    Statistiques des recharges pour les admins
- * @access  Private (Admin)
- */
-router.get('/admin/recharges/statistiques', 
-  requireRole(['admin']), 
-  validateStatistiquesRecharges,
-  paiementController.obtenirStatistiquesRecharges
-);
-
-/**
- * @route   POST /api/paiements/admin/recharges/traiter-attente
- * @desc    Traiter les recharges en attente (confirmation automatique ou expiration)
- * @access  Private (Admin)
- */
-router.post('/admin/recharges/traiter-attente', 
-  requireRole(['admin']), 
-  validateTraiterRechargesAttente,
-  paiementController.traiterRechargesEnAttente
 );
 
 module.exports = router;

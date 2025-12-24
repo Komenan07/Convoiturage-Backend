@@ -182,7 +182,7 @@ const preferencesSchema = new mongoose.Schema({
   },
   conversation: {
     type: String,
-    enum: ['AUCUNE', 'LIMITEE', 'LIBRE'],
+    enum: ['AUCUNE', 'LIMITEE', 'MODERE', 'LIBRE'],
     default: 'LIBRE'
   },
   fumeur: {

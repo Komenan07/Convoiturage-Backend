@@ -74,7 +74,18 @@ const {
   obtenirPaiement,
   rembourserPaiement,
   obtenirStatistiquesPaiements,
+  // Gestion Commissions
+  obtenirStatistiquesCommissions,
+  traiterCommissionsEnEchec,
+  obtenirDetailCommission,
+  genererRapportCommissions,
+  surveillerCommissions,
   exporterPaiements,
+  
+ // Gestion Recharges
+  obtenirStatistiquesRecharges,
+  traiterRechargesEnAttente,
+
   // Gestion Signalements
   listerSignalements,
   obtenirSignalement,
@@ -836,6 +847,102 @@ router.get('/paiements/statistiques',
   obtenirStatistiquesPaiements || creerControleurParDefaut('obtenirStatistiquesPaiements')
 );
 
+/**
+ * @route   GET /api/admin/paiements/commissions/statistiques
+ * @desc    Statistiques détaillées des commissions
+ * @access  Private (Admin avec permission ANALYTICS)
+ */
+router.get(
+  '/paiements/commissions/statistiques',
+  middlewareAuth,
+  middlewareRateLimit('reporting'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'ANALYTICS', 'GESTION_PAIEMENTS']),
+  obtenirStatistiquesCommissions || creerControleurParDefaut('obtenirStatistiquesCommissions')
+);
+
+/**
+ * @route   POST /api/admin/paiements/commissions/traiter-echecs
+ * @desc    Traiter les commissions en échec
+ * @access  Private (Admin avec permission GESTION_PAIEMENTS)
+ */
+router.post(
+  '/paiements/commissions/traiter-echecs',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'GESTION_PAIEMENTS']),
+  middlewareLogSensitiveAction('COMMISSIONS_TRAITER_ECHECS'),
+  traiterCommissionsEnEchec || creerControleurParDefaut('traiterCommissionsEnEchec')
+);
+
+/**
+ * @route   GET /api/admin/paiements/:paiementId/commission
+ * @desc    Détails d'une commission spécifique
+ * @access  Private (Admin)
+ */
+router.get(
+  '/paiements/:paiementId/commission',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  param('paiementId').matches(/^[0-9a-fA-F]{24}$/).withMessage('ID paiement invalide'),
+  obtenirDetailCommission || creerControleurParDefaut('obtenirDetailCommission')
+);
+
+/**
+ * @route   GET /api/admin/paiements/commissions/rapport
+ * @desc    Générer un rapport des commissions
+ * @access  Private (Admin avec permission ANALYTICS)
+ */
+router.get(
+  '/paiements/commissions/rapport',
+  middlewareAuth,
+  middlewareRateLimit('reporting'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'ANALYTICS']),
+  middlewareLogSensitiveAction('RAPPORT_COMMISSIONS_GENERATION'),
+  genererRapportCommissions || creerControleurParDefaut('genererRapportCommissions')
+);
+
+/**
+ * @route   GET /api/admin/paiements/commissions/surveiller
+ * @desc    Surveillance en temps réel des commissions
+ * @access  Private (Admin)
+ */
+router.get(
+  '/paiements/commissions/surveiller',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  surveillerCommissions || creerControleurParDefaut('surveillerCommissions')
+);
+
+// =====================================================
+// ROUTES RECHARGES (ADMIN)
+// =====================================================
+
+/**
+ * @route   GET /api/admin/paiements/recharges/statistiques
+ * @desc    Statistiques détaillées des recharges
+ * @access  Private (Admin avec permission ANALYTICS)
+ */
+router.get(
+  '/paiements/recharges/statistiques',
+  middlewareAuth,
+  middlewareRateLimit('reporting'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'ANALYTICS', 'GESTION_PAIEMENTS']),
+  obtenirStatistiquesRecharges || creerControleurParDefaut('obtenirStatistiquesRecharges')
+);
+
+/**
+ * @route   POST /api/admin/paiements/recharges/traiter-attentes
+ * @desc    Traiter les recharges en attente (expiration automatique)
+ * @access  Private (Admin avec permission GESTION_PAIEMENTS)
+ */
+router.post(
+  '/paiements/recharges/traiter-attentes',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'GESTION_PAIEMENTS']),
+  middlewareLogSensitiveAction('RECHARGES_TRAITER_ATTENTES'),
+  traiterRechargesEnAttente || creerControleurParDefaut('traiterRechargesEnAttente')
+);
 /**
  * @route   GET /api/admin/paiements/export
  * @desc    Exporter les paiements

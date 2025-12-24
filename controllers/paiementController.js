@@ -237,15 +237,27 @@ class PaiementController {
             referenceInterne: paiement.referenceTransaction
           }
         );
-        // Si CinetPay renvoie une erreur (ex: solde marchand insuffisant), renvoyer code explicite
+        
+        // Si CinetPay renvoie une erreur (ex: solde marchand insuffisant)
         if (!result || result.success === false) {
-          logger.warn('CinetPay initiation failed', { reservationId, reference: paiement.referenceTransaction, err: result?.message });
+          logger.warn('CinetPay initiation failed', { 
+            reservationId, 
+            reference: paiement.referenceTransaction, 
+            err: result?.message 
+          });
+          
+          // Marquer le paiement comme échoué
+          paiement.statutPaiement = 'ECHEC';
+          paiement.ajouterErreur('CINETPAY_INITIATION_ECHEC', result?.message || 'Erreur CinetPay');
+          await paiement.save();
+          
           return res.status(402).json({
             success: false,
             error: 'CINETPAY_ERREUR',
             message: result?.message || 'Erreur lors de l\'initiation du paiement CinetPay. Solde ou configuration peut être insuffisante.'
-            });
-          }  
+          });
+        }
+        
         return res.status(201).json({
           success: true,
           message: 'Paiement mobile initié',
@@ -441,50 +453,50 @@ class PaiementController {
       // Envoyer notification
       await this.envoyerEmailConfirmationPaiement(conducteur, paiement);
 
-       // Notification Firebase au conducteur
-    try {
-      if (conducteur.notificationsActivees('paiements')) {
-        await firebaseService.notifyPaymentSuccess(
-          conducteur._id,
-          {
-            montant: paiement.montantTotal,
-            transactionId: paiement.referenceTransaction,
-            methode: 'especes'
-          },
-          Utilisateur
-        );
-        
-        logger.info('📱 Notification Firebase envoyée au conducteur', {
-          conducteurId: conducteur._id,
-          montant: paiement.montantTotal
-        });
+      // Notification Firebase au conducteur
+      try {
+        if (conducteur.notificationsActivees('paiements')) {
+          await firebaseService.notifyPaymentSuccess(
+            conducteur._id,
+            {
+              montant: paiement.montantTotal,
+              transactionId: paiement.referenceTransaction,
+              methode: 'especes'
+            },
+            Utilisateur
+          );
+          
+          logger.info('📱 Notification Firebase envoyée au conducteur', {
+            conducteurId: conducteur._id,
+            montant: paiement.montantTotal
+          });
+        }
+      } catch (notifError) {
+        logger.error('❌ Erreur notification Firebase conducteur:', notifError);
       }
-    } catch (notifError) {
-      logger.error('❌ Erreur notification Firebase conducteur:', notifError);
-    }
-    
-    // Notification Firebase au passager
-    try {
-      const passager = await Utilisateur.findById(paiement.payeurId);
-      if (passager && passager.notificationsActivees('paiements')) {
-        await firebaseService.notifyPaymentSuccess(
-          passager._id,
-          {
-            montant: paiement.montantTotal,
-            transactionId: paiement.referenceTransaction,
-            methode: 'especes'
-          },
-          Utilisateur
-        );
-        
-        logger.info('📱 Notification Firebase envoyée au passager', {
-          passagerId: passager._id,
-          montant: paiement.montantTotal
-        });
+      
+      // Notification Firebase au passager
+      try {
+        const passager = await Utilisateur.findById(paiement.payeurId);
+        if (passager && passager.notificationsActivees('paiements')) {
+          await firebaseService.notifyPaymentSuccess(
+            passager._id,
+            {
+              montant: paiement.montantTotal,
+              transactionId: paiement.referenceTransaction,
+              methode: 'especes'
+            },
+            Utilisateur
+          );
+          
+          logger.info('📱 Notification Firebase envoyée au passager', {
+            passagerId: passager._id,
+            montant: paiement.montantTotal
+          });
+        }
+      } catch (notifError) {
+        logger.error('❌ Erreur notification Firebase passager:', notifError);
       }
-    } catch (notifError) {
-      logger.error('❌ Erreur notification Firebase passager:', notifError);
-    }
 
       logger.info('Paiement espèces confirmé', {
         paiementId: paiement._id,
@@ -523,7 +535,8 @@ class PaiementController {
   // =========================
   // GESTION DES RECHARGES
   // =========================
-    async initierRecharge(req, res) {
+  
+  async initierRecharge(req, res) {
     try {
       const {
         montant,
@@ -724,6 +737,9 @@ class PaiementController {
         statutPaiement = 'COMPLETE',
         donneesCallback = {}
       } = req.body;
+      
+      const userId = req.user?.userId;
+      const userRole = req.user?.role;
 
       if (!referenceTransaction) {
         return res.status(400).json({
@@ -753,6 +769,79 @@ class PaiementController {
         });
       }
 
+      // 🔒 SÉCURITÉ : Si confirmation manuelle (pas webhook), vérifier les permissions
+      const estWebhook = req.headers['x-webhook-signature'] || req.body.webhook === true;
+      
+      if (!estWebhook) {
+        // Confirmation manuelle - nécessite admin
+        if (userRole !== 'admin') {
+          logger.warn('⚠️ Tentative confirmation manuelle non autorisée', {
+            userId,
+            userRole,
+            referenceTransaction
+          });
+          
+          return res.status(403).json({
+            success: false,
+            error: 'AUTORISATION_REQUISE',
+            message: 'Seuls les administrateurs peuvent confirmer manuellement une recharge',
+            note: 'Les confirmations automatiques se font via webhook CinetPay'
+          });
+        }
+
+        // 🔒 SÉCURITÉ : Vérifier auprès de CinetPay avant confirmation manuelle
+        logger.info('🔍 Vérification CinetPay avant confirmation manuelle', {
+          referenceTransaction,
+          adminId: userId
+        });
+
+        try {
+          const verificationCinetPay = await this.cinetPayService.verifierStatutTransaction(
+            referenceTransaction
+          );
+
+          if (verificationCinetPay.statutPaiement !== statutPaiement) {
+            logger.warn('⚠️ Discordance statut CinetPay', {
+              referenceTransaction,
+              statutDemande: statutPaiement,
+              statutCinetPay: verificationCinetPay.statutPaiement,
+              adminId: userId
+            });
+
+            return res.status(400).json({
+              success: false,
+              error: 'STATUT_DISCORDANT',
+              message: 'Le statut demandé ne correspond pas au statut CinetPay',
+              statutCinetPay: verificationCinetPay.statutPaiement,
+              statutDemande: statutPaiement,
+              recommandation: 'Vérifiez le statut réel sur le dashboard CinetPay'
+            });
+          }
+
+          logger.info('✅ Vérification CinetPay réussie', {
+            referenceTransaction,
+            statutConfirme: verificationCinetPay.statutPaiement
+          });
+
+        } catch (cinetpayError) {
+          logger.error('❌ Erreur vérification CinetPay:', cinetpayError);
+          
+          return res.status(503).json({
+            success: false,
+            error: 'CINETPAY_INDISPONIBLE',
+            message: 'Impossible de vérifier le statut auprès de CinetPay',
+            details: cinetpayError.message,
+            recommandation: 'Réessayez dans quelques instants ou vérifiez manuellement sur CinetPay'
+          });
+        }
+
+        paiement.ajouterLog('CONFIRMATION_MANUELLE_ADMIN', {
+          adminId: userId,
+          dateConfirmation: new Date(),
+          verificationCinetPay: 'effectuee'
+        });
+      }
+
       // Traiter selon le nouveau statut
       if (statutPaiement === 'COMPLETE') {
         // Recharge réussie
@@ -777,6 +866,7 @@ class PaiementController {
 
         // Envoyer email de confirmation
         await this.envoyerEmailConfirmationRecharge(user, paiement);
+        
         // Notification Firebase - Recharge réussie
         try {
           if (user.notificationsActivees('paiements')) {
@@ -805,7 +895,8 @@ class PaiementController {
           montantBase: paiement.montantConducteur,
           bonusRecharge: paiement.bonus.bonusRecharge,
           nouveauSolde: user.compteCovoiturage.solde,
-          codeVerification
+          codeVerification,
+          modeConfirmation: estWebhook ? 'webhook' : 'manuel_admin'
         });
 
         logger.info('Recharge confirmée', {
@@ -813,7 +904,8 @@ class PaiementController {
           userId: user._id,
           montant: paiement.montantTotal,
           montantCredite: montantACrediter,
-          nouveauSolde: user.compteCovoiturage.solde
+          nouveauSolde: user.compteCovoiturage.solde,
+          modeConfirmation: estWebhook ? 'webhook' : 'manuel_admin'
         });
 
         res.json({
@@ -827,7 +919,8 @@ class PaiementController {
             bonusRecharge: paiement.bonus.bonusRecharge,
             nouveauSolde: user.compteCovoiturage.solde,
             statutPaiement: paiement.statutPaiement,
-            dateCompletion: paiement.dateCompletion
+            dateCompletion: paiement.dateCompletion,
+            modeConfirmation: estWebhook ? 'automatique' : 'manuel'
           }
         });
 
@@ -850,27 +943,27 @@ class PaiementController {
         paiement.ajouterErreur('RECHARGE_ECHEC', 
           donneesCallback.messageErreur || 'Échec du paiement mobile money');
 
-          // Notification Firebase - Recharge échouée
-          try {
-            if (user.notificationsActivees('paiements')) {
-              await firebaseService.notifyPaymentFailed(
-                user._id,
-                {
-                  montant: paiement.montantTotal,
-                  transactionId: referenceTransaction,
-                  reason: donneesCallback.messageErreur || 'Échec du paiement'
-                },
-                Utilisateur
-              );
-              
-              logger.info('📱 Notification Firebase recharge échouée envoyée', {
-                userId: user._id,
-                raison: donneesCallback.messageErreur
-              });
-            }
-          } catch (notifError) {
-            logger.error('❌ Erreur notification Firebase échec:', notifError);
+        // Notification Firebase - Recharge échouée
+        try {
+          if (user.notificationsActivees('paiements')) {
+            await firebaseService.notifyPaymentFailed(
+              user._id,
+              {
+                montant: paiement.montantTotal,
+                transactionId: referenceTransaction,
+                reason: donneesCallback.messageErreur || 'Échec du paiement'
+              },
+              Utilisateur
+            );
+            
+            logger.info('📱 Notification Firebase recharge échouée envoyée', {
+              userId: user._id,
+              raison: donneesCallback.messageErreur
+            });
           }
+        } catch (notifError) {
+          logger.error('❌ Erreur notification Firebase échec:', notifError);
+        }
 
         res.json({
           success: true,
@@ -1475,64 +1568,7 @@ class PaiementController {
       });
     }
   }
-
-  async rembourserPaiement(req, res) {
-    try {
-      const { paiementId, raison } = req.body;
-      const adminId = req.user._id;
-
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Seuls les administrateurs peuvent effectuer des remboursements'
-        });
-      }
-
-      const paiement = await Paiement.findById(paiementId);
-      
-      if (!paiement || paiement.statutPaiement !== 'COMPLETE') {
-        return res.status(400).json({
-          success: false,
-          error: 'PAIEMENT_NON_ELIGIBLE',
-          message: 'Paiement non éligible au remboursement'
-        });
-      }
-
-      // Marquer comme remboursé
-      paiement.statutPaiement = 'REMBOURSE';
-      paiement.ajouterLog('REMBOURSEMENT_ADMIN', {
-        adminId,
-        raison,
-        montantRembourse: paiement.montantTotal,
-        dateRemboursement: new Date()
-      });
-
-      await paiement.save();
-
-      logger.info('Paiement remboursé', {
-        paiementId,
-        adminId,
-        montant: paiement.montantTotal,
-        raison
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: 'Paiement remboursé avec succès',
-        paiement: paiement.obtenirResume()
-      });
-
-    } catch (error) {
-      logger.error('Erreur remboursement:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_REMBOURSEMENT',
-        message: error.message
-      });
-    }
-  }
-
+  
   async obtenirMethodesDisponibles(req, res) {
     try {
       const methodes = [
@@ -1576,798 +1612,6 @@ class PaiementController {
       return res.status(500).json({
         success: false,
         error: 'ERREUR_METHODES',
-        message: error.message
-      });
-    }
-  }
-
-  // =========================
-  // GESTION DES COMMISSIONS (ADMIN)
-  // =========================
-
-  async obtenirStatistiquesCommissions(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const { 
-        dateDebut, 
-        dateFin, 
-        periode = '30' 
-      } = req.query;
-
-      const finPeriode = dateFin ? new Date(dateFin) : new Date();
-      const debutPeriode = dateDebut ? new Date(dateDebut) : 
-        new Date(finPeriode.getTime() - parseInt(periode) * 24 * 60 * 60 * 1000);
-
-      const stats = await Paiement.obtenirStatistiquesCommissions(debutPeriode, finPeriode);
-      const commissionsEchec = await Paiement.obtenirCommissionsEnEchec();
-      const statsModePaiement = await Paiement.statistiquesParModePaiement();
-      const analyseRevenus = await Paiement.analyseRevenus(parseInt(periode));
-
-      const [statsActuelles] = stats.length > 0 ? stats : [{}];
-      const tauxCommissionMoyen = statsActuelles.montantTotalTraite > 0 ? 
-        (statsActuelles.totalCommissions / statsActuelles.montantTotalTraite * 100) : 0;
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          periode: {
-            debut: debutPeriode,
-            fin: finPeriode,
-            jours: Math.ceil((finPeriode - debutPeriode) / (1000 * 60 * 60 * 24))
-          },
-          statistiques: {
-            totalCommissions: statsActuelles.totalCommissions || 0,
-            nombreTransactions: statsActuelles.nombreTransactions || 0,
-            montantTotalTraite: statsActuelles.montantTotalTraite || 0,
-            montantMoyenTransaction: statsActuelles.montantMoyenTransaction || 0,
-            tauxCommissionMoyen: Math.round(tauxCommissionMoyen * 100) / 100,
-            totalBonus: statsActuelles.totalBonus || 0
-          },
-          repartitionParMode: statsModePaiement,
-          evolutionQuotidienne: analyseRevenus,
-          alertes: {
-            commissionsEnEchec: commissionsEchec.length,
-            commissionsEnEchecDetails: commissionsEchec.slice(0, 10)
-          }
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur statistiques commissions:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_STATISTIQUES',
-        message: error.message
-      });
-    }
-  }
-
-  async traiterCommissionsEnEchec(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const adminId = req.user._id;
-      const { paiementIds, action = 'retry' } = req.body;
-
-      if (!paiementIds || !Array.isArray(paiementIds)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Liste des IDs de paiement requise'
-        });
-      }
-
-      const paiements = await Paiement.find({
-        _id: { $in: paiementIds },
-        'commission.statutPrelevement': { $in: ['echec', 'insuffisant'] },
-        statutPaiement: 'COMPLETE'
-      }).populate('beneficiaireId', 'nom prenom email compteCovoiturage');
-
-      let traites = 0;
-      let echecs = 0;
-      const resultats = [];
-
-      for (const paiement of paiements) {
-        try {
-          let resultat = {
-            paiementId: paiement._id,
-            referenceTransaction: paiement.referenceTransaction,
-            montantCommission: paiement.commission.montant
-          };
-
-          switch (action) {
-            case 'retry':
-              await paiement.traiterCommissionApresPayement();
-              resultat.action = 'Reprélèvement tenté';
-              resultat.succes = true;
-              traites++;
-              break;
-
-            case 'waive':
-              paiement.commission.statutPrelevement = 'preleve';
-              paiement.commission.datePrelevement = new Date();
-              paiement.ajouterLog('COMMISSION_ANNULEE_ADMIN', {
-                adminId,
-                raison: 'Geste commercial - commission annulée',
-                montantAnnule: paiement.commission.montant
-              });
-              await paiement.save();
-              resultat.action = 'Commission annulée';
-              resultat.succes = true;
-              traites++;
-              break;
-
-            case 'manual':
-              paiement.commission.statutPrelevement = 'preleve';
-              paiement.commission.datePrelevement = new Date();
-              paiement.ajouterLog('COMMISSION_MANUELLE_ADMIN', {
-                adminId,
-                raison: 'Traitement manuel par administrateur'
-              });
-              await paiement.save();
-              resultat.action = 'Marqué comme traité';
-              resultat.succes = true;
-              traites++;
-              break;
-
-            default:
-              resultat.action = 'Action inconnue';
-              resultat.succes = false;
-              echecs++;
-              break;
-          }
-
-          resultats.push(resultat);
-
-        } catch (error) {
-          echecs++;
-          resultats.push({
-            paiementId: paiement._id,
-            action: 'Erreur de traitement',
-            succes: false,
-            erreur: error.message
-          });
-          
-          logger.error(`Erreur traitement commission ${paiement._id}:`, error);
-        }
-      }
-
-      logger.info('Traitement manuel commissions échec', {
-        adminId,
-        action,
-        paiementsTraites: traites,
-        paiementsEchecs: echecs
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: `Traitement terminé: ${traites} succès, ${echecs} échecs`,
-        data: {
-          statistiques: { traites, echecs, total: paiements.length },
-          resultats
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur traitement commissions échec:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_TRAITEMENT_COMMISSIONS',
-        message: error.message
-      });
-    }
-  }
-
-  async obtenirDetailCommission(req, res) {
-    try {
-      const { paiementId } = req.params;
-      const userId = req.user._id;
-
-      const paiement = await Paiement.findById(paiementId)
-        .populate('payeurId', 'nom prenom email telephone')
-        .populate('beneficiaireId', 'nom prenom email compteCovoiturage')
-        .populate({
-          path: 'reservationId',
-          populate: {
-            path: 'trajetId',
-            select: 'pointDepart pointArrivee dateDepart prixParPassager distanceKm'
-          }
-        });
-
-      if (!paiement) {
-        return res.status(404).json({
-          success: false,
-          message: 'Paiement non trouvé'
-        });
-      }
-
-      // Vérifier que l'utilisateur peut voir ce paiement
-      const estProprietaire = paiement.payeurId._id.toString() === userId.toString() || 
-                              paiement.beneficiaireId._id.toString() === userId.toString();
-      const estAdmin = req.user.role === 'admin';
-
-      if (!estProprietaire && !estAdmin) {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès non autorisé'
-        });
-      }
-
-      const tentativesPrelevement = paiement.logsTransaction.filter(
-        log => log.action.includes('COMMISSION')
-      );
-
-      const delaiTraitement = paiement.dateCompletion && paiement.dateInitiation ?
-        Math.round((paiement.dateCompletion - paiement.dateInitiation) / (1000 * 60)) : null;
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          paiement: paiement.obtenirResume(),
-          detailsCommission: {
-            taux: paiement.commission.taux,
-            tauxOriginal: paiement.commission.tauxOriginal,
-            montant: paiement.commission.montant,
-            reductionAppliquee: paiement.commission.reductionAppliquee,
-            raisonReduction: paiement.commission.raisonReduction,
-            typeTarification: paiement.commission.typeTarification,
-            modePrelevement: paiement.commission.modePrelevement,
-            statutPrelevement: paiement.commission.statutPrelevement,
-            datePrelevement: paiement.commission.datePrelevement,
-            referencePrelevement: paiement.commission.referencePrelevement,
-            tentativesPrelevement: tentativesPrelevement.length
-          },
-          bonus: paiement.bonus,
-          participants: {
-            payeur: {
-              id: paiement.payeurId._id,
-              nom: `${paiement.payeurId.prenom} ${paiement.payeurId.nom}`,
-              email: paiement.payeurId.email
-            },
-            conducteur: {
-              id: paiement.beneficiaireId._id,
-              nom: `${paiement.beneficiaireId.prenom} ${paiement.beneficiaireId.nom}`,
-              email: paiement.beneficiaireId.email,
-              compteRecharge: paiement.beneficiaireId.compteCovoiturage?.estRecharge || false
-            }
-          },
-          metriques: {
-            delaiTraitement: delaiTraitement ? `${delaiTraitement} minutes` : null,
-            nombreTentatives: tentativesPrelevement.length,
-            nombreErreurs: paiement.erreurs.length
-          },
-          historique: {
-            logs: tentativesPrelevement.slice(-5),
-            erreurs: paiement.erreurs.slice(-3)
-          }
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur détail commission:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_DETAIL_COMMISSION',
-        message: error.message
-      });
-    }
-  }
-
-  async genererRapportCommissions(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const { 
-        format = 'json', 
-        dateDebut, 
-        dateFin, 
-        groupePar = 'jour'
-      } = req.query;
-
-      const debut = dateDebut ? new Date(dateDebut) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const fin = dateFin ? new Date(dateFin) : new Date();
-
-      if (debut >= fin) {
-        return res.status(400).json({
-          success: false,
-          message: 'Date de début doit être antérieure à date de fin'
-        });
-      }
-
-      let formatDate;
-      switch (groupePar) {
-        case 'heure':
-          formatDate = '%Y-%m-%d %H:00';
-          break;
-        case 'jour':
-          formatDate = '%Y-%m-%d';
-          break;
-        case 'semaine':
-          formatDate = '%Y-%U';
-          break;
-        case 'mois':
-          formatDate = '%Y-%m';
-          break;
-        default:
-          formatDate = '%Y-%m-%d';
-          break;
-      }
-
-      const donnees = await Paiement.aggregate([
-        {
-          $match: {
-            statutPaiement: 'COMPLETE',
-            dateCompletion: { $gte: debut, $lte: fin }
-          }
-        },
-        {
-          $group: {
-            _id: { $dateToString: { format: formatDate, date: '$dateCompletion' } },
-            nombreTransactions: { $sum: 1 },
-            montantTotalTraite: { $sum: '$montantTotal' },
-            totalCommissions: { $sum: '$commission.montant' },
-            totalBonus: { 
-              $sum: { 
-                $add: ['$bonus.bonusRecharge', '$bonus.primePerformance'] 
-              } 
-            },
-            commissionsPrelevees: {
-              $sum: {
-                $cond: [
-                  { $eq: ['$commission.statutPrelevement', 'preleve'] },
-                  '$commission.montant',
-                  0
-                ]
-              }
-            }
-          }
-        },
-        {
-          $project: {
-            periode: '$_id',
-            nombreTransactions: 1,
-            montantTotalTraite: 1,
-            totalCommissions: 1,
-            totalBonus: 1,
-            commissionsPrelevees: 1,
-            tauxPrelevement: {
-              $multiply: [
-                { $divide: ['$commissionsPrelevees', '$totalCommissions'] },
-                100
-              ]
-            }
-          }
-        },
-        { $sort: { periode: 1 } }
-      ]);
-
-      const rapport = {
-        success: true,
-        data: {
-          parametres: { dateDebut: debut, dateFin: fin, groupePar },
-          resumeExecutif: {
-            totalCommissions: donnees.reduce((sum, d) => sum + d.totalCommissions, 0),
-            totalBonus: donnees.reduce((sum, d) => sum + d.totalBonus, 0),
-            totalTransactions: donnees.reduce((sum, d) => sum + d.nombreTransactions, 0),
-            montantTotalTraite: donnees.reduce((sum, d) => sum + d.montantTotalTraite, 0)
-          },
-          donneesDetaillees: donnees
-        }
-      };
-
-      switch (format.toLowerCase()) {
-        case 'pdf': {
-          const pdfBuffer = await this.genererRapportPDF(rapport);
-          res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Content-Disposition', 'attachment; filename=rapport-commissions.pdf');
-          return res.send(pdfBuffer);
-        }
-
-        case 'csv': {
-          const csvData = this.convertirEnCSV(donnees);
-          res.setHeader('Content-Type', 'text/csv');
-          res.setHeader('Content-Disposition', 'attachment; filename=rapport-commissions.csv');
-          return res.send(csvData);
-        }
-
-        default:
-          return res.json(rapport);
-      }
-
-    } catch (error) {
-      logger.error('Erreur génération rapport:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_RAPPORT',
-        message: error.message
-      });
-    }
-  }
-
-  async surveillerCommissions(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const maintenant = new Date();
-      const il24h = new Date(maintenant.getTime() - 24 * 60 * 60 * 1000);
-      const il1h = new Date(maintenant.getTime() - 60 * 60 * 1000);
-
-      const commissionsEchecRecentes = await Paiement.find({
-        'commission.statutPrelevement': { $in: ['echec', 'insuffisant'] },
-        'commission.datePrelevement': { $gte: il24h }
-      }).countDocuments();
-
-      const paiementsBloques = await Paiement.find({
-        statutPaiement: { $in: ['EN_ATTENTE', 'BLOQUE'] },
-        dateInitiation: { $lt: il1h }
-      }).countDocuments();
-
-      const alertes = [];
-      
-      if (commissionsEchecRecentes > 10) {
-        alertes.push({
-          niveau: 'warning',
-          type: 'COMMISSIONS_ECHEC_ELEVEES',
-          message: `${commissionsEchecRecentes} commissions en échec dans les 24h`,
-          valeur: commissionsEchecRecentes
-        });
-      }
-
-      if (paiementsBloques > 5) {
-        alertes.push({
-          niveau: 'error',
-          type: 'PAIEMENTS_BLOQUES',
-          message: `${paiementsBloques} paiements bloqués depuis plus d'1h`,
-          valeur: paiementsBloques
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          surveillance: {
-            timestamp: maintenant,
-            statut: alertes.length === 0 ? 'OK' : 
-                     alertes.some(a => a.niveau === 'error') ? 'CRITIQUE' : 'ATTENTION'
-          },
-          metriques: {
-            commissionsEchecRecentes,
-            paiementsBloques
-          },
-          alertes
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur surveillance commissions:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_SURVEILLANCE',
-        message: error.message
-      });
-    }
-  }
-
-  // =========================
-  // STATISTIQUES RECHARGES (ADMIN)
-  // =========================
-
-  async obtenirStatistiquesRecharges(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const { 
-        dateDebut, 
-        dateFin, 
-        groupePar = 'jour' 
-      } = req.query;
-
-      const fin = dateFin ? new Date(dateFin) : new Date();
-      const debut = dateDebut ? new Date(dateDebut) : 
-        new Date(fin.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-      let formatDate;
-      switch (groupePar) {
-        case 'heure':
-          formatDate = '%Y-%m-%d %H:00';
-          break;
-        case 'jour':
-          formatDate = '%Y-%m-%d';
-          break;
-        case 'semaine':
-          formatDate = '%Y-%U';
-          break;
-        case 'mois':
-          formatDate = '%Y-%m';
-          break;
-        default:
-          formatDate = '%Y-%m-%d';
-          break;
-      }
-
-      // Statistiques globales
-      const statsGlobales = await Paiement.aggregate([
-        {
-          $match: {
-            payeurId: { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } },
-            methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
-            dateInitiation: { $gte: debut, $lte: fin }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            totalRecharges: { $sum: 1 },
-            montantTotalRecharge: { $sum: '$montantTotal' },
-            montantNetCredite: { $sum: '$montantConducteur' },
-            fraisTotaux: { $sum: '$fraisTransaction' },
-            bonusTotaux: { $sum: '$bonus.bonusRecharge' },
-            rechargesReussies: {
-              $sum: { $cond: [{ $eq: ['$statutPaiement', 'COMPLETE'] }, 1, 0] }
-            },
-            rechargesEnCours: {
-              $sum: { $cond: [{ $eq: ['$statutPaiement', 'EN_ATTENTE'] }, 1, 0] }
-            },
-            rechargesEchouees: {
-              $sum: { $cond: [{ $eq: ['$statutPaiement', 'ECHEC'] }, 1, 0] }
-            },
-            montantMoyenRecharge: { $avg: '$montantTotal' }
-          }
-        }
-      ]);
-
-      // Évolution temporelle
-      const evolutionTemporelle = await Paiement.aggregate([
-        {
-          $match: {
-            payeurId: { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } },
-            methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
-            dateInitiation: { $gte: debut, $lte: fin }
-          }
-        },
-        {
-          $group: {
-            _id: {
-              $dateToString: { format: formatDate, date: '$dateInitiation' }
-            },
-            nombreRecharges: { $sum: 1 },
-            montantTotal: { $sum: '$montantTotal' },
-            montantNetCredite: { $sum: '$montantConducteur' },
-            bonusTotaux: { $sum: '$bonus.bonusRecharge' },
-            rechargesReussies: {
-              $sum: { $cond: [{ $eq: ['$statutPaiement', 'COMPLETE'] }, 1, 0] }
-            }
-          }
-        },
-        {
-          $sort: { '_id': 1 }
-        }
-      ]);
-
-      // Répartition par opérateur
-      const repartitionOperateurs = await Paiement.aggregate([
-        {
-          $match: {
-            payeurId: { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } },
-            methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
-            dateInitiation: { $gte: debut, $lte: fin },
-            statutPaiement: 'COMPLETE'
-          }
-        },
-        {
-          $group: {
-            _id: '$methodePaiement',
-            nombreRecharges: { $sum: 1 },
-            montantTotal: { $sum: '$montantTotal' },
-            fraisMoyens: { $avg: '$fraisTransaction' },
-            bonusMoyens: { $avg: '$bonus.bonusRecharge' }
-          }
-        },
-        {
-          $sort: { nombreRecharges: -1 }
-        }
-      ]);
-
-      const [stats] = statsGlobales.length > 0 ? statsGlobales : [{}];
-      const tauxReussite = stats.totalRecharges > 0 ? 
-        (stats.rechargesReussies / stats.totalRecharges * 100) : 0;
-
-      res.json({
-        success: true,
-        data: {
-          periode: { debut, fin, groupePar },
-          resumeGlobal: {
-            totalRecharges: stats.totalRecharges || 0,
-            montantTotalRecharge: stats.montantTotalRecharge || 0,
-            montantNetCredite: stats.montantNetCredite || 0,
-            bonusTotaux: stats.bonusTotaux || 0,
-            fraisTotaux: stats.fraisTotaux || 0,
-            montantMoyenRecharge: Math.round(stats.montantMoyenRecharge || 0),
-            tauxReussite: Math.round(tauxReussite * 100) / 100
-          },
-          repartitionStatuts: {
-            reussies: stats.rechargesReussies || 0,
-            enCours: stats.rechargesEnCours || 0,
-            echouees: stats.rechargesEchouees || 0
-          },
-          evolutionTemporelle,
-          repartitionOperateurs,
-          metriques: {
-            tauxConversionMoyen: stats.fraisTotaux > 0 ? 
-              Math.round((stats.fraisTotaux / stats.montantTotalRecharge) * 100 * 100) / 100 : 0,
-            volumeQuotidienMoyen: Math.round(stats.montantTotalRecharge / 
-              Math.max(1, Math.ceil((fin - debut) / (1000 * 60 * 60 * 24))))
-          }
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur statistiques recharges:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_STATISTIQUES_RECHARGES',
-        message: error.message
-      });
-    }
-  }
-
-  async traiterRechargesEnAttente(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const { forcerExpiration = false } = req.body;
-
-      const delaiExpiration = 2 * 60 * 60 * 1000;
-      const maintenant = new Date();
-      const limiteExpiration = new Date(maintenant.getTime() - delaiExpiration);
-
-      let criteres = {
-        statutPaiement: 'EN_ATTENTE',
-        methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
-      };
-
-      if (forcerExpiration) {
-        criteres.payeurId = { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } };
-      } else {
-        criteres.dateInitiation = { $lte: limiteExpiration };
-        criteres.payeurId = { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } };
-      }
-
-      const rechargesEnAttente = await Paiement.find(criteres)
-        .populate('payeurId', 'nom prenom email compteCovoiturage');
-
-      let traitees = 0;
-      let expirees = 0;
-      const resultats = [];
-
-      for (const recharge of rechargesEnAttente) {
-        try {
-          const statutExterne = await this.verifierStatutMobileMoney(recharge);
-          
-          let resultat = {
-            paiementId: recharge._id,
-            referenceTransaction: recharge.referenceTransaction,
-            conducteur: `${recharge.payeurId.prenom} ${recharge.payeurId.nom}`
-          };
-
-          if (statutExterne.confirme) {
-            // Recharge confirmée
-            recharge.statutPaiement = 'COMPLETE';
-            recharge.dateCompletion = new Date();
-            
-            const montantACrediter = recharge.montantConducteur + (recharge.bonus.bonusRecharge || 0);
-            
-            await recharge.payeurId.confirmerRecharge(
-              recharge.referenceTransaction, 
-              'reussi',
-              montantACrediter
-            );
-
-            recharge.ajouterLog('RECHARGE_AUTO_CONFIRMEE', {
-              statutExterne,
-              dateTraitement: new Date()
-            });
-
-            await this.envoyerEmailConfirmationRecharge(recharge.payeurId, recharge);
-
-            resultat.action = 'Confirmée automatiquement';
-            resultat.nouveauSolde = recharge.payeurId.compteCovoiturage.solde;
-            traitees++;
-
-          } else if (forcerExpiration || (maintenant - recharge.dateInitiation) > delaiExpiration) {
-            // Expirer la recharge
-            recharge.statutPaiement = 'ECHEC';
-            recharge.ajouterErreur('RECHARGE_EXPIREE', 'Délai de confirmation dépassé');
-            
-            await recharge.payeurId.confirmerRecharge(
-              recharge.referenceTransaction, 
-              'echec'
-            );
-
-            resultat.action = 'Expirée';
-            resultat.raison = 'Délai de confirmation dépassé';
-            expirees++;
-          } else {
-            resultat.action = 'En attente';
-            resultat.tempRestant = Math.round((limiteExpiration - recharge.dateInitiation) / (1000 * 60)) + ' minutes';
-          }
-
-          await recharge.save();
-          resultats.push(resultat);
-
-        } catch (erreurTraitement) {
-          logger.error(`Erreur traitement recharge ${recharge._id}:`, erreurTraitement);
-          resultats.push({
-            paiementId: recharge._id,
-            referenceTransaction: recharge.referenceTransaction,
-            action: 'Erreur de traitement',
-            erreur: erreurTraitement.message
-          });
-        }
-      }
-
-      logger.info('Traitement recharges en attente terminé', {
-        rechargesTraitees: traitees,
-        rechargesExpirees: expirees,
-        total: rechargesEnAttente.length
-      });
-
-      res.json({
-        success: true,
-        message: `Traitement terminé: ${traitees} confirmées, ${expirees} expirées`,
-        data: {
-          statistiques: {
-            total: rechargesEnAttente.length,
-            traitees,
-            expirees,
-            enAttente: rechargesEnAttente.length - traitees - expirees
-          },
-          resultats
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur traitement recharges en attente:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_TRAITEMENT_RECHARGES',
         message: error.message
       });
     }
@@ -2662,6 +1906,7 @@ class PaiementController {
 
     return { confirme: false, raison: 'Transaction non confirmée par l\'opérateur' };
   }
+
 }
 
 module.exports = new PaiementController();

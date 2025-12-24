@@ -1598,6 +1598,504 @@ const obtenirStatistiquesPaiements = async (req, res, next) => {
 };
 
 /**
+ * @desc    Obtenir statistiques des commissions (admin)
+ * @route   GET /api/admin/paiements/commissions/statistiques
+ * @access  Private (Admin avec permission ANALYTICS)
+ */
+const obtenirStatistiquesCommissions = async (req, res, next) => {
+  try {
+    const { 
+      dateDebut, 
+      dateFin, 
+      periode = '30' 
+    } = req.query;
+
+    const finPeriode = dateFin ? new Date(dateFin) : new Date();
+    const debutPeriode = dateDebut ? new Date(dateDebut) : 
+      new Date(finPeriode.getTime() - parseInt(periode) * 24 * 60 * 60 * 1000);
+
+    const stats = await Paiement.obtenirStatistiquesCommissions(debutPeriode, finPeriode);
+    const commissionsEchec = await Paiement.obtenirCommissionsEnEchec();
+    const statsModePaiement = await Paiement.statistiquesParModePaiement();
+    const analyseRevenus = await Paiement.analyseRevenus(parseInt(periode));
+
+    const [statsActuelles] = stats.length > 0 ? stats : [{}];
+    const tauxCommissionMoyen = statsActuelles.montantTotalTraite > 0 ? 
+      (statsActuelles.totalCommissions / statsActuelles.montantTotalTraite * 100) : 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        periode: {
+          debut: debutPeriode,
+          fin: finPeriode,
+          jours: Math.ceil((finPeriode - debutPeriode) / (1000 * 60 * 60 * 24))
+        },
+        statistiques: {
+          totalCommissions: statsActuelles.totalCommissions || 0,
+          nombreTransactions: statsActuelles.nombreTransactions || 0,
+          montantTotalTraite: statsActuelles.montantTotalTraite || 0,
+          montantMoyenTransaction: statsActuelles.montantMoyenTransaction || 0,
+          tauxCommissionMoyen: Math.round(tauxCommissionMoyen * 100) / 100,
+          totalBonus: statsActuelles.totalBonus || 0
+        },
+        repartitionParMode: statsModePaiement,
+        evolutionQuotidienne: analyseRevenus,
+        alertes: {
+          commissionsEnEchec: commissionsEchec.length,
+          commissionsEnEchecDetails: commissionsEchec.slice(0, 10)
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur statistiques commissions:', error);
+    return next(AppError.serverError('Erreur lors de la récupération des statistiques', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+const traiterCommissionsEnEchec = async (req, res, next) => {
+  try {
+    const adminId = req.user.id;
+    const { paiementIds, action = 'retry' } = req.body;
+
+    if (!paiementIds || !Array.isArray(paiementIds)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Liste des IDs de paiement requise',
+        code: 'DONNEES_INVALIDES'
+      });
+    }
+
+    if (!['retry', 'waive', 'manual'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Action invalide. Actions possibles: retry, waive, manual',
+        code: 'ACTION_INVALIDE'
+      });
+    }
+
+    const paiements = await Paiement.find({
+      _id: { $in: paiementIds },
+      'commission.statutPrelevement': { $in: ['echec', 'insuffisant'] },
+      statutPaiement: 'COMPLETE'
+    }).populate('beneficiaireId', 'nom prenom email compteCovoiturage');
+
+    if (paiements.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Aucun paiement éligible trouvé',
+        code: 'AUCUN_PAIEMENT'
+      });
+    }
+
+    let traites = 0;
+    let echecs = 0;
+    const resultats = [];
+
+    for (const paiement of paiements) {
+      try {
+        let resultat = {
+          paiementId: paiement._id,
+          referenceTransaction: paiement.referenceTransaction,
+          montantCommission: paiement.commission.montant
+        };
+
+        switch (action) {
+          case 'retry':
+            await paiement.traiterCommissionApresPayement();
+            resultat.action = 'Reprélèvement tenté';
+            resultat.nouveauStatut = paiement.commission.statutPrelevement;
+            resultat.succes = true;
+            traites++;
+            break;
+
+          case 'waive':
+            paiement.commission.statutPrelevement = 'preleve';
+            paiement.commission.datePrelevement = new Date();
+            paiement.ajouterLog('COMMISSION_ANNULEE_ADMIN', {
+              adminId,
+              raison: 'Geste commercial - commission annulée',
+              montantAnnule: paiement.commission.montant
+            });
+            await paiement.save();
+            resultat.action = 'Commission annulée (geste commercial)';
+            resultat.succes = true;
+            traites++;
+            break;
+
+          case 'manual':
+            paiement.commission.statutPrelevement = 'preleve';
+            paiement.commission.datePrelevement = new Date();
+            paiement.ajouterLog('COMMISSION_MANUELLE_ADMIN', {
+              adminId,
+              raison: 'Traitement manuel par administrateur'
+            });
+            await paiement.save();
+            resultat.action = 'Marqué comme traité manuellement';
+            resultat.succes = true;
+            traites++;
+            break;
+        }
+
+        resultats.push(resultat);
+
+      } catch (error) {
+        echecs++;
+        resultats.push({
+          paiementId: paiement._id,
+          referenceTransaction: paiement.referenceTransaction,
+          action: 'Erreur de traitement',
+          succes: false,
+          erreur: error.message
+        });
+        
+        logger.error(`Erreur traitement commission ${paiement._id}:`, error);
+      }
+    }
+
+    logger.info('Traitement manuel commissions échec', {
+      adminId,
+      action,
+      paiementsTraites: traites,
+      paiementsEchecs: echecs
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Traitement terminé: ${traites} succès, ${echecs} échecs`,
+      data: {
+        statistiques: { 
+          traites, 
+          echecs, 
+          total: paiements.length 
+        },
+        resultats
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur traitement commissions échec:', error);
+    return next(AppError.serverError('Erreur lors du traitement des commissions', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Générer rapport des commissions (admin)
+ * @route   GET /api/admin/paiements/commissions/rapport
+ * @access  Private (Admin avec permission ANALYTICS)
+ */
+const genererRapportCommissions = async (req, res, next) => {
+  try {
+    const { 
+      format = 'json', 
+      dateDebut, 
+      dateFin, 
+      groupePar = 'jour'
+    } = req.query;
+
+    const debut = dateDebut ? new Date(dateDebut) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const fin = dateFin ? new Date(dateFin) : new Date();
+
+    if (debut >= fin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date de début doit être antérieure à date de fin',
+        code: 'DATES_INVALIDES'
+      });
+    }
+
+    if (!['heure', 'jour', 'semaine', 'mois'].includes(groupePar)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Groupement invalide. Valeurs possibles: heure, jour, semaine, mois',
+        code: 'GROUPEMENT_INVALIDE'
+      });
+    }
+
+    let formatDate;
+    switch (groupePar) {
+      case 'heure':
+        formatDate = '%Y-%m-%d %H:00';
+        break;
+      case 'jour':
+        formatDate = '%Y-%m-%d';
+        break;
+      case 'semaine':
+        formatDate = '%Y-%U';
+        break;
+      case 'mois':
+        formatDate = '%Y-%m';
+        break;
+    }
+
+    const donnees = await Paiement.aggregate([
+      {
+        $match: {
+          statutPaiement: 'COMPLETE',
+          dateCompletion: { $gte: debut, $lte: fin }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: formatDate, date: '$dateCompletion' } },
+          nombreTransactions: { $sum: 1 },
+          montantTotalTraite: { $sum: '$montantTotal' },
+          totalCommissions: { $sum: '$commission.montant' },
+          totalBonus: { 
+            $sum: { 
+              $add: ['$bonus.bonusRecharge', '$bonus.primePerformance'] 
+            } 
+          },
+          commissionsPrelevees: {
+            $sum: {
+              $cond: [
+                { $eq: ['$commission.statutPrelevement', 'preleve'] },
+                '$commission.montant',
+                0
+              ]
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          periode: '$_id',
+          nombreTransactions: 1,
+          montantTotalTraite: 1,
+          totalCommissions: 1,
+          totalBonus: 1,
+          commissionsPrelevees: 1,
+          tauxPrelevement: {
+            $multiply: [
+              { $divide: ['$commissionsPrelevees', '$totalCommissions'] },
+              100
+            ]
+          }
+        }
+      },
+      { $sort: { periode: 1 } }
+    ]);
+
+    const rapport = {
+      success: true,
+      data: {
+        parametres: { dateDebut: debut, dateFin: fin, groupePar },
+        resumeExecutif: {
+          totalCommissions: donnees.reduce((sum, d) => sum + d.totalCommissions, 0),
+          totalBonus: donnees.reduce((sum, d) => sum + d.totalBonus, 0),
+          totalTransactions: donnees.reduce((sum, d) => sum + d.nombreTransactions, 0),
+          montantTotalTraite: donnees.reduce((sum, d) => sum + d.montantTotalTraite, 0)
+        },
+        donneesDetaillees: donnees
+      }
+    };
+
+    switch (format.toLowerCase()) {
+      case 'pdf':
+        // TODO: Implémenter génération PDF
+        return res.status(501).json({
+          success: false,
+          message: 'Format PDF en cours de développement',
+          code: 'FORMAT_NON_DISPONIBLE'
+        });
+
+      case 'csv': {
+        const csvData = convertirEnCSV(donnees);
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=rapport-commissions.csv');
+        return res.send(csvData);
+      }
+
+      default:
+        return res.json(rapport);
+    }
+
+  } catch (error) {
+    logger.error('Erreur génération rapport:', error);
+    return next(AppError.serverError('Erreur lors de la génération du rapport', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Surveiller les commissions (admin)
+ * @route   GET /api/admin/paiements/commissions/surveiller
+ * @access  Private (Admin)
+ */
+const surveillerCommissions = async (req, res, next) => {
+  try {
+    const maintenant = new Date();
+    const il24h = new Date(maintenant.getTime() - 24 * 60 * 60 * 1000);
+    const il1h = new Date(maintenant.getTime() - 60 * 60 * 1000);
+
+    const commissionsEchecRecentes = await Paiement.countDocuments({
+      'commission.statutPrelevement': { $in: ['echec', 'insuffisant'] },
+      'commission.datePrelevement': { $gte: il24h }
+    });
+
+    const paiementsBloques = await Paiement.countDocuments({
+      statutPaiement: { $in: ['EN_ATTENTE', 'BLOQUE'] },
+      dateInitiation: { $lt: il1h }
+    });
+
+    const commissionsEnAttente = await Paiement.countDocuments({
+      'commission.statutPrelevement': 'en_attente',
+      statutPaiement: 'COMPLETE',
+      dateCompletion: { $gte: il24h }
+    });
+
+    const alertes = [];
+    
+    if (commissionsEchecRecentes > 10) {
+      alertes.push({
+        niveau: 'warning',
+        type: 'COMMISSIONS_ECHEC_ELEVEES',
+        message: `${commissionsEchecRecentes} commissions en échec dans les 24h`,
+        valeur: commissionsEchecRecentes,
+        action: 'Vérifier les soldes conducteurs et traiter les échecs'
+      });
+    }
+
+    if (paiementsBloques > 5) {
+      alertes.push({
+        niveau: 'error',
+        type: 'PAIEMENTS_BLOQUES',
+        message: `${paiementsBloques} paiements bloqués depuis plus d'1h`,
+        valeur: paiementsBloques,
+        action: 'Débloquer ou annuler les paiements en attente'
+      });
+    }
+
+    if (commissionsEnAttente > 20) {
+      alertes.push({
+        niveau: 'info',
+        type: 'COMMISSIONS_EN_ATTENTE',
+        message: `${commissionsEnAttente} commissions en attente de prélèvement`,
+        valeur: commissionsEnAttente,
+        action: 'Surveiller le traitement automatique'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        surveillance: {
+          timestamp: maintenant,
+          statut: alertes.length === 0 ? 'OK' : 
+                   alertes.some(a => a.niveau === 'error') ? 'CRITIQUE' : 
+                   alertes.some(a => a.niveau === 'warning') ? 'ATTENTION' : 'INFO'
+        },
+        metriques: {
+          commissionsEchecRecentes,
+          paiementsBloques,
+          commissionsEnAttente
+        },
+        alertes
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur surveillance commissions:', error);
+    return next(AppError.serverError('Erreur lors de la surveillance', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Obtenir détail d'une commission (admin)
+ * @route   GET /api/admin/paiements/:paiementId/commission
+ * @access  Private (Admin)
+ */
+const obtenirDetailCommission = async (req, res, next) => {
+  try {
+    const { paiementId } = req.params;
+
+    const paiement = await Paiement.findById(paiementId)
+      .populate('payeurId', 'nom prenom email telephone')
+      .populate('beneficiaireId', 'nom prenom email compteCovoiturage')
+      .populate({
+        path: 'reservationId',
+        populate: {
+          path: 'trajetId',
+          select: 'pointDepart pointArrivee dateDepart prixParPassager distanceKm'
+        }
+      });
+
+    if (!paiement) {
+      return res.status(404).json({
+        success: false,
+        message: 'Paiement non trouvé',
+        code: 'PAIEMENT_NON_TROUVE'
+      });
+    }
+
+    const tentativesPrelevement = paiement.logsTransaction.filter(
+      log => log.action.includes('COMMISSION')
+    );
+
+    const delaiTraitement = paiement.dateCompletion && paiement.dateInitiation ?
+      Math.round((paiement.dateCompletion - paiement.dateInitiation) / (1000 * 60)) : null;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        paiement: paiement.obtenirResume(),
+        detailsCommission: {
+          taux: paiement.commission.taux,
+          tauxOriginal: paiement.commission.tauxOriginal,
+          montant: paiement.commission.montant,
+          reductionAppliquee: paiement.commission.reductionAppliquee,
+          raisonReduction: paiement.commission.raisonReduction,
+          typeTarification: paiement.commission.typeTarification,
+          modePrelevement: paiement.commission.modePrelevement,
+          statutPrelevement: paiement.commission.statutPrelevement,
+          datePrelevement: paiement.commission.datePrelevement,
+          referencePrelevement: paiement.commission.referencePrelevement,
+          tentativesPrelevement: tentativesPrelevement.length
+        },
+        bonus: paiement.bonus,
+        participants: {
+          payeur: {
+            id: paiement.payeurId._id,
+            nom: `${paiement.payeurId.prenom} ${paiement.payeurId.nom}`,
+            email: paiement.payeurId.email
+          },
+          conducteur: {
+            id: paiement.beneficiaireId._id,
+            nom: `${paiement.beneficiaireId.prenom} ${paiement.beneficiaireId.nom}`,
+            email: paiement.beneficiaireId.email,
+            compteRecharge: paiement.beneficiaireId.compteCovoiturage?.estRecharge || false,
+            solde: paiement.beneficiaireId.compteCovoiturage?.solde || 0
+          }
+        },
+        metriques: {
+          delaiTraitement: delaiTraitement ? `${delaiTraitement} minutes` : null,
+          nombreTentatives: tentativesPrelevement.length,
+          nombreErreurs: paiement.erreurs.length
+        },
+        historique: {
+          logs: tentativesPrelevement.slice(-5),
+          erreurs: paiement.erreurs.slice(-3)
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur détail commission:', error);
+    return next(AppError.serverError('Erreur lors de la récupération du détail', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
  * @desc    Exporter les paiements (admin)
  * @route   GET /api/admin/paiements/export
  * @access  Private (Admin)
@@ -1626,6 +2124,290 @@ const exporterPaiements = async (req, res, next) => {
 
   } catch (error) {
     return next(AppError.serverError('Erreur lors de l\'export', { originalError: error.message }));
+  }
+};
+// =====================================================
+// STATISTIQUES RECHARGES (ADMIN)
+// =====================================================
+
+/**
+ * @desc    Obtenir statistiques des recharges (admin)
+ * @route   GET /api/admin/paiements/recharges/statistiques
+ * @access  Private (Admin avec permission ANALYTICS)
+ */
+const obtenirStatistiquesRecharges = async (req, res, next) => {
+  try {
+    const { 
+      dateDebut, 
+      dateFin, 
+      groupePar = 'jour' 
+    } = req.query;
+
+    const fin = dateFin ? new Date(dateFin) : new Date();
+    const debut = dateDebut ? new Date(dateDebut) : 
+      new Date(fin.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    if (!['heure', 'jour', 'semaine', 'mois'].includes(groupePar)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Groupement invalide',
+        code: 'GROUPEMENT_INVALIDE'
+      });
+    }
+
+    let formatDate;
+    switch (groupePar) {
+      case 'heure':
+        formatDate = '%Y-%m-%d %H:00';
+        break;
+      case 'jour':
+        formatDate = '%Y-%m-%d';
+        break;
+      case 'semaine':
+        formatDate = '%Y-%U';
+        break;
+      case 'mois':
+        formatDate = '%Y-%m';
+        break;
+    }
+
+    // Statistiques globales
+    const statsGlobales = await Paiement.aggregate([
+      {
+        $match: {
+          $expr: { $eq: ['$payeurId', '$beneficiaireId'] },
+          methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
+          dateInitiation: { $gte: debut, $lte: fin }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalRecharges: { $sum: 1 },
+          montantTotalRecharge: { $sum: '$montantTotal' },
+          montantNetCredite: { $sum: '$montantConducteur' },
+          fraisTotaux: { $sum: '$fraisTransaction' },
+          bonusTotaux: { $sum: '$bonus.bonusRecharge' },
+          rechargesReussies: {
+            $sum: { $cond: [{ $eq: ['$statutPaiement', 'COMPLETE'] }, 1, 0] }
+          },
+          rechargesEnCours: {
+            $sum: { $cond: [{ $eq: ['$statutPaiement', 'EN_ATTENTE'] }, 1, 0] }
+          },
+          rechargesEchouees: {
+            $sum: { $cond: [{ $eq: ['$statutPaiement', 'ECHEC'] }, 1, 0] }
+          },
+          montantMoyenRecharge: { $avg: '$montantTotal' }
+        }
+      }
+    ]);
+
+    // Évolution temporelle
+    const evolutionTemporelle = await Paiement.aggregate([
+      {
+        $match: {
+          $expr: { $eq: ['$payeurId', '$beneficiaireId'] },
+          methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
+          dateInitiation: { $gte: debut, $lte: fin }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: formatDate, date: '$dateInitiation' }
+          },
+          nombreRecharges: { $sum: 1 },
+          montantTotal: { $sum: '$montantTotal' },
+          montantNetCredite: { $sum: '$montantConducteur' },
+          bonusTotaux: { $sum: '$bonus.bonusRecharge' },
+          rechargesReussies: {
+            $sum: { $cond: [{ $eq: ['$statutPaiement', 'COMPLETE'] }, 1, 0] }
+          }
+        }
+      },
+      {
+        $sort: { '_id': 1 }
+      }
+    ]);
+
+    // Répartition par opérateur
+    const repartitionOperateurs = await Paiement.aggregate([
+      {
+        $match: {
+          $expr: { $eq: ['$payeurId', '$beneficiaireId'] },
+          methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
+          dateInitiation: { $gte: debut, $lte: fin },
+          statutPaiement: 'COMPLETE'
+        }
+      },
+      {
+        $group: {
+          _id: '$methodePaiement',
+          nombreRecharges: { $sum: 1 },
+          montantTotal: { $sum: '$montantTotal' },
+          fraisMoyens: { $avg: '$fraisTransaction' },
+          bonusMoyens: { $avg: '$bonus.bonusRecharge' }
+        }
+      },
+      {
+        $sort: { nombreRecharges: -1 }
+      }
+    ]);
+
+    const [stats] = statsGlobales.length > 0 ? statsGlobales : [{}];
+    const tauxReussite = stats.totalRecharges > 0 ? 
+      (stats.rechargesReussies / stats.totalRecharges * 100) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        periode: { debut, fin, groupePar },
+        resumeGlobal: {
+          totalRecharges: stats.totalRecharges || 0,
+          montantTotalRecharge: stats.montantTotalRecharge || 0,
+          montantNetCredite: stats.montantNetCredite || 0,
+          bonusTotaux: stats.bonusTotaux || 0,
+          fraisTotaux: stats.fraisTotaux || 0,
+          montantMoyenRecharge: Math.round(stats.montantMoyenRecharge || 0),
+          tauxReussite: Math.round(tauxReussite * 100) / 100
+        },
+        repartitionStatuts: {
+          reussies: stats.rechargesReussies || 0,
+          enCours: stats.rechargesEnCours || 0,
+          echouees: stats.rechargesEchouees || 0
+        },
+        evolutionTemporelle,
+        repartitionOperateurs,
+        metriques: {
+          tauxConversionMoyen: stats.fraisTotaux > 0 ? 
+            Math.round((stats.fraisTotaux / stats.montantTotalRecharge) * 100 * 100) / 100 : 0,
+          volumeQuotidienMoyen: Math.round(stats.montantTotalRecharge / 
+            Math.max(1, Math.ceil((fin - debut) / (1000 * 60 * 60 * 24))))
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur statistiques recharges:', error);
+    return next(AppError.serverError('Erreur lors de la récupération des statistiques', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Traiter les recharges en attente (admin)
+ * @route   POST /api/admin/paiements/recharges/traiter-attentes
+ * @access  Private (Admin avec permission GESTION_PAIEMENTS)
+ */
+const traiterRechargesEnAttente = async (req, res, next) => {
+  try {
+    const { forcerExpiration = false } = req.body;
+
+    const delaiExpiration = 2 * 60 * 60 * 1000; // 2 heures
+    const maintenant = new Date();
+    const limiteExpiration = new Date(maintenant.getTime() - delaiExpiration);
+
+    let criteres = {
+      statutPaiement: 'EN_ATTENTE',
+      $expr: { $eq: ['$payeurId', '$beneficiaireId'] },
+      methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
+    };
+
+    if (!forcerExpiration) {
+      criteres.dateInitiation = { $lte: limiteExpiration };
+    }
+
+    const rechargesEnAttente = await Paiement.find(criteres)
+      .populate('payeurId', 'nom prenom email compteCovoiturage');
+
+    if (rechargesEnAttente.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'Aucune recharge en attente à traiter',
+        data: {
+          statistiques: {
+            total: 0,
+            traitees: 0,
+            expirees: 0
+          }
+        }
+      });
+    }
+
+    let traitees = 0;
+    let expirees = 0;
+    const resultats = [];
+
+    for (const recharge of rechargesEnAttente) {
+      try {
+        let resultat = {
+          paiementId: recharge._id,
+          referenceTransaction: recharge.referenceTransaction,
+          conducteur: `${recharge.payeurId.prenom} ${recharge.payeurId.nom}`
+        };
+
+        const delaiDepuisInitiation = maintenant - recharge.dateInitiation;
+
+        if (forcerExpiration || delaiDepuisInitiation > delaiExpiration) {
+          // Expirer la recharge
+          recharge.statutPaiement = 'ECHEC';
+          recharge.ajouterErreur('RECHARGE_EXPIREE', 'Délai de confirmation dépassé');
+          
+          await recharge.payeurId.confirmerRecharge(
+            recharge.referenceTransaction, 
+            'echec'
+          );
+
+          await recharge.save();
+
+          resultat.action = 'Expirée';
+          resultat.raison = 'Délai de confirmation dépassé';
+          expirees++;
+        } else {
+          resultat.action = 'En attente';
+          resultat.tempRestant = Math.round((delaiExpiration - delaiDepuisInitiation) / (1000 * 60)) + ' minutes';
+        }
+
+        resultats.push(resultat);
+
+      } catch (erreurTraitement) {
+        logger.error(`Erreur traitement recharge ${recharge._id}:`, erreurTraitement);
+        resultats.push({
+          paiementId: recharge._id,
+          referenceTransaction: recharge.referenceTransaction,
+          action: 'Erreur de traitement',
+          erreur: erreurTraitement.message
+        });
+      }
+    }
+
+    logger.info('Traitement recharges en attente terminé', {
+      adminId: req.user.id,
+      rechargesTraitees: traitees,
+      rechargesExpirees: expirees,
+      total: rechargesEnAttente.length
+    });
+
+    res.json({
+      success: true,
+      message: `Traitement terminé: ${expirees} expirées`,
+      data: {
+        statistiques: {
+          total: rechargesEnAttente.length,
+          traitees,
+          expirees,
+          enAttente: rechargesEnAttente.length - traitees - expirees
+        },
+        resultats
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur traitement recharges en attente:', error);
+    return next(AppError.serverError('Erreur lors du traitement des recharges', { 
+      originalError: error.message 
+    }));
   }
 };
 
@@ -4206,6 +4988,34 @@ const listerDemandesPassageConducteur = async (req, res, next) => {
     }));
   }
 };
+/**
+ * Convertir données en CSV
+ */
+function convertirEnCSV(donnees) {
+  const headers = [
+    'Periode',
+    'Nombre_Transactions',
+    'Montant_Total_Traite',
+    'Total_Commissions',
+    'Total_Bonus',
+    'Commissions_Prelevees',
+    'Taux_Prelevement'
+  ];
+
+  const lignes = donnees.map(d => [
+    d.periode,
+    d.nombreTransactions,
+    d.montantTotalTraite,
+    d.totalCommissions,
+    d.totalBonus || 0,
+    d.commissionsPrelevees,
+    d.tauxPrelevement ? d.tauxPrelevement.toFixed(2) : '0.00'
+  ]);
+
+  return [headers, ...lignes]
+    .map(ligne => ligne.join(','))
+    .join('\n');
+}
 module.exports = {
   // Authentification
   connexionAdmin,
@@ -4256,7 +5066,16 @@ module.exports = {
   obtenirPaiement,
   rembourserPaiement,
   obtenirStatistiquesPaiements,
+  obtenirStatistiquesCommissions,
+  obtenirDetailCommission,
+  traiterCommissionsEnEchec,
+  genererRapportCommissions,
+  surveillerCommissions,
   exporterPaiements,
+
+  // Gestion Recharges
+  obtenirStatistiquesRecharges,
+  traiterRechargesEnAttente,
 
   // Gestion Signalements
   listerSignalements,
