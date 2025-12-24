@@ -69,27 +69,47 @@ class CinetPayService {
       logger.info('🚀 Initiation paiement CinetPay', {
         reservationId,
         montantTotal,
-        methodePaiement: options.methodePaiement
+        methodePaiement: options.methodePaiement,
+        isRecharge: options.isRecharge
       });
 
-      // Récupérer les informations de la réservation
-      const reservation = await Reservation.findById(reservationId)
-        .populate('passagerId')
-        .populate({
-          path: 'trajetId',
-          populate: {
-            path: 'conducteurId',
-            select: 'nom prenom compteCovoiturage noteMoyenne'
-          }
-        });
+      let passager, conducteur, trajet, description;
 
-      if (!reservation) {
-        throw new Error('Réservation introuvable');
+      // 🆕 Gérer les recharges (sans réservation)
+      if (options.isRecharge) {
+        const user = await Utilisateur.findById(options.userId)
+          .select('nom prenom email telephone compteCovoiturage');
+        
+        if (!user) {
+          throw new Error('Utilisateur introuvable');
+        }
+
+        passager = user;
+        conducteur = null;
+        trajet = null;
+        description = `Recharge compte conducteur - ${montantTotal} FCFA`;
+        
+      } else {
+        // Récupérer les informations de la réservation (paiement trajet)
+        const reservation = await Reservation.findById(reservationId)
+          .populate('passagerId')
+          .populate({
+            path: 'trajetId',
+            populate: {
+              path: 'conducteurId',
+              select: 'nom prenom compteCovoiturage noteMoyenne'
+            }
+          });
+
+        if (!reservation) {
+          throw new Error('Réservation introuvable');
+        }
+
+        passager = reservation.passagerId;
+        conducteur = reservation.trajetId.conducteurId;
+        trajet = reservation.trajetId;
+        description = `Paiement trajet ${trajet.pointDepart} → ${trajet.pointArrivee}`;
       }
-
-      const passager = reservation.passagerId;
-      const conducteur = reservation.trajetId.conducteurId;
-      const trajet = reservation.trajetId;
 
       // Vérifier si le paiement existe déjà
       let paiement = await Paiement.findOne({
@@ -98,49 +118,73 @@ class CinetPayService {
 
       if (!paiement) {
         // Créer un nouveau paiement s'il n'existe pas déjà
-        paiement = new Paiement({
-          reservationId,
+        const paiementData = {
           payeurId: passager._id,
-          beneficiaireId: conducteur._id,
           montantTotal,
           methodePaiement: options.methodePaiement || 'WAVE',
           statutPaiement: 'EN_ATTENTE',
           
-          commission: {
-            taux: 0.10,
-            tauxOriginal: 0.10,
-            montant: 0,
-            modePrelevement: 'paiement_mobile',
-            statutPrelevement: 'en_attente'
-          },
-
-          reglesPaiement: {
-            conducteurCompteRecharge: conducteur.compteCovoiturage?.estRecharge || false,
-            soldeConducteurAvant: conducteur.compteCovoiturage?.solde || 0,
-            soldeMinimumRequis: 1000,
-            verificationsPassees: false
-          },
-
           securite: {
             ipAddress: options.ipAddress,
             userAgent: options.userAgent,
             deviceId: options.deviceId
           }
-        });
+        };
 
-        // Calculer commission dynamique
-        const distanceKm = trajet.distanceKm || 0;
-        const noteConducteur = conducteur.noteMoyenne || 0;
-        await paiement.calculerCommissionDynamique(distanceKm, noteConducteur);
+        // 🆕 Données spécifiques selon le type (recharge vs trajet)
+        if (options.isRecharge) {
+          // RECHARGE : Pas de bénéficiaire ni réservation
+          paiementData.beneficiaireId = passager._id;
+          paiementData.commission = {
+            taux: 0,
+            tauxOriginal: 0,
+            montant: 0,
+            modePrelevement: 'paiement_mobile',
+            statutPrelevement: 'preleve'
+          };
+          paiementData.reglesPaiement = {
+            conducteurCompteRecharge: passager.compteCovoiturage?.estRecharge || false,
+            modesAutorises: ['wave', 'orange_money', 'mtn_money', 'moov_money'],
+            raisonValidation: 'Recharge de compte conducteur',
+            verificationsPassees: true,
+            soldeSuffisant: true
+          };
+        } else {
+          // PAIEMENT TRAJET : Avec bénéficiaire et réservation
+          paiementData.reservationId = reservationId;
+          paiementData.beneficiaireId = conducteur._id;
+          paiementData.commission = {
+            taux: 0.10,
+            tauxOriginal: 0.10,
+            montant: 0,
+            modePrelevement: 'paiement_mobile',
+            statutPrelevement: 'en_attente'
+          };
+          paiementData.reglesPaiement = {
+            conducteurCompteRecharge: conducteur.compteCovoiturage?.estRecharge || false,
+            soldeConducteurAvant: conducteur.compteCovoiturage?.solde || 0,
+            soldeMinimumRequis: 1000,
+            verificationsPassees: false
+          };
+        }
 
-        // Appliquer bonus si applicable
-        const nombreTrajetsMois = conducteur.statistiques?.trajetsEffectuesMois || 0;
-        paiement.appliquerPrimePerformance(noteConducteur, nombreTrajetsMois);
+        paiement = new Paiement(paiementData);
 
-        // Valider les règles
-        const reglesValides = await paiement.validerReglesPaiement();
-        if (!reglesValides) {
-          throw new Error('Règles de paiement non respectées');
+        // Calculer commission dynamique pour les trajets uniquement
+        if (!options.isRecharge && trajet && conducteur) {
+          const distanceKm = trajet.distanceKm || 0;
+          const noteConducteur = conducteur.noteMoyenne || 0;
+          await paiement.calculerCommissionDynamique(distanceKm, noteConducteur);
+
+          // Appliquer bonus si applicable
+          const nombreTrajetsMois = conducteur.statistiques?.trajetsEffectuesMois || 0;
+          paiement.appliquerPrimePerformance(noteConducteur, nombreTrajetsMois);
+
+          // Valider les règles
+          const reglesValides = await paiement.validerReglesPaiement();
+          if (!reglesValides) {
+            throw new Error('Règles de paiement non respectées');
+          }
         }
 
         // Initier paiement mobile si nécessaire
@@ -162,7 +206,7 @@ class CinetPayService {
         transaction_id: transactionId,
         amount: montantTotal,
         currency: 'XOF',
-        description: `Paiement trajet ${reservation.trajetId.pointDepart} → ${reservation.trajetId.pointArrivee}`,
+        description: description, // Utiliser la description définie plus haut
         
         // URLs de retour
         return_url: `${this.baseReturnUrl}/paiement/retour/${transactionId}`,
@@ -186,10 +230,11 @@ class CinetPayService {
         // Métadonnées
         metadata: JSON.stringify({
           paiementId: paiement._id.toString(),
-          reservationId: reservationId.toString(),
-          conducteurId: conducteur._id.toString(),
+          reservationId: reservationId ? reservationId.toString() : null,
+          conducteurId: conducteur ? conducteur._id.toString() : null,
           passagerId: passager._id.toString(),
-          methodePaiement: options.methodePaiement
+          methodePaiement: options.methodePaiement,
+          isRecharge: options.isRecharge || false
         }),
         
         // 🔐 Signature pour sécuriser
