@@ -695,29 +695,82 @@ class PaiementController {
         statut: 'EN_ATTENTE'
       });
 
-      res.status(201).json({
-        success: true,
-        message: 'Recharge initiée avec succès',
-        data: {
-          paiementId: paiement._id,
-          referenceTransaction: paiement.referenceTransaction,
+      // 🆕 UTILISER CINETPAY pour gérer tous les opérateurs de manière unifiée
+      try {
+        const resultCinetPay = await this.cinetPayService.initierPaiement(
+          null, // Pas de reservationId pour une recharge
           montant,
-          montantNet,
-          fraisTransaction,
-          bonusRecharge: paiement.bonus.bonusRecharge,
-          montantTotalACrediter: montantNet + (paiement.bonus.bonusRecharge || 0),
-          methodePaiement,
-          statutPaiement: paiement.statutPaiement,
-          dateInitiation: paiement.dateInitiation,
-          instructions: this.genererInstructionsRecharge(methodePaiement, numeroTelephone, montant),
-          important: [
-            '⏳ Votre recharge est en attente de confirmation',
-            '📱 Complétez le paiement mobile money',
-            '✅ Votre solde sera crédité après confirmation (sous 15 minutes)',
-            '💡 Conservez votre code de transaction'
-          ]
+          {
+            methodePaiement,
+            numeroTelephone,
+            operateur: operateur || methodePaiement.replace('_MONEY', ''),
+            referenceInterne: paiement.referenceTransaction,
+            isRecharge: true,
+            userId,
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent'),
+            deviceId: req.get('X-Device-ID')
+          }
+        );
+
+        // Vérifier si CinetPay a réussi
+        if (!resultCinetPay || resultCinetPay.success === false) {
+          logger.warn('CinetPay initiation recharge failed', {
+            userId,
+            reference: paiement.referenceTransaction,
+            error: resultCinetPay?.message
+          });
+
+          return res.status(402).json({
+            success: false,
+            error: 'CINETPAY_ERREUR',
+            message: resultCinetPay?.message || 'Erreur lors de l\'initiation du paiement CinetPay',
+            fallback: {
+              instructions: this.genererInstructionsRecharge(methodePaiement, numeroTelephone, montant),
+              referenceTransaction: paiement.referenceTransaction
+            }
+          });
         }
-      });
+
+        // Succès - Retourner l'URL de paiement CinetPay
+        res.status(201).json({
+          success: true,
+          message: 'Recharge initiée avec succès via CinetPay',
+          data: {
+            paiementId: paiement._id,
+            referenceTransaction: paiement.referenceTransaction,
+            montant,
+            montantNet,
+            fraisTransaction,
+            bonusRecharge: paiement.bonus.bonusRecharge,
+            montantTotalACrediter: montantNet + (paiement.bonus.bonusRecharge || 0),
+            methodePaiement,
+            statutPaiement: paiement.statutPaiement,
+            dateInitiation: paiement.dateInitiation,
+            
+            // 🎯 URL de paiement CinetPay
+            paymentUrl: resultCinetPay.paymentUrl,
+            paymentToken: resultCinetPay.paymentToken,
+            
+            important: [
+              ' Cliquez sur le lien de paiement pour compléter la transaction',
+              ' Ou utilisez le lien envoyé par SMS',
+              ' Votre solde sera crédité automatiquement après paiement',
+              `Vous recevrez ${montantNet + (paiement.bonus.bonusRecharge || 0)} FCFA (bonus inclus)`
+            ]
+          }
+        });
+
+      } catch (cinetpayError) {
+        logger.error('Erreur CinetPay recharge:', cinetpayError);
+        
+        // Fallback : retourner les instructions manuelles
+        res.status(400).json({
+          success: false,
+          error: 'ERREUR_CINETPAY',
+          message: 'une erreur s\'est produite lors de l\'initiation du paiement via CinetPay',
+        })
+      }
 
     } catch (error) {
       logger.error('Erreur initiation recharge:', error);
