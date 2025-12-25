@@ -127,7 +127,7 @@ const paiementSchema = new mongoose.Schema({
     type: String,
     enum: {
       // 🔧 CORRECTION: Uniformisation à 'ESPECES' (pluriel)
-      values: ['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'COMPTE_RECHARGE'],
+      values: ['ESPECES', 'WAVE' , 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'COMPTE_RECHARGE'],
       message: 'Méthode de paiement non supportée'
     },
     required: [true, 'La méthode de paiement est requise']
@@ -158,7 +158,7 @@ const paiementSchema = new mongoose.Schema({
     },
     modesAutorises: [{
       type: String,
-      enum: ['especes', 'wave', 'orange_money', 'mtn_money', 'moov_money', 'compte_recharge']
+      enum: ['ESPECES', 'WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'COMPTE_RECHARGE']
     }],
     raisonValidation: {
       type: String,
@@ -510,14 +510,14 @@ paiementSchema.methods.validerReglesPaiement = async function() {
 
 // 🆕 Obtenir modes de paiement autorisés selon solde
 paiementSchema.methods.obtenirModesAutorisesSelonSolde = function(soldeConducteur, soldeMinimum) {
-  const modesNumeriques = ['wave', 'orange_money', 'mtn_money', 'moov_money'];
+  const modesNumeriques = ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'COMPTE_RECHARGE' , 'ORANGE', 'MTN', 'MOOV'];
   
   // Toujours autoriser les modes numériques
   let modes = [...modesNumeriques];
   
   // Autoriser espèces uniquement si solde suffisant
   if (soldeConducteur >= soldeMinimum && soldeConducteur >= this.commission.montant) {
-    modes.unshift('especes');
+    modes.unshift('ESPECES');
   }
   
   return modes;

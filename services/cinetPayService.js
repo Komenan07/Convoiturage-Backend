@@ -200,24 +200,41 @@ class CinetPayService {
 
       // Préparer les données pour CinetPay
       const transactionId = paiement.referenceTransaction;
+      
+      // 🔧 Valider et formater le numéro de téléphone (obligatoire)
+      const phoneNumber = options.numeroTelephone || passager.telephone;
+      if (!phoneNumber) {
+        throw new Error('Numéro de téléphone requis pour le paiement');
+      }
+      
+      // 🔧 Valider l'email (obligatoire)
+      const email = passager.email || `user${passager._id}@covoiturage.local`;
+      
+      // 🔧 Valider le nom (obligatoire)
+      const customerName = passager.prenom && passager.nom 
+        ? `${passager.prenom} ${passager.nom}` 
+        : `Utilisateur ${passager._id.toString().substring(0, 8)}`;
+      
+      const customerSurname = passager.nom || 'Utilisateur';
+      
       const cinetPayData = {
         apikey: this.apiKey,
         site_id: this.siteId,
         transaction_id: transactionId,
         amount: montantTotal,
         currency: 'XOF',
-        description: description, // Utiliser la description définie plus haut
+        description: description,
         
         // URLs de retour
         return_url: `${this.baseReturnUrl}/paiement/retour/${transactionId}`,
         notify_url: this.notifyUrl,
         cancel_url: `${this.baseReturnUrl}/paiement/annule/${transactionId}`,
         
-        // Informations client
-        customer_phone_number: options.numeroTelephone || passager.telephone || '',
-        customer_email: passager.email,
-        customer_name: `${passager.prenom} ${passager.nom}`,
-        customer_surname: passager.nom,
+        // Informations client (tous obligatoires)
+        customer_phone_number: phoneNumber,
+        customer_email: email,
+        customer_name: customerName,
+        customer_surname: customerSurname,
         customer_address: 'Abidjan, Côte d\'Ivoire',
         customer_city: 'Abidjan',
         customer_country: 'CI',
@@ -225,7 +242,7 @@ class CinetPayService {
         customer_zip_code: '00225',
         
         // Canal de paiement
-        channels: 'all',
+        channels: 'ALL',
         
         // Métadonnées
         metadata: JSON.stringify({

@@ -1490,6 +1490,7 @@ const listerPaiements = async (req, res, next) => {
     });
 
   } catch (error) {
+    logger.error('Erreur listerPaiements:', error);
     return next(AppError.serverError('Erreur lors de la récupération des paiements', { originalError: error.message }));
   }
 };

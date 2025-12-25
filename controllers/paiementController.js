@@ -579,7 +579,7 @@ class PaiementController {
       }
 
       // Validation de la méthode de paiement
-      const methodesValides = ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'];
+      const methodesValides = ['WAVE', 'ORANGE' , 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'];
       if (!methodesValides.includes(methodePaiement)) {
         return res.status(400).json({
           success: false,
@@ -632,7 +632,7 @@ class PaiementController {
         
         reglesPaiement: {
           conducteurCompteRecharge: user.compteCovoiturage?.estRecharge || false,
-          modesAutorises: ['wave', 'orange_money', 'mtn_money', 'moov_money'],
+          modesAutorises: ['WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'],
           raisonValidation: 'Recharge de compte conducteur',
           verificationsPassees: true,
           soldeSuffisant: true
@@ -665,7 +665,7 @@ class PaiementController {
       
       user.compteCovoiturage.historiqueRecharges.push({
         montant,
-        methodePaiement: methodePaiement.toLowerCase(),
+        methodePaiement,
         referenceTransaction: paiement.referenceTransaction,
         fraisTransaction,
         statut: 'en_attente', // ✅ Statut en_attente, pas "reussi"
@@ -749,14 +749,14 @@ class PaiementController {
             dateInitiation: paiement.dateInitiation,
             
             // 🎯 URL de paiement CinetPay
-            paymentUrl: resultCinetPay.paymentUrl,
-            paymentToken: resultCinetPay.paymentToken,
+            paymentUrl: resultCinetPay.urlPaiement,
+            paymentToken: resultCinetPay.token,
             
             important: [
-              ' Cliquez sur le lien de paiement pour compléter la transaction',
-              ' Ou utilisez le lien envoyé par SMS',
-              ' Votre solde sera crédité automatiquement après paiement',
-              `Vous recevrez ${montantNet + (paiement.bonus.bonusRecharge || 0)} FCFA (bonus inclus)`
+              '✅ Cliquez sur le lien de paiement pour compléter la transaction',
+              '📱 Ou utilisez le lien envoyé par SMS',
+              '🔄 Votre solde sera crédité automatiquement après paiement',
+              `💰 Vous recevrez ${montantNet + (paiement.bonus.bonusRecharge || 0)} FCFA (bonus inclus)`
             ]
           }
         });

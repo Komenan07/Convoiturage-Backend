@@ -394,7 +394,7 @@ const utilisateurSchema = new mongoose.Schema({
       },
       methodePaiement: {
         type: String,
-        enum: ['wave', 'orange_money', 'mtn_money', 'moov_money'],
+        enum: ['WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'],
         required: true
       },
       referenceTransaction: {
@@ -440,7 +440,7 @@ const utilisateurSchema = new mongoose.Schema({
       },
       methodePaiementAuto: {
         type: String,
-        enum: ['wave', 'orange_money', 'mtn_money', 'moov_money']
+        enum: ['WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY']
       }
     },
     
@@ -1265,7 +1265,7 @@ utilisateurSchema.methods.rechargerCompte = function(montant, methodePaiement, r
     throw new Error('Le montant doit être positif');
   }
 
-  if (!['wave', 'orange_money', 'mtn_money', 'moov_money'].includes(methodePaiement)) {
+  if (!['WAVE', 'ORANGE', 'MTN', 'MOOV' , 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'].includes(methodePaiement)) {
     throw new Error('Méthode de paiement non supportée');
   }
 
@@ -1378,17 +1378,17 @@ utilisateurSchema.methods.peutAccepterCourse = function(modePaiementDemande) {
   // Règles selon le type de compte
   if (this.compteCovoiturage.estRecharge) {
     // Compte rechargé: tous modes acceptés
-    return { autorise: true, modesAcceptes: ['especes', 'wave', 'orange_money', 'mtn_money', 'moov_money'] };
+    return { autorise: true, modesAcceptes: ['ESPECES', 'WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] };
   } else {
     // Compte non rechargé: seulement mobile money
-    if (modePaiementDemande === 'especes') {
+    if (modePaiementDemande === 'ESPECES') {
       return {
         autorise: false,
         raison: 'Paiement en espèces non autorisé pour les comptes non rechargés',
-        modesAcceptes: ['wave', 'orange_money', 'mtn_money', 'moov_money']
+        modesAcceptes: ['WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY']
       };
     }
-    return { autorise: true, modesAcceptes: ['wave', 'orange_money', 'mtn_money', 'moov_money'] };
+    return { autorise: true, modesAcceptes: ['WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] };
   }
 };
 
@@ -1510,7 +1510,7 @@ utilisateurSchema.methods.configurerAutoRecharge = function(seuilAutoRecharge, m
     throw new Error('Le montant minimum de recharge automatique est 1000 FCFA');
   }
   
-  if (!['wave', 'orange_money', 'mtn_money', 'moov_money'].includes(methodePaiementAuto)) {
+  if (!['WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'].includes(methodePaiementAuto)) {
     throw new Error('Méthode de paiement automatique non supportée');
   }
   

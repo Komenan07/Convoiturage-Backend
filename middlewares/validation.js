@@ -163,7 +163,7 @@ const validatePaiement = [
     .toFloat(),
   body('methodePaiement')
     .optional()
-    .isIn(['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
+    .isIn(['WAVE',  'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
     .withMessage('Méthode de paiement non supportée')
     .default('WAVE'),
   handleValidationErrors
@@ -197,7 +197,7 @@ const validateRecharge = [
     .withMessage('Montant doit être entre 1,000 et 1,000,000 FCFA')
     .toFloat(),
   body('methodePaiement')
-    .isIn(['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
+    .isIn(['WAVE',  'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
     .withMessage('Méthode de paiement non supportée'),
   body('numeroTelephone')
     .notEmpty()
@@ -213,7 +213,7 @@ const validateRecharge = [
     }),
   body('operateur')
     .optional()
-    .isIn(['ORANGE', 'MTN', 'MOOV', 'WAVE'])
+    .isIn(['ORANGE', 'MTN', 'MOOV', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
     .withMessage('Opérateur non supporté'),
   body('codeTransaction')
     .optional()
