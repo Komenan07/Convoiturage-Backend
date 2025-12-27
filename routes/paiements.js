@@ -176,7 +176,7 @@ router.get('/:paiementId',
  * @access  Private (Conducteur)
  */
 router.post('/recharge/initier', 
-  requireRole(['conducteur', 'les_deux']), 
+  requireRole(['conducteur']), 
   validateRecharge, 
   paiementController.initierRecharge
 );
@@ -199,7 +199,7 @@ router.post('/recharge/confirmer',
  * @access  Private (Conducteur)
  */
 router.get('/recharge/historique', 
-  requireRole(['conducteur', 'les_deux']), 
+  requireRole(['conducteur']), 
   validateHistoriqueRecharges,
   paiementController.obtenirHistoriqueRecharges
 );
@@ -210,7 +210,7 @@ router.get('/recharge/historique',
  * @access  Private (Conducteur)
  */
 router.get('/recharge/statut/:referenceTransaction', 
-  requireRole(['conducteur', 'les_deux']), 
+  requireRole(['conducteur']), 
   validateReferenceTransaction,
   paiementController.obtenirStatutRecharge
 );
@@ -221,7 +221,7 @@ router.get('/recharge/statut/:referenceTransaction',
  * @access  Private (Conducteur)
  */
 router.post('/recharge/auto-config', 
-  requireRole(['conducteur', 'les_deux']), 
+  requireRole(['conducteur']), 
   validateAutoRecharge,
   paiementController.configurerRechargeAutomatique
 );
@@ -232,7 +232,7 @@ router.post('/recharge/auto-config',
  * @access  Private (Conducteur)
  */
 router.delete('/recharge/annuler/:referenceTransaction', 
-  requireRole(['conducteur', 'les_deux']), 
+  requireRole(['conducteur']), 
   validateAnnulerRecharge,
   paiementController.annulerRecharge
 );

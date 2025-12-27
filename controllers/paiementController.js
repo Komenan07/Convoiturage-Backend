@@ -535,512 +535,539 @@ class PaiementController {
   // =========================
   // GESTION DES RECHARGES
   // =========================
-  
-  async initierRecharge(req, res) {
-    try {
-      const {
-        montant,
-        methodePaiement,
-        numeroTelephone,
-        operateur,
-        codeTransaction
-      } = req.body;
-      const userId = req.user.userId;
+  /**
+ * ✅ MÉTHODE 1/2 : INITIER RECHARGE (SIMPLIFIÉE - 100% CINETPAY)
+ * 
+ * Remplacez la méthode initierRecharge existante par celle-ci
+ */
+async initierRecharge(req, res) {
+  try {
+    const { montant, methodePaiement } = req.body;
+    const userId = req.user.userId;
 
-      // Vérifier l'utilisateur
-      const user = await Utilisateur.findById(userId).select('role compteCovoiturage nom prenom email telephone noteMoyenne');
+    // Vérifier utilisateur
+    const user = await Utilisateur.findById(userId)
+      .select('role compteCovoiturage nom prenom email telephone');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
+
+    // Vérifier rôle conducteur
+    if (!['conducteur'].includes(user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Seuls les conducteurs peuvent recharger leur compte',
+        code: 'ROLE_INSUFFICIENT'
+      });
+    }
+
+    // Validation montant
+    if (montant < 1000 || montant > 1000000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Montant invalide (1000 à 1 000 000 FCFA)',
+        limites: {
+          minimum: 1000,
+          maximum: 1000000
+        }
+      });
+    }
+
+    // Validation méthode de paiement
+    const methodesValides = ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'];
+    if (!methodesValides.includes(methodePaiement)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Méthode de paiement non supportée',
+        methodesAcceptees: methodesValides
+      });
+    }
+
+    // Vérifier limites quotidiennes
+    const limiteQuotidienne = await this.verifierLimitesRecharge(userId, montant);
+    if (!limiteQuotidienne.autorise) {
+      return res.status(429).json({
+        success: false,
+        message: limiteQuotidienne.message,
+        limites: limiteQuotidienne.details
+      });
+    }
+
+    // Calculer frais de transaction (2% minimum 50 FCFA)
+    const fraisTransaction = Math.max(Math.round(montant * 0.02), 50);
+    const montantNet = montant - fraisTransaction;
+
+    // Créer l'enregistrement de paiement
+    const paiement = new Paiement({
+      payeurId: userId,
+      beneficiaireId: userId,
+      montantTotal: montant,
+      montantConducteur: montantNet,
+      commissionPlateforme: 0,
+      fraisTransaction,
       
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'Utilisateur non trouvé'
-        });
+      commission: {
+        taux: 0,
+        tauxOriginal: 0,
+        montant: 0,
+        modePrelevement: 'paiement_mobile',
+        statutPrelevement: 'preleve'
+      },
+
+      methodePaiement: methodePaiement,
+      
+      reglesPaiement: {
+        conducteurCompteRecharge: user.compteCovoiturage?.estRecharge || false,
+        modesAutorises: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'],
+        raisonValidation: 'Recharge de compte via CinetPay',
+        verificationsPassees: true,
+        soldeSuffisant: true
+      },
+
+      securite: {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        deviceId: req.get('X-Device-ID')
       }
+    });
 
-      // Vérifier que l'utilisateur peut recharger (conducteur)
-      if (!['conducteur', 'les_deux'].includes(user.role)) {
-        return res.status(403).json({
-          success: false,
-          message: 'Seuls les conducteurs peuvent recharger leur compte',
-          code: 'ROLE_INSUFFICIENT'
-        });
-      }
+    // Appliquer bonus de recharge si éligible (≥10 000 FCFA)
+    paiement.appliquerBonusRecharge(montant);
 
-      // Validation du montant
-      if (montant < 1000 || montant > 1000000) {
-        return res.status(400).json({
-          success: false,
-          message: 'Montant invalide (1000 à 1 000 000 FCFA)',
-          limites: {
-            minimum: 1000,
-            maximum: 1000000
-          }
-        });
-      }
+    await paiement.save();
 
-      // Validation de la méthode de paiement
-      const methodesValides = ['WAVE', 'ORANGE' , 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'];
-      if (!methodesValides.includes(methodePaiement)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Méthode de paiement non supportée',
-          methodesAcceptees: methodesValides
-        });
-      }
+    // Ajouter à l'historique utilisateur (statut EN_ATTENTE)
+    if (!user.compteCovoiturage.historiqueRecharges) {
+      user.compteCovoiturage.historiqueRecharges = [];
+    }
+    
+    user.compteCovoiturage.historiqueRecharges.push({
+      montant,
+      methodePaiement,
+      referenceTransaction: paiement.referenceTransaction,
+      fraisTransaction,
+      statut: 'en_attente',
+      dateRecharge: new Date()
+    });
+    
+    await user.save();
 
-      // Validation du numéro selon l'opérateur
-      const validationNumero = this.validerNumeroOperateur(numeroTelephone, operateur || methodePaiement);
-      if (!validationNumero.valide) {
-        return res.status(400).json({
-          success: false,
-          message: validationNumero.message
-        });
-      }
+    paiement.ajouterLog('RECHARGE_INITIEE_CINETPAY', {
+      userId,
+      montant,
+      montantNet,
+      fraisTransaction,
+      bonusRecharge: paiement.bonus.bonusRecharge,
+      methodePaiement,
+      note: 'Recharge 100% CinetPay - Pas de formulaire manuel'
+    });
 
-      // Vérifier les limites quotidiennes
-      const limiteQuotidienne = await this.verifierLimitesRecharge(userId, montant);
-      if (!limiteQuotidienne.autorise) {
-        return res.status(429).json({
-          success: false,
-          message: limiteQuotidienne.message,
-          limites: limiteQuotidienne.details
-        });
-      }
+    logger.info('🚀 Recharge CinetPay initiée', {
+      userId,
+      paiementId: paiement._id,
+      montant,
+      bonusRecharge: paiement.bonus.bonusRecharge,
+      methodePaiement,
+      referenceTransaction: paiement.referenceTransaction
+    });
 
-      // Calculer les frais de transaction (2% avec minimum 50 FCFA)
-      const fraisTransaction = Math.max(Math.round(montant * 0.02), 50);
-      const montantNet = montant - fraisTransaction;
-
-      // Créer l'enregistrement de paiement pour la recharge
-      const paiement = new Paiement({
-        payeurId: userId,
-        beneficiaireId: userId,
-        montantTotal: montant,
-        montantConducteur: montantNet,
-        commissionPlateforme: 0,
-        fraisTransaction,
-        
-        commission: {
-          taux: 0,
-          tauxOriginal: 0,
-          montant: 0,
-          modePrelevement: 'paiement_mobile',
-          statutPrelevement: 'preleve'
-        },
-
-        methodePaiement: methodePaiement,
-        
-        reglesPaiement: {
-          conducteurCompteRecharge: user.compteCovoiturage?.estRecharge || false,
-          modesAutorises: ['WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'],
-          raisonValidation: 'Recharge de compte conducteur',
-          verificationsPassees: true,
-          soldeSuffisant: true
-        },
-
-        mobileMoney: {
-          operateur: operateur || methodePaiement.replace('_MONEY', ''),
-          numeroTelephone: numeroTelephone,
-          codeTransaction: codeTransaction,
-          statutMobileMoney: 'PENDING'
-        },
-
-        securite: {
+    // ✅ APPEL CINETPAY POUR GÉNÉRER URL DE PAIEMENT
+    try {
+      const resultCinetPay = await this.cinetPayService.initierPaiement(
+        null, // Pas de reservationId pour recharge
+        montant,
+        {
+          methodePaiement,
+          referenceInterne: paiement.referenceTransaction,
+          isRecharge: true,
+          userId,
+          userEmail: user.email,
+          userNom: `${user.prenom} ${user.nom}`,
+          userTelephone: user.telephone,
           ipAddress: req.ip,
           userAgent: req.get('User-Agent'),
           deviceId: req.get('X-Device-ID')
         }
-      });
+      );
 
-      // 🆕 Appliquer bonus de recharge si éligible
-      paiement.appliquerBonusRecharge(montant);
+      // Vérifier si CinetPay a réussi
+      if (!resultCinetPay || resultCinetPay.success === false) {
+        logger.error('❌ CinetPay initiation recharge échouée', {
+          userId,
+          reference: paiement.referenceTransaction,
+          error: resultCinetPay?.message
+        });
 
-      await paiement.save();
+        // Marquer comme échoué
+        paiement.statutPaiement = 'ECHEC';
+        paiement.ajouterErreur('CINETPAY_INIT_FAILED', 
+          resultCinetPay?.message || 'Erreur initialisation CinetPay');
+        await paiement.save();
 
-      // ✅ CORRECTION : Ajouter seulement à l'historique SANS créditer le solde
-      // Le crédit effectif se fera dans confirmerRecharge() ou via webhook
-      if (!user.compteCovoiturage.historiqueRecharges) {
-        user.compteCovoiturage.historiqueRecharges = [];
+        return res.status(502).json({
+          success: false,
+          error: 'CINETPAY_ERREUR',
+          message: resultCinetPay?.message || 'Erreur lors de l\'initialisation du paiement CinetPay',
+          details: 'Impossible de générer le lien de paiement. Veuillez réessayer.'
+        });
       }
-      
-      user.compteCovoiturage.historiqueRecharges.push({
-        montant,
-        methodePaiement,
-        referenceTransaction: paiement.referenceTransaction,
-        fraisTransaction,
-        statut: 'en_attente', // ✅ Statut en_attente, pas "reussi"
-        dateRecharge: new Date()
-      });
-      
-      await user.save();
 
-      paiement.ajouterLog('RECHARGE_INITIEE', {
-        userId,
-        montant,
-        montantNet,
-        fraisTransaction,
-        bonusRecharge: paiement.bonus.bonusRecharge,
-        methodePaiement,
-        operateur: operateur || methodePaiement.replace('_MONEY', ''),
-        note: 'Recharge initiée - En attente de confirmation paiement'
-      });
-
-      logger.info('Recharge initiée', {
+      // ✅ SUCCÈS - Retourner l'URL de paiement CinetPay
+      logger.info('✅ URL paiement CinetPay générée', {
         userId,
         paiementId: paiement._id,
-        montant,
-        bonusRecharge: paiement.bonus.bonusRecharge,
-        methodePaiement,
-        referenceTransaction: paiement.referenceTransaction,
-        statut: 'EN_ATTENTE'
+        reference: paiement.referenceTransaction,
+        urlPaiement: resultCinetPay.urlPaiement
       });
 
-      // 🆕 UTILISER CINETPAY pour gérer tous les opérateurs de manière unifiée
-      try {
-        const resultCinetPay = await this.cinetPayService.initierPaiement(
-          null, // Pas de reservationId pour une recharge
+      res.status(201).json({
+        success: true,
+        message: 'Recharge initiée avec succès - Redirection vers CinetPay',
+        data: {
+          paiementId: paiement._id,
+          referenceTransaction: paiement.referenceTransaction,
           montant,
-          {
-            methodePaiement,
-            numeroTelephone,
-            operateur: operateur || methodePaiement.replace('_MONEY', ''),
-            referenceInterne: paiement.referenceTransaction,
-            isRecharge: true,
-            userId,
-            ipAddress: req.ip,
-            userAgent: req.get('User-Agent'),
-            deviceId: req.get('X-Device-ID')
+          montantNet,
+          fraisTransaction,
+          bonusRecharge: paiement.bonus.bonusRecharge || 0,
+          montantTotalACrediter: montantNet + (paiement.bonus.bonusRecharge || 0),
+          methodePaiement,
+          statutPaiement: paiement.statutPaiement,
+          dateInitiation: paiement.dateInitiation,
+          
+          // 🎯 URL DE PAIEMENT CINETPAY (à ouvrir dans le navigateur)
+          paymentUrl: resultCinetPay.urlPaiement,
+          paymentToken: resultCinetPay.token,
+          
+          instructions: [
+            '1️⃣ Cliquez sur le lien de paiement ci-dessous',
+            '2️⃣ Complétez votre paiement sur la page CinetPay',
+            '3️⃣ Votre solde sera crédité automatiquement après confirmation',
+            `💰 Vous recevrez ${(montantNet + (paiement.bonus.bonusRecharge || 0)).toLocaleString()} FCFA`,
+            paiement.bonus.bonusRecharge > 0 ? `🎁 Bonus de ${paiement.bonus.bonusRecharge.toLocaleString()} FCFA inclus !` : ''
+          ].filter(Boolean),
+          
+          important: {
+            delaiConfirmation: '15 minutes maximum',
+            support: 'En cas de problème, contactez le support avec votre référence',
+            annulationPossible: 'Vous pouvez annuler dans les 30 minutes si non payé'
           }
+        }
+      });
+
+    } catch (cinetpayError) {
+      logger.error('❌ Exception CinetPay recharge:', cinetpayError);
+      
+      // Marquer comme échoué
+      paiement.statutPaiement = 'ECHEC';
+      paiement.ajouterErreur('CINETPAY_EXCEPTION', cinetpayError.message);
+      await paiement.save();
+
+      return res.status(500).json({
+        success: false,
+        error: 'ERREUR_CINETPAY',
+        message: 'Une erreur s\'est produite lors de la communication avec CinetPay',
+        details: cinetpayError.message
+      });
+    }
+
+  } catch (error) {
+    logger.error('❌ Erreur initiation recharge:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'ERREUR_RECHARGE',
+      message: error.message
+    });
+  }
+}
+
+/**
+ * ✅ MÉTHODE 2/2 : CONFIRMER RECHARGE (WEBHOOK AUTO + MANUEL ADMIN)
+ * 
+ * la méthode confirmerRecharge existante par celle-ci
+ */
+async confirmerRecharge(req, res) {
+  try {
+    const {
+      referenceTransaction,
+      statutPaiement = 'COMPLETE',
+      // Champs webhook CinetPay
+      cpm_trans_id,
+      cpm_trans_status,
+      cpm_amount,
+      cpm_custom
+    } = req.body;
+
+    // Détecter si c'est un webhook CinetPay
+    const estWebhook = req.headers['x-webhook-signature'] || 
+                       req.body.webhook === true ||
+                       cpm_trans_id; // Si contient ID transaction CinetPay
+
+    if (!referenceTransaction) {
+      return res.status(400).json({
+        success: false,
+        message: 'Référence de transaction requise'
+      });
+    }
+
+    // Trouver le paiement de recharge
+    const paiement = await Paiement.findOne({
+      referenceTransaction,
+      methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
+    }).populate('payeurId', 'compteCovoiturage nom prenom email');
+
+    if (!paiement) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction de recharge non trouvée'
+      });
+    }
+
+    if (paiement.statutPaiement !== 'EN_ATTENTE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cette recharge a déjà été traitée',
+        statutActuel: paiement.statutPaiement
+      });
+    }
+
+    // 🔒 SÉCURITÉ : Si confirmation manuelle (admin), vérifier avec CinetPay
+    if (!estWebhook) {
+      const userId = req.user?.userId;
+      const userRole = req.user?.role;
+      
+      if (userRole !== 'admin') {
+        logger.warn('⚠️ Tentative confirmation manuelle non autorisée', {
+          userId,
+          userRole,
+          referenceTransaction
+        });
+        
+        return res.status(403).json({
+          success: false,
+          error: 'AUTORISATION_REQUISE',
+          message: 'Seuls les administrateurs peuvent confirmer manuellement',
+          note: 'Les confirmations automatiques se font via webhook CinetPay'
+        });
+      }
+
+      // Vérifier le statut réel auprès de CinetPay
+      logger.info('🔍 Vérification CinetPay avant confirmation manuelle', {
+        referenceTransaction,
+        adminId: userId
+      });
+
+      try {
+        const verificationCinetPay = await this.cinetPayService.verifierStatutTransaction(
+          referenceTransaction
         );
 
-        // Vérifier si CinetPay a réussi
-        if (!resultCinetPay || resultCinetPay.success === false) {
-          logger.warn('CinetPay initiation recharge failed', {
-            userId,
-            reference: paiement.referenceTransaction,
-            error: resultCinetPay?.message
+        if (verificationCinetPay.statutPaiement !== statutPaiement) {
+          logger.warn('⚠️ Discordance statut CinetPay vs demande admin', {
+            referenceTransaction,
+            statutDemande: statutPaiement,
+            statutCinetPay: verificationCinetPay.statutPaiement,
+            adminId: userId
           });
 
-          return res.status(402).json({
+          return res.status(400).json({
             success: false,
-            error: 'CINETPAY_ERREUR',
-            message: resultCinetPay?.message || 'Erreur lors de l\'initiation du paiement CinetPay',
-            fallback: {
-              instructions: this.genererInstructionsRecharge(methodePaiement, numeroTelephone, montant),
-              referenceTransaction: paiement.referenceTransaction
-            }
+            error: 'STATUT_DISCORDANT',
+            message: 'Le statut demandé ne correspond pas au statut CinetPay',
+            statutCinetPay: verificationCinetPay.statutPaiement,
+            statutDemande: statutPaiement,
+            recommandation: 'Vérifiez le statut réel sur le dashboard CinetPay'
           });
         }
 
-        // Succès - Retourner l'URL de paiement CinetPay
-        res.status(201).json({
-          success: true,
-          message: 'Recharge initiée avec succès via CinetPay',
-          data: {
-            paiementId: paiement._id,
-            referenceTransaction: paiement.referenceTransaction,
-            montant,
-            montantNet,
-            fraisTransaction,
-            bonusRecharge: paiement.bonus.bonusRecharge,
-            montantTotalACrediter: montantNet + (paiement.bonus.bonusRecharge || 0),
-            methodePaiement,
-            statutPaiement: paiement.statutPaiement,
-            dateInitiation: paiement.dateInitiation,
-            
-            // 🎯 URL de paiement CinetPay
-            paymentUrl: resultCinetPay.urlPaiement,
-            paymentToken: resultCinetPay.token,
-            
-            important: [
-              '✅ Cliquez sur le lien de paiement pour compléter la transaction',
-              '📱 Ou utilisez le lien envoyé par SMS',
-              '🔄 Votre solde sera crédité automatiquement après paiement',
-              `💰 Vous recevrez ${montantNet + (paiement.bonus.bonusRecharge || 0)} FCFA (bonus inclus)`
-            ]
-          }
+        logger.info('✅ Vérification CinetPay réussie', {
+          referenceTransaction,
+          statutConfirme: verificationCinetPay.statutPaiement
         });
 
       } catch (cinetpayError) {
-        logger.error('Erreur CinetPay recharge:', cinetpayError);
+        logger.error('❌ Erreur vérification CinetPay:', cinetpayError);
         
-        // Fallback : retourner les instructions manuelles
-        res.status(400).json({
+        return res.status(503).json({
           success: false,
-          error: 'ERREUR_CINETPAY',
-          message: 'une erreur s\'est produite lors de l\'initiation du paiement via CinetPay',
-        })
+          error: 'CINETPAY_INDISPONIBLE',
+          message: 'Impossible de vérifier le statut auprès de CinetPay',
+          details: cinetpayError.message,
+          recommandation: 'Réessayez dans quelques instants'
+        });
       }
 
-    } catch (error) {
-      logger.error('Erreur initiation recharge:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_RECHARGE',
-        message: error.message
+      paiement.ajouterLog('CONFIRMATION_MANUELLE_ADMIN', {
+        adminId: userId,
+        dateConfirmation: new Date(),
+        verificationCinetPay: 'effectuee'
+      });
+    } else {
+      logger.info('📨 Webhook CinetPay reçu pour recharge', {
+        referenceTransaction,
+        cpm_trans_id,
+        cpm_trans_status,
+        cpm_amount,      
+        cpm_custom 
       });
     }
-  }
 
-  async confirmerRecharge(req, res) {
-    try {
-      const {
-        referenceTransaction,
-        codeVerification,
-        statutPaiement = 'COMPLETE',
-        donneesCallback = {}
-      } = req.body;
+    // ✅ TRAITER SELON LE STATUT
+    if (statutPaiement === 'COMPLETE' || cpm_trans_status === 'COMPLETED') {
+      // RECHARGE RÉUSSIE
+      paiement.statutPaiement = 'COMPLETE';
+      paiement.dateCompletion = new Date();
       
-      const userId = req.user?.userId;
-      const userRole = req.user?.role;
-
-      if (!referenceTransaction) {
-        return res.status(400).json({
-          success: false,
-          message: 'Référence de transaction requise'
-        });
+      // Enregistrer données CinetPay si webhook
+      if (cpm_trans_id) {
+        paiement.mobileMoney.transactionId = cpm_trans_id;
+        paiement.mobileMoney.statutMobileMoney = 'SUCCESS';
+        paiement.referencePaiementMobile = cpm_trans_id;
+        paiement.mobileMoney.dateTransaction = new Date();
       }
 
-      // Trouver le paiement de recharge
-      const paiement = await Paiement.findOne({
-        referenceTransaction,
-        methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
-      }).populate('payeurId', 'compteCovoiturage nom prenom email');
-
-      if (!paiement) {
-        return res.status(404).json({
-          success: false,
-          message: 'Transaction de recharge non trouvée'
-        });
-      }
-
-      if (paiement.statutPaiement !== 'EN_ATTENTE') {
-        return res.status(400).json({
-          success: false,
-          message: 'Cette recharge a déjà été traitée',
-          statutActuel: paiement.statutPaiement
-        });
-      }
-
-      // 🔒 SÉCURITÉ : Si confirmation manuelle (pas webhook), vérifier les permissions
-      const estWebhook = req.headers['x-webhook-signature'] || req.body.webhook === true;
+      // Créditer le compte utilisateur
+      const user = paiement.payeurId;
+      const montantACrediter = paiement.montantConducteur + 
+                               (paiement.bonus.bonusRecharge || 0);
       
-      if (!estWebhook) {
-        // Confirmation manuelle - nécessite admin
-        if (userRole !== 'admin') {
-          logger.warn('⚠️ Tentative confirmation manuelle non autorisée', {
-            userId,
-            userRole,
-            referenceTransaction
-          });
-          
-          return res.status(403).json({
-            success: false,
-            error: 'AUTORISATION_REQUISE',
-            message: 'Seuls les administrateurs peuvent confirmer manuellement une recharge',
-            note: 'Les confirmations automatiques se font via webhook CinetPay'
-          });
-        }
+      await user.confirmerRecharge(referenceTransaction, 'reussi', montantACrediter);
 
-        // 🔒 SÉCURITÉ : Vérifier auprès de CinetPay avant confirmation manuelle
-        logger.info('🔍 Vérification CinetPay avant confirmation manuelle', {
-          referenceTransaction,
-          adminId: userId
-        });
-
-        try {
-          const verificationCinetPay = await this.cinetPayService.verifierStatutTransaction(
-            referenceTransaction
-          );
-
-          if (verificationCinetPay.statutPaiement !== statutPaiement) {
-            logger.warn('⚠️ Discordance statut CinetPay', {
-              referenceTransaction,
-              statutDemande: statutPaiement,
-              statutCinetPay: verificationCinetPay.statutPaiement,
-              adminId: userId
-            });
-
-            return res.status(400).json({
-              success: false,
-              error: 'STATUT_DISCORDANT',
-              message: 'Le statut demandé ne correspond pas au statut CinetPay',
-              statutCinetPay: verificationCinetPay.statutPaiement,
-              statutDemande: statutPaiement,
-              recommandation: 'Vérifiez le statut réel sur le dashboard CinetPay'
-            });
-          }
-
-          logger.info('✅ Vérification CinetPay réussie', {
-            referenceTransaction,
-            statutConfirme: verificationCinetPay.statutPaiement
-          });
-
-        } catch (cinetpayError) {
-          logger.error('❌ Erreur vérification CinetPay:', cinetpayError);
-          
-          return res.status(503).json({
-            success: false,
-            error: 'CINETPAY_INDISPONIBLE',
-            message: 'Impossible de vérifier le statut auprès de CinetPay',
-            details: cinetpayError.message,
-            recommandation: 'Réessayez dans quelques instants ou vérifiez manuellement sur CinetPay'
-          });
-        }
-
-        paiement.ajouterLog('CONFIRMATION_MANUELLE_ADMIN', {
-          adminId: userId,
-          dateConfirmation: new Date(),
-          verificationCinetPay: 'effectuee'
-        });
-      }
-
-      // Traiter selon le nouveau statut
-      if (statutPaiement === 'COMPLETE') {
-        // Recharge réussie
-        paiement.statutPaiement = 'COMPLETE';
-        paiement.dateCompletion = new Date();
-        
-        // Traiter le callback mobile money si fourni
-        if (donneesCallback.transactionId) {
-          paiement.traiterCallbackMobile({
-            transactionId: donneesCallback.transactionId,
-            statut: 'SUCCESS',
-            codeTransaction: codeVerification || donneesCallback.codeTransaction,
-            ...donneesCallback
-          });
-        }
-
-        // Confirmer la recharge dans le compte utilisateur
-        const user = paiement.payeurId;
-        const montantACrediter = paiement.montantConducteur + (paiement.bonus.bonusRecharge || 0);
-        
-        await user.confirmerRecharge(referenceTransaction, 'reussi', montantACrediter);
-
-        // Envoyer email de confirmation
-        await this.envoyerEmailConfirmationRecharge(user, paiement);
-        
-        // Notification Firebase - Recharge réussie
-        try {
-          if (user.notificationsActivees('paiements')) {
-            await firebaseService.notifyPaymentSuccess(
-              user._id,
-              {
-                montant: montantACrediter,
-                transactionId: referenceTransaction,
-                methode: paiement.methodePaiement.toLowerCase()
-              },
-              Utilisateur
-            );
-            
-            logger.info('📱 Notification Firebase recharge réussie envoyée', {
-              userId: user._id,
+      // Envoyer email de confirmation
+      await this.envoyerEmailConfirmationRecharge(user, paiement);
+      
+      // Notification Firebase
+      try {
+        if (user.notificationsActivees('paiements')) {
+          await firebaseService.notifyPaymentSuccess(
+            user._id,
+            {
               montant: montantACrediter,
-              nouveauSolde: user.compteCovoiturage.solde
-            });
-          }
-        } catch (notifError) {
-          logger.error('❌ Erreur notification Firebase recharge:', notifError);
+              transactionId: referenceTransaction,
+              methode: paiement.methodePaiement.toLowerCase()
+            },
+            Utilisateur
+          );
+          
+          logger.info('📱 Notification Firebase recharge réussie envoyée', {
+            userId: user._id,
+            montant: montantACrediter,
+            nouveauSolde: user.compteCovoiturage.solde
+          });
         }
+      } catch (notifError) {
+        logger.error('❌ Erreur notification Firebase recharge:', notifError);
+      }
 
-        paiement.ajouterLog('RECHARGE_CONFIRMEE', {
+      paiement.ajouterLog('RECHARGE_CONFIRMEE_CINETPAY', {
+        montantCredite: montantACrediter,
+        montantBase: paiement.montantConducteur,
+        bonusRecharge: paiement.bonus.bonusRecharge,
+        nouveauSolde: user.compteCovoiturage.solde,
+        modeConfirmation: estWebhook ? 'webhook_auto' : 'manuel_admin',
+        cpm_trans_id: cpm_trans_id || null
+      });
+
+      logger.info('✅ Recharge confirmée avec succès', {
+        paiementId: paiement._id,
+        userId: user._id,
+        montant: paiement.montantTotal,
+        montantCredite: montantACrediter,
+        nouveauSolde: user.compteCovoiturage.solde,
+        modeConfirmation: estWebhook ? 'webhook' : 'manuel_admin'
+      });
+
+      await paiement.save();
+
+      res.json({
+        success: true,
+        message: 'Recharge confirmée avec succès',
+        data: {
+          paiementId: paiement._id,
+          referenceTransaction: paiement.referenceTransaction,
           montantCredite: montantACrediter,
           montantBase: paiement.montantConducteur,
-          bonusRecharge: paiement.bonus.bonusRecharge,
+          bonusRecharge: paiement.bonus.bonusRecharge || 0,
           nouveauSolde: user.compteCovoiturage.solde,
-          codeVerification,
-          modeConfirmation: estWebhook ? 'webhook' : 'manuel_admin'
-        });
+          statutPaiement: paiement.statutPaiement,
+          dateCompletion: paiement.dateCompletion,
+          modeConfirmation: estWebhook ? 'automatique' : 'manuel',
+          transactionCinetPay: cpm_trans_id || null
+        }
+      });
 
-        logger.info('Recharge confirmée', {
-          paiementId: paiement._id,
-          userId: user._id,
-          montant: paiement.montantTotal,
-          montantCredite: montantACrediter,
-          nouveauSolde: user.compteCovoiturage.solde,
-          modeConfirmation: estWebhook ? 'webhook' : 'manuel_admin'
-        });
+    } else if (statutPaiement === 'ECHEC' || cpm_trans_status === 'FAILED') {
+      // RECHARGE ÉCHOUÉE
+      paiement.statutPaiement = 'ECHEC';
+      
+      if (cpm_trans_id) {
+        paiement.mobileMoney.transactionId = cpm_trans_id;
+        paiement.mobileMoney.statutMobileMoney = 'FAILED';
+      }
 
-        res.json({
-          success: true,
-          message: 'Recharge confirmée avec succès',
-          data: {
-            paiementId: paiement._id,
-            referenceTransaction: paiement.referenceTransaction,
-            montantCredite: montantACrediter,
-            montantBase: paiement.montantConducteur,
-            bonusRecharge: paiement.bonus.bonusRecharge,
-            nouveauSolde: user.compteCovoiturage.solde,
-            statutPaiement: paiement.statutPaiement,
-            dateCompletion: paiement.dateCompletion,
-            modeConfirmation: estWebhook ? 'automatique' : 'manuel'
-          }
-        });
+      // Marquer comme échoué dans l'historique utilisateur
+      const user = paiement.payeurId;
+      await user.confirmerRecharge(referenceTransaction, 'echec');
 
-      } else if (statutPaiement === 'ECHEC') {
-        // Recharge échouée
-        paiement.statutPaiement = 'ECHEC';
-        
-        if (donneesCallback.transactionId) {
-          paiement.traiterCallbackMobile({
-            transactionId: donneesCallback.transactionId,
-            statut: 'FAILED',
-            ...donneesCallback
+      paiement.ajouterErreur('RECHARGE_ECHEC_CINETPAY', 
+        'Échec du paiement confirmé par CinetPay');
+
+      // Notification Firebase - Échec
+      try {
+        if (user.notificationsActivees('paiements')) {
+          await firebaseService.notifyPaymentFailed(
+            user._id,
+            {
+              montant: paiement.montantTotal,
+              transactionId: referenceTransaction,
+              reason: 'Paiement échoué sur CinetPay'
+            },
+            Utilisateur
+          );
+          
+          logger.info('📱 Notification Firebase recharge échouée envoyée', {
+            userId: user._id
           });
         }
-
-        // Marquer comme échoué dans l'historique utilisateur
-        const user = paiement.payeurId;
-        await user.confirmerRecharge(referenceTransaction, 'echec');
-
-        paiement.ajouterErreur('RECHARGE_ECHEC', 
-          donneesCallback.messageErreur || 'Échec du paiement mobile money');
-
-        // Notification Firebase - Recharge échouée
-        try {
-          if (user.notificationsActivees('paiements')) {
-            await firebaseService.notifyPaymentFailed(
-              user._id,
-              {
-                montant: paiement.montantTotal,
-                transactionId: referenceTransaction,
-                reason: donneesCallback.messageErreur || 'Échec du paiement'
-              },
-              Utilisateur
-            );
-            
-            logger.info('📱 Notification Firebase recharge échouée envoyée', {
-              userId: user._id,
-              raison: donneesCallback.messageErreur
-            });
-          }
-        } catch (notifError) {
-          logger.error('❌ Erreur notification Firebase échec:', notifError);
-        }
-
-        res.json({
-          success: true,
-          message: 'Statut de recharge mis à jour (échec)',
-          data: {
-            paiementId: paiement._id,
-            referenceTransaction: paiement.referenceTransaction,
-            statutPaiement: paiement.statutPaiement,
-            raisonEchec: donneesCallback.messageErreur || 'Paiement non confirmé'
-          }
-        });
+      } catch (notifError) {
+        logger.error('❌ Erreur notification Firebase échec:', notifError);
       }
 
       await paiement.save();
 
-    } catch (error) {
-      logger.error('Erreur confirmation recharge:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_CONFIRMATION',
-        message: error.message
+      logger.warn('⚠️ Recharge échouée', {
+        paiementId: paiement._id,
+        userId: user._id,
+        referenceTransaction,
+        cpm_trans_id: cpm_trans_id || null
+      });
+
+      res.json({
+        success: true,
+        message: 'Statut de recharge mis à jour (échec)',
+        data: {
+          paiementId: paiement._id,
+          referenceTransaction: paiement.referenceTransaction,
+          statutPaiement: paiement.statutPaiement,
+          raisonEchec: 'Paiement échoué sur CinetPay',
+          transactionCinetPay: cpm_trans_id || null
+        }
       });
     }
+
+  } catch (error) {
+    logger.error('❌ Erreur confirmation recharge:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'ERREUR_CONFIRMATION',
+      message: error.message
+    });
   }
+}
 
   async obtenirHistoriqueRecharges(req, res) {
     try {

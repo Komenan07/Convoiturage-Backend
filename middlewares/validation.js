@@ -64,7 +64,7 @@ const validateRegistration = [
   handleValidationErrors
 ];
 
-const registerValidation = validateRegistration; // Alias pour compatibilité
+const registerValidation = validateRegistration;
 
 const validateLogin = [
   body('email').trim().isEmail().withMessage('Email invalide'),
@@ -72,7 +72,7 @@ const validateLogin = [
   handleValidationErrors
 ];
 
-const loginValidation = validateLogin; // Alias pour compatibilité
+const loginValidation = validateLogin;
 
 const registerSMSValidation = [
   body('nom').trim().notEmpty().withMessage('Le nom est requis'),
@@ -113,9 +113,6 @@ const validateTrajet = [
   handleValidationErrors
 ];
 
-/**
- * Validation pour obtenir les méthodes de paiement d'un trajet
- */
 const validateTrajetId = [
   param('trajetId')
     .notEmpty()
@@ -163,15 +160,12 @@ const validatePaiement = [
     .toFloat(),
   body('methodePaiement')
     .optional()
-    .isIn(['WAVE',  'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
+    .isIn(['WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'ESPECES'])
     .withMessage('Méthode de paiement non supportée')
     .default('WAVE'),
   handleValidationErrors
 ];
 
-/**
- * Validation pour confirmer un paiement en espèces
- */
 const validateConfirmerPaiementEspeces = [
   param('referenceTransaction')
     .notEmpty()
@@ -188,7 +182,7 @@ const validateConfirmerPaiementEspeces = [
 ];
 
 // =========================
-// VALIDATION RECHARGES
+// ✅ VALIDATION RECHARGES SIMPLIFIÉE
 // =========================
 
 const validateRecharge = [
@@ -197,28 +191,10 @@ const validateRecharge = [
     .withMessage('Montant doit être entre 1,000 et 1,000,000 FCFA')
     .toFloat(),
   body('methodePaiement')
-    .isIn(['WAVE',  'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
+    .isIn(['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
     .withMessage('Méthode de paiement non supportée'),
-  body('numeroTelephone')
-    .notEmpty()
-    .withMessage('Numéro de téléphone requis')
-    .matches(/^(\+225)?[0-9]{8,10}$/)
-    .withMessage('Format de numéro invalide')
-    .custom((value, { req }) => {
-      const operator = req.body.operateur || req.body.methodePaiement;
-      if (operator && !validatePhoneByOperator(value, operator)) {
-        throw new Error(`Numéro invalide pour l'opérateur ${operator}`);
-      }
-      return true;
-    }),
-  body('operateur')
-    .optional()
-    .isIn(['ORANGE', 'MTN', 'MOOV', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
-    .withMessage('Opérateur non supporté'),
-  body('codeTransaction')
-    .optional()
-    .isLength({ min: 6, max: 20 })
-    .withMessage('Code de transaction invalide (6-20 caractères)'),
+  // ✅ SUPPRESSION : numeroTelephone, operateur, codeTransaction
+  // CinetPay gère tout automatiquement
   handleValidationErrors
 ];
 
@@ -228,19 +204,16 @@ const validateConfirmerRecharge = [
     .withMessage('Référence de transaction requise')
     .isLength({ min: 10, max: 50 })
     .withMessage('Format de référence invalide'),
-  body('codeVerification')
-    .optional()
-    .isLength({ min: 6, max: 20 })
-    .withMessage('Code de vérification invalide'),
   body('statutPaiement')
     .optional()
     .isIn(['COMPLETE', 'ECHEC'])
-    .withMessage('Statut de paiement invalide')
+    .withMessage('Statut invalide')
     .default('COMPLETE'),
-  body('donneesCallback')
-    .optional()
-    .isObject()
-    .withMessage('Données de callback doivent être un objet'),
+  // ✅ Champs webhook CinetPay
+  body('cpm_trans_id').optional(),
+  body('cpm_trans_status').optional(),
+  body('cpm_amount').optional(),
+  body('cpm_custom').optional(),
   handleValidationErrors
 ];
 
@@ -298,12 +271,6 @@ const validateAutoRecharge = [
     .if(body('active').equals(true))
     .isIn(['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
     .withMessage('Méthode de paiement auto invalide'),
-  body('numeroTelephoneAuto')
-    .if(body('active').equals(true))
-    .notEmpty()
-    .withMessage('Numéro de téléphone auto requis')
-    .matches(/^(\+225)?[0-9]{8,10}$/)
-    .withMessage('Format de numéro auto invalide'),
   handleValidationErrors
 ];
 
@@ -524,7 +491,7 @@ module.exports = {
   
   // Trajets
   validateTrajet,
-   validateTrajetId,
+  validateTrajetId,
   
   // Véhicules
   validateVehicule,
@@ -536,7 +503,7 @@ module.exports = {
   validatePaiement,
   validateConfirmerPaiementEspeces,
   
-  // Recharges
+  // Recharges (SIMPLIFIÉES)
   validateRecharge,
   validateConfirmerRecharge,
   validateHistoriqueRecharges,
