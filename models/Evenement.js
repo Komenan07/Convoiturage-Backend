@@ -1,6 +1,30 @@
 // models/Evenement.js
 const mongoose = require('mongoose');
 
+// Schéma pour les notations/avis
+const notationSchema = new mongoose.Schema({
+  utilisateur: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Utilisateur',
+    required: true
+  },
+  note: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 5
+  },
+  commentaire: {
+    type: String,
+    maxlength: 500,
+    trim: true
+  },
+  dateNotation: {
+    type: Date,
+    default: Date.now
+  }
+}, { _id: true });
+
 // Schéma pour les groupes de covoiturage
 const groupeCovoiturageSchema = new mongoose.Schema({
   nom: {
@@ -27,7 +51,6 @@ const groupeCovoiturageSchema = new mongoose.Schema({
     required: true,
     match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/ // Format HH:MM
   },
-  // Ajout pour la gestion des membres
   maxMembres: {
     type: Number,
     default: 4,
@@ -53,6 +76,22 @@ const lieuSchema = new mongoose.Schema({
   ville: {
     type: String,
     required: true,
+    trim: true,
+    maxlength: 100
+  },
+  // 🆕 AJOUT : Commune pour Abidjan
+  commune: {
+    type: String,
+    enum: [
+      'COCODY', 'YOPOUGON', 'ABOBO', 'PLATEAU', 
+      'KOUMASSI', 'MARCORY', 'TREICHVILLE', 
+      'PORT_BOUET', 'ATTÉCOUBÉ', 'ADJAMÉ'
+    ],
+    uppercase: true
+  },
+  // 🆕 AJOUT : Quartier spécifique
+  quartier: {
+    type: String,
     trim: true,
     maxlength: 100
   },
@@ -102,13 +141,7 @@ const evenementSchema = new mongoose.Schema({
   // Planification
   dateDebut: {
     type: Date,
-    required: [true, 'La date de début est requise'],
-    validate: {
-      validator: function(date) {
-        return date > new Date();
-      },
-      message: 'La date de début doit être dans le futur'
-    }
+    required: [true, 'La date de début est requise']
   },
   
   dateFin: {
@@ -152,6 +185,21 @@ const evenementSchema = new mongoose.Schema({
     }
   },
   
+  // 🆕 AJOUT : Identifiant externe pour éviter les doublons
+  identifiantExterne: {
+    type: String,
+    sparse: true,
+    index: true,
+    trim: true
+  },
+  
+  // 🆕 AJOUT : URL de la source originale
+  urlSource: {
+    type: String,
+    trim: true,
+    maxlength: 500
+  },
+  
   // Covoiturage associé
   trajetsAssocies: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -177,13 +225,28 @@ const evenementSchema = new mongoose.Schema({
     type: Date
   },
   
-  // Motif de changement de statut
   motifChangementStatut: {
     type: String,
     maxlength: 500
   },
   
-  // Champs additionnels utiles
+  // 🆕 AJOUT : Système de notation
+  notations: {
+    notes: [notationSchema],
+    moyenneNote: {
+      type: Number,
+      min: 0,
+      max: 5,
+      default: 0
+    },
+    nombreNotes: {
+      type: Number,
+      default: 0,
+      min: 0
+    }
+  },
+  
+  // Champs additionnels
   estPublic: {
     type: Boolean,
     default: true
@@ -206,10 +269,12 @@ const evenementSchema = new mongoose.Schema({
   }
   
 }, {
-  timestamps: true, // Ajoute createdAt et updatedAt automatiquement
+  timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
+
+// =============== INDEX ===============
 
 // Index géospatial pour les requêtes de proximité
 evenementSchema.index({ "lieu.coordonnees": "2dsphere" });
@@ -224,13 +289,24 @@ evenementSchema.index({
 // Index pour les recherches par ville
 evenementSchema.index({ "lieu.ville": 1, "dateDebut": 1 });
 
+// 🆕 AJOUT : Index pour les recherches par commune/quartier Abidjan
+evenementSchema.index({ "lieu.commune": 1, "dateDebut": 1 });
+evenementSchema.index({ "lieu.commune": 1, "lieu.quartier": 1 });
+
 // Index pour les tags
 evenementSchema.index({ "tags": 1 });
 
 // Index pour la source
 evenementSchema.index({ "sourceDetection": 1, "source": 1 });
 
-// Propriété virtuelle pour calculer la durée
+// 🆕 AJOUT : Index unique sparse pour identifiantExterne
+evenementSchema.index({ "identifiantExterne": 1 }, { unique: true, sparse: true });
+
+// 🆕 AJOUT : Index pour les notations
+evenementSchema.index({ "notations.moyenneNote": -1 });
+
+// =============== PROPRIÉTÉS VIRTUELLES ===============
+
 evenementSchema.virtual('dureeHeures').get(function() {
   if (this.dateDebut && this.dateFin) {
     return Math.round((this.dateFin - this.dateDebut) / (1000 * 60 * 60));
@@ -238,12 +314,10 @@ evenementSchema.virtual('dureeHeures').get(function() {
   return 0;
 });
 
-// Propriété virtuelle pour le nombre de groupes de covoiturage
 evenementSchema.virtual('nombreGroupesCovoiturage').get(function() {
   return this.groupesCovoiturage ? this.groupesCovoiturage.length : 0;
 });
 
-// Propriété virtuelle pour le nombre total de places de covoiturage disponibles
 evenementSchema.virtual('placesCovoiturageDisponibles').get(function() {
   if (!this.groupesCovoiturage) return 0;
   return this.groupesCovoiturage.reduce((total, groupe) => {
@@ -253,7 +327,8 @@ evenementSchema.virtual('placesCovoiturageDisponibles').get(function() {
   }, 0);
 });
 
-// Middleware pre-save pour la validation croisée
+// =============== MIDDLEWARE PRE-SAVE ===============
+
 evenementSchema.pre('save', function(next) {
   // Vérifier que la date de fin est après la date de début
   if (this.dateFin <= this.dateDebut) {
@@ -270,10 +345,18 @@ evenementSchema.pre('save', function(next) {
     this.dateAnnulation = new Date();
   }
   
+  // 🆕 AJOUT : Recalculer la moyenne des notes
+  if (this.notations && this.notations.notes && this.notations.notes.length > 0) {
+    const totalNotes = this.notations.notes.reduce((sum, n) => sum + n.note, 0);
+    this.notations.moyenneNote = totalNotes / this.notations.notes.length;
+    this.notations.nombreNotes = this.notations.notes.length;
+  }
+  
   next();
 });
 
-// Méthodes d'instance
+// =============== MÉTHODES D'INSTANCE ===============
+
 evenementSchema.methods.ajouterGroupeCovoiturage = function(donneesGroupe) {
   this.groupesCovoiturage.push(donneesGroupe);
   return this.save();
@@ -311,7 +394,6 @@ evenementSchema.methods.peutEtreAnnule = function() {
   return ['PROGRAMME', 'EN_COURS'].includes(this.statutEvenement);
 };
 
-// Méthodes pour la gestion des groupes de covoiturage
 evenementSchema.methods.obtenirGroupeCovoiturage = function(groupeId) {
   return this.groupesCovoiturage.id(groupeId);
 };
@@ -321,13 +403,53 @@ evenementSchema.methods.utilisateurDansGroupe = function(groupeId, userId) {
   return groupe ? groupe.membres.includes(userId) : false;
 };
 
-// Méthodes statiques
+// 🆕 AJOUT : Méthodes pour les notations
+evenementSchema.methods.ajouterNotation = function(userId, note, commentaire) {
+  // Vérifier si l'utilisateur a déjà noté
+  const notationExistante = this.notations.notes.find(
+    n => n.utilisateur.toString() === userId.toString()
+  );
+  
+  if (notationExistante) {
+    // Mettre à jour la note existante
+    notationExistante.note = note;
+    notationExistante.commentaire = commentaire;
+    notationExistante.dateNotation = new Date();
+  } else {
+    // Ajouter une nouvelle note
+    this.notations.notes.push({
+      utilisateur: userId,
+      note,
+      commentaire,
+      dateNotation: new Date()
+    });
+  }
+  
+  return this.save();
+};
+
+evenementSchema.methods.obtenirNotations = function(page = 1, limit = 10) {
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + limit;
+  
+  return {
+    notes: this.notations.notes
+      .sort((a, b) => b.dateNotation - a.dateNotation)
+      .slice(startIndex, endIndex),
+    total: this.notations.notes.length,
+    moyenneNote: this.notations.moyenneNote,
+    nombreNotes: this.notations.nombreNotes
+  };
+};
+
+// =============== MÉTHODES STATIQUES ===============
+
 evenementSchema.statics.rechercherParProximite = function(longitude, latitude, rayonKm = 10) {
   return this.find({
     "lieu.coordonnees": {
       $near: {
         $geometry: { type: "Point", coordinates: [longitude, latitude] },
-        $maxDistance: rayonKm * 1000 // Convertir km en mètres
+        $maxDistance: rayonKm * 1000
       }
     },
     statutEvenement: { $in: ['PROGRAMME', 'EN_COURS'] }
@@ -350,7 +472,22 @@ evenementSchema.statics.obtenirEvenementsAVenir = function(limit = 20, ville = n
     .populate('trajetsAssocies');
 };
 
-evenementSchema.statics.obtenirStatistiques = function(periode = '30d') {
+// 🆕 AJOUT : Recherche par commune d'Abidjan
+evenementSchema.statics.rechercherParCommune = function(commune, quartier = null) {
+  let query = {
+    'lieu.commune': commune.toUpperCase(),
+    statutEvenement: { $in: ['PROGRAMME', 'EN_COURS'] },
+    dateDebut: { $gte: new Date() }
+  };
+  
+  if (quartier) {
+    query['lieu.quartier'] = new RegExp(quartier, 'i');
+  }
+  
+  return this.find(query).sort({ dateDebut: 1 });
+};
+
+evenementSchema.statics.obtenirStatistiques = function(periode = '30d', ville = null) {
   const maintenant = new Date();
   let dateDebut;
 
@@ -368,31 +505,33 @@ evenementSchema.statics.obtenirStatistiques = function(periode = '30d') {
       dateDebut = new Date(maintenant - 30 * 24 * 60 * 60 * 1000);
   }
 
+  let matchStage = {
+    createdAt: { $gte: dateDebut }
+  };
+  
+  if (ville) {
+    matchStage['lieu.ville'] = new RegExp(ville, 'i');
+  }
+
   return this.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: dateDebut }
-      }
-    },
+    { $match: matchStage },
     {
       $group: {
         _id: null,
         totalEvenements: { $sum: 1 },
-        evenementsParType: {
-          $push: "$typeEvenement"
-        },
-        evenementsParStatut: {
-          $push: "$statutEvenement"
-        },
+        evenementsParType: { $push: "$typeEvenement" },
+        evenementsParStatut: { $push: "$statutEvenement" },
+        evenementsParSource: { $push: "$sourceDetection" },
+        evenementsParVille: { $push: "$lieu.ville" },
         totalGroupesCovoiturage: {
           $sum: { $size: { $ifNull: ["$groupesCovoiturage", []] } }
-        }
+        },
+        moyenneNotations: { $avg: "$notations.moyenneNote" }
       }
     }
   ]);
 };
 
-// Méthode pour recherche avancée
 evenementSchema.statics.rechercheAvancee = function(criteres, options = {}) {
   const {
     motsCles,
@@ -400,6 +539,8 @@ evenementSchema.statics.rechercheAvancee = function(criteres, options = {}) {
     dateDebutMin,
     dateDebutMax,
     ville,
+    commune,
+    quartier,
     tags,
     capaciteMin,
     capaciteMax,
@@ -407,11 +548,10 @@ evenementSchema.statics.rechercheAvancee = function(criteres, options = {}) {
     rayon
   } = criteres;
 
-  // Extraire les options
   const {
     page = 1,
     limit = 20,
-    sort = { dateCreation: -1 },
+    sort = { dateDebut: -1 },
     populate = []
   } = options;
 
@@ -429,6 +569,8 @@ evenementSchema.statics.rechercheAvancee = function(criteres, options = {}) {
   // Filtres basiques
   if (typeEvenement) query.typeEvenement = typeEvenement;
   if (ville) query['lieu.ville'] = new RegExp(ville, 'i');
+  if (commune) query['lieu.commune'] = commune.toUpperCase();
+  if (quartier) query['lieu.quartier'] = new RegExp(quartier, 'i');
   if (tags && tags.length > 0) query.tags = { $in: tags };
 
   // Filtres de dates
@@ -458,7 +600,6 @@ evenementSchema.statics.rechercheAvancee = function(criteres, options = {}) {
     };
   }
 
-  // Appliquer les options à la requête
   let mongoQuery = this.find(query);
   
   if (populate.length > 0) {

@@ -1,3 +1,4 @@
+// routes/evenementRoutes.js
 const express = require('express');
 const router = express.Router();
 const EvenementController = require('../controllers/evenementController');
@@ -23,6 +24,8 @@ try {
     next();
   };
 }
+
+// =============== MIDDLEWARES DE VALIDATION ===============
 
 // Validation des IDs MongoDB
 const validerIdEvenement = (req, res, next) => {
@@ -102,15 +105,12 @@ router.use(loggerEvenements);
  *       properties:
  *         _id:
  *           type: string
- *           description: ID unique de l'événement
  *         nom:
  *           type: string
  *           maxLength: 200
- *           description: Nom de l'événement
  *         description:
  *           type: string
  *           maxLength: 2000
- *           description: Description détaillée
  *         typeEvenement:
  *           type: string
  *           enum: [SPORT, CONCERT, FESTIVAL, CONFERENCE]
@@ -122,53 +122,18 @@ router.use(loggerEvenements);
  *           format: date-time
  *         lieu:
  *           type: object
- *           properties:
- *             nom:
- *               type: string
- *             adresse:
- *               type: string
- *             ville:
- *               type: string
- *             coordonnees:
- *               type: object
- *               properties:
- *                 type:
- *                   type: string
- *                   enum: [Point]
- *                 coordinates:
- *                   type: array
- *                   items:
- *                     type: number
- *         capaciteEstimee:
- *           type: number
  *         statutEvenement:
  *           type: string
  *           enum: [PROGRAMME, EN_COURS, TERMINE, ANNULE]
  *         sourceDetection:
  *           type: string
  *           enum: [MANUEL, AUTOMATIQUE, API_EXTERNE]
- *         groupesCovoiturage:
- *           type: array
- *           items:
- *             type: object
- *         tags:
- *           type: array
- *           items:
- *             type: string
- *         createdAt:
- *           type: string
- *           format: date-time
- *         updatedAt:
- *           type: string
- *           format: date-time
  *   securitySchemes:
  *     bearerAuth:
  *       type: http
  *       scheme: bearer
  *       bearerFormat: JWT
  */
-
-// =============== ROUTES CREATE ===============
 
 /**
  * @swagger
@@ -180,8 +145,77 @@ router.use(loggerEvenements);
  *   - name: Événements - UPDATE
  *     description: Modification des événements
  *   - name: Événements - DELETE
- *     description: Suppression et annulation des événements
+ *     description: Suppression et annulation
+ *   - name: Événements - ADMIN
+ *     description: Administration et détection automatique
+ *   - name: Événements - STATS
+ *     description: Statistiques et analytics
+ *   - name: Événements - FAVORIS
+ *     description: Gestion des favoris utilisateur
+ *   - name: Événements - SOCIAL
+ *     description: Partage social
+ *   - name: Événements - NOTIFICATIONS
+ *     description: Rappels et notifications
+ *   - name: Événements - EXPORT
+ *     description: Export de données
+ *   - name: Événements - TRAJETS
+ *     description: Trajets automatiques
  */
+
+// ===============================================
+// ROUTES ADMIN (Détection Auto, Maintenance)
+// ===============================================
+
+// Lancer la détection automatique d'événements
+router.post('/admin/detecter-automatique', protect, evenementController.lancerDetectionAutomatique);
+
+// Nettoyer les événements passés
+router.delete('/admin/nettoyer-passes', protect, evenementController.nettoyerEvenementsPasses);
+
+// Mettre à jour les statuts automatiquement
+router.patch('/admin/maj-statuts-auto', protect, evenementController.mettreAJourStatutsAuto);
+
+// ===============================================
+// ROUTES STATS & ANALYTICS
+// ===============================================
+
+// Obtenir les statistiques
+router.get('/statistiques', evenementController.obtenirStatistiques);
+
+// Obtenir les événements populaires
+router.get('/populaires', evenementController.obtenirEvenementsPopulaires);
+
+// ===============================================
+// ROUTES FAVORIS
+// ===============================================
+
+// Obtenir les favoris de l'utilisateur
+router.get('/favoris', protect, evenementController.obtenirFavoris);
+
+// ===============================================
+// ROUTES EXPORT
+// ===============================================
+
+// Exporter les événements (CSV ou JSON)
+router.get('/export', evenementController.exporterEvenements);
+
+// ===============================================
+// ROUTES RECOMMANDATIONS & PERSONNALISATION
+// ===============================================
+
+// Obtenir des recommandations personnalisées
+router.get('/recommandations', protect, evenementController.obtenirRecommandations);
+
+// ===============================================
+// ROUTES QUARTIERS ABIDJAN
+// ===============================================
+
+// Obtenir les événements par quartier d'Abidjan
+router.get('/quartier/:commune', evenementController.obtenirEvenementsParQuartier);
+
+// ===============================================
+// ROUTES CREATE
+// ===============================================
 
 // Créer un événement manuellement
 router.post('/creer-manuel', protect, evenementController.creerEvenementManuel);
@@ -189,10 +223,9 @@ router.post('/creer-manuel', protect, evenementController.creerEvenementManuel);
 // Importer des événements depuis une API externe
 router.post('/import-api', protect, evenementController.importerEvenementsAPI);
 
-// Créer un groupe de covoiturage
-router.post('/:id/groupes-covoiturage', protect, validerIdEvenement, evenementController.creerGroupeCovoiturage);
-
-// =============== ROUTES READ ===============
+// ===============================================
+// ROUTES READ (Générales)
+// ===============================================
 
 // Obtenir les événements à venir
 router.get('/a-venir', evenementController.obtenirEvenementsAVenir);
@@ -200,19 +233,39 @@ router.get('/a-venir', evenementController.obtenirEvenementsAVenir);
 // Rechercher par localisation
 router.get('/recherche-localisation', validerLocalisation, evenementController.rechercherParLocalisation);
 
-// Obtenir les trajets associés à un événement
+// ===============================================
+// ROUTES SPÉCIFIQUES À UN ÉVÉNEMENT
+// ===============================================
+
+// Valider la cohérence d'un événement (ADMIN)
+router.get('/:id/valider', protect, validerIdEvenement, evenementController.validerCoherence);
+
+// Vérifier les conflits d'horaire
+router.get('/:id/conflits-horaire', protect, validerIdEvenement, evenementController.verifierConflitsHoraire);
+
+// Générer les liens de partage
+router.get('/:id/partage', validerIdEvenement, evenementController.genererLienPartage);
+
+// Obtenir les trajets associés
 router.get('/:id/trajets', validerIdEvenement, evenementController.obtenirTrajetsAssocies);
 
-// Obtenir les groupes de covoiturage d'un événement
+// Proposer des trajets automatiques
+router.get('/:id/trajets-proposes', validerIdEvenement, evenementController.proposerTrajetsAutomatiques);
+
+// Obtenir les groupes de covoiturage
 router.get('/:id/groupes-covoiturage', validerIdEvenement, evenementController.obtenirGroupesCovoiturage);
 
-// Obtenir un événement spécifique
-router.get('/:id', validerIdEvenement, evenementController.obtenirEvenement);
+// Créer un groupe de covoiturage
+router.post('/:id/groupes-covoiturage', protect, validerIdEvenement, evenementController.creerGroupeCovoiturage);
 
-// Obtenir tous les événements (doit être en dernier des GET)
-router.get('/', evenementController.obtenirTousEvenements);
+// Envoyer un rappel pour l'événement
+router.post('/:id/rappel', protect, validerIdEvenement, evenementController.envoyerRappelEvenement);
 
-// =============== ROUTES UPDATE ===============
+// Ajouter aux favoris
+router.post('/:id/favoris', protect, validerIdEvenement, evenementController.ajouterAuxFavoris);
+
+// Retirer des favoris
+router.delete('/:id/favoris', protect, validerIdEvenement, evenementController.retirerDesFavoris);
 
 // Modifier les détails d'un événement
 router.put('/:id', protect, validerIdEvenement, evenementController.modifierDetailsEvenement);
@@ -220,29 +273,96 @@ router.put('/:id', protect, validerIdEvenement, evenementController.modifierDeta
 // Mettre à jour le statut
 router.patch('/:id/statut', protect, validerIdEvenement, evenementController.mettreAJourStatut);
 
-// Modifier un groupe de covoiturage
-router.put('/:id/groupes-covoiturage/:groupeId', protect, validerIdEvenement, validerIdGroupe, evenementController.modifierGroupeCovoiturage);
-
-// Rejoindre un groupe de covoiturage
-router.post('/:id/groupes-covoiturage/:groupeId/rejoindre', protect, validerIdEvenement, validerIdGroupe, evenementController.rejoindreGroupeCovoiturage);
-
-// Quitter un groupe de covoiturage
-router.delete('/:id/groupes-covoiturage/:groupeId/quitter', protect, validerIdEvenement, validerIdGroupe, evenementController.quitterGroupeCovoiturage);
-
-// =============== ROUTES DELETE ===============
-
 // Annuler un événement
 router.patch('/:id/annuler', protect, validerIdEvenement, evenementController.annulerEvenement);
 
-// Supprimer un groupe de covoiturage
-router.delete('/:id/groupes-covoiturage/:groupeId', protect, validerIdEvenement, validerIdGroupe, evenementController.supprimerGroupeCovoiturage);
+// Obtenir un événement spécifique
+router.get('/:id', validerIdEvenement, evenementController.obtenirEvenement);
 
-// =============== ROUTES DE TEST (DÉVELOPPEMENT) ===============
+// ===============================================
+// ROUTES GROUPES DE COVOITURAGE
+// ===============================================
+
+// Créer un trajet depuis un groupe
+router.post(
+  '/:id/groupes-covoiturage/:groupeId/creer-trajet', 
+  protect, 
+  validerIdEvenement, 
+  validerIdGroupe, 
+  evenementController.creerTrajetDepuisGroupe
+);
+
+// Modifier un groupe de covoiturage
+router.put(
+  '/:id/groupes-covoiturage/:groupeId', 
+  protect, 
+  validerIdEvenement, 
+  validerIdGroupe, 
+  evenementController.modifierGroupeCovoiturage
+);
+
+// Rejoindre un groupe de covoiturage
+router.post(
+  '/:id/groupes-covoiturage/:groupeId/rejoindre', 
+  protect, 
+  validerIdEvenement, 
+  validerIdGroupe, 
+  evenementController.rejoindreGroupeCovoiturage
+);
+
+// Quitter un groupe de covoiturage
+router.delete(
+  '/:id/groupes-covoiturage/:groupeId/quitter', 
+  protect, 
+  validerIdEvenement, 
+  validerIdGroupe, 
+  evenementController.quitterGroupeCovoiturage
+);
+
+// Supprimer un groupe de covoiturage
+router.delete(
+  '/:id/groupes-covoiturage/:groupeId', 
+  protect, 
+  validerIdEvenement, 
+  validerIdGroupe, 
+  evenementController.supprimerGroupeCovoiturage
+);
+
+// ===============================================
+// ROUTE GÉNÉRALE (DOIT ÊTRE EN DERNIER)
+// ===============================================
+
+// Obtenir tous les événements (doit être en dernier des GET)
+router.get('/', evenementController.obtenirTousEvenements);
+
+// ===============================================
+// ROUTE DE TEST (DÉVELOPPEMENT)
+// ===============================================
+
 router.get('/test/structure', (req, res) => {
   res.json({
     success: true,
-    message: 'API Événements opérationnelle',
+    message: 'API Événements opérationnelle - Version Complète',
+    version: '2.0.0',
     routes_disponibles: {
+      admin: [
+        'POST /admin/detecter-automatique - Détection automatique',
+        'DELETE /admin/nettoyer-passes - Nettoyage événements passés',
+        'PATCH /admin/maj-statuts-auto - MAJ statuts automatique'
+      ],
+      stats: [
+        'GET /statistiques - Statistiques événements',
+        'GET /populaires - Événements populaires'
+      ],
+      favoris: [
+        'GET /favoris - Liste favoris utilisateur',
+        'POST /:id/favoris - Ajouter aux favoris',
+        'DELETE /:id/favoris - Retirer des favoris'
+      ],
+      personnalisation: [
+        'GET /recommandations - Recommandations personnalisées',
+        'GET /quartier/:commune - Événements par quartier Abidjan'
+      ],
       create: [
         'POST /creer-manuel - Créer événement manuel',
         'POST /import-api - Import événements API externe',
@@ -252,7 +372,11 @@ router.get('/test/structure', (req, res) => {
         'GET /a-venir - Événements à venir',
         'GET /recherche-localisation - Recherche par localisation',
         'GET /:id/trajets - Trajets associés',
+        'GET /:id/trajets-proposes - Trajets proposés automatiquement',
         'GET /:id/groupes-covoiturage - Groupes covoiturage',
+        'GET /:id/conflits-horaire - Vérifier conflits horaire',
+        'GET /:id/partage - Liens de partage',
+        'GET /:id/valider - Valider cohérence (ADMIN)',
         'GET /:id - Événement spécifique',
         'GET / - Tous les événements'
       ],
@@ -266,17 +390,45 @@ router.get('/test/structure', (req, res) => {
       delete: [
         'PATCH /:id/annuler - Annuler événement',
         'DELETE /:id/groupes-covoiturage/:groupeId - Supprimer groupe'
+      ],
+      notifications: [
+        'POST /:id/rappel - Envoyer rappel événement'
+      ],
+      export: [
+        'GET /export - Exporter événements (CSV/JSON)'
+      ],
+      trajets: [
+        'POST /:id/groupes-covoiturage/:groupeId/creer-trajet - Créer trajet auto',
+        'GET /:id/trajets-proposes - Proposer trajets'
       ]
+    },
+    nouvelles_fonctionnalites: {
+      '✅ Détection automatique': 'Importe événements depuis APIs externes',
+      '✅ Favoris': 'Gestion favoris utilisateur',
+      '✅ Recommandations': 'Suggestions personnalisées',
+      '✅ Quartiers Abidjan': 'Recherche par commune/quartier',
+      '✅ Conflits horaire': 'Vérification automatique',
+      '✅ Partage social': 'Génération liens WhatsApp/Facebook',
+      '✅ Rappels': 'Notifications automatiques',
+      '✅ Export': 'CSV et JSON',
+      '✅ Statistiques': 'Analytics avancés',
+      '✅ Trajets auto': 'Création et proposition automatiques',
+      '✅ Validation': 'Cohérence des données',
+      '✅ Maintenance': 'Nettoyage et MAJ automatiques'
     },
     middlewares: {
       auth: typeof protect === 'function',
       validation: true,
       logging: true
-    }
+    },
+    total_routes: Object.keys(router.stack).length
   });
 });
 
-// =============== GESTION D'ERREURS ===============
+// ===============================================
+// GESTION D'ERREURS
+// ===============================================
+
 router.use((error, req, res, next) => {
   console.error(`💥 [EVENEMENTS] Erreur ${req.method} ${req.originalUrl}:`, {
     message: error.message,
@@ -286,7 +438,7 @@ router.use((error, req, res, next) => {
     query: req.query,
     timestamp: new Date().toISOString()
   });
-    next(error);
+
   // Erreurs de validation MongoDB
   if (error.name === 'ValidationError') {
     const errors = Object.values(error.errors).map(err => ({
@@ -333,12 +485,8 @@ router.use((error, req, res, next) => {
     });
   }
 
-  // Erreur générale
-  res.status(500).json({
-    success: false,
-    message: 'Erreur interne du serveur',
-    ...(process.env.NODE_ENV === 'development' && { details: error.message })
-  });
+  // Passer au gestionnaire d'erreurs global
+  next(error);
 });
 
 module.exports = router;
