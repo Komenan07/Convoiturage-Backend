@@ -2707,15 +2707,34 @@ const obtenirParticipantsEvenement = async (req, res, next) => {
  */
 const modifierEvenement = async (req, res, next) => {
   try {
+    // Récupérer l'événement existant pour vérifier les dates
+    const evenementExistant = await Evenement.findById(req.params.id);
+    
+    if (!evenementExistant) {
+      return next(AppError.notFound('Événement introuvable'));
+    }
+
+    // Validation manuelle pour dateFin > dateDebut si les deux sont fournies
+    if (req.body.dateDebut && req.body.dateFin) {
+      const debut = new Date(req.body.dateDebut);
+      const fin = new Date(req.body.dateFin);
+      if (fin < debut) {
+        return next(AppError.badRequest('La date de fin doit être postérieure à la date de début'));
+      }
+    } else if (req.body.dateFin && !req.body.dateDebut) {
+      // Si seulement dateFin est modifiée, vérifier avec dateDebut existante
+      const fin = new Date(req.body.dateFin);
+      if (fin < evenementExistant.dateDebut) {
+        return next(AppError.badRequest('La date de fin doit être postérieure à la date de début'));
+      }
+    }
+
+    // Mise à jour sans runValidators pour éviter la validation "date dans le futur"
     const evenement = await Evenement.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true, runValidators: true }
+      { new: true, runValidators: false }
     );
-
-    if (!evenement) {
-      return next(AppError.notFound('Événement introuvable'));
-    }
 
     res.status(200).json({
       success: true,
@@ -2724,6 +2743,7 @@ const modifierEvenement = async (req, res, next) => {
     });
 
   } catch (error) {
+    console.log(error);
     return next(AppError.serverError('Erreur lors de la mise à jour', { originalError: error.message }));
   }
 };

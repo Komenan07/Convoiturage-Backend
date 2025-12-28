@@ -337,8 +337,8 @@ class EvenementController {
       const { limit = 20, ville } = req.query;
       
       let query = Evenement.find({
-        dateDebut: { $gt: new Date() },
-        statutEvenement: 'PROGRAMME'
+        dateDebut: { $gte: new Date() },
+        statutEvenement: { $in: ['PROGRAMME' , 'EN_COURS'] }
       })
       .sort({ dateDebut: 1 })
       .limit(parseInt(limit))

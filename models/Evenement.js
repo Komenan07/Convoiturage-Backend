@@ -105,7 +105,7 @@ const evenementSchema = new mongoose.Schema({
     required: [true, 'La date de début est requise'],
     validate: {
       validator: function(date) {
-        return date > new Date();
+        return date >= new Date();
       },
       message: 'La date de début doit être dans le futur'
     }
