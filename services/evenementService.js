@@ -1267,6 +1267,138 @@ class EvenementService {
   }
 
   /**
+ * Créer un trajet directement pour un événement
+ */
+async creerTrajetPourEvenement(donneesTrajet) {
+  try {
+    console.log('🚗 Création trajet pour événement:', donneesTrajet.evenementAssocie);
+    
+    const Trajet = require('../models/Trajet');
+    const Utilisateur = require('../models/Utilisateur');
+    const Vehicule = require('../models/Vehicule');
+    
+    // Vérifier que le conducteur existe
+    const conducteur = await Utilisateur.findById(donneesTrajet.conducteur);
+    
+    if (!conducteur) {
+      throw new Error('Conducteur non trouvé');
+    }
+    
+    if (conducteur.role !== 'conducteur') {
+      throw new Error('L\'utilisateur doit avoir le rôle conducteur');
+    }
+    
+    // ✅ RÉCUPÉRER L'ID DU VÉHICULE
+    let vehiculeId = null;
+    
+    if (donneesTrajet.vehicule) {
+      vehiculeId = donneesTrajet.vehicule;
+    } else if (conducteur.vehiculeActif) {
+      vehiculeId = conducteur.vehiculeActif;
+    } else {
+      throw new Error('Le conducteur doit avoir un véhicule actif ou spécifier un véhicule');
+    }
+    
+    // ✅ RÉCUPÉRER LES DÉTAILS DU VÉHICULE
+    const vehicule = await Vehicule.findById(vehiculeId);
+    
+    if (!vehicule) {
+      throw new Error('Véhicule non trouvé');
+    }
+    
+    // ✅ FORMATER LES DONNÉES DU VÉHICULE SELON LE SCHÉMA
+    const vehiculeUtilise = {
+      marque: vehicule.marque,
+      modele: vehicule.modele,
+      couleur: vehicule.couleur,
+      immatriculation: vehicule.immatriculation,
+      nombrePlaces: vehicule.nombrePlaces
+    };
+    
+    console.log('✅ Véhicule récupéré:', vehiculeUtilise);
+    
+    // ✅ CALCULER LA DATE ET L'HEURE
+    const dateDepart = new Date(donneesTrajet.heureDepart);
+    const heureDepart = `${dateDepart.getHours().toString().padStart(2, '0')}:${dateDepart.getMinutes().toString().padStart(2, '0')}`;
+    
+    // ✅ FORMATER LE POINT DE DÉPART
+    const pointDepart = {
+      nom: donneesTrajet.origine.nom || donneesTrajet.origine.quartier || donneesTrajet.origine.commune || 'Point de départ',
+      adresse: donneesTrajet.origine.adresse,
+      ville: donneesTrajet.origine.ville,
+      commune: donneesTrajet.origine.commune,
+      quartier: donneesTrajet.origine.quartier,
+      coordonnees: donneesTrajet.origine.coordonnees
+    };
+    
+    // ✅ FORMATER LE POINT D'ARRIVÉE
+    const pointArrivee = {
+      nom: donneesTrajet.destination.nom || donneesTrajet.destination.quartier || donneesTrajet.destination.commune || 'Point d\'arrivée',
+      adresse: donneesTrajet.destination.adresse,
+      ville: donneesTrajet.destination.ville,
+      commune: donneesTrajet.destination.commune,
+      quartier: donneesTrajet.destination.quartier,
+      coordonnees: donneesTrajet.destination.coordonnees
+    };
+    
+    // ✅ CRÉER LE TRAJET AVEC LES BONNES DONNÉES
+    const donneesTrajetFormatees = {
+      conducteurId: donneesTrajet.conducteur,
+      vehiculeUtilise: vehiculeUtilise,
+      pointDepart: pointDepart,
+      pointArrivee: pointArrivee,
+      dateDepart: dateDepart,
+      heureDepart: heureDepart,
+      nombrePlacesTotal: donneesTrajet.placesDisponibles,
+      nombrePlacesDisponibles: donneesTrajet.placesDisponibles,
+      prixParPassager: donneesTrajet.prixParPlace,
+      distance: donneesTrajet.distance || 0, // Sera calculé automatiquement par le pre-save
+      
+      // Statut
+      statutTrajet: 'PROGRAMME',
+      typeTrajet: donneesTrajet.typeTrajet || 'PONCTUEL',
+      
+      // Optionnels
+      evenementAssocie: donneesTrajet.evenementAssocie,
+      preferences: donneesTrajet.preferences || {},
+      commentaireConducteur: donneesTrajet.notesConducteur,
+      validationAutomatique: false
+    };
+    
+    console.log('📦 Données formatées pour le modèle:', JSON.stringify(donneesTrajetFormatees, null, 2));
+    
+    // Créer le trajet
+    const trajet = await Trajet.create(donneesTrajetFormatees);
+    
+    console.log('✅ Trajet créé avec ID:', trajet._id);
+    
+    // Mettre à jour l'événement pour ajouter le trajet associé
+    if (donneesTrajet.evenementAssocie) {
+      await Evenement.findByIdAndUpdate(
+        donneesTrajet.evenementAssocie,
+        {
+          $addToSet: { trajetsAssocies: trajet._id }
+        }
+      );
+      
+      console.log('✅ Trajet ajouté à l\'événement');
+    }
+    
+    // Retourner le trajet avec les données populées
+    const trajetPopule = await Trajet.findById(trajet._id)
+      .populate('conducteurId', 'nom prenom photo numeroTelephone noteGlobale')
+      .populate('evenementAssocie', 'nom dateDebut lieu');
+    
+    console.log('✅ Trajet créé avec succès:', trajet._id);
+    
+    return trajetPopule;
+  } catch (error) {
+    console.error('❌ Erreur creerTrajetPourEvenement service:', error);
+    throw error;
+  }
+}
+
+  /**
    * Proposer des trajets automatiques pour un événement
    */
   async proposerTrajetsAutomatiques(evenementId, origineUtilisateur = null) {

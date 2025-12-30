@@ -252,6 +252,15 @@ router.get('/:id/trajets', validerIdEvenement, evenementController.obtenirTrajet
 // Proposer des trajets automatiques
 router.get('/:id/trajets-proposes', validerIdEvenement, evenementController.proposerTrajetsAutomatiques);
 
+// Créer un trajet pour un événement
+router.post(
+  '/:id/creer-trajet',
+  protect,
+  validerIdEvenement,
+  evenementController.creerTrajetPourEvenement
+);
+
+
 // Obtenir les groupes de covoiturage
 router.get('/:id/groupes-covoiturage', validerIdEvenement, evenementController.obtenirGroupesCovoiturage);
 

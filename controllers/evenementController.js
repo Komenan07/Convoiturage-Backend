@@ -40,6 +40,7 @@ class EvenementController {
     this.validerCoherence = this.validerCoherence.bind(this);
     this.creerTrajetDepuisGroupe = this.creerTrajetDepuisGroupe.bind(this);
     this.proposerTrajetsAutomatiques = this.proposerTrajetsAutomatiques.bind(this);
+    this.creerTrajetPourEvenement = this.creerTrajetPourEvenement.bind(this);
   }
 
   // =============== CREATE OPERATIONS ===============
@@ -185,6 +186,76 @@ class EvenementController {
     }
   }
 
+  /**
+ * @swagger
+ * /api/evenements/{id}/creer-trajet:
+ *   post:
+ *     summary: Créer un trajet directement pour un événement
+ *     tags: [Événements - TRAJETS]
+ */
+  async creerTrajetPourEvenement(req, res, next) {
+    try {
+      const { id } = req.params;
+      const donneesTrajet = {
+        ...req.body,
+        conducteur: req.user.id,
+        evenementAssocie: id
+      };
+
+      // Valider que l'événement existe
+      const evenement = await EvenementService.obtenirEvenementParId(id);
+      
+      if (!evenement) {
+        return res.status(404).json({
+          success: false,
+          message: 'Événement non trouvé'
+        });
+      }
+
+      // Valider les champs requis
+      const champsRequis = ['origine', 'heureDepart', 'placesDisponibles', 'prixParPlace'];
+      for (const champ of champsRequis) {
+        if (!donneesTrajet[champ]) {
+          return res.status(400).json({
+            success: false,
+            message: `Le champ ${champ} est requis`
+          });
+        }
+      }
+
+      // Utiliser automatiquement le lieu de l'événement comme destination
+      donneesTrajet.destination = {
+        adresse: evenement.lieu.adresse,
+        ville: evenement.lieu.ville,
+        commune: evenement.lieu.commune,
+        quartier: evenement.lieu.quartier,
+        coordonnees: evenement.lieu.coordonnees
+      };
+
+      // Date d'arrivée basée sur la date de début de l'événement
+      donneesTrajet.heureArrivee = new Date(evenement.dateDebut);
+
+      const trajet = await EvenementService.creerTrajetPourEvenement(donneesTrajet);
+
+      res.status(201).json({
+        success: true,
+        message: 'Trajet créé avec succès pour l\'événement',
+        data: trajet
+      });
+    } catch (error) {
+      console.error('Erreur creerTrajetPourEvenement:', error);
+      
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Données invalides',
+          errors: error.errors
+        });
+      }
+      
+      return next(AppError.serverError('Erreur lors de la création du trajet'));
+    }
+  }
   /**
    * @swagger
    * /api/evenements/recherche-localisation:
