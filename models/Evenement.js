@@ -69,17 +69,19 @@ const lieuSchema = new mongoose.Schema({
   },
   adresse: {
     type: String,
-    required: true,
+    required: false, // ✅ MODIFIÉ : pas obligatoire
     trim: true,
-    maxlength: 300
+    maxlength: 300,
+    default: 'Abidjan, Côte d\'Ivoire' // ✅ AJOUTÉ
   },
   ville: {
     type: String,
     required: true,
     trim: true,
-    maxlength: 100
+    maxlength: 100,
+    default: 'Abidjan' // ✅ AJOUTÉ
   },
-  // 🆕 AJOUT : Commune pour Abidjan
+  // Commune pour Abidjan
   commune: {
     type: String,
     enum: [
@@ -87,13 +89,15 @@ const lieuSchema = new mongoose.Schema({
       'KOUMASSI', 'MARCORY', 'TREICHVILLE', 
       'PORT_BOUET', 'ATTÉCOUBÉ', 'ADJAMÉ'
     ],
-    uppercase: true
+    uppercase: true,
+    default: 'COCODY' // ✅ AJOUTÉ
   },
-  // 🆕 AJOUT : Quartier spécifique
+  // Quartier spécifique
   quartier: {
     type: String,
     trim: true,
-    maxlength: 100
+    maxlength: 100,
+    default: '' // ✅ AJOUTÉ
   },
   coordonnees: {
     type: {
@@ -160,9 +164,10 @@ const evenementSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Le type d\'événement est requis'],
     enum: {
-      values: ['SPORT', 'CONCERT', 'FESTIVAL', 'CONFERENCE'],
+      values: ['SPORT', 'CONCERT', 'FESTIVAL', 'CONFERENCE', 'SALON', 'MARIAGE', 'CEREMONIE', 'AUTRE'], // ✅ MODIFIÉ : 8 types
       message: 'Type d\'événement invalide'
-    }
+    },
+    default: 'AUTRE' // ✅ AJOUTÉ
   },
   
   capaciteEstimee: {
@@ -180,12 +185,13 @@ const evenementSchema = new mongoose.Schema({
   // Source externe pour l'import
   source: {
     type: String,
+    enum: ['FACEBOOK', 'GOOGLE_PLACES', 'RSS', 'EVENTBRITE', 'PARTENAIRE', 'TEST', 'MANUEL'], // ✅ AJOUTÉ : enum
     required: function() {
-      return this.sourceDetection === 'API_EXTERNE';
+      return this.sourceDetection === 'API_EXTERNE' || this.sourceDetection === 'AUTOMATIQUE';
     }
   },
   
-  // 🆕 AJOUT : Identifiant externe pour éviter les doublons
+  // Identifiant externe pour éviter les doublons
   identifiantExterne: {
     type: String,
     sparse: true,
@@ -193,11 +199,40 @@ const evenementSchema = new mongoose.Schema({
     trim: true
   },
   
-  // 🆕 AJOUT : URL de la source originale
+  // URL de la source originale
   urlSource: {
     type: String,
     trim: true,
     maxlength: 500
+  },
+  
+  // ✅ AJOUTÉ : Images de l'événement
+  images: [{
+    type: String,
+    trim: true,
+    maxlength: 1000,
+    validate: {
+      validator: function(url) {
+        return !url || url.length > 0;
+      },
+      message: 'URL d\'image invalide'
+    }
+  }],
+  
+  // ✅ AJOUTÉ : Tarif estimé (0 = gratuit, null = non spécifié)
+  tarifEstime: {
+    type: Number,
+    min: 0,
+    default: null
+  },
+  
+  // ✅ AJOUTÉ : Score de confiance (0-100)
+  confiance: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 50,
+    index: true
   },
   
   // Covoiturage associé
@@ -230,7 +265,7 @@ const evenementSchema = new mongoose.Schema({
     maxlength: 500
   },
   
-  // 🆕 AJOUT : Système de notation
+  // Système de notation
   notations: {
     notes: [notationSchema],
     moyenneNote: {
@@ -258,12 +293,32 @@ const evenementSchema = new mongoose.Schema({
     lowercase: true
   }],
   
+  // ✅ MODIFIÉ : Organisateur complet
   organisateur: {
-    nom: String,
-    contact: String,
+    nom: {
+      type: String,
+      trim: true,
+      maxlength: 200
+    },
+    contact: {
+      type: String,
+      trim: true,
+      maxlength: 200
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    },
+    telephone: {
+      type: String,
+      trim: true,
+      maxlength: 20
+    },
     type: {
       type: String,
-      enum: ['OFFICIEL', 'COMMUNAUTAIRE'],
+      enum: ['OFFICIEL', 'COMMUNAUTAIRE', 'AUTOMATIQUE'],
       default: 'COMMUNAUTAIRE'
     }
   }
@@ -289,7 +344,7 @@ evenementSchema.index({
 // Index pour les recherches par ville
 evenementSchema.index({ "lieu.ville": 1, "dateDebut": 1 });
 
-// 🆕 AJOUT : Index pour les recherches par commune/quartier Abidjan
+// Index pour les recherches par commune/quartier Abidjan
 evenementSchema.index({ "lieu.commune": 1, "dateDebut": 1 });
 evenementSchema.index({ "lieu.commune": 1, "lieu.quartier": 1 });
 
@@ -299,11 +354,14 @@ evenementSchema.index({ "tags": 1 });
 // Index pour la source
 evenementSchema.index({ "sourceDetection": 1, "source": 1 });
 
-// 🆕 AJOUT : Index unique sparse pour identifiantExterne
+// Index unique sparse pour identifiantExterne
 evenementSchema.index({ "identifiantExterne": 1 }, { unique: true, sparse: true });
 
-// 🆕 AJOUT : Index pour les notations
+// Index pour les notations
 evenementSchema.index({ "notations.moyenneNote": -1 });
+
+// ✅ AJOUTÉ : Index pour confiance
+evenementSchema.index({ "confiance": -1 });
 
 // =============== PROPRIÉTÉS VIRTUELLES ===============
 
@@ -345,7 +403,7 @@ evenementSchema.pre('save', function(next) {
     this.dateAnnulation = new Date();
   }
   
-  // 🆕 AJOUT : Recalculer la moyenne des notes
+  // Recalculer la moyenne des notes
   if (this.notations && this.notations.notes && this.notations.notes.length > 0) {
     const totalNotes = this.notations.notes.reduce((sum, n) => sum + n.note, 0);
     this.notations.moyenneNote = totalNotes / this.notations.notes.length;
@@ -403,7 +461,7 @@ evenementSchema.methods.utilisateurDansGroupe = function(groupeId, userId) {
   return groupe ? groupe.membres.includes(userId) : false;
 };
 
-// 🆕 AJOUT : Méthodes pour les notations
+// Méthodes pour les notations
 evenementSchema.methods.ajouterNotation = function(userId, note, commentaire) {
   // Vérifier si l'utilisateur a déjà noté
   const notationExistante = this.notations.notes.find(
@@ -472,7 +530,7 @@ evenementSchema.statics.obtenirEvenementsAVenir = function(limit = 20, ville = n
     .populate('trajetsAssocies');
 };
 
-// 🆕 AJOUT : Recherche par commune d'Abidjan
+// Recherche par commune d'Abidjan
 evenementSchema.statics.rechercherParCommune = function(commune, quartier = null) {
   let query = {
     'lieu.commune': commune.toUpperCase(),
