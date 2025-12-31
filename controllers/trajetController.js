@@ -770,7 +770,7 @@ async recalculerDistance(req, res, next) {
       const { id } = req.params;
 
       const trajet = await Trajet.findById(id)
-        .populate('conducteurId', 'nom prenom photo note telephone');
+        .populate('conducteurId', '-password -email');
 
       if (!trajet) {
         return res.status(404).json({
@@ -939,7 +939,7 @@ async recalculerDistance(req, res, next) {
         });
       }
 
-      if (trajet.conducteurId.toString() !== req.user.id) {
+      if (trajet.conducteurId.toString() !== req.user.id.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Vous n\'êtes pas autorisé à modifier ce trajet'
