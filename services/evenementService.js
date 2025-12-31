@@ -1287,20 +1287,15 @@ async creerTrajetPourEvenement(donneesTrajet) {
     if (conducteur.role !== 'conducteur') {
       throw new Error('L\'utilisateur doit avoir le rôle conducteur');
     }
-    
-    // ✅ RÉCUPÉRER L'ID DU VÉHICULE
-    let vehiculeId = null;
-    
-    if (donneesTrajet.vehicule) {
-      vehiculeId = donneesTrajet.vehicule;
-    } else if (conducteur.vehiculeActif) {
-      vehiculeId = conducteur.vehiculeActif;
-    } else {
-      throw new Error('Le conducteur doit avoir un véhicule actif ou spécifier un véhicule');
+
+    const vehiculesConducteur = await Vehicule.find({ proprietaireId: conducteur._id, $or: [{estActif: true}, {statut: "ACTIF"}] });
+
+    if (vehiculesConducteur.length === 0) {
+      throw new Error('vous devez avoir au moins un véhicule actif');
     }
     
     // ✅ RÉCUPÉRER LES DÉTAILS DU VÉHICULE
-    const vehicule = await Vehicule.findById(vehiculeId);
+    const vehicule = vehiculesConducteur.find(v => v.estPrincipal) || vehiculesConducteur[0];
     
     if (!vehicule) {
       throw new Error('Véhicule non trouvé');
@@ -1314,6 +1309,8 @@ async creerTrajetPourEvenement(donneesTrajet) {
       immatriculation: vehicule.immatriculation,
       nombrePlaces: vehicule.nombrePlaces
     };
+
+  
     
     console.log('✅ Véhicule récupéré:', vehiculeUtilise);
     
@@ -1352,11 +1349,11 @@ async creerTrajetPourEvenement(donneesTrajet) {
       nombrePlacesTotal: donneesTrajet.placesDisponibles,
       nombrePlacesDisponibles: donneesTrajet.placesDisponibles,
       prixParPassager: donneesTrajet.prixParPlace,
-      distance: donneesTrajet.distance || 0, // Sera calculé automatiquement par le pre-save
+      distance: donneesTrajet.distance || 0.1, // Sera calculé automatiquement
       
       // Statut
       statutTrajet: 'PROGRAMME',
-      typeTrajet: donneesTrajet.typeTrajet || 'PONCTUEL',
+      typeTrajet: 'EVENEMENTIEL',
       
       // Optionnels
       evenementAssocie: donneesTrajet.evenementAssocie,
