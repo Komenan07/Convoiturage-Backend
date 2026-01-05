@@ -3185,6 +3185,7 @@ function construireMessageDocumentsManquants(documentsManquants, commentaireAdmi
 
   return message;
 }
+
 /**
  * Valider le passage d'un utilisateur en conducteur (ADMIN UNIQUEMENT)
  * VÉRIFIE TOUS LES CRITÈRES REQUIS AVANT VALIDATION
@@ -5037,6 +5038,526 @@ function convertirEnCSV(donnees) {
     .map(ligne => ligne.join(','))
     .join('\n');
 }
+// =====================================================
+// GESTION DES VÉHICULES (ADMIN)
+// =====================================================
+
+/**
+ * @desc    Lister tous les véhicules (admin)
+ * @route   GET /api/admin/vehicules
+ * @access  Private (Admin)
+ */
+const listerVehiculesAdmin = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      statut,
+      statutValidation,
+      marque,
+      modele,
+      proprietaireId,
+      dateDebut,
+      dateFin,
+      documentsComplets,
+      disponibleCovoiturage,
+      sortBy = 'createdAt',
+      order = 'desc'
+    } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = Math.min(parseInt(limit), 100);
+
+    // Construction des filtres
+    const filtres = {};
+
+    // Filtre par statut
+    if (statut) {
+      if (Array.isArray(statut)) {
+        filtres.statut = { $in: statut };
+      } else {
+        filtres.statut = statut.toUpperCase();
+      }
+    }
+
+    // Filtre par statut de validation
+    if (statutValidation) {
+      filtres['validation.statutValidation'] = statutValidation.toUpperCase();
+    }
+
+    // Filtre par marque
+    if (marque) {
+      filtres.marque = { $regex: marque, $options: 'i' };
+    }
+
+    // Filtre par modèle
+    if (modele) {
+      filtres.modele = { $regex: modele, $options: 'i' };
+    }
+
+    // Filtre par propriétaire
+    if (proprietaireId) {
+      filtres.proprietaireId = proprietaireId;
+    }
+
+    // Filtre par date de création
+    if (dateDebut || dateFin) {
+      filtres.createdAt = {};
+      if (dateDebut) filtres.createdAt.$gte = new Date(dateDebut);
+      if (dateFin) filtres.createdAt.$lte = new Date(dateFin);
+    }
+
+    // Filtre documents complets
+    if (documentsComplets !== undefined) {
+      filtres.documentsComplets = documentsComplets === 'true';
+    }
+
+    // Filtre disponibilité covoiturage
+    if (disponibleCovoiturage !== undefined) {
+      filtres.disponibilitePourCourse = disponibleCovoiturage === 'true';
+    }
+
+    // Recherche globale
+    if (search) {
+      filtres.$or = [
+        { marque: { $regex: search, $options: 'i' } },
+        { modele: { $regex: search, $options: 'i' } },
+        { immatriculation: { $regex: search, $options: 'i' } },
+        { couleur: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Options de tri
+    const sortOptions = {};
+    sortOptions[sortBy] = order === 'asc' ? 1 : -1;
+
+    // Exécution de la requête
+    const vehicules = await Vehicule.find(filtres)
+      .populate('proprietaireId', 'nom prenom email telephone photo statut role')
+      .populate('validation.validePar', 'nom prenom')
+      .sort(sortOptions)
+      .limit(limitNum)
+      .skip((pageNum - 1) * limitNum)
+      .lean();
+
+    const total = await Vehicule.countDocuments(filtres);
+
+    // Enrichir les données avec des calculs
+    const vehiculesEnrichis = vehicules.map(vehicule => {
+      // Calcul de l'âge du véhicule
+      const age = vehicule.annee ? new Date().getFullYear() - vehicule.annee : null;
+
+      // Vérification des documents
+      const documentsValides = {
+        carteGrise: !!(vehicule.carteGrise?.numero && vehicule.carteGrise?.numeroChassis),
+        assurance: !!(vehicule.assurance?.numeroPolice && 
+                     vehicule.assurance?.dateExpiration && 
+                     new Date(vehicule.assurance.dateExpiration) > new Date()),
+        visiteTechnique: !!(vehicule.visiteTechnique?.dateExpiration && 
+                           new Date(vehicule.visiteTechnique.dateExpiration) > new Date()),
+        vignette: !!(vehicule.vignette?.numero && 
+                    vehicule.vignette?.dateExpiration && 
+                    new Date(vehicule.vignette.dateExpiration) > new Date()),
+        carteTransport: !!(vehicule.carteTransport?.numero && 
+                          vehicule.carteTransport?.dateExpiration && 
+                          new Date(vehicule.carteTransport.dateExpiration) > new Date())
+      };
+
+      // Photos disponibles
+      const photosDisponibles = {
+        avant: !!vehicule.photos?.avant,
+        arriere: !!vehicule.photos?.arriere,
+        lateral_gauche: !!vehicule.photos?.lateral_gauche,
+        lateral_droit: !!vehicule.photos?.lateral_droit,
+        interieur: !!vehicule.photos?.interieur,
+        tableau_bord: !!vehicule.photos?.tableau_bord
+      };
+
+      const nombrePhotos = Object.values(photosDisponibles).filter(Boolean).length;
+
+      // Équipements obligatoires
+      const equipementsObligatoires = {
+        ceintures: vehicule.equipements?.ceintures && vehicule.equipements.ceintures !== 'NON',
+        trousseSecours: vehicule.equipements?.trousseSecours,
+        extincteur: vehicule.equipements?.extincteur,
+        triangleSignalisation: vehicule.equipements?.triangleSignalisation,
+        giletSecurite: vehicule.equipements?.giletSecurite,
+        roueDeSecours: vehicule.equipements?.roueDeSecours,
+        cricCle: vehicule.equipements?.cricCle
+      };
+
+      const equipementsComplets = Object.values(equipementsObligatoires).every(Boolean);
+
+      return {
+        ...vehicule,
+        age,
+        documentsValides,
+        photosDisponibles,
+        nombrePhotos,
+        equipementsObligatoires,
+        equipementsComplets,
+        tousDocumentsValides: Object.values(documentsValides).every(Boolean)
+      };
+    });
+
+    // Statistiques rapides
+    const statistiques = {
+      total,
+      actifs: vehicules.filter(v => v.statut === 'ACTIF' || v.statut === 'DISPONIBLE').length,
+      enAttenteVerification: vehicules.filter(v => v.statut === 'EN_ATTENTE_VERIFICATION').length,
+      valides: vehicules.filter(v => v.validation?.statutValidation === 'VALIDE').length,
+      rejetes: vehicules.filter(v => v.validation?.statutValidation === 'REJETE').length,
+      documentsComplets: vehicules.filter(v => v.documentsComplets).length,
+      disponiblesCovoiturage: vehicules.filter(v => v.disponibilitePourCourse).length
+    };
+
+    res.status(200).json({
+      success: true,
+      message: 'Liste des véhicules récupérée',
+      data: {
+        vehicules: vehiculesEnrichis,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          totalItems: total,
+          itemsPerPage: limitNum,
+          hasNextPage: pageNum < Math.ceil(total / limitNum),
+          hasPrevPage: pageNum > 1
+        },
+        statistiques,
+        filtresAppliques: {
+          statut,
+          statutValidation,
+          marque,
+          modele,
+          search,
+          documentsComplets,
+          disponibleCovoiturage
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur listerVehiculesAdmin:', error);
+    return next(AppError.serverError('Erreur lors de la récupération des véhicules', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Obtenir les détails d'un véhicule (admin)
+ * @route   GET /api/admin/vehicules/:id
+ * @access  Private (Admin)
+ */
+const obtenirVehiculeAdmin = async (req, res, next) => {
+  try {
+    const vehicule = await Vehicule.findById(req.params.id)
+      .populate('proprietaireId', 'nom prenom email telephone photo statut role dateInscription')
+      .populate('validation.validePar', 'nom prenom email')
+      .populate('trajetActif', 'pointDepart pointArrivee dateDepart statut')
+      .lean();
+
+    if (!vehicule) {
+      return next(AppError.notFound('Véhicule introuvable'));
+    }
+
+    // Enrichir avec des informations calculées
+    const age = vehicule.annee ? new Date().getFullYear() - vehicule.annee : null;
+
+    // Vérifier chaque document en détail
+    const documentsDetails = {
+      carteGrise: {
+        presente: !!(vehicule.carteGrise?.numero),
+        numero: vehicule.carteGrise?.numero,
+        numeroChassis: vehicule.carteGrise?.numeroChassis,
+        dateEmission: vehicule.carteGrise?.dateEmission,
+        complete: !!(vehicule.carteGrise?.numero && vehicule.carteGrise?.numeroChassis)
+      },
+      assurance: {
+        presente: !!(vehicule.assurance?.numeroPolice),
+        numeroPolice: vehicule.assurance?.numeroPolice,
+        compagnie: vehicule.assurance?.compagnie,
+        type: vehicule.assurance?.type,
+        dateExpiration: vehicule.assurance?.dateExpiration,
+        valide: vehicule.assurance?.dateExpiration && new Date(vehicule.assurance.dateExpiration) > new Date(),
+        joursRestants: vehicule.assurance?.dateExpiration ? 
+          Math.ceil((new Date(vehicule.assurance.dateExpiration) - new Date()) / (1000 * 60 * 60 * 24)) : null
+      },
+      visiteTechnique: {
+        presente: !!(vehicule.visiteTechnique?.dateExpiration),
+        dateExpiration: vehicule.visiteTechnique?.dateExpiration,
+        numeroAttestation: vehicule.visiteTechnique?.numeroAttestation,
+        resultat: vehicule.visiteTechnique?.resultat,
+        valide: vehicule.visiteTechnique?.dateExpiration && new Date(vehicule.visiteTechnique.dateExpiration) > new Date(),
+        joursRestants: vehicule.visiteTechnique?.dateExpiration ? 
+          Math.ceil((new Date(vehicule.visiteTechnique.dateExpiration) - new Date()) / (1000 * 60 * 60 * 24)) : null
+      },
+      vignette: {
+        presente: !!(vehicule.vignette?.numero),
+        numero: vehicule.vignette?.numero,
+        annee: vehicule.vignette?.annee,
+        dateExpiration: vehicule.vignette?.dateExpiration,
+        valide: vehicule.vignette?.dateExpiration && new Date(vehicule.vignette.dateExpiration) > new Date(),
+        joursRestants: vehicule.vignette?.dateExpiration ? 
+          Math.ceil((new Date(vehicule.vignette.dateExpiration) - new Date()) / (1000 * 60 * 60 * 24)) : null
+      },
+      carteTransport: {
+        presente: !!(vehicule.carteTransport?.numero),
+        numero: vehicule.carteTransport?.numero,
+        categorieAutorisee: vehicule.carteTransport?.categorieAutorisee,
+        dateExpiration: vehicule.carteTransport?.dateExpiration,
+        valide: vehicule.carteTransport?.dateExpiration && new Date(vehicule.carteTransport.dateExpiration) > new Date(),
+        joursRestants: vehicule.carteTransport?.dateExpiration ? 
+          Math.ceil((new Date(vehicule.carteTransport.dateExpiration) - new Date()) / (1000 * 60 * 60 * 24)) : null
+      }
+    };
+
+    // Historique des trajets (si disponible)
+    const nombreTrajets = vehicule.statistiques?.nombreTrajets || 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        vehicule: {
+          ...vehicule,
+          age,
+          documentsDetails,
+          nombreTrajets
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur obtenirVehiculeAdmin:', error);
+    return next(AppError.serverError('Erreur lors de la récupération du véhicule', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Obtenir le propriétaire d'un véhicule (admin)
+ * @route   GET /api/admin/vehicules/:id/proprietaire
+ * @access  Private (Admin)
+ */
+const obtenirProprietaireVehicule = async (req, res, next) => {
+  try {
+    const vehicule = await Vehicule.findById(req.params.id)
+      .populate({
+        path: 'proprietaireId',
+        select: '-motDePasse'
+      })
+      .lean();
+
+    if (!vehicule) {
+      return next(AppError.notFound('Véhicule introuvable'));
+    }
+
+    if (!vehicule.proprietaireId) {
+      return next(AppError.notFound('Propriétaire introuvable'));
+    }
+
+    // Compter les véhicules du propriétaire
+    const nombreVehicules = await Vehicule.countDocuments({ 
+      proprietaireId: vehicule.proprietaireId._id 
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        proprietaire: {
+          ...vehicule.proprietaireId,
+          nombreVehicules
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur obtenirProprietaireVehicule:', error);
+    return next(AppError.serverError('Erreur lors de la récupération du propriétaire', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Valider un véhicule (admin)
+ * @route   POST /api/admin/vehicules/:id/valider
+ * @access  Private (Admin)
+ */
+const validerVehiculeAdmin = async (req, res, next) => {
+  try {
+    const { commentaire } = req.body;
+    const adminId = req.user.id;
+
+    const vehicule = await Vehicule.findById(req.params.id);
+
+    if (!vehicule) {
+      return next(AppError.notFound('Véhicule introuvable'));
+    }
+
+    // Utiliser la méthode du modèle
+    await vehicule.valider(adminId, commentaire);
+
+    logger.info('✅ Véhicule validé par admin', {
+      vehiculeId: vehicule._id,
+      adminId,
+      marque: vehicule.marque,
+      modele: vehicule.modele
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Véhicule validé avec succès',
+      data: {
+        vehicule: {
+          id: vehicule._id,
+          marque: vehicule.marque,
+          modele: vehicule.modele,
+          statut: vehicule.statut,
+          validation: vehicule.validation
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur validerVehiculeAdmin:', error);
+    return next(AppError.serverError(error.message, { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Rejeter un véhicule (admin)
+ * @route   POST /api/admin/vehicules/:id/rejeter
+ * @access  Private (Admin)
+ */
+const rejeterVehiculeAdmin = async (req, res, next) => {
+  try {
+    const { raison } = req.body;
+    const adminId = req.user.id;
+
+    if (!raison || raison.length < 10) {
+      return next(AppError.badRequest('Raison du rejet requise (minimum 10 caractères)'));
+    }
+
+    const vehicule = await Vehicule.findById(req.params.id);
+
+    if (!vehicule) {
+      return next(AppError.notFound('Véhicule introuvable'));
+    }
+
+    // Utiliser la méthode du modèle
+    await vehicule.rejeter(raison, adminId);
+
+    logger.info('❌ Véhicule rejeté par admin', {
+      vehiculeId: vehicule._id,
+      adminId,
+      raison
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Véhicule rejeté',
+      data: {
+        vehicule: {
+          id: vehicule._id,
+          marque: vehicule.marque,
+          modele: vehicule.modele,
+          statut: vehicule.statut,
+          raisonRejet: vehicule.raisonRejet
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur rejeterVehiculeAdmin:', error);
+    return next(AppError.serverError('Erreur lors du rejet du véhicule', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Obtenir les statistiques globales des véhicules (admin)
+ * @route   GET /api/admin/vehicules/statistiques/globales
+ * @access  Private (Admin)
+ */
+const obtenirStatistiquesVehiculesAdmin = async (req, res, next) => {
+  try {
+    const stats = await Vehicule.statistiquesGlobales();
+
+    // Statistiques par marque (top 10)
+    const statsMarques = await Vehicule.aggregate([
+      {
+        $group: {
+          _id: '$marque',
+          nombre: { $sum: 1 },
+          ageMoyen: { $avg: { $subtract: [new Date().getFullYear(), '$annee'] } }
+        }
+      },
+      { $sort: { nombre: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Répartition par statut
+    const statsStatuts = await Vehicule.aggregate([
+      {
+        $group: {
+          _id: '$statut',
+          nombre: { $sum: 1 }
+        }
+      },
+      { $sort: { nombre: -1 } }
+    ]);
+
+    // Répartition par statut de validation
+    const statsValidation = await Vehicule.aggregate([
+      {
+        $group: {
+          _id: '$validation.statutValidation',
+          nombre: { $sum: 1 }
+        }
+      },
+      { $sort: { nombre: -1 } }
+    ]);
+
+    // Documents expirés dans les 30 prochains jours
+    const date30Jours = new Date();
+    date30Jours.setDate(date30Jours.getDate() + 30);
+
+    const documentsProchesExpiration = await Vehicule.countDocuments({
+      $or: [
+        { 'assurance.dateExpiration': { $lte: date30Jours, $gt: new Date() } },
+        { 'visiteTechnique.dateExpiration': { $lte: date30Jours, $gt: new Date() } },
+        { 'vignette.dateExpiration': { $lte: date30Jours, $gt: new Date() } },
+        { 'carteTransport.dateExpiration': { $lte: date30Jours, $gt: new Date() } }
+      ]
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        statistiquesGlobales: stats,
+        topMarques: statsMarques,
+        repartitionStatuts: statsStatuts,
+        repartitionValidation: statsValidation,
+        alertes: {
+          documentsProchesExpiration
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur obtenirStatistiquesVehiculesAdmin:', error);
+    return next(AppError.serverError('Erreur lors de la récupération des statistiques', { 
+      originalError: error.message 
+    }));
+  }
+};
 module.exports = {
   // Authentification
   connexionAdmin,
@@ -5125,5 +5646,12 @@ module.exports = {
   obtenirAlerte,
   traiterAlerte,
   contacterAlerte,
-  cloturerAlerte
+  cloturerAlerte,
+  // Gestion Véhicules (NOUVEAU)
+  listerVehiculesAdmin,
+  obtenirVehiculeAdmin,
+  obtenirProprietaireVehicule,
+  validerVehiculeAdmin,
+  rejeterVehiculeAdmin,
+  obtenirStatistiquesVehiculesAdmin
 };

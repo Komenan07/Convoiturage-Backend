@@ -16,14 +16,25 @@ const {
 } = require('../middlewares/adminAuthMiddleware');
 
 // Import sécurisé du rate limiter
-let rateLimiterModule = {};
+let rateLimiterModule;
 try {
-    rateLimiterModule = require('../middlewares/rateLimiter');
+  rateLimiterModule = require('../middlewares/rateLimiter');
+  console.log('✅ Rate limiter chargé avec succès');
 } catch (error) {
-  console.warn('⚠️ Middleware rateLimiter non trouvé');
+  console.warn('⚠️ Middleware rateLimiter non trouvé, utilisation des fallbacks');
+  rateLimiterModule = {
+    rateLimiters: { auth: {}, admin: {} },
+    globalRateLimit: null,
+    apiLimiterByRole: null,
+    createCustomLimiter: null
+  };
 }
-
-const { basicRateLimiter } = rateLimiterModule;
+// ✅ Déstructuration correcte des exports
+const { 
+  rateLimiters = {},
+  globalRateLimit,
+  apiLimiterByRole
+} = rateLimiterModule;
 
 // Import sécurisé du contrôleur admin
 let adminController = {};
@@ -110,7 +121,14 @@ const {
   obtenirAlerte,
   traiterAlerte,
   contacterAlerte,
-  cloturerAlerte
+  cloturerAlerte,
+  // Gestion Véhicules 
+  listerVehiculesAdmin,
+  obtenirVehiculeAdmin,
+  obtenirProprietaireVehicule,
+  validerVehiculeAdmin,
+  rejeterVehiculeAdmin,
+  obtenirStatistiquesVehiculesAdmin
 } = adminController;
 
 // =====================================================
@@ -130,6 +148,7 @@ const PERMISSIONS_VALIDES = [
   // Vérification et modération
   'VERIFICATION_DOCUMENTS',
   'VERIFICATION_IDENTITE',
+  'GESTION_VEHICULES', 
   'MODERATION_CONTENUS',
   'MODERATION',
   
@@ -193,12 +212,28 @@ const middlewareLogSensitiveAction = (action) => {
 const middlewareRateLimit = (type) => {
   // Support des types utilisés dans ce fichier
   const map = {
-    auth: basicRateLimiter?.auth,
-    standard: basicRateLimiter?.standard,
-    reporting: basicRateLimiter?.standard
+    // Auth
+    'auth': rateLimiters?.auth?.login,
+    'login': rateLimiters?.auth?.login,
+    'register': rateLimiters?.auth?.register,
+    
+    // Standard
+    'standard': apiLimiterByRole || globalRateLimit,
+    'api': apiLimiterByRole || globalRateLimit,
+    
+    // Reporting
+    'reporting': rateLimiters?.admin?.reports || apiLimiterByRole || globalRateLimit,
+    'reports': rateLimiters?.admin?.reports || apiLimiterByRole || globalRateLimit,
+    
+    // Admin
+    'admin': rateLimiters?.admin?.actions || globalRateLimit,
+    'admin_actions': rateLimiters?.admin?.actions || globalRateLimit
   };
   const limiter = map[type];
-  return limiter || creerMiddlewareParDefaut(`rateLimit.${type}`);
+  if (!limiter) {
+    return creerMiddlewareParDefaut(`rateLimit.${type}`);
+  }
+  return limiter;
 };
 
 // =====================================================
@@ -1358,6 +1393,99 @@ router.get('/rapports/revenus',
       code: 'NOT_IMPLEMENTED'
     });
   }
+);
+
+// =====================================================
+// ROUTES DE GESTION DES VÉHICULES (ADMIN)
+// =====================================================
+
+/**
+ * @route   GET /api/admin/vehicules/statistiques/globales
+ * @desc    Obtenir les statistiques globales des véhicules (admin)
+ * @access  Private (Admin avec permission ANALYTICS)
+ */
+router.get('/vehicules/statistiques/globales',
+  middlewareAuth,
+  middlewareRateLimit('reporting'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'ANALYTICS']),
+  obtenirStatistiquesVehiculesAdmin || creerControleurParDefaut('obtenirStatistiquesVehiculesAdmin')
+);
+
+/**
+ * @route   GET /api/admin/vehicules
+ * @desc    Lister tous les véhicules (admin)
+ * @access  Private (Admin avec permission VERIFICATION_DOCUMENTS)
+ */
+router.get('/vehicules',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'VERIFICATION_DOCUMENTS', 'GESTION_VEHICULES']),
+  listerVehiculesAdmin || creerControleurParDefaut('listerVehiculesAdmin')
+);
+
+/**
+ * @route   GET /api/admin/vehicules/:id
+ * @desc    Obtenir les détails d'un véhicule (admin)
+ * @access  Private (Admin)
+ */
+router.get('/vehicules/:id',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  validationId,
+  obtenirVehiculeAdmin || creerControleurParDefaut('obtenirVehiculeAdmin')
+);
+
+/**
+ * @route   GET /api/admin/vehicules/:id/proprietaire
+ * @desc    Obtenir le propriétaire d'un véhicule (admin)
+ * @access  Private (Admin)
+ */
+router.get('/vehicules/:id/proprietaire',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  validationId,
+  obtenirProprietaireVehicule || creerControleurParDefaut('obtenirProprietaireVehicule')
+);
+
+/**
+ * @route   POST /api/admin/vehicules/:id/valider
+ * @desc    Valider un véhicule (admin)
+ * @access  Private (Admin avec permission VERIFICATION_DOCUMENTS)
+ */
+router.post('/vehicules/:id/valider',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'VERIFICATION_DOCUMENTS']),
+  validationId,
+  [
+    body('commentaire')
+      .optional()
+      .trim()
+      .isLength({ max: 500 })
+      .withMessage('Le commentaire ne peut dépasser 500 caractères')
+  ],
+  middlewareLogSensitiveAction('VEHICULE_VALIDATION'),
+  validerVehiculeAdmin || creerControleurParDefaut('validerVehiculeAdmin')
+);
+
+/**
+ * @route   POST /api/admin/vehicules/:id/rejeter
+ * @desc    Rejeter un véhicule (admin)
+ * @access  Private (Admin avec permission VERIFICATION_DOCUMENTS)
+ */
+router.post('/vehicules/:id/rejeter',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'VERIFICATION_DOCUMENTS']),
+  validationId,
+  [
+    body('raison')
+      .notEmpty()
+      .isLength({ min: 10 })
+      .withMessage('La raison du rejet doit contenir au moins 10 caractères')
+  ],
+  middlewareLogSensitiveAction('VEHICULE_REJET'),
+  rejeterVehiculeAdmin || creerControleurParDefaut('rejeterVehiculeAdmin')
 );
 
 // =====================================================

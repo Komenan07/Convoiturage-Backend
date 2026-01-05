@@ -144,6 +144,11 @@
             "date": 1767054837596,
             "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-2025-12-30.log",
             "hash": "025d5eb1d90cda1b15362ace4ad321a642497aa9ebdb982788164210e19691d7"
+        },
+        {
+            "date": 1767611031552,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\commission-2026-01-05.log",
+            "hash": "d27b7a77c40efbab9ed47164b86d713529788d6454de191718d13e83f1ff2d63"
         }
     ],
     "hashType": "sha256"
