@@ -21,8 +21,11 @@ const envoyerMessageTexte = async (req, res, next) => {
 
     const userId = req.user.id;
 
+    console.log(req.user);
+
     // Vérifier que la conversation existe et que l'utilisateur y participe
     const conversation = await Conversation.findById(conversationId);
+    console.log(conversation)
     if (!conversation || !conversation.participants.includes(userId)) {
       return res.status(403).json({
         succes: false,

@@ -1635,7 +1635,7 @@ const connexion = async (req, res, next) => {
         champ: champRecherche
       });
     }
-
+    
     // Vérifier le statut du compte
     const statutAutorise = user.peutSeConnecter();
     if (!statutAutorise.autorise) {
