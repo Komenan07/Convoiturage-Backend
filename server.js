@@ -43,9 +43,42 @@ if (process.env.NODE_ENV === 'development') {
 // CONFIGURATION CORS AVANCÉE
 // ====================================
 const corsOptions = {
-  origin: process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',')
-    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8000', 'http://127.0.0.1:8000' , 'http://localhost:8080', 'http://127.0.0.1:8080'],
+  origin: function (origin, callback) {
+    // Permettre les requêtes sans origine (applications mobiles, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Liste des origines autorisées
+    const allowedOrigins = process.env.ALLOWED_ORIGINS 
+      ? process.env.ALLOWED_ORIGINS.split(',')
+      : [
+          'http://localhost:3000', 
+          'http://localhost:3001', 
+          'http://localhost:8000', 
+          'http://127.0.0.1:8000',
+          'http://localhost:8080', 
+          'http://127.0.0.1:8080'
+        ];
+    
+    // Autoriser tous les localhost et 127.0.0.1 avec n'importe quel port (pour Flutter Web)
+    if (origin.match(/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) {
+      return callback(null, true);
+    }
+    
+    // Autoriser les IPs locales du réseau (192.168.x.x, 10.x.x.x) pour le développement
+    if (process.env.NODE_ENV === 'development') {
+      if (origin.match(/^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/)) {
+        return callback(null, true);
+      }
+    }
+    
+    // Vérifier si l'origine est dans la liste autorisée
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS: Origine non autorisée:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

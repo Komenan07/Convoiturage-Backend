@@ -36,10 +36,16 @@ const creerConversation = async (req, res, next) => {
     // Vérifier si une conversation existe déjà pour ce trajet
     const conversationExistante = await Conversation.findByTrajet(trajetId);
     if (conversationExistante) {
-      return res.status(409).json({
-        success: false,
-        message: 'Une conversation existe déjà pour ce trajet',
-        data: conversationExistante
+      // Populate pour cohérence avec la création
+      const populated = await Conversation.findById(conversationExistante._id)
+        .populate('trajetId', 'pointDepart pointArrivee dateDepart')
+        .populate('participants', 'nom prenom');
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Conversation existante récupérée',
+        data: populated,
+        existante: true
       });
     }
 

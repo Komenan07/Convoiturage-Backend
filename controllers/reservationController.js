@@ -21,7 +21,7 @@ const validerDonnees = (req) => {
 };
 
 const calculerMontantTotal = (trajet, nombrePlaces) => {
-  return trajet.prix * nombrePlaces;
+  return trajet.prixParPassager * nombrePlaces;
 };
 
 class ReservationController {
@@ -127,7 +127,8 @@ class ReservationController {
         montantTotal,
         bagages: bagages || {},
         statutReservation: 'EN_ATTENTE',
-        statutPaiement: 'EN_ATTENTE'
+        statutPaiement: 'EN_ATTENTE',
+        methodePaiement: req.body.methodePaiement || 'ESPCES'
       });
 
       await nouvelleReservation.save();

@@ -409,8 +409,14 @@ ReservationSchema.statics.obtenirReservationsUtilisateur = function(userId, opti
   }
 
   return this.find(query)
-    .populate('trajetId', 'pointDepart pointArrivee dateDepart conducteurId')
-    .populate('trajetId.conducteurId', 'nom prenom photoProfil noteGenerale')
+    .populate({
+      path: 'trajetId',
+      select: 'pointDepart pointArrivee dateDepart distance conducteurId',
+      populate: {
+        path: 'conducteurId',
+        select: 'nom prenom photoProfil noteGenerale'
+      }
+    })
     .sort({ dateReservation: -1 })
     .limit(options.limite || 50);
 };
@@ -427,7 +433,7 @@ ReservationSchema.statics.verifierDisponibilite = async function(trajetId, nombr
   const reservationsConfirmees = await this.aggregate([
     {
       $match: {
-        trajetId: mongoose.Types.ObjectId(trajetId),
+        trajetId: new mongoose.Types.ObjectId(trajetId),
         statutReservation: { $in: ['CONFIRMEE', 'EN_ATTENTE'] }
       }
     },
