@@ -74,7 +74,7 @@ const authentificationRequise = async (req, res, next) => {
 const verifierAccesConversation = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
-    const utilisateurId = req.utilisateur.id;
+    const utilisateurId = req.utilisateur?.id || req.user?.id;
 
     // Vérifier si l'utilisateur fait partie de la conversation
     const conversation = await Conversation.findOne({

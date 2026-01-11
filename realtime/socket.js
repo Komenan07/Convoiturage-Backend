@@ -270,16 +270,22 @@ function initSocket(httpServer, app) {
         }
 
         // Créer le message
-        const message = await Message.create({
+        const messageData = {
           conversationId,
           expediteurId: userId,
           destinataireId,
           contenu,
           typeMessage,
-          pieceJointe,
           lu: false,
           dateEnvoi: new Date()
-        });
+        };
+        
+        // N'ajouter pieceJointe que si elle est définie et non null
+        if (pieceJointe && typeof pieceJointe === 'object') {
+          messageData.pieceJointe = pieceJointe;
+        }
+        
+        const message = await Message.create(messageData);
 
         // Mettre à jour la conversation
         const update = {

@@ -120,7 +120,7 @@ const obtenirConversationsUtilisateur = async (req, res, next) => {
 
     const conversations = await Conversation.find(query)
       .populate('trajetId', 'pointDepart pointArrivee dateDepart nombrePlaces prixParPlace statut')
-      .populate('participants', 'nom prenom email avatar')
+      .populate('participants', 'nom prenom email photoProfil')
       .populate('statistiques.dernierMessagePar', 'nom prenom')
       .sort({ derniereActivite: -1 })
       .limit(parseInt(limit))
@@ -585,7 +585,7 @@ const obtenirConversationParTrajet = async (req, res, next) => {
     }
 
     // Vérifier l'accès
-    if (!conversation.participants.some(p => p._id.toString() === userId)) {
+    if (!conversation.participants.some(p => p._id.toString() === userId.toString())) {
       return res.status(403).json({
         success: false,
         message: 'Accès non autorisé à cette conversation'

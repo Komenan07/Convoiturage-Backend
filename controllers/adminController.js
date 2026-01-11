@@ -845,7 +845,6 @@ const obtenirTrajet = async (req, res, next) => {
   try {
     const trajet = await Trajet.findById(req.params.id)
       .populate('conducteurId', 'nom prenom email telephone photo statut')
-      .populate('vehicule')
       .lean();
 
     if (!trajet) {
@@ -853,7 +852,7 @@ const obtenirTrajet = async (req, res, next) => {
     }
 
     const reservations = await Reservation.find({ trajet: trajet._id })
-      .populate('passager', 'nom prenom email telephone photo')
+      .populate('passagerId', 'nom prenom email telephone photo')
       .lean();
 
     res.status(200).json({
@@ -862,6 +861,7 @@ const obtenirTrajet = async (req, res, next) => {
     });
 
   } catch (error) {
+    console.log('erreur obtenir trajet : ', error)
     return next(AppError.serverError('Erreur lors de la récupération du trajet', { originalError: error.message }));
   }
 };
@@ -874,7 +874,7 @@ const obtenirTrajet = async (req, res, next) => {
 const obtenirReservationsTrajet = async (req, res, next) => {
   try {
     const reservations = await Reservation.find({ trajet: req.params.id })
-      .populate('passager', 'nom prenom email telephone photo')
+      .populate('passagerId', 'nom prenom email telephone photo')
       .sort('-createdAt')
       .lean();
 
@@ -1072,8 +1072,8 @@ const obtenirStatistiquesUtilisateur = async (req, res, next) => {
     }
 
     const [trajets, reservations] = await Promise.all([
-      Trajet.countDocuments({ conducteur: user._id }),
-      Reservation.countDocuments({ passager: user._id })
+      Trajet.countDocuments({ conducteurId: user._id }),
+      Reservation.countDocuments({ passagerId: user._id })
     ]);
 
     res.status(200).json({
@@ -1096,8 +1096,7 @@ const obtenirStatistiquesUtilisateur = async (req, res, next) => {
  */
 const obtenirTrajetsUtilisateur = async (req, res, next) => {
   try {
-    const trajets = await Trajet.find({ conducteur: req.params.id })
-      .populate('vehicule', 'marque modele')
+    const trajets = await Trajet.find({ conducteurId: req.params.id })
       .sort('-dateDepart')
       .limit(50)
       .lean();
@@ -1119,8 +1118,8 @@ const obtenirTrajetsUtilisateur = async (req, res, next) => {
  */
 const obtenirReservationsUtilisateur = async (req, res, next) => {
   try {
-    const reservations = await Reservation.find({ passager: req.params.id })
-      .populate('trajet', 'depart arrivee dateDepart prix')
+    const reservations = await Reservation.find({ passagerId: req.params.id })
+      .populate('trajetId', 'depart arrivee dateDepart prix')
       .sort('-createdAt')
       .limit(50)
       .lean();
@@ -1235,11 +1234,11 @@ const supprimerUtilisateur = async (req, res, next) => {
   try {
     const [trajetsActifs, reservationsActives] = await Promise.all([
       Trajet.countDocuments({
-        conducteur: req.params.id,
+        conducteurId: req.params.id,
         statut: { $in: ['PLANIFIE', 'EN_COURS'] }
       }),
       Reservation.countDocuments({
-        passager: req.params.id,
+        passagerId: req.params.id,
         statut: { $in: ['CONFIRMEE', 'EN_ATTENTE'] }
       })
     ]);
@@ -1323,8 +1322,8 @@ const listerReservations = async (req, res, next) => {
     }
 
     const reservations = await Reservation.find(filtres)
-      .populate('passager', 'nom prenom email')
-      .populate('trajet', 'depart arrivee dateDepart')
+      .populate('passagerId', 'nom prenom email')
+      .populate('trajetId', 'pointDepart pointArrivee photoProfil dateDepart')
       .sort('-createdAt')
       .limit(limitNum)
       .skip((pageNum - 1) * limitNum)
@@ -1345,6 +1344,7 @@ const listerReservations = async (req, res, next) => {
     });
 
   } catch (error) {
+    console.log("erreur admin liste reservations : ",error)
     return next(AppError.serverError('Erreur lors de la récupération des réservations', { originalError: error.message }));
   }
 };
@@ -1357,8 +1357,14 @@ const listerReservations = async (req, res, next) => {
 const obtenirReservation = async (req, res, next) => {
   try {
     const reservation = await Reservation.findById(req.params.id)
-      .populate('passager', 'nom prenom email telephone')
-      .populate('trajet')
+      .populate('passagerId', 'nom prenom email photoProfil telephone')
+      .populate({
+        path:'trajetId',
+        populate: {
+          path: 'conducteurId',
+          select: 'nom prenom email photoProfil telephone'
+        }
+      })
       .lean();
 
     if (!reservation) {
@@ -1371,6 +1377,7 @@ const obtenirReservation = async (req, res, next) => {
     });
 
   } catch (error) {
+    console.log(error)
     return next(AppError.serverError('Erreur lors de la récupération de la réservation', { originalError: error.message }));
   }
 };
