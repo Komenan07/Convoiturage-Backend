@@ -2,6 +2,7 @@
 
 const mongoose = require('mongoose');
 const mongoosePaginate = require('mongoose-paginate-v2'); 
+const distanceService = require('../services/distanceService');
 
 // ===============================================
 // SCHÉMAS IMBRIQUÉS
@@ -163,7 +164,7 @@ const preferencesSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  accepteHommesSeuleument: {
+  accepteHommesSeulement: {
     type: Boolean,
     default: false
   },
@@ -473,11 +474,11 @@ trajetSchema.index({
 // Middleware pre-save pour validation croisée
 trajetSchema.pre('save', function(next) {
   // Validation des préférences de genre
-  if (this.preferences.accepteFemmesSeulement && this.preferences.accepteHommesSeuleument) {
-    return next(new Error('Ne peut pas accepter exclusivement les femmes ET les hommes'));
-  }
+  if (this.preferences.accepteFemmesSeulement && this.preferences.accepteHommesSeulement) {
+  return next(new Error('Ne peut pas accepter exclusivement les femmes ET les hommes'));
+}
 
-  // Validation que les places disponibles ne dépassent jamais le total
+// Validation que les places disponibles ne dépassent jamais le total
   if (this.nombrePlacesDisponibles > this.nombrePlacesTotal) {
     return next(new Error('Le nombre de places disponibles ne peut pas dépasser le total'));
   }
@@ -513,9 +514,9 @@ trajetSchema.pre('save', async function(next) {
                            this.isModified('pointArrivee.coordonnees') ||
                            this.isModified('dateDepart') ||
                            this.isModified('heureDepart');
-    
+     
     if (shouldCalculate) {
-      const distanceService = require('../services/distanceService');
+     
       
       console.log('📊 Calcul automatique des distances pour le trajet...');
       
@@ -1063,6 +1064,7 @@ trajetSchema.virtual('placesReservees').get(function() {
 });
 
 trajetSchema.virtual('tauxOccupation').get(function() {
+  if (!this.nombrePlacesTotal || this.nombrePlacesTotal === 0) return 0;
   return Math.round((this.placesReservees / this.nombrePlacesTotal) * 100);
 });
 

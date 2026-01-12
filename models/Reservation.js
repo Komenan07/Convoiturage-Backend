@@ -81,7 +81,11 @@ const PositionTempsReelSchema = new Schema({
 const NotificationSchema = new Schema({
   type: {
     type: String,
-    enum: ['RAPPEL_DEPART', 'CONDUCTEUR_PROCHE', 'ARRIVEE'],
+    enum: ['RAPPEL_DEPART',
+      'CONDUCTEUR_PROCHE', 'ARRIVEE',
+      'RIDE_REMINDER',
+      'DRIVER_APPROACHING',
+      'ARRIVAL_SOON'],
     required: true
   },
   heureEnvoi: {
@@ -91,6 +95,19 @@ const NotificationSchema = new Schema({
   envoye: {
     type: Boolean,
     default: false
+  },
+   tentativesEnvoi: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 3
+  },
+  derniereErreur: {
+    type: String,
+    maxlength: 500
+  },
+  dateEnvoi: {
+    type: Date
   }
 }, { _id: false });
 
@@ -204,9 +221,19 @@ const ReservationSchema = new Schema({
   timestamps: true,
   collection: 'reservations'
 });
+ReservationSchema.index(
+  { trajetId: 1, passagerId: 1 }, 
+  { 
+    unique: true,
+    partialFilterExpression: { 
+      statutReservation: { $in: ['EN_ATTENTE', 'CONFIRMEE'] } 
+    },
+    name: 'unique_active_reservation_per_trip'
+  }
+);
 
 // Index composés pour optimiser les requêtes
-ReservationSchema.index({ trajetId: 1, passagerId: 1 }, { unique: true });
+ReservationSchema.index({ trajetId: 1, passagerId: 1, statutReservation: 1 });
 ReservationSchema.index({ statutReservation: 1, dateReservation: -1 });
 ReservationSchema.index({ passagerId: 1, statutReservation: 1 });
 ReservationSchema.index({ 'pointPriseEnCharge.coordonnees': '2dsphere' });
@@ -238,41 +265,340 @@ ReservationSchema.pre('save', function(next) {
 });
 
 // Middleware post-sauvegarde pour les notifications
+// ===============================================
+// MIDDLEWARE POST-SAVE - NOTIFICATIONS AUTOMATIQUES
+// ===============================================
+
 ReservationSchema.post('save', async function(doc) {
-  try {
-    // Programmer les notifications automatiques pour une nouvelle réservation
-    if (doc.isNew && doc.statutReservation === 'EN_ATTENTE') {
-      await doc.programmerNotifications();
-    }
-    
-    // Notifier le conducteur d'une nouvelle réservation
-    if (doc.isModified('statutReservation') && doc.statutReservation === 'EN_ATTENTE') {
-      await doc.notifierConducteur();
-    }
-  } catch (error) {
-    console.error('Erreur lors des notifications post-sauvegarde:', error);
+  // Éviter les boucles infinies
+  if (doc._skipNotifications) {
+    return;
   }
+  
+  // Utiliser setImmediate pour ne pas bloquer la sauvegarde
+  setImmediate(async () => {
+    try {
+      const firebaseService = require('../services/firebaseService');
+      const Utilisateur = mongoose.model('Utilisateur');
+      const Trajet = mongoose.model('Trajet');
+      // ===== NOUVELLE RÉSERVATION =====
+      if (doc.isNew && doc.statutReservation === 'EN_ATTENTE') {
+        console.log('🆕 Nouvelle réservation détectée:', doc._id);
+        
+        // Notifier le conducteur
+        await doc.notifierConducteur();
+        
+        // Programmer les notifications futures
+        await doc.programmerNotifications();
+      }
+      
+      // ===== RÉSERVATION CONFIRMÉE =====
+      if (doc.isModified('statutReservation') && doc.statutReservation === 'CONFIRMEE') {
+        console.log('✅ Réservation confirmée:', doc._id);
+        
+        const trajet = await Trajet.findById(doc.trajetId);
+        
+        if (trajet) {
+          await firebaseService.notifyReservationConfirmed(
+            doc.passagerId,
+            {
+              reservationId: doc._id.toString(),
+              trajetId: doc.trajetId.toString(),
+              destination: doc.pointDepose.nom,
+              dateDepart: trajet.dateDepart,
+              heureDepart: trajet.heureDepart
+            },
+            Utilisateur
+          );
+        }
+      }
+      
+      // ===== RÉSERVATION REFUSÉE =====
+      if (doc.isModified('statutReservation') && doc.statutReservation === 'REFUSEE') {
+        console.log('❌ Réservation refusée:', doc._id);
+        
+        await firebaseService.sendToUser(
+          doc.passagerId,
+          {
+            title: '❌ Réservation refusée',
+            message: doc.motifRefus || 'Le conducteur a refusé votre réservation',
+            data: {
+              type: 'RESERVATION_REFUSED',
+              reservationId: doc._id.toString(),
+              trajetId: doc.trajetId.toString(),
+              motif: doc.motifRefus || 'Non spécifié'
+            },
+            channelId: 'reservations',
+            type: 'reservations'
+          },
+          Utilisateur
+        );
+      }
+      
+      // ===== RÉSERVATION ANNULÉE =====
+      if (doc.isModified('statutReservation') && doc.statutReservation === 'ANNULEE') {
+        console.log('⚠️  Réservation annulée:', doc._id);
+        
+        const trajet = await Trajet.findById(doc.trajetId);
+        
+        if (trajet) {
+          await firebaseService.notifyRideCancelled(
+            doc.passagerId,
+            {
+              rideId: doc.trajetId.toString(),
+              destination: doc.pointDepose.nom,
+              reason: doc.motifRefus || 'Annulation'
+            },
+            Utilisateur
+          );
+        }
+      }
+      
+      // ===== PAIEMENT CONFIRMÉ =====
+      if (doc.isModified('statutPaiement') && doc.statutPaiement === 'PAYE') {
+        console.log('💳 Paiement confirmé:', doc._id);
+        
+        await firebaseService.notifyPaymentSuccess(
+          doc.passagerId,
+          {
+            transactionId: doc.referencePaiement || `PAY-${doc._id}`,
+            montant: doc.montantTotal,
+            methode: doc.methodePaiement
+          },
+          Utilisateur
+        );
+      }
+      
+      // ===== REMBOURSEMENT =====
+      if (doc.isModified('statutPaiement') && doc.statutPaiement === 'REMBOURSE') {
+        console.log('💰 Remboursement effectué:', doc._id);
+        
+        await firebaseService.sendToUser(
+          doc.passagerId,
+          {
+            title: '💰 Remboursement effectué',
+            message: `Vous avez été remboursé de ${doc.montantTotal} FCFA`,
+            data: {
+              type: 'PAYMENT_REFUND',
+              transactionId: `REFUND-${doc._id}`,
+              montant: doc.montantTotal.toString(),
+              reservationId: doc._id.toString()
+            },
+            channelId: 'paiements',
+            type: 'paiements'
+          },
+          Utilisateur
+        );
+      }
+      
+    } catch (error) {
+      const { logger } = require('../utils/logger');
+      logger.error('❌ Erreur notifications post-save:', {
+        reservationId: doc._id,
+        error: error.message,
+        stack: error.stack
+      });
+    }
+  });
 });
 
 // Tâche utilitaire: envoyer les notifications prévues arrivées à échéance
+/**
+ * ===============================================
+ * EXÉCUTER LES NOTIFICATIONS PROGRAMMÉES
+ * ===============================================
+ * 
+ * À appeler via un CRON job toutes les 5 minutes
+ * 
+ * @param {Number} limite - Nombre max de réservations à traiter
+ * @returns {Promise<Object>} Statistiques d'exécution
+ */
 ReservationSchema.statics.executerNotificationsPrevues = async function(limite = 100) {
-  const maintenant = new Date();
-  const reservations = await this.find({
-    'notificationsPrevues.envoye': false,
-    'notificationsPrevues.heureEnvoi': { $lte: maintenant }
-  }).limit(limite);
+  const firebaseService = require('../services/firebaseService');
+  const Utilisateur = mongoose.model('Utilisateur');
 
-  for (const reservation of reservations) {
-    for (const notif of reservation.notificationsPrevues) {
-      if (!notif.envoye && notif.heureEnvoi <= maintenant) {
-        // TODO: intégrer un envoi via notificationService/emailService selon notif.type
-        console.log(`Notification prévue envoyée (${notif.type}) pour réservation ${reservation._id}`);
-        notif.envoye = true;
+  
+  const maintenant = new Date();
+  const stats = {
+    totalTraitees: 0,
+    notificationsEnvoyees: 0,
+    echecs: 0,
+    erreurs: []
+  };
+  
+  try {
+    console.log('📬 Début exécution notifications programmées...');
+    
+    // Récupérer les réservations avec notifications en attente
+    const reservations = await this.find({
+      'notificationsPrevues.envoye': false,
+      'notificationsPrevues.heureEnvoi': { $lte: maintenant },
+      statutReservation: { $in: ['EN_ATTENTE', 'CONFIRMEE'] }
+    })
+    .populate('passagerId', 'nom prenom fcmTokens preferencesNotifications')
+    .populate({
+      path: 'trajetId',
+      select: 'conducteurId pointDepart pointArrivee dateDepart heureDepart',
+      populate: {
+        path: 'conducteurId',
+        select: 'nom prenom'
+      }
+    })
+    .limit(limite);
+    
+    console.log(`📋 ${reservations.length} réservation(s) à traiter`);
+    
+    for (const reservation of reservations) {
+      stats.totalTraitees++;
+      let modifie = false;
+      
+      for (const notif of reservation.notificationsPrevues) {
+        // Ignorer si déjà envoyée ou pas encore à échéance
+        if (notif.envoye || notif.heureEnvoi > maintenant) {
+          continue;
+        }
+        
+        // Limiter les tentatives
+        const tentatives = notif.tentativesEnvoi || 0;
+        if (tentatives >= 3) {
+          notif.envoye = true;
+          notif.derniereErreur = 'Nombre maximum de tentatives atteint';
+          modifie = true;
+          stats.echecs++;
+          continue;
+        }
+        
+        try {
+          const trajet = reservation.trajetId;
+          const passager = reservation.passagerId;
+          
+          if (!trajet || !passager) {
+            throw new Error('Données manquantes');
+          }
+          
+          // Construire la notification selon le type
+          let notification = null;
+          
+          switch (notif.type) {
+            case 'RAPPEL_DEPART':
+            case 'RIDE_REMINDER':
+              notification = {
+                title: '🕐 Rappel : Votre trajet démarre bientôt !',
+                message: `Départ dans 2 heures de ${trajet.pointDepart.nom} vers ${trajet.pointArrivee.nom}`,
+                data: {
+                  type: 'RIDE_REMINDER',
+                  reservationId: reservation._id.toString(),
+                  trajetId: trajet._id.toString(),
+                  heureDepart: trajet.heureDepart,
+                  pointDepart: trajet.pointDepart.nom,
+                  screen: 'ReservationDetails'
+                },
+                channelId: 'trajets',
+                type: 'trajets'
+              };
+              break;
+              
+            case 'CONDUCTEUR_PROCHE':
+            case 'DRIVER_APPROACHING':
+              notification = {
+                title: '🚗 Votre conducteur arrive !',
+                message: `${trajet.conducteurId.prenom} sera à ${reservation.pointPriseEnCharge.nom} dans 30 minutes`,
+                data: {
+                  type: 'DRIVER_APPROACHING',
+                  reservationId: reservation._id.toString(),
+                  trajetId: trajet._id.toString(),
+                  conducteurNom: `${trajet.conducteurId.prenom} ${trajet.conducteurId.nom}`,
+                  lieu: reservation.pointPriseEnCharge.nom,
+                  screen: 'TripTracking'
+                },
+                channelId: 'trajets',
+                type: 'trajets'
+              };
+              break;
+              
+            case 'ARRIVEE':
+            case 'ARRIVAL_SOON':
+              notification = {
+                title: '🏁 Arrivée imminente',
+                message: `Vous arriverez bientôt à ${reservation.pointDepose.nom}`,
+                data: {
+                  type: 'ARRIVAL_SOON',
+                  reservationId: reservation._id.toString(),
+                  trajetId: trajet._id.toString(),
+                  destination: reservation.pointDepose.nom,
+                  screen: 'ReservationDetails'
+                },
+                channelId: 'trajets',
+                type: 'trajets'
+              };
+              break;
+              
+            default:
+              console.warn(`⚠️  Type de notification inconnu: ${notif.type}`);
+              notif.envoye = true;
+              notif.derniereErreur = 'Type inconnu';
+              modifie = true;
+              continue;
+          }
+          
+          // Envoyer la notification via Firebase
+          const result = await firebaseService.sendToUser(
+            passager._id,
+            notification,
+            Utilisateur
+          );
+          
+          // Traiter le résultat
+          if (result.success) {
+            notif.envoye = true;
+            notif.tentativesEnvoi = tentatives + 1;
+            notif.dateEnvoi = new Date();
+            stats.notificationsEnvoyees++;
+            
+            console.log(`✅ Notification ${notif.type} envoyée:`, {
+              reservationId: reservation._id,
+              passagerId: passager._id
+            });
+          } else {
+            notif.tentativesEnvoi = tentatives + 1;
+            notif.derniereErreur = result.reason || result.error || 'Échec envoi';
+            stats.echecs++;
+            
+            console.warn(`⚠️  Échec notification ${notif.type}:`, result.reason);
+          }
+          
+          modifie = true;
+          
+        } catch (error) {
+          console.error(`❌ Erreur envoi notification ${notif.type}:`, error);
+          
+          notif.tentativesEnvoi = (notif.tentativesEnvoi || 0) + 1;
+          notif.derniereErreur = error.message;
+          stats.echecs++;
+          stats.erreurs.push({
+            reservationId: reservation._id,
+            type: notif.type,
+            erreur: error.message
+          });
+          
+          modifie = true;
+        }
+      }
+      
+      // Sauvegarder si modifié
+      if (modifie) {
+        reservation._skipNotifications = true;
+        await reservation.save();
       }
     }
-    await reservation.save();
+    
+    console.log('✅ Notifications programmées exécutées:', stats);
+    return stats;
+    
+  } catch (error) {
+    console.error('❌ Erreur globale executerNotificationsPrevues:', error);
+    throw error;
   }
-  return true;
 };
 
 // Méthodes d'instance
@@ -317,7 +643,97 @@ ReservationSchema.methods.calculerRemboursement = function(trajetDateDepart) {
     return 0; // Pas de remboursement
   }
 };
-
+/**
+ * Effectuer le remboursement d'une réservation annulée
+ * @param {Date} trajetDateDepart - Date de départ du trajet
+ * @returns {Promise<Object>} Résultat du remboursement
+ */
+ReservationSchema.methods.effectuerRemboursement = async function(trajetDateDepart) {
+  try {
+    // Vérifier l'éligibilité
+    if (!this.peutEtreAnnulee()) {
+      return {
+        success: false,
+        message: 'Cette réservation ne peut pas être remboursée',
+        montantRembourse: 0
+      };
+    }
+    
+    if (this.statutPaiement !== 'PAYE') {
+      return {
+        success: false,
+        message: 'Aucun paiement à rembourser',
+        montantRembourse: 0
+      };
+    }
+    
+    // Calculer le montant du remboursement
+    const montantRemboursement = this.calculerRemboursement(trajetDateDepart);
+    
+    if (montantRemboursement === 0) {
+      return {
+        success: false,
+        message: 'Aucun remboursement applicable selon la politique d\'annulation',
+        montantRembourse: 0,
+        politique: 'Annulation trop tardive'
+      };
+    }
+    
+    // Mettre à jour le statut
+    this.statutPaiement = 'REMBOURSE';
+    this.statutReservation = 'ANNULEE';
+    
+    // TODO: Intégrer avec CinetPay pour le remboursement réel
+    // const cinetpayResult = await cinetpayService.refund({
+    //   transactionId: this.referencePaiement,
+    //   amount: montantRemboursement
+    // });
+    
+    this._skipNotifications = true; // Éviter double notification
+    await this.save();
+    
+    // Notifier le passager
+    const firebaseService = require('../services/firebaseService');
+    const Utilisateur = mongoose.model('Utilisateur');
+    
+    await firebaseService.sendToUser(
+      this.passagerId,
+      {
+        title: '💰 Remboursement effectué',
+        message: `Vous avez été remboursé de ${montantRemboursement} FCFA`,
+        data: {
+          type: 'PAYMENT_REFUND',
+          transactionId: `REFUND-${this._id}`,
+          montant: montantRemboursement.toString(),
+          montantOriginal: this.montantTotal.toString(),
+          pourcentage: Math.round((montantRemboursement / this.montantTotal) * 100).toString(),
+          reservationId: this._id.toString()
+        },
+        channelId: 'paiements',
+        type: 'paiements'
+      },
+      Utilisateur
+    );
+    
+    console.log('✅ Remboursement effectué:', {
+      reservationId: this._id,
+      montantRembourse: montantRemboursement,
+      pourcentage: Math.round((montantRemboursement / this.montantTotal) * 100)
+    });
+    
+    return {
+      success: true,
+      montantRembourse: montantRemboursement,
+      montantOriginal: this.montantTotal,
+      pourcentage: Math.round((montantRemboursement / this.montantTotal) * 100),
+      message: 'Remboursement effectué avec succès'
+    };
+    
+  } catch (error) {
+    console.error('❌ Erreur remboursement:', error);
+    throw error;
+  }
+};
 // Programmer les notifications automatiques
 ReservationSchema.methods.programmerNotifications = async function() {
   try {
@@ -365,17 +781,70 @@ ReservationSchema.methods.programmerNotifications = async function() {
 };
 
 // Notifier le conducteur d'une nouvelle réservation
+/**
+ * Notifier le conducteur d'une nouvelle réservation
+ * Intégration Firebase Cloud Messaging
+ */
 ReservationSchema.methods.notifierConducteur = async function() {
   try {
-    const trajet = await mongoose.model('Trajet').findById(this.trajetId).populate('conducteurId');
-    const passager = await mongoose.model('Utilisateur').findById(this.passagerId);
+    // Récupérer le trajet avec le conducteur
+    const trajet = await mongoose.model('Trajet')
+      .findById(this.trajetId)
+      .populate('conducteurId', 'nom prenom fcmTokens preferencesNotifications');
     
-    if (trajet && trajet.conducteurId && passager) {
-      // Logique de notification (email, SMS, push notification)
-      console.log(`Notification envoyée au conducteur ${trajet.conducteurId.nom} pour la réservation de ${passager.nom}`);
+    // Récupérer le passager
+    const passager = await mongoose.model('Utilisateur')
+      .findById(this.passagerId)
+      .select('nom prenom');
+    
+    // Vérifications
+    if (!trajet) {
+      console.warn('⚠️  Trajet introuvable:', this.trajetId);
+      return { success: false, reason: 'Trajet introuvable' };
     }
+    
+    if (!trajet.conducteurId) {
+      console.warn('⚠️  Conducteur introuvable pour trajet:', this.trajetId);
+      return { success: false, reason: 'Conducteur introuvable' };
+    }
+    
+    if (!passager) {
+      console.warn('⚠️  Passager introuvable:', this.passagerId);
+      return { success: false, reason: 'Passager introuvable' };
+    }
+    
+    // Envoyer via Firebase
+    const firebaseService = require('../services/firebaseService');
+    const Utilisateur = mongoose.model('Utilisateur');
+    
+    const result = await firebaseService.notifyNewRide(
+      trajet.conducteurId._id,
+      {
+        rideId: this.trajetId.toString(),
+        reservationId: this._id.toString(),
+        depart: trajet.pointDepart.nom,
+        arrivee: trajet.pointArrivee.nom,
+        passagerNom: `${passager.prenom} ${passager.nom}`,
+        nombrePlaces: this.nombrePlacesReservees,
+        montant: this.montantTotal
+      },
+      Utilisateur
+    );
+    
+    if (result.success) {
+      console.log('✅ Notification conducteur envoyée:', {
+        conducteurId: trajet.conducteurId._id,
+        reservationId: this._id
+      });
+    } else {
+      console.warn('⚠️  Échec notification conducteur:', result.reason);
+    }
+    
+    return result;
+    
   } catch (error) {
-    console.error('Erreur lors de la notification du conducteur:', error);
+    console.error('❌ Erreur notification conducteur:', error);
+    return { success: false, error: error.message };
   }
 };
 

@@ -33545,3 +33545,938 @@
   version: '1.0.0',
   timestamp: '2025-12-24 10:42:14'
 }
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Sun Jan 11 2026 06:39:27 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 2356,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 149909504,
+      heapTotal: 103907328,
+      heapUsed: 79045120,
+      external: 22473418,
+      arrayBuffers: 18862829
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 34023.156 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-01-11 06:39:27'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Mon Jan 12 2026 10:56:31 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 24060,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 151855104,
+      heapTotal: 106266624,
+      heapUsed: 79084688,
+      external: 22431635,
+      arrayBuffers: 18794891
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 135846.875 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-01-12 10:56:31'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Mon Jan 12 2026 10:57:31 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 20944,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 153378816,
+      heapTotal: 107577344,
+      heapUsed: 79397600,
+      external: 22431635,
+      arrayBuffers: 18794891
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 135907.109 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-01-12 10:57:31'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Mon Jan 12 2026 11:33:28 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 5212,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 151138304,
+      heapTotal: 105218048,
+      heapUsed: 78394800,
+      external: 22431635,
+      arrayBuffers: 18794891
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 138063.609 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-01-12 11:33:28'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Mon Jan 12 2026 11:37:17 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 25152,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 151363584,
+      heapTotal: 105742336,
+      heapUsed: 78785832,
+      external: 22431633,
+      arrayBuffers: 18794889
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 138292.843 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-01-12 11:37:17'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Mon Jan 12 2026 11:38:11 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 16924,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 152416256,
+      heapTotal: 106528768,
+      heapUsed: 78574896,
+      external: 22385375,
+      arrayBuffers: 18778890
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 138346.562 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-01-12 11:38:11'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Mon Jan 12 2026 11:40:18 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 23600,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 149762048,
+      heapTotal: 103907328,
+      heapUsed: 78352160,
+      external: 22431635,
+      arrayBuffers: 18794891
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 138474 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-01-12 11:40:18'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Mon Jan 12 2026 11:41:16 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 16232,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 149643264,
+      heapTotal: 103645184,
+      heapUsed: 78188160,
+      external: 22431290,
+      arrayBuffers: 18794546
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 138531.812 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-01-12 11:41:16'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Mon Jan 12 2026 11:45:46 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 20456,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 151592960,
+      heapTotal: 105742336,
+      heapUsed: 78725288,
+      external: 22431635,
+      arrayBuffers: 18794891
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 138801.968 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-01-12 11:45:46'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Mon Jan 12 2026 11:51:56 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 16632,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 151052288,
+      heapTotal: 105218048,
+      heapUsed: 78496888,
+      external: 22431633,
+      arrayBuffers: 18794889
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 139171.562 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-01-12 11:51:56'
+}
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Mon Jan 12 2026 12:00:14 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 21848,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 152219648,
+      heapTotal: 106528768,
+      heapUsed: 79011856,
+      external: 22431635,
+      arrayBuffers: 18794891
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 139669.937 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-01-12 12:00:14'
+}

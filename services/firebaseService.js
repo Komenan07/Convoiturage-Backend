@@ -318,6 +318,93 @@ class FirebaseService {
   }
 
   /**
+ * Envoyer une notification à plusieurs utilisateurs
+ * 
+ * @param {Array<String>} userIds - IDs MongoDB des utilisateurs
+ * @param {Object} notification - Objet notification
+ * @param {Model} Utilisateur - Modèle Mongoose
+ * @returns {Promise<Object>} Résultats agrégés
+ */
+async sendToMultipleUsers(userIds, notification, Utilisateur) {
+  if (!this.enabled) {
+    console.log('⚠️  Firebase désactivé - Notifications multiples simulées');
+    return { 
+      success: false, 
+      reason: 'disabled',
+      successCount: 0,
+      failureCount: 0
+    };
+  }
+
+  if (!userIds || userIds.length === 0) {
+    return { 
+      success: false, 
+      error: 'Aucun utilisateur fourni',
+      successCount: 0,
+      failureCount: 0
+    };
+  }
+
+  try {
+    const results = {
+      successCount: 0,
+      failureCount: 0,
+      details: []
+    };
+
+    console.log(`📤 Envoi notification à ${userIds.length} utilisateur(s)`);
+
+    // Traiter chaque utilisateur séquentiellement
+    for (const userId of userIds) {
+      try {
+        const result = await this.sendToUser(userId, notification, Utilisateur);
+        
+        if (result.success) {
+          results.successCount += result.successCount || 1;
+        } else {
+          results.failureCount += result.failureCount || 1;
+        }
+
+        results.details.push({
+          userId: userId.toString(),
+          success: result.success,
+          reason: result.reason || result.error,
+          tokensUsed: result.successCount || 0
+        });
+        
+      } catch (userError) {
+        console.error(`❌ Erreur pour userId ${userId}:`, userError.message);
+        results.failureCount++;
+        results.details.push({
+          userId: userId.toString(),
+          success: false,
+          reason: userError.message
+        });
+      }
+    }
+
+    console.log(`✅ Notifications multiples terminées:`, {
+      total: userIds.length,
+      success: results.successCount,
+      failed: results.failureCount
+    });
+
+    return {
+      success: results.successCount > 0,
+      ...results
+    };
+
+  } catch (error) {
+    console.error('❌ Erreur sendToMultipleUsers:', error);
+    return {
+      success: false,
+      error: error.message,
+      successCount: 0,
+      failureCount: userIds.length
+    };
+  }
+}
+  /**
    * ===============================================
    * NOTIFICATIONS PRÉDÉFINIES POUR WAYZ-ECO
    * ===============================================

@@ -161,13 +161,15 @@ async recalculerDistance(req, res, next) {
     // Utiliser la méthode du modèle
     const infoDistance = await trajet.recalculerDistance();
 
+    // Retourner le trajet normalisé avec isExpired
+    await trajet.populate('conducteurId', 'nom prenom photo');
+    const trajetObj = this._attachIsExpired([trajet])[0];
+
     res.json({
       success: true,
       message: 'Distance recalculée avec succès',
       data: {
-        distance: `${trajet.distance} km`,
-        dureeEstimee: `${trajet.dureeEstimee} min`,
-        heureArriveePrevue: trajet.heureArriveePrevue,
+        trajet: trajetObj,
         infoDistance
       }
     });
@@ -232,10 +234,13 @@ async recalculerDistance(req, res, next) {
 
       await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
 
+      // Normaliser isExpired avant retour
+      const nouveauTrajetObj = this._attachIsExpired([nouveauTrajet])[0];
+
       res.status(201).json({
         success: true,
         message: 'Trajet ponctuel créé avec succès',
-        data: nouveauTrajet,
+        data: nouveauTrajetObj,
         // ⭐ NOUVEAU: Inclure les infos calculées
         calculs: {
           distance: `${nouveauTrajet.distance} km`,
@@ -317,10 +322,13 @@ async recalculerDistance(req, res, next) {
 
       await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
 
+      // Normaliser isExpired avant retour
+      const nouveauTrajetObj = this._attachIsExpired([nouveauTrajet])[0];
+
       res.status(201).json({
         success: true,
         message: 'Trajet récurrent créé avec succès',
-        data: nouveauTrajet,
+        data: nouveauTrajetObj,
         calculs: {
           distance: `${nouveauTrajet.distance} km`,
           duree: `${nouveauTrajet.dureeEstimee} min`,
@@ -362,6 +370,9 @@ async recalculerDistance(req, res, next) {
       };
 
       const trajets = await Trajet.paginate(query, options);
+
+      // Normaliser la virtual `isExpired` (utile pour aggregate/lean/paginate)
+      trajets.docs = this._attachIsExpired(trajets.docs);
 
       res.json({
         success: true,
@@ -425,6 +436,9 @@ async recalculerDistance(req, res, next) {
 
       const result = await Trajet.paginate(query, options);
 
+      // Normaliser la virtual `isExpired`
+      result.docs = this._attachIsExpired(result.docs);
+
       res.json({
         success: true,
         count: result.docs.length,
@@ -473,6 +487,9 @@ async recalculerDistance(req, res, next) {
       };
 
       const result = await Trajet.paginate(query, options);
+
+      // Normaliser la virtual `isExpired`
+      result.docs = this._attachIsExpired(result.docs);
 
       res.json({
         success: true,
@@ -719,6 +736,9 @@ async recalculerDistance(req, res, next) {
             hasPrevPage: pageNum > 1
           };
 
+          // Attacher isExpired pour les résultats d'aggregation (POJO)
+          result.docs = this._attachIsExpired(result.docs);
+
           console.log(`✅ Recherche géospatiale réussie: ${total} trajet(s) trouvé(s)`);
 
         } catch (geoError) {
@@ -733,6 +753,8 @@ async recalculerDistance(req, res, next) {
           };
           
           result = await Trajet.paginate(baseQuery, options);
+          // Attacher isExpired pour le fallback paginate
+          result.docs = this._attachIsExpired(result.docs);
         }
       } else {
         const options = {
@@ -743,6 +765,8 @@ async recalculerDistance(req, res, next) {
         };
         
         result = await Trajet.paginate(baseQuery, options);
+        // Attacher isExpired pour le paginate standard
+        result.docs = this._attachIsExpired(result.docs);
       }
 
       res.json({
@@ -783,9 +807,12 @@ async recalculerDistance(req, res, next) {
         await trajet.marquerCommeExpire();
       }
 
+      // Retourner l'objet avec isExpired normalisé
+      await trajet.populate('conducteurId', '-password -email');
+      const trajetObj = this._attachIsExpired([trajet])[0];
       res.json({
         success: true,
-        data: trajet
+        data: trajetObj
       });
 
     } catch (error) {
@@ -820,6 +847,9 @@ async recalculerDistance(req, res, next) {
           await trajet.marquerCommeExpire();
         }
       }
+
+      // Normaliser la virtual `isExpired` après éventuelle mise à jour
+      trajets.docs = this._attachIsExpired(trajets.docs);
 
       res.json({
         success: true,
@@ -860,6 +890,9 @@ async recalculerDistance(req, res, next) {
 
       const trajets = await Trajet.paginate(query, options);
 
+      // Normaliser la virtual `isExpired`
+      trajets.docs = this._attachIsExpired(trajets.docs);
+
       res.json({
         success: true,
         count: trajets.docs.length,
@@ -895,6 +928,9 @@ async recalculerDistance(req, res, next) {
       };
 
       const trajets = await Trajet.paginate(query, options);
+
+      // Normaliser la virtual `isExpired`
+      trajets.docs = this._attachIsExpired(trajets.docs);
 
       res.json({
         success: true,
@@ -1004,10 +1040,13 @@ async recalculerDistance(req, res, next) {
 
       await trajet.populate('conducteurId', 'nom prenom photo');
 
+      // Normaliser isExpired avant retour
+      const trajetObj = this._attachIsExpired([trajet])[0];
+
       res.json({
         success: true,
         message: 'Trajet modifié avec succès',
-        data: trajet
+        data: trajetObj
       });
 
     } catch (error) {
@@ -1066,13 +1105,14 @@ async recalculerDistance(req, res, next) {
 
       await this.gererNotificationsStatut(trajet, ancienStatut, statutTrajet);
 
+      // Retourner le trajet avec isExpired normalisé
+      await trajet.populate('conducteurId', 'nom prenom photo');
+      const trajetObj = this._attachIsExpired([trajet])[0];
+
       res.json({
         success: true,
         message: `Statut du trajet changé de ${ancienStatut} à ${statutTrajet}`,
-        data: {
-          statutTrajet: trajet.statutTrajet,
-          id: trajet._id
-        }
+        data: trajetObj
       });
 
     } catch (error) {
@@ -1122,14 +1162,14 @@ async recalculerDistance(req, res, next) {
 
       await this.envoyerNotificationsAnnulation(trajet, motifAnnulation);
 
+      // Retourner le trajet normalisé
+      await trajet.populate('conducteurId', 'nom prenom photo');
+      const trajetObj = this._attachIsExpired([trajet])[0];
+
       res.json({
         success: true,
         message: 'Trajet annulé avec succès',
-        data: {
-          id: trajet._id,
-          statutTrajet: trajet.statutTrajet,
-          motifAnnulation
-        }
+        data: trajetObj
       });
 
     } catch (error) {
@@ -1260,6 +1300,9 @@ async recalculerDistance(req, res, next) {
 
       const trajets = await Trajet.paginate(query, options);
 
+      // Normaliser la virtual `isExpired`
+      trajets.docs = this._attachIsExpired(trajets.docs);
+
       res.json({
         success: true,
         count: trajets.docs.length,
@@ -1280,6 +1323,21 @@ async recalculerDistance(req, res, next) {
   }
 
   // ==================== MÉTHODES UTILITAIRES ====================
+
+  // Normalise la virtual `isExpired` pour les objets renvoyés par
+  // aggregate/lean/paginate (qui peuvent être des POJO sans virtuals)
+  _attachIsExpired(docs) {
+    if (!docs) return docs;
+    return docs.map(d => {
+      const obj = (d && typeof d.toObject === 'function') ? d.toObject() : d;
+      // Si la valeur est déjà un booléen, ne pas la recalculer
+      if (typeof obj.isExpired === 'boolean') return obj;
+      const dateDepart = obj.dateDepart ? new Date(obj.dateDepart) : null;
+      const now = new Date();
+      obj.isExpired = (obj.statutTrajet === 'EXPIRE') || (dateDepart && now > dateDepart && obj.statutTrajet === 'PROGRAMME');
+      return obj;
+    });
+  }
 
   async gererNotificationsStatut(trajet, ancienStatut, nouveauStatut) {
     console.log(`Notification: Trajet ${trajet._id} changé de ${ancienStatut} à ${nouveauStatut}`);
