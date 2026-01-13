@@ -152,7 +152,7 @@ conversationSchema.statics.findByUtilisateur = function(userId, options = {}) {
   
   return this.find(query)
     .populate('trajetId', 'depart destination dateDepart')
-    .populate('participants', 'nom prenom avatar')
+    .populate('participants', 'nom prenom photoProfil')
     .populate('statistiques.dernierMessagePar', 'nom prenom')
     .sort({ derniereActivite: -1 })
     .limit(options.limit || 50);
@@ -160,7 +160,7 @@ conversationSchema.statics.findByUtilisateur = function(userId, options = {}) {
 
 conversationSchema.statics.findByTrajet = function(trajetId) {
   return this.findOne({ trajetId })
-    .populate('participants', 'nom prenom avatar')
+    .populate('participants', 'nom prenom photoProfil')
     .populate('trajetId');
 };
 
