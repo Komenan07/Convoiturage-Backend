@@ -886,6 +886,7 @@ ReservationSchema.statics.obtenirReservationsUtilisateur = function(userId, opti
         select: 'nom prenom photoProfil noteGenerale'
       }
     })
+    .populate('passagerId', 'nom prenom photoProfil noteGenerale')
     .sort({ dateReservation: -1 })
     .limit(options.limite || 50);
 };
