@@ -883,7 +883,7 @@ ReservationSchema.statics.obtenirReservationsUtilisateur = function(userId, opti
       select: 'pointDepart pointArrivee dateDepart distance conducteurId',
       populate: {
         path: 'conducteurId',
-        select: 'nom prenom photoProfil noteGenerale'
+        select: 'nom prenom photoProfil telephone noteGenerale'
       }
     })
     .sort({ dateReservation: -1 })
