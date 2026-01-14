@@ -53,7 +53,7 @@ const authentificationRequise = async (req, res, next) => {
       conversations: utilisateur.conversations.map(c => c._id.toString())
     };
     // Alias de compatibilité avec certains contrôleurs
-    req.user = { id: req.utilisateur.id, role: req.utilisateur.role };
+    req.user = { id: req.utilisateur?.id, role: req.utilisateur.role };
 
     next();
   } catch (error) {
@@ -74,7 +74,7 @@ const authentificationRequise = async (req, res, next) => {
 const verifierAccesConversation = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
-    const utilisateurId = req.utilisateur?.id || req.user?.id;
+    const utilisateurId = req.utilisateur.id;
 
     // Vérifier si l'utilisateur fait partie de la conversation
     const conversation = await Conversation.findOne({
@@ -340,7 +340,7 @@ const validerFichierImage = (req, res, next) => {
 const verifierProprietaireMessage = async (req, res, next) => {
   try {
     const { messageId } = req.params;
-    const utilisateurId = req.utilisateur.id;
+    const utilisateurId = req.utilisateur?.id || req.user.id;
 
     const message = await Message.findOne({
       _id: messageId,
@@ -366,7 +366,7 @@ const verifierProprietaireMessage = async (req, res, next) => {
 
 const verifierStatutUtilisateur = async (req, res, next) => {
   try {
-    const utilisateurId = req.utilisateur.id;
+    const utilisateurId = req.utilisateur?.id || req.user.id;
     
     // Vérifier si l'utilisateur est toujours actif
     const utilisateur = await Utilisateur.findById(utilisateurId);
@@ -493,7 +493,7 @@ const cacheMiddleware = (duree = 300) => { // 5 minutes par défaut
   
   return (req, res, next) => {
     // Créer une clé de cache unique
-    const cleCache = `${req.utilisateur.id}-${req.originalUrl}-${JSON.stringify(req.query)}`;
+    const cleCache = `${req.utilisateur?.id || req.user.id}-${req.originalUrl}-${JSON.stringify(req.query)}`;
     
     // Vérifier si la réponse est en cache
     const donneesCache = cache.get(cleCache);

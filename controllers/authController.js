@@ -194,8 +194,8 @@ const detectBrowser = (userAgent) => {
     }
 
     // Vérifier vérification d'identité
-    if (!utilisateur.estVerifie || 
-        utilisateur.documentIdentite?.statutVerification !== 'VERIFIE') {
+    if (!utilisateur.estVerifie && 
+        (utilisateur.documentIdentite?.statutVerification !== 'VERIFIE' && utilisateur.documentIdentite?.statutVerification !== 'EN_ATTENTE')) {
       return res.status(403).json({
         success: false,
         message: 'Votre identité doit être vérifiée avant de devenir conducteur',

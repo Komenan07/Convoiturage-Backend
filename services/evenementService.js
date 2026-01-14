@@ -38,9 +38,9 @@ class EvenementService {
    */
   async obtenirEvenementParId(id) {
     return await Evenement.findById(id)
-      .populate('organisateur', 'nom prenom avatar')
+      .populate('organisateur', 'nom prenom photoProfil')
       .populate('trajetsAssocies')
-      .populate('groupesCovoiturage.membres', 'nom prenom avatar');
+      .populate('groupesCovoiturage.membres', 'nom prenom photoProfil');
   }
 
   /**
@@ -543,7 +543,7 @@ class EvenementService {
    */
   async obtenirGroupesCovoiturage(evenementId) {
     const evenement = await Evenement.findById(evenementId)
-      .populate('groupesCovoiturage.membres', 'nom prenom avatar telephone');
+      .populate('groupesCovoiturage.membres', 'nom prenom photoProfil telephone');
       
     if (!evenement) {
       throw new Error('Événement non trouvé');
