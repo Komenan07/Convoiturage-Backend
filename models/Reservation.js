@@ -111,6 +111,67 @@ const NotificationSchema = new Schema({
   }
 }, { _id: false });
 
+const FraisSupplementaireSchema = new Schema({
+  type: { 
+    type: String, 
+    enum: ['PEAGE', 'PARKING', 'ESSENCE_SUPPLEMENTAIRE', 'AUTRE'],
+    required: true
+  },
+  montant: { 
+    type: Number, 
+    required: true, 
+    min: 0 
+  },
+  description: { 
+    type: String, 
+    maxlength: 200 
+  },
+  repartition: {
+    type: String,
+    enum: ['EQUITABLE', 'CONDUCTEUR_UNIQUEMENT'],
+    default: 'EQUITABLE'
+  },
+  montantParPassager: { 
+    type: Number, 
+    default: 0 
+  },
+  dateAjout: { 
+    type: Date, 
+    default: Date.now 
+  }
+}, { _id: false });
+
+// 🆕 NOUVEAU - Schéma pour les critères d'évaluation
+const CriteresEvaluationSchema = new Schema({
+  ponctualite: { type: Number, min: 1, max: 5 },
+  proprete: { type: Number, min: 1, max: 5 },
+  qualiteConduite: { type: Number, min: 1, max: 5 },
+  respect: { type: Number, min: 1, max: 5 },
+  communication: { type: Number, min: 1, max: 5 }
+}, { _id: false });
+
+// 🆕 NOUVEAU - Schéma pour les signalements
+const SignalementEvaluationSchema = new Schema({
+  type: { 
+    type: String,
+    enum: ['CONDUITE_DANGEREUSE', 'HARCELEMENT', 'VEHICULE_NON_CONFORME', 'RETARD_EXCESSIF', 'AUTRE'],
+    required: true
+  },
+  description: { type: String, maxlength: 500 },
+  grave: { type: Boolean, default: false }
+}, { _id: false });
+
+// 🆕 NOUVEAU - Schéma pour les détails d'évaluation
+const EvaluationDetailsSchema = new Schema({
+  effectuee: { type: Boolean, default: false },
+  obligatoire: { type: Boolean, default: true },
+  note: { type: Number, min: 1, max: 5 },
+  criteres: CriteresEvaluationSchema,
+  commentaire: { type: String, maxlength: 500 },
+  dateEvaluation: Date,
+  signalements: [SignalementEvaluationSchema]
+}, { _id: false });
+
 // Schéma principal de la réservation
 const ReservationSchema = new Schema({
   trajetId: {
@@ -179,6 +240,30 @@ const ReservationSchema = new Schema({
       message: 'Le montant doit être un nombre positif'
     }
   },
+  // 🆕  Répartition financière automatique (500F)
+  repartitionFinanciere: {
+    fraisServiceParPassager: { type: Number, default: 500 },
+    repartition: {
+      proprietairePlateforme: { type: Number, default: 0 },
+      fondsEntretien: { type: Number, default: 0 },
+      conducteur: { type: Number, default: 0 }
+    },
+    calculEffectue: { type: Boolean, default: false },
+    dateCalcul: Date
+  },
+
+  // 🆕 NOUVEAU - Frais supplémentaires
+  fraisSupplementaires: {
+    type: [FraisSupplementaireSchema],
+    default: []
+  },
+  
+  // 🆕 NOUVEAU - Frais totaux pour le passager
+  fraisTotauxPassager: { 
+    type: Number, 
+    default: 0 
+  },
+
   statutPaiement: {
     type: String,
     enum: ['EN_ATTENTE', 'PAYE', 'REMBOURSE'],
@@ -201,6 +286,20 @@ const ReservationSchema = new Schema({
     type: Date
   },
 
+  // 🆕 NOUVEAU - Système d'évaluation complet
+  evaluation: {
+    passagerVersConducteur: {
+      type: EvaluationDetailsSchema,
+      default: () => ({ effectuee: false, obligatoire: true })
+    },
+    conducteurVersPassager: {
+      type: EvaluationDetailsSchema,
+      default: () => ({ effectuee: false, obligatoire: false })
+    },
+    evalutionPassagerBloquante: { type: Boolean, default: true }
+  },
+
+
   // Bagages
   bagages: {
     type: BagagesSchema,
@@ -211,6 +310,89 @@ const ReservationSchema = new Schema({
   positionEnTempsReel: {
     type: PositionTempsReelSchema
   },
+
+  // 🆕 NOUVEAU - Suivi de l'itinéraire
+  suivi: {
+    itinerairePrevu: {
+      type: { type: String, default: 'LineString' },
+      coordinates: [[Number]]
+    },
+    dernierPointSurItineraire: { type: Boolean, default: true },
+    alerteSortieItineraireEnvoyee: { type: Boolean, default: false },
+    distanceMaxAutorisee: { type: Number, default: 1000 }
+  },
+  
+  // 🆕 NOUVEAU - Confirmation de prise en charge
+  priseEnCharge: {
+    confirmee: { type: Boolean, default: false },
+    confirmeePar: { type: Schema.Types.ObjectId, ref: 'Utilisateur' },
+    dateConfirmation: Date,
+    coordonneesConfirmation: CoordinatesSchema,
+    conduiteursProches: [{
+      conducteurId: { type: Schema.Types.ObjectId, ref: 'Utilisateur' },
+      distance: Number,
+      dateDetection: Date
+    }],
+    alerteConflit: { type: Boolean, default: false }
+  },
+  
+  // 🆕 Processus de validation
+  processusValidation: {
+    type: {
+      type: String,
+      enum: ['AUTOMATIQUE', 'MANUELLE'],
+      default: 'AUTOMATIQUE'  
+    },
+    delaiValidation: {
+      type: Number,
+      default: 3600000  // 1 heure en millisecondes
+      
+    },
+    dateExpiration: {
+      type: Date,
+      default: function() {
+        return new Date(Date.now() + (this.delaiValidation || 3600000));
+      }
+    },
+    rappelsEnvoyes: { 
+      type: Number, 
+      default: 0 
+    }
+  },
+  
+  // 🆕 NOUVEAU - Contacts partagés
+  contactsPartages: {
+    conducteur: {
+      telephone: String,
+      whatsapp: String,
+      partageEffectue: { type: Boolean, default: false },
+      datePartage: Date
+    },
+    passager: {
+      telephone: String,
+      whatsapp: String,
+      partageEffectue: { type: Boolean, default: false },
+      datePartage: Date
+    },
+    partageAutorise: { type: Boolean, default: true }
+  },
+  
+  // 🆕 NOUVEAU - Références aux modèles séparés
+  messagerieId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Messagerie'
+  },
+  
+  alertesUrgence: [{
+    type: Schema.Types.ObjectId,
+    ref: 'AlerteUrgence'
+  }],
+  
+  paiementId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Paiement'
+  },
+
 
   // Notifications programmées
   notificationsPrevues: {
@@ -261,6 +443,17 @@ ReservationSchema.pre('save', function(next) {
     this.datePaiement = new Date();
   }
 
+  // 🆕  Calcul automatique de la répartition financière
+  if (this.isModified('montantTotal') || this.isModified('nombrePlacesReservees') || this.isNew) {
+    this.calculerRepartitionFinanciere();
+  }
+  
+  // 🆕  Calcul frais supplémentaires
+  if (this.isModified('fraisSupplementaires')) {
+    const fraisSupp = this.calculerFraisSupplementairesParPassager();
+    this.fraisTotauxPassager = this.montantTotal + fraisSupp;
+  }
+
   next();
 });
 
@@ -281,6 +474,34 @@ ReservationSchema.post('save', async function(doc) {
       const firebaseService = require('../services/firebaseService');
       const Utilisateur = mongoose.model('Utilisateur');
       const Trajet = mongoose.model('Trajet');
+
+       // 🆕 NOUVEAU - Créer messagerie et partager contacts après confirmation
+      if (doc.isModified('statutReservation') && doc.statutReservation === 'CONFIRMEE') {
+        // Créer la messagerie si pas existante
+        if (!doc.messagerieId) {
+          const Messagerie = mongoose.model('Messagerie');
+          const trajet = await Trajet.findById(doc.trajetId);
+          
+          if (trajet) {
+            const messagerie = new Messagerie({
+              reservationId: doc._id,
+              passagerId: doc.passagerId,
+              conducteurId: trajet.conducteurId,
+              active: true
+            });
+            
+            await messagerie.save();
+            
+            doc.messagerieId = messagerie._id;
+            doc._skipNotifications = true;
+            await doc.save();
+          }
+        }
+        
+        // Partager les contacts
+        await doc.partagerContacts();
+      }
+
       // ===== NOUVELLE RÉSERVATION =====
       if (doc.isNew && doc.statutReservation === 'EN_ATTENTE') {
         console.log('🆕 Nouvelle réservation détectée:', doc._id);
@@ -858,6 +1079,185 @@ ReservationSchema.methods.mettreAJourPosition = function(coordinates) {
     lastUpdate: new Date()
   };
   return this.save();
+};
+
+/**
+ * 🆕 NOUVEAU - Calculer automatiquement la répartition financière
+ */
+ReservationSchema.methods.calculerRepartitionFinanciere = function() {
+  const fraisTotal = this.nombrePlacesReservees * 500;
+  
+  this.repartitionFinanciere.repartition.proprietairePlateforme = this.nombrePlacesReservees * 400;
+  this.repartitionFinanciere.repartition.fondsEntretien = this.nombrePlacesReservees * 100;
+  this.repartitionFinanciere.repartition.conducteur = this.montantTotal - fraisTotal;
+  
+  this.repartitionFinanciere.calculEffectue = true;
+  this.repartitionFinanciere.dateCalcul = new Date();
+  
+  console.log('💰 Répartition calculée:', {
+    proprietaire: this.repartitionFinanciere.repartition.proprietairePlateforme,
+    entretien: this.repartitionFinanciere.repartition.fondsEntretien,
+    conducteur: this.repartitionFinanciere.repartition.conducteur
+  });
+  
+  return this.repartitionFinanciere;
+};
+
+/**
+ * 🆕 NOUVEAU - Calculer frais supplémentaires par passager
+ */
+ReservationSchema.methods.calculerFraisSupplementairesParPassager = function() {
+  if (!this.fraisSupplementaires || this.fraisSupplementaires.length === 0) {
+    return 0;
+  }
+  
+  return this.fraisSupplementaires.reduce((total, frais) => {
+    if (frais.repartition === 'EQUITABLE') {
+      const nombrePersonnes = this.nombrePlacesReservees + 1;
+      const partParPersonne = frais.montant / nombrePersonnes;
+      frais.montantParPassager = partParPersonne;
+      return total + partParPersonne;
+    }
+    frais.montantParPassager = 0;
+    return total;
+  }, 0);
+};
+
+/**
+ * 🆕 NOUVEAU - Vérifier si l'évaluation passager est manquante
+ */
+ReservationSchema.methods.evaluationPassagerManquante = function() {
+  return this.statutReservation === 'TERMINEE' && 
+         this.evaluation.passagerVersConducteur.obligatoire &&
+         !this.evaluation.passagerVersConducteur.effectuee;
+};
+
+/**
+ * 🆕 NOUVEAU - Vérifier si le véhicule est sur l'itinéraire prévu
+ */
+ReservationSchema.methods.verifierPositionItineraire = async function(positionActuelle) {
+  if (!this.suivi.itinerairePrevu || !this.suivi.itinerairePrevu.coordinates) {
+    return true;
+  }
+  
+  const distanceMin = this.calculerDistanceMinimaleItineraire(positionActuelle);
+  
+  if (distanceMin > this.suivi.distanceMaxAutorisee) {
+    this.suivi.dernierPointSurItineraire = false;
+    
+    if (!this.suivi.alerteSortieItineraireEnvoyee) {
+      await this.creerAlerteUrgence('SORTIE_ITINERAIRE', positionActuelle);
+      this.suivi.alerteSortieItineraireEnvoyee = true;
+      await this.save();
+    }
+    
+    return false;
+  } else {
+    this.suivi.dernierPointSurItineraire = true;
+    return true;
+  }
+};
+
+/**
+ * 🆕 NOUVEAU - Calculer distance minimale à l'itinéraire
+ */
+ReservationSchema.methods.calculerDistanceMinimaleItineraire = function(point) {
+  if (!this.suivi.itinerairePrevu || !this.suivi.itinerairePrevu.coordinates) {
+    return 0;
+  }
+  
+  const [lonPoint, latPoint] = point;
+  let distanceMin = Infinity;
+  
+  for (const coordItineraire of this.suivi.itinerairePrevu.coordinates) {
+    const [lon, lat] = coordItineraire;
+    const distance = this.calculerDistanceHaversine(latPoint, lonPoint, lat, lon);
+    
+    if (distance < distanceMin) {
+      distanceMin = distance;
+    }
+  }
+  
+  return distanceMin * 1000;
+};
+
+/**
+ * 🆕 NOUVEAU - Formule Haversine
+ */
+ReservationSchema.methods.calculerDistanceHaversine = function(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
+
+/**
+ * 🆕 NOUVEAU - Créer une alerte urgence
+ */
+ReservationSchema.methods.creerAlerteUrgence = async function(type, coordonnees) {
+  const AlerteUrgence = mongoose.model('AlerteUrgence');
+  const trajet = await mongoose.model('Trajet').findById(this.trajetId);
+  
+  const alerte = new AlerteUrgence({
+    reservationId: this._id,
+    type: type,
+    coordonnees: {
+      type: 'Point',
+      coordinates: coordonnees
+    },
+    passagerId: this.passagerId,
+    conducteurId: trajet.conducteurId,
+    statut: 'ACTIVE'
+  });
+  
+  await alerte.save();
+  this.alertesUrgence.push(alerte._id);
+  
+  console.log('🚨 Alerte urgence créée:', { type, reservationId: this._id });
+  
+  return alerte;
+};
+
+/**
+ * 🆕 NOUVEAU - Partager les contacts après confirmation
+ */
+ReservationSchema.methods.partagerContacts = async function() {
+  if (!this.contactsPartages.partageAutorise) {
+    return;
+  }
+  
+  try {
+    const Utilisateur = mongoose.model('Utilisateur');
+    const Trajet = mongoose.model('Trajet');
+    
+    const [passager, trajet] = await Promise.all([
+      Utilisateur.findById(this.passagerId).select('telephone whatsapp'),
+      Trajet.findById(this.trajetId).populate('conducteurId', 'telephone whatsapp')
+    ]);
+    
+    if (passager && trajet && trajet.conducteurId) {
+      this.contactsPartages.conducteur.telephone = trajet.conducteurId.telephone;
+      this.contactsPartages.conducteur.whatsapp = trajet.conducteurId.whatsapp;
+      this.contactsPartages.conducteur.partageEffectue = true;
+      this.contactsPartages.conducteur.datePartage = new Date();
+      
+      this.contactsPartages.passager.telephone = passager.telephone;
+      this.contactsPartages.passager.whatsapp = passager.whatsapp;
+      this.contactsPartages.passager.partageEffectue = true;
+      this.contactsPartages.passager.datePartage = new Date();
+      
+      this._skipNotifications = true;
+      await this.save();
+      
+      console.log('📱 Contacts partagés:', this._id);
+    }
+  } catch (error) {
+    console.error('❌ Erreur partage contacts:', error);
+  }
 };
 
 // Méthodes statiques
