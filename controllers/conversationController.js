@@ -489,6 +489,17 @@ const marquerCommeLu = async (req, res, next) => {
     conversation.marquerCommeLu(userId);
     await conversation.save();
 
+    // Émettre l'événement socket pour notifier les autres participants en temps réel
+    const io = req.app.get('io');
+    if (io) {
+      const conversationRoom = `conversation:${id}`;
+      io.to(conversationRoom).emit('conversation_marked_read', {
+        conversationId: id,
+        userId,
+        timestamp: new Date()
+      });
+    }
+
     res.json({
       success: true,
       message: 'Messages marqués comme lus',

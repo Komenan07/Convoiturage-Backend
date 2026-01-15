@@ -238,6 +238,62 @@ function initSocket(httpServer, app) {
       }
     });
 
+    // Marquer une conversation comme lue
+    socket.on('conversation:mark_read', async ({ conversationId }, ack = () => {}) => {
+      try {
+        if (!isAuthenticated(socket)) {
+          throw new Error('AUTHENTICATION_REQUIRED');
+        }
+        
+        const userId = socket.user.id;
+        
+        if (!mongoose.isValidObjectId(conversationId)) {
+          throw new Error('INVALID_CONVERSATION_ID');
+        }
+        
+        // Vérifier que la conversation existe et que l'utilisateur en fait partie
+        const conversation = await Conversation.findById(conversationId).select('participants');
+        if (!conversation) {
+          throw new Error('CONVERSATION_NOT_FOUND');
+        }
+        
+        if (!conversation.participants.map(p => p.toString()).includes(userId)) {
+          throw new Error('FORBIDDEN');
+        }
+        
+        // Marquer tous les messages de la conversation comme lus pour cet utilisateur
+        await Message.updateMany(
+          {
+            conversationId,
+            destinataireId: userId,
+            lu: false
+          },
+          {
+            lu: true,
+            dateLecture: new Date()
+          }
+        );
+        
+        // Réinitialiser le compteur de messages non lus pour cet utilisateur
+        await Conversation.updateOne(
+          { _id: conversationId },
+          { $set: { [`nombreMessagesNonLus.${userId}`]: 0 } }
+        );
+        
+        // Notifier les autres participants via socket
+        const { conversationRoom } = buildRoomNames(conversationId, userId);
+        socket.to(conversationRoom).emit('conversation_marked_read', {
+          conversationId,
+          userId,
+          timestamp: new Date()
+        });
+        
+        ack({ success: true });
+      } catch (e) {
+        ack({ success: false, error: e.message });
+      }
+    });
+
     // Envoyer un message (authentification requise)
     socket.on('send_message', async (payload, ack = () => {}) => {
       try {
