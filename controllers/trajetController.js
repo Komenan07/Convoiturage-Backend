@@ -1283,44 +1283,61 @@ async recalculerDistance(req, res, next) {
     }
   }
 
-  async obtenirTrajetsExpires(req, res, next) {
-    try {
-      const { page = 1, limit = 20 } = req.query;
+/**
+ * ⭐  Met à jour automatiquement avant de récupérer
+ */
+async obtenirTrajetsExpires(req, res, next) {
+  try {
+    const { page = 1, limit = 20 } = req.query;
 
-      const query = {
-        statutTrajet: 'EXPIRE'
-      };
-
-      const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        sort: { dateExpiration: -1 },
-        populate: { path: 'conducteurId', select: 'nom prenom' }
-      };
-
-      const trajets = await Trajet.paginate(query, options);
-
-      // Normaliser la virtual `isExpired`
-      trajets.docs = this._attachIsExpired(trajets.docs);
-
-      res.json({
-        success: true,
-        count: trajets.docs.length,
-        pagination: {
-          total: trajets.totalDocs,
-          page: trajets.page,
-          pages: trajets.totalPages,
-          limit: trajets.limit
-        },
-        data: trajets.docs
-      });
-
-    } catch (error) {
-      return next(AppError.serverError('Erreur lors de la récupération des trajets expirés', { 
-        originalError: error.message 
-      }));
+    // Marquer d'abord les trajets expirés
+    console.log('🔄 Mise à jour des trajets expirés...');
+    const resultTrajets = await Trajet.marquerTrajetsExpires();
+    const resultRecurrences = await Trajet.marquerRecurrencesExpirees();
+    
+    const totalMisAJour = resultTrajets.modifiedCount + resultRecurrences.modifiedCount;
+    if (totalMisAJour > 0) {
+      console.log(`✅ ${totalMisAJour} trajet(s) marqué(s) comme expiré(s)`);
     }
+
+    const query = {
+      statutTrajet: 'EXPIRE'
+    };
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { dateExpiration: -1 },
+      populate: { path: 'conducteurId', select: 'nom prenom' },
+      includeExpired: true  // ⭐ AJOUT CRITIQUE
+    };
+
+    const trajets = await Trajet.paginate(query, options);
+
+    // Normaliser la virtual `isExpired`
+    trajets.docs = this._attachIsExpired(trajets.docs);
+
+    res.json({
+      success: true,
+      count: trajets.docs.length,
+      pagination: {
+        total: trajets.totalDocs,
+        page: trajets.page,
+        pages: trajets.totalPages,
+        limit: trajets.limit
+      },
+      data: trajets.docs,
+      meta: {
+        trajetsExpires: totalMisAJour > 0 ? `${totalMisAJour} trajet(s) viennent d'être marqués comme expirés` : null
+      }
+    });
+
+  } catch (error) {
+    return next(AppError.serverError('Erreur lors de la récupération des trajets expirés', { 
+      originalError: error.message 
+    }));
   }
+}
 
   // ==================== MÉTHODES UTILITAIRES ====================
 
@@ -1331,7 +1348,7 @@ async recalculerDistance(req, res, next) {
     return docs.map(d => {
       const obj = (d && typeof d.toObject === 'function') ? d.toObject() : d;
       // Si la valeur est déjà un booléen, ne pas la recalculer
-      if (typeof obj.isExpired === 'boolean') return obj;
+      //if (typeof obj.isExpired === 'boolean') return obj;
       const dateDepart = obj.dateDepart ? new Date(obj.dateDepart) : null;
       const now = new Date();
       obj.isExpired = (obj.statutTrajet === 'EXPIRE') || (dateDepart && now > dateDepart && obj.statutTrajet === 'PROGRAMME');
