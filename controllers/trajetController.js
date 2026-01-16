@@ -18,11 +18,8 @@ class TrajetController {
   // ==================== CREATE ====================
   
   /**
-   * ⭐ NOUVEAU: Prévisualiser distance AVANT création
+   * Prévisualiser distance AVANT création
    */
-  /**
- * ⭐ Prévisualiser distance AVANT création
- */
 async previewDistance(req, res) {
   try {
     const { pointDepart, pointArrivee, heureDepart, dateDepart } = req.body;
@@ -610,153 +607,146 @@ async recalculerDistance(req, res, next) {
   }
 
   async rechercherTrajetsDisponibles(req, res, next) {
-    try {
-      const {
-        longitude,
-        latitude,
-        rayonKm = 10,
-        dateDepart,
-        dateFin,
-        prixMax,
-        nombrePlacesMin = 1,
-        page = 1,
-        limit = 20
-      } = req.query;
+  try {
+    const {
+      longitude,
+      latitude,
+      rayonKm = 10,
+      dateDepart,
+      dateFin,
+      prixMax,
+      nombrePlacesMin = 1,
+      page = 1,
+      limit = 20
+    } = req.query;
 
-      let baseQuery = {
-        statutTrajet: 'PROGRAMME',
-        nombrePlacesDisponibles: { $gte: parseInt(nombrePlacesMin) },
-        dateDepart: { $gte: new Date() }
-      };
+    // ✅ baseQuery sans dateDepart initial
+    let baseQuery = {
+      statutTrajet: 'PROGRAMME',
+      nombrePlacesDisponibles: { $gte: parseInt(nombrePlacesMin) }
+    };
 
+    // ✅ Gestion conditionnelle des dates
+    if (dateDepart || dateFin) {
+      baseQuery.dateDepart = {};
+      
       if (dateDepart) {
         const dateDebutFilter = new Date(dateDepart);
-        if (dateFin) {
-          baseQuery.dateDepart = {
-            $gte: dateDebutFilter,
-            $lte: new Date(dateFin)
-          };
-        } else {
-          baseQuery.dateDepart = { $gte: dateDebutFilter };
-        }
+        baseQuery.dateDepart.$gte = dateDebutFilter;
+      } else {
+        baseQuery.dateDepart.$gte = new Date();
       }
-
-      if (prixMax) {
-        baseQuery.prixParPassager = { $lte: parseInt(prixMax) };
+      
+      if (dateFin) {
+        baseQuery.dateDepart.$lte = new Date(dateFin);
       }
+    } else {
+      baseQuery.dateDepart = { $gte: new Date() };
+    }
 
-      const pageNum = parseInt(page);
-      const limitNum = parseInt(limit);
-      const skip = (pageNum - 1) * limitNum;
+    if (prixMax) {
+      baseQuery.prixParPassager = { $lte: parseInt(prixMax) };
+    }
 
-      let result;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
-      if (longitude && latitude) {
-        try {
-          const long = parseFloat(longitude);
-          const lat = parseFloat(latitude);
-          const maxDistance = parseInt(rayonKm) * 1000;
+    let result;
 
-          const pipeline = [
-            {
-              $geoNear: {
-                near: {
-                  type: "Point",
-                  coordinates: [long, lat]
+    if (longitude && latitude) {
+      try {
+        const long = parseFloat(longitude);
+        const lat = parseFloat(latitude);
+        const maxDistance = parseInt(rayonKm) * 1000;
+
+        const pipeline = [
+          {
+            $geoNear: {
+              near: {
+                type: "Point",
+                coordinates: [long, lat]
+              },
+              distanceField: "distanceFromSearch",
+              maxDistance: maxDistance,
+              spherical: true,
+              query: baseQuery,
+              key: "pointDepart.coordonnees"
+            }
+          },
+          {
+            $sort: { dateDepart: 1, distanceFromSearch: 1 }
+          },
+          {
+            $facet: {
+              metadata: [
+                { $count: "total" }
+              ],
+              data: [
+                { $skip: skip },
+                { $limit: limitNum },
+                {
+                  $lookup: {
+                    from: 'utilisateurs',
+                    localField: 'conducteurId',
+                    foreignField: '_id',
+                    as: 'conducteurInfo'
+                  }
                 },
-                distanceField: "distanceFromSearch",
-                maxDistance: maxDistance,
-                spherical: true,
-                query: baseQuery,
-                key: "pointDepart.coordonnees"
-              }
-            },
-            {
-              $sort: { dateDepart: 1, distanceFromSearch: 1 }
-            },
-            {
-              $facet: {
-                metadata: [
-                  { $count: "total" }
-                ],
-                data: [
-                  { $skip: skip },
-                  { $limit: limitNum },
-                  {
-                    $lookup: {
-                      from: 'utilisateurs',
-                      localField: 'conducteurId',
-                      foreignField: '_id',
-                      as: 'conducteurInfo'
-                    }
-                  },
-                  {
-                    $unwind: {
-                      path: '$conducteurInfo',
-                      preserveNullAndEmptyArrays: true
-                    }
-                  },
-                  {
-                    $addFields: {
-                      'conducteurId': {
-                        _id: '$conducteurInfo._id',
-                        nom: '$conducteurInfo.nom',
-                        prenom: '$conducteurInfo.prenom',
-                        photo: '$conducteurInfo.photoProfil',
-                        note: '$conducteurInfo.noteGenerale'
-                      },
-                      distanceKm: { 
-                        $round: [{ $divide: ['$distanceFromSearch', 1000] }, 2] 
-                      }
-                    }
-                  },
-                  {
-                    $project: {
-                      conducteurInfo: 0,
-                      distanceFromSearch: 0
+                {
+                  $unwind: {
+                    path: '$conducteurInfo',
+                    preserveNullAndEmptyArrays: true
+                  }
+                },
+                {
+                  $addFields: {
+                    'conducteurId': {
+                      _id: '$conducteurInfo._id',
+                      nom: '$conducteurInfo.nom',
+                      prenom: '$conducteurInfo.prenom',
+                      photo: '$conducteurInfo.photoProfil',
+                      note: '$conducteurInfo.noteGenerale'
+                    },
+                    distanceKm: { 
+                      $round: [{ $divide: ['$distanceFromSearch', 1000] }, 2] 
                     }
                   }
-                ]
-              }
+                },
+                {
+                  $project: {
+                    conducteurInfo: 0,
+                    distanceFromSearch: 0
+                  }
+                }
+              ]
             }
-          ];
+          }
+        ];
 
-          const aggregationResult = await Trajet.aggregate(pipeline);
+        const aggregationResult = await Trajet.aggregate(pipeline);
 
-          const total = aggregationResult[0]?.metadata[0]?.total || 0;
-          const trajets = aggregationResult[0]?.data || [];
+        const total = aggregationResult[0]?.metadata[0]?.total || 0;
+        const trajets = aggregationResult[0]?.data || [];
 
-          result = {
-            docs: trajets,
-            totalDocs: total,
-            limit: limitNum,
-            page: pageNum,
-            totalPages: Math.ceil(total / limitNum),
-            hasNextPage: pageNum < Math.ceil(total / limitNum),
-            hasPrevPage: pageNum > 1
-          };
+        result = {
+          docs: trajets,
+          totalDocs: total,
+          limit: limitNum,
+          page: pageNum,
+          totalPages: Math.ceil(total / limitNum),
+          hasNextPage: pageNum < Math.ceil(total / limitNum),
+          hasPrevPage: pageNum > 1
+        };
 
-          // Attacher isExpired pour les résultats d'aggregation (POJO)
-          result.docs = this._attachIsExpired(result.docs);
+        result.docs = this._attachIsExpired(result.docs);
 
-          console.log(`✅ Recherche géospatiale réussie: ${total} trajet(s) trouvé(s)`);
+        console.log(`✅ Recherche géospatiale réussie: ${total} trajet(s) trouvé(s)`);
 
-        } catch (geoError) {
-          console.error('❌ Erreur recherche géospatiale:', geoError.message);
-          console.log('⚠️ Fallback vers recherche standard');
-          
-          const options = {
-            page: pageNum,
-            limit: limitNum,
-            sort: { dateDepart: 1 },
-            populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' }
-          };
-          
-          result = await Trajet.paginate(baseQuery, options);
-          // Attacher isExpired pour le fallback paginate
-          result.docs = this._attachIsExpired(result.docs);
-        }
-      } else {
+      } catch (geoError) {
+        console.error('❌ Erreur recherche géospatiale:', geoError.message);
+        console.log('⚠️ Fallback vers recherche standard');
+        
         const options = {
           page: pageNum,
           limit: limitNum,
@@ -765,28 +755,69 @@ async recalculerDistance(req, res, next) {
         };
         
         result = await Trajet.paginate(baseQuery, options);
-        // Attacher isExpired pour le paginate standard
         result.docs = this._attachIsExpired(result.docs);
       }
-
-      res.json({
-        success: true,
-        count: result.docs.length,
-        pagination: {
-          total: result.totalDocs,
-          page: result.page,
-          pages: result.totalPages,
-          limit: result.limit
-        },
-        data: result.docs
-      });
-
-    } catch (error) {
-      console.error('❌ Erreur dans rechercherTrajetsDisponibles:', error.message);
-      return next(AppError.serverError('Erreur serveur lors de la recherche de trajets', { 
-        originalError: error.message 
-      }));
+    } else {
+      const options = {
+        page: pageNum,
+        limit: limitNum,
+        sort: { dateDepart: 1 },
+        populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' }
+      };
+      
+      result = await Trajet.paginate(baseQuery, options);
+      result.docs = this._attachIsExpired(result.docs);
     }
+
+    const currentUserId = req.user?._id || req.user?.id || req.user?.userId;
+    
+    if (currentUserId && result.docs.length > 0) {
+      const Reservation = require('../models/Reservation');
+      const trajetIds = result.docs.map(t => t._id);
+      
+      // Trouver toutes les réservations actives de l'utilisateur pour ces trajets
+      const reservationsExistantes = await Reservation.find({
+        passagerId: currentUserId,
+        trajetId: { $in: trajetIds },
+        statutReservation: { $in: ['EN_ATTENTE', 'CONFIRMEE'] }
+      }).select('trajetId statutReservation').lean();
+      
+      // Créer un Map pour accès rapide
+      const reservationMap = new Map(
+        reservationsExistantes.map(r => [r.trajetId.toString(), r.statutReservation])
+      );
+      
+      // Ajouter l'info à chaque trajet
+      result.docs = result.docs.map(trajet => {
+        const trajetId = trajet._id.toString();
+        const reservationStatut = reservationMap.get(trajetId);
+        
+        return {
+          ...trajet,
+          isReservedByUser: !!reservationStatut,
+          userReservationStatus: reservationStatut || null
+        };
+      });
+    }
+
+    res.json({
+      success: true,
+      count: result.docs.length,
+      pagination: {
+        total: result.totalDocs,
+        page: result.page,
+        pages: result.totalPages,
+        limit: result.limit
+      },
+      data: result.docs
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur dans rechercherTrajetsDisponibles:', error.message);
+    return next(AppError.serverError('Erreur serveur lors de la recherche de trajets', { 
+      originalError: error.message 
+    }));
+  }
   }
 
   async obtenirTrajetParId(req, res, next) {
@@ -807,13 +838,36 @@ async recalculerDistance(req, res, next) {
         await trajet.marquerCommeExpire();
       }
 
-      // Retourner l'objet avec isExpired normalisé
-      await trajet.populate('conducteurId', '-password -email');
-      const trajetObj = this._attachIsExpired([trajet])[0];
-      res.json({
-        success: true,
-        data: trajetObj
-      });
+      // ✅ Vérifier si l'utilisateur a déjà réservé ce trajet
+    const currentUserId = req.user?._id || req.user?.id || req.user?.userId;
+    let isReservedByUser = false;
+    let userReservationStatus = null;
+
+    if (currentUserId) {
+      const Reservation = require('../models/Reservation');
+      const reservationExistante = await Reservation.findOne({
+        passagerId: currentUserId,
+        trajetId: id,
+        statutReservation: { $in: ['EN_ATTENTE', 'CONFIRMEE'] }
+      }).select('statutReservation').lean();
+      
+      if (reservationExistante) {
+        isReservedByUser = true;
+        userReservationStatus = reservationExistante.statutReservation;
+      }
+    }
+
+    await trajet.populate('conducteurId', '-password -email');
+    const trajetObj = this._attachIsExpired([trajet])[0];
+
+    res.json({
+      success: true,
+      data: {
+        ...trajetObj,
+        isReservedByUser,       
+        userReservationStatus    
+      }
+    });
 
     } catch (error) {
       return next(AppError.serverError('Erreur serveur lors de la récupération du trajet', { 

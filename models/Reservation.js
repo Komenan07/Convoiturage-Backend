@@ -1262,14 +1262,26 @@ ReservationSchema.methods.partagerContacts = async function() {
 
 // Méthodes statiques
 
-// Obtenir les réservations d'un utilisateur avec filtres
-ReservationSchema.statics.obtenirReservationsUtilisateur = function(userId, options = {}) {
+/**
+ * Obtenir les réservations d'un utilisateur avec filtres avancés
+ * @param {String} userId - ID de l'utilisateur
+ * @param {Object} options - Options de filtrage
+ * @param {String} options.statut - Statut de réservation
+ * @param {Date} options.dateDebut - Date début
+ * @param {Date} options.dateFin - Date fin
+ * @param {Number} options.limite - Limite de résultats
+ * @param {String} options.type - Type: 'active', 'expired', 'all' (défaut: 'active')
+ * @returns {Promise<Array>} Liste des réservations
+ */
+ReservationSchema.statics.obtenirReservationsUtilisateur = async function(userId, options = {}) {
   const query = { passagerId: userId };
   
+  // Filtre par statut spécifique
   if (options.statut) {
     query.statutReservation = options.statut;
   }
   
+  // Filtre par période de réservation
   if (options.dateDebut && options.dateFin) {
     query.dateReservation = {
       $gte: options.dateDebut,
@@ -1277,10 +1289,11 @@ ReservationSchema.statics.obtenirReservationsUtilisateur = function(userId, opti
     };
   }
 
-  return this.find(query)
+  // ✅ CHANGEMENT 1 : Récupérer avec .lean() pour pouvoir filtrer après
+  const reservationsAvecTrajet = await this.find(query)
     .populate({
       path: 'trajetId',
-      select: 'pointDepart pointArrivee dateDepart distance conducteurId',
+      select: 'pointDepart pointArrivee dateDepart heureDepart distance conducteurId statutTrajet',
       populate: {
         path: 'conducteurId',
         select: 'nom prenom photoProfil telephone noteGenerale'
@@ -1288,7 +1301,46 @@ ReservationSchema.statics.obtenirReservationsUtilisateur = function(userId, opti
     })
     .populate('passagerId', 'nom prenom photoProfil noteGenerale')
     .sort({ dateReservation: -1 })
-    .limit(options.limite || 50);
+    .limit(options.limite || 50)
+    .lean(); // Transforme en objets JavaScript simples
+
+  // ✅ CHANGEMENT 2 : Filtrer les réservations sans trajet
+  const reservations = reservationsAvecTrajet.filter(reservation => {
+    // Si le trajet n'existe plus (supprimé)
+    if (!reservation.trajetId) {
+      console.warn(`⚠️ Réservation ${reservation._id} sans trajet valide - IGNORÉE`);
+      return false; // ❌ NE PAS inclure
+    }
+    return true; 
+  });
+
+  // Filtrer selon le type demandé
+  const type = options.type || 'active';
+  const maintenant = new Date();
+  
+  if (type === 'active') {
+    // ✅ CHANGEMENT 3 : Ajouter filtre sur statutTrajet
+    return reservations.filter(reservation => {
+      const dateTrajet = new Date(reservation.trajetId.dateDepart);
+      const statutActif = ['EN_ATTENTE', 'CONFIRMEE'].includes(reservation.statutReservation);
+      const trajetNonExpire = reservation.trajetId.statutTrajet !== 'EXPIRE'; 
+      
+      return dateTrajet >= maintenant && statutActif && trajetNonExpire;
+    });
+    
+  } else if (type === 'expired') {
+    return reservations.filter(reservation => {
+      const dateTrajet = new Date(reservation.trajetId.dateDepart);
+      const statutFinal = ['TERMINEE', 'ANNULEE', 'REFUSEE'].includes(reservation.statutReservation);
+      const trajetExpire = reservation.trajetId.statutTrajet === 'EXPIRE'; // ✅ AJOUTÉ
+      
+      return dateTrajet < maintenant || statutFinal || trajetExpire;
+    });
+    
+  } else {
+    // Type 'all': retourner toutes (sauf trajetId null)
+    return reservations;
+  }
 };
 
 // Obtenir les réservations d'un trajet

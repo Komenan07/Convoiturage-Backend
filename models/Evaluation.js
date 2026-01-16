@@ -106,7 +106,12 @@ const evaluationSchema = new mongoose.Schema({
       'RESPECTUEUX',
       'COMMUNICATIF',
       'SERVIABLE',
-      'COURTOIS'
+      'COURTOIS',
+      'AMBIANCE_AGREABLE',      
+      'MUSIQUE_ADAPTEE',        
+      'CLIMATISATION_OK',      
+      'BAGAGES_BIEN_GERES',     
+      'FLEXIBLE_HORAIRES'       
     ]
   }],
   
@@ -119,7 +124,9 @@ const evaluationSchema = new mongoose.Schema({
       'COMMUNICATION',
       'RESPECT',
       'PATIENCE',
-      'ORGANISATION'
+      'ORGANISATION',
+      'GESTION_BAGAGES',        
+      'ENTRETIEN_VEHICULE' 
     ]
   }],
   
@@ -158,11 +165,40 @@ const evaluationSchema = new mongoose.Schema({
   
   dateReponse: Date,
   
+  evaluationObligatoire: {
+    type: Boolean,
+    default: function() {
+      // Obligatoire si l'évaluateur est un passager
+      return this.typeEvaluateur === 'PASSAGER';
+    }
+  },
+  
+  statutEvaluation: {
+    type: String,
+    enum: ['EN_ATTENTE', 'COMPLETEE', 'EXPIREE'],
+    default: 'EN_ATTENTE',
+    index: true
+  },
+  
+  visibilite: {
+    type: String,
+    enum: ['PUBLIQUE', 'MASQUEE', 'EN_REVISION'],
+    default: 'PUBLIQUE',
+    index: true
+  },
+  raisonMasquage: {
+    type: String,
+    maxlength: 200
+  },
+  
+  dateRevision: Date,
+
   dateEvaluation: {
     type: Date,
     default: Date.now
   }
-}, {
+}, 
+{
   timestamps: true
 });
 
@@ -173,6 +209,10 @@ evaluationSchema.index({ trajetId: 1, evaluateurId: 1 }, { unique: true });
 evaluationSchema.index({ evalueId: 1, dateEvaluation: -1 });
 evaluationSchema.index({ estSignalement: 1, gravite: 1 });
 evaluationSchema.index({ 'notes.noteGlobale': -1 });
+
+evaluationSchema.index({ statutEvaluation: 1, evaluationObligatoire: 1 });
+evaluationSchema.index({ visibilite: 1, 'notes.noteGlobale': -1 });
+evaluationSchema.index({ createdAt: 1, statutEvaluation: 1 }); 
 
 // Middleware pour calculer la note globale automatiquement
 evaluationSchema.pre('save', function(next) {
@@ -193,6 +233,11 @@ evaluationSchema.pre('save', function(next) {
       
       // Arrondir à 1 décimale
       this.notes.noteGlobale = Math.round(moyenne * 10) / 10;
+
+      // Marquer comme complétée si toutes les notes sont présentes
+      if (this.statutEvaluation === 'EN_ATTENTE') {
+        this.statutEvaluation = 'COMPLETEE';
+      }
       
       console.log(`📊 Note globale calculée: ${this.notes.noteGlobale} (${ponctualite}+${proprete}+${qualiteConduite}+${respect}+${communication})/5`);
     } else {
@@ -200,6 +245,30 @@ evaluationSchema.pre('save', function(next) {
     }
   }
   next();
+});
+
+// Middleware post-save pour notifications
+evaluationSchema.post('save', async function(doc) {
+  try {
+    // Si c'est une nouvelle évaluation complétée
+    if (doc.statutEvaluation === 'COMPLETEE' && doc.isNew) {
+      console.log(`📧 Notification à envoyer à l'utilisateur ${doc.evalueId} pour nouvelle évaluation`);
+      
+      // TODO: Intégrer avec le service de notifications
+      // const NotificationService = require('../services/notificationService');
+      // await NotificationService.envoyerNouvelleEvaluation(doc.evalueId, doc);
+    }
+    
+    // Si c'est un signalement grave
+    if (doc.estSignalement && doc.gravite === 'GRAVE') {
+      console.log(`🚨 ALERTE ADMIN: Signalement grave détecté pour l'évaluation ${doc._id}`);
+      
+      // TODO: Alerte admin
+      // await NotificationService.alerteAdmin(doc);
+    }
+  } catch (error) {
+    console.error('Erreur lors de l\'envoi de notification:', error);
+  }
 });
 
 // Middleware pour mettre à jour la note globale lors des modifications
@@ -230,6 +299,67 @@ evaluationSchema.methods.estRecente = function(jours = 30) {
   const maintenant = new Date();
   const limite = new Date(maintenant.setDate(maintenant.getDate() - jours));
   return this.dateEvaluation >= limite;
+};
+
+//  Vérifier si l'utilisateur peut évaluer
+evaluationSchema.methods.peutEvaluer = function(userId, typeUtilisateur) {
+  // Vérifier si l'utilisateur est bien l'évaluateur
+  if (this.evaluateurId.toString() !== userId.toString()) {
+    return { 
+      eligible: false, 
+      raison: 'Vous n\'êtes pas autorisé à faire cette évaluation' 
+    };
+  }
+  
+  // Vérifier si le type correspond
+  if (this.typeEvaluateur !== typeUtilisateur) {
+    return { 
+      eligible: false, 
+      raison: 'Type d\'évaluateur incorrect' 
+    };
+  }
+  
+  // Vérifier si l'évaluation n'est pas déjà faite
+  if (this.statutEvaluation === 'COMPLETEE') {
+    return { 
+      eligible: false, 
+      raison: 'Évaluation déjà complétée' 
+    };
+  }
+  
+  return { eligible: true };
+};
+
+// Calculer le délai d'évaluation restant
+evaluationSchema.methods.calculerDelaiRestant = function(delaiMaxJours = 7) {
+  const maintenant = new Date();
+  const dateFinTrajet = this.createdAt; // ou dateFinTrajet si disponible
+  const dateExpiration = new Date(dateFinTrajet);
+  dateExpiration.setDate(dateExpiration.getDate() + delaiMaxJours);
+  
+  const joursRestants = Math.ceil((dateExpiration - maintenant) / (1000 * 60 * 60 * 24));
+  
+  return {
+    joursRestants: Math.max(0, joursRestants),
+    expire: joursRestants <= 0,
+    dateExpiration
+  };
+};
+
+// Calculer le délai d'évaluation restant
+evaluationSchema.methods.calculerDelaiRestant = function(delaiMaxJours = 7) {
+  const maintenant = new Date();
+  const dateFinTrajet = this.createdAt; // ou dateFinTrajet si disponible
+  const dateExpiration = new Date(dateFinTrajet);
+  dateExpiration.setDate(dateExpiration.getDate() + delaiMaxJours);
+  
+  const joursRestants = Math.ceil((dateExpiration - maintenant) / (1000 * 60 * 60 * 24));
+  
+  return {
+    joursRestants: Math.max(0, joursRestants),
+    expire: joursRestants <= 0,
+    dateExpiration
+  };
 };
 
 // Méthode pour recalculer manuellement la note globale
@@ -440,6 +570,96 @@ evaluationSchema.statics.getEvaluationsParPeriode = async function(userId, perio
     evalueId: userId,
     dateEvaluation: { $gte: dateLimite }
   }).sort({ dateEvaluation: -1 });
+};
+
+// Obtenir les évaluations en attente
+evaluationSchema.statics.getEvaluationsEnAttente = async function(userId) {
+  const evaluations = await this.find({
+    evaluateurId: userId,
+    statutEvaluation: 'EN_ATTENTE',
+    evaluationObligatoire: true
+  })
+  .populate('trajetId', 'depart arrivee dateDepart')
+  .populate('evalueId', 'nom prenom photoProfil')
+  .sort({ createdAt: -1 });
+  
+  // Calculer le délai restant pour chaque évaluation
+  return evaluations.map(evaluation => ({
+    ...evaluation.toObject(),
+    delaiRestant: evaluation.calculerDelaiRestant()
+  }));
+};
+
+//  Marquer les évaluations expirées
+evaluationSchema.statics.marquerEvaluationsExpirees = async function(delaiMaxJours = 7) {
+  const dateLimite = new Date();
+  dateLimite.setDate(dateLimite.getDate() - delaiMaxJours);
+  
+  const result = await this.updateMany(
+    {
+      statutEvaluation: 'EN_ATTENTE',
+      createdAt: { $lte: dateLimite }
+    },
+    {
+      $set: { 
+        statutEvaluation: 'EXPIREE'
+      }
+    }
+  );
+  
+  console.log(`✅ ${result.modifiedCount} évaluations marquées comme expirées`);
+  return result;
+};
+
+// Obtenir statistiques pour badges
+evaluationSchema.statics.getStatsForBadges = async function(userId) {
+  const stats = await this.aggregate([
+    { 
+      $match: { 
+        evalueId: new mongoose.Types.ObjectId(userId),
+        statutEvaluation: 'COMPLETEE'
+      } 
+    },
+    {
+      $group: {
+        _id: null,
+        totalEvaluations: { $sum: 1 },
+        evaluationsExcellentes: {
+          $sum: { $cond: [{ $gte: ['$notes.noteGlobale', 4.5] }, 1, 0] }
+        },
+        evaluationsTresBien: {
+          $sum: { $cond: [{ $gte: ['$notes.noteGlobale', 4.0] }, 1, 0] }
+        },
+        moyenneGlobale: { $avg: '$notes.noteGlobale' },
+        nombreSignalements: {
+          $sum: { $cond: ['$estSignalement', 1, 0] }
+        }
+      }
+    }
+  ]);
+  
+  if (!stats[0]) return null;
+  
+  const result = stats[0];
+  
+  // Calculer les badges potentiels
+  const badges = [];
+  
+  if (result.totalEvaluations >= 10) badges.push('CONDUCTEUR_BRONZE');
+  if (result.totalEvaluations >= 50) badges.push('CONDUCTEUR_ARGENT');
+  if (result.totalEvaluations >= 100) badges.push('CONDUCTEUR_OR');
+  
+  if (result.moyenneGlobale >= 4.5) badges.push('EXCELLENCE');
+  if (result.evaluationsExcellentes >= 20) badges.push('CHAMPION');
+  
+  if (result.nombreSignalements === 0 && result.totalEvaluations >= 10) {
+    badges.push('ZERO_INCIDENT');
+  }
+  
+  return {
+    ...result,
+    badgesSuggeres: badges
+  };
 };
 
 module.exports = mongoose.model('Evaluation', evaluationSchema);

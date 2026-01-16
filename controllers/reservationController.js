@@ -134,6 +134,11 @@ class ReservationController {
       await nouvelleReservation.save();
       console.log('Réservation créée:', nouvelleReservation._id);
 
+      // ✅  Mettre à jour les places disponibles du trajet
+      trajet.nombrePlacesDisponibles -= nombrePlacesReservees;
+      await trajet.save();
+      console.log(`✅ Places mises à jour: ${trajet.nombrePlacesDisponibles} places restantes`);
+
       // Population pour la réponse
       await nouvelleReservation.populate([
         {
@@ -473,6 +478,14 @@ class ReservationController {
       // Calculer le remboursement
       const montantRemboursement = reservation.calculerRemboursement(reservation.trajetId.dateDepart);
 
+      // ✅ Remettre les places disponibles
+      const trajet = await Trajet.findById(reservation.trajetId._id);
+      if (trajet) {
+        trajet.nombrePlacesDisponibles += reservation.nombrePlacesReservees;
+        await trajet.save();
+        console.log(`✅ Places restituées: ${trajet.nombrePlacesDisponibles} places disponibles`);
+      }
+
       reservation.statutReservation = 'ANNULEE';
       reservation.motifRefus = raisonAnnulation || 'Annulé par le passager';
      
@@ -489,7 +502,8 @@ class ReservationController {
         message: 'Réservation annulée avec succès',
         data: {
           reservation,
-          montantRemboursement
+          montantRemboursement,
+          placesRestituees: reservation.nombrePlacesReservees 
         }
       });
 
@@ -1332,30 +1346,52 @@ class ReservationController {
   }
 
   /**
-   * Obtenir mes réservations (utilisateur connecté)
-   */
-  static async obtenirMesReservations(req, res, next) {
-    try {
-      const currentUserId = req.user._id || req.user.id || req.user.userId;
-      const { statut, limite = 50 } = req.query;
+ * Obtenir mes réservations (utilisateur connecté)
+ *  Filtre les réservations expirées par défaut
+ */
+static async obtenirMesReservations(req, res, next) {
+  try {
+    const currentUserId = req.user._id || req.user.id || req.user.userId;
+    const { 
+      statut, 
+      limite = 50,
+      type = 'active' 
+    } = req.query;
 
-      const options = { limite: parseInt(limite) };
-      if (statut) options.statut = statut;
-
-      const reservations = await Reservation.obtenirReservationsUtilisateur(currentUserId, options);
-
-      res.json({
-        success: true,
-        data: {
-          reservations
-        }
-      });
-
-    } catch (error) {
-      console.error('Erreur mes réservations:', error);
-      return next(AppError.serverError('Erreur serveur lors de la récupération de vos réservations', { originalError: error.message }));
+    const options = { 
+      limite: parseInt(limite),
+      type 
+    };
+    
+    if (statut) {
+      options.statut = statut;
     }
+
+    const reservations = await Reservation.obtenirReservationsUtilisateur(
+      currentUserId, 
+      options
+    );
+
+    res.json({
+      success: true,
+      data: {
+        reservations,
+        meta: {
+          total: reservations.length,
+          type: type,
+          filtreStatut: statut || 'tous'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur mes réservations:', error);
+    return next(AppError.serverError(
+      'Erreur serveur lors de la récupération de vos réservations', 
+      { originalError: error.message }
+    ));
   }
+}
 
   /**
  * Obtenir les réservations reçues (pour le conducteur)
