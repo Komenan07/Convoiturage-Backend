@@ -528,7 +528,7 @@ function initSocket(httpServer, app) {
         const user = await Utilisateur.findById(decoded.userId || decoded.id)
           .select('email nom prenom photoProfil telephone role statutCompte');
 
-        if (!user || user.statutCompte !== 'ACTIF') {
+        if (!user || user.statutCompte == 'SUSPENDU' || user.statutCompte == 'BLOQUE') {
           throw new Error('USER_INVALID');
         }
 
