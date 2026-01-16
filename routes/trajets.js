@@ -396,7 +396,7 @@ router.get('/conducteur/:conducteurId', [
  * @desc    Obtenir tous les trajets expirés (admin/monitoring)
  * @access  Public (à sécuriser en production)
  */
-router.get('/expires', [
+router.get('/expirer', [
   query('page')
     .optional()
     .isInt({ min: 1 }).withMessage('Numéro de page invalide'),
@@ -417,7 +417,7 @@ router.get('/expires', [
  */
 router.post('/preview-distance',
   authMiddleware,
-  transformerCoordonneesEnGeoJSON, // ✅ Transforme les coordonnées AVANT validation
+  transformerCoordonneesEnGeoJSON, 
   [
     // Validation du point de départ
     body('pointDepart.nom')

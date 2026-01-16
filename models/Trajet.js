@@ -233,16 +233,16 @@ const trajetSchema = new mongoose.Schema({
   dateDepart: {
     type: Date,
     required: true,
-    validate: {
-      validator: function(date) {
-        // Pour les trajets récurrents, on peut accepter des dates passées
-        if (this.typeTrajet === 'RECURRENT') {
-          return true;
-        }
-        return date >= new Date();
-      },
-      message: 'La date de départ doit être dans le futur pour les trajets ponctuels'
-    }
+    // validate: {
+    //   validator: function(date) {
+    //     // Pour les trajets récurrents, on peut accepter des dates passées
+    //     if (this.typeTrajet === 'RECURRENT') {
+    //       return true;
+    //     }
+    //     return date >= new Date();
+    //   },
+    //   message: 'La date de départ doit être dans le futur pour les trajets ponctuels'
+    // }
   },
   heureDepart: {
     type: String,
@@ -1069,7 +1069,18 @@ trajetSchema.virtual('tauxOccupation').get(function() {
 });
 
 trajetSchema.virtual('isExpired').get(function() {
-  return this.statutTrajet === 'EXPIRE' || this.estExpire();
+  // Vérifier d'abord si déjà marqué comme expiré
+  if (this.statutTrajet === 'EXPIRE') {
+    return true;
+  }
+  
+  // Sinon vérifier si la date est passée ET statut est PROGRAMME
+  if (this.statutTrajet === 'PROGRAMME' && this.dateDepart) {
+    const maintenant = new Date();
+    return maintenant > this.dateDepart;
+  }
+  
+  return false;
 });
 
 // ===============================================
