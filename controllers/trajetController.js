@@ -183,7 +183,7 @@ async recalculerDistance(req, res, next) {
    * Créer un trajet ponctuel
    * ⭐ Suppression des calculs manuels (le hook s'en charge)
    */
-  async creerTrajetPonctuel(req, res, next) {
+    async creerTrajetPonctuel(req, res, next) {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -207,13 +207,33 @@ async recalculerDistance(req, res, next) {
         typeTrajet: 'PONCTUEL'
       };
 
-      // Validation que la date n'est pas déjà passée
+      // Validation avec date + heure complète
       const dateDepart = new Date(trajetData.dateDepart);
-      if (dateDepart < new Date()) {
+      const heureDepart = trajetData.heureDepart; // Format: "14:30"
+      
+      // Créer la date/heure complète du départ
+      const [heures, minutes] = heureDepart.split(':').map(Number);
+      const dateDepartComplete = new Date(dateDepart);
+      dateDepartComplete.setHours(heures, minutes, 0, 0);
+      
+      // Comparer avec maintenant
+      const maintenant = new Date();
+      
+      if (dateDepartComplete < maintenant) {
         return res.status(400).json({
           success: false,
-          message: 'La date de départ doit être dans le futur'
+          message: 'La date et l\'heure de départ doivent être dans le futur',
+          details: {
+            dateDepartDemandee: dateDepartComplete.toISOString(),
+            dateActuelle: maintenant.toISOString()
+          }
         });
+      }
+
+      // ⭐ BONUS: Avertissement si le départ est dans moins de 30 minutes
+      const diffMinutes = (dateDepartComplete - maintenant) / (1000 * 60);
+      if (diffMinutes < 30) {
+        console.log(`⚠️ Trajet créé avec un délai court: ${Math.round(diffMinutes)} minutes`);
       }
 
       // ⭐ MODIFIÉ: On met des valeurs par défaut SEULEMENT si non fournies
@@ -223,6 +243,7 @@ async recalculerDistance(req, res, next) {
       }
 
       console.log('🚗 Création trajet ponctuel pour:', req.user.nom, req.user.prenom);
+      console.log('📅 Départ prévu:', dateDepartComplete.toLocaleString('fr-FR'));
       console.log('📊 Distance et durée seront calculées automatiquement...');
 
       // Créer et sauvegarder (le hook va calculer automatiquement)
@@ -231,14 +252,14 @@ async recalculerDistance(req, res, next) {
 
       await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
 
-      // Normaliser isExpired avant retour
-      const nouveauTrajetObj = this._attachIsExpired([nouveauTrajet])[0];
+      // ✅ Convertir en JSON (le virtual isExpired sera automatiquement inclus)
+      const nouveauTrajetObj = nouveauTrajet.toJSON();
 
       res.status(201).json({
         success: true,
         message: 'Trajet ponctuel créé avec succès',
         data: nouveauTrajetObj,
-        // ⭐ NOUVEAU: Inclure les infos calculées
+        // Inclure les infos calculées
         calculs: {
           distance: `${nouveauTrajet.distance} km`,
           duree: `${nouveauTrajet.dureeEstimee} min`,
@@ -266,7 +287,6 @@ async recalculerDistance(req, res, next) {
       }));
     }
   }
-
   /**
    * Créer un trajet récurrent
    * ⭐ MODIFIÉ: Suppression des calculs manuels
