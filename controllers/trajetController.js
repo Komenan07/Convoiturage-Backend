@@ -605,8 +605,7 @@ async recalculerDistance(req, res, next) {
       }));
     }
   }
-
-  async rechercherTrajetsDisponibles(req, res, next) {
+    async rechercherTrajetsDisponibles(req, res, next) {
   try {
     const {
       longitude,
@@ -620,13 +619,12 @@ async recalculerDistance(req, res, next) {
       limit = 20
     } = req.query;
 
-    // ✅ baseQuery sans dateDepart initial
     let baseQuery = {
       statutTrajet: 'PROGRAMME',
       nombrePlacesDisponibles: { $gte: parseInt(nombrePlacesMin) }
     };
 
-    // ✅ Gestion conditionnelle des dates
+    // Gestion conditionnelle des dates
     if (dateDepart || dateFin) {
       baseQuery.dateDepart = {};
       
@@ -751,7 +749,8 @@ async recalculerDistance(req, res, next) {
           page: pageNum,
           limit: limitNum,
           sort: { dateDepart: 1 },
-          populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' }
+          populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' },
+          lean: true // ✅ Important pour avoir des objets JS simples
         };
         
         result = await Trajet.paginate(baseQuery, options);
@@ -762,18 +761,34 @@ async recalculerDistance(req, res, next) {
         page: pageNum,
         limit: limitNum,
         sort: { dateDepart: 1 },
-        populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' }
+        populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' },
+        lean: true // ✅ Important pour avoir des objets JS simples
       };
       
       result = await Trajet.paginate(baseQuery, options);
       result.docs = this._attachIsExpired(result.docs);
     }
 
-    const currentUserId = req.user?._id || req.user?.id || req.user?.userId;
+    // ✅ CORRECTION: Vérification des réservations de l'utilisateur
+    let currentUserId = req.user?._id || req.user?.id || req.user?.userId;
+    
+    // Si req.user n'existe pas, essayer de décoder le token manuellement
+    if (!currentUserId && req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        currentUserId = decoded._id || decoded.id || decoded.userId;
+        console.log('✅ UserId récupéré depuis le token:', currentUserId);
+      } catch (error) {
+        console.log('⚠️ Token invalide ou absent, recherche sans info utilisateur');
+      }
+    }
     
     if (currentUserId && result.docs.length > 0) {
+      console.log(`🔍 Recherche des réservations pour l'utilisateur ${currentUserId}`);
       const Reservation = require('../models/Reservation');
-      const trajetIds = result.docs.map(t => t._id);
+      const trajetIds = result.docs.map(t => t._id || t.id);
       
       // Trouver toutes les réservations actives de l'utilisateur pour ces trajets
       const reservationsExistantes = await Reservation.find({
@@ -787,17 +802,23 @@ async recalculerDistance(req, res, next) {
         reservationsExistantes.map(r => [r.trajetId.toString(), r.statutReservation])
       );
       
-      // Ajouter l'info à chaque trajet
+      // ✅ FIX: Conversion correcte des objets avec toJSON() ou Object.assign()
       result.docs = result.docs.map(trajet => {
-        const trajetId = trajet._id.toString();
+        // Convertir le document Mongoose en objet JS simple si nécessaire
+        const trajetObj = trajet.toJSON ? trajet.toJSON() : trajet;
+        
+        const trajetId = (trajetObj._id || trajetObj.id).toString();
         const reservationStatut = reservationMap.get(trajetId);
         
+        // Retourner un nouvel objet avec les propriétés ajoutées
         return {
-          ...trajet,
+          ...trajetObj,
           isReservedByUser: !!reservationStatut,
           userReservationStatus: reservationStatut || null
         };
       });
+
+      console.log(`✅ Statut de réservation ajouté pour ${reservationsExistantes.length} trajet(s)`);
     }
 
     res.json({
@@ -818,7 +839,7 @@ async recalculerDistance(req, res, next) {
       originalError: error.message 
     }));
   }
-  }
+}
 
   async obtenirTrajetParId(req, res, next) {
     try {
