@@ -15,6 +15,37 @@ class TrajetController {
       });
   }
   
+  // ==================== HELPER: DATE DU JOUR ====================
+  
+  /**
+   * 🆕 Retourne le début de la journée (00h00) pour filtrer les trajets d'aujourd'hui
+   */
+  _getStartOfToday() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }
+
+  /**
+   * 🆕 Retourne la fin de la journée (23h59) 
+   */
+  _getEndOfToday() {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return today;
+  }
+
+  /**
+   * 🆕 Vérifie si un trajet est actif (programmé ou en cours, avec date >= aujourd'hui)
+   */
+  _buildActiveTripsQuery(additionalFilters = {}) {
+    return {
+      statutTrajet: { $in: ['PROGRAMME', 'EN_COURS'] },
+      dateDepart: { $gte: this._getStartOfToday() }, // ✅ Depuis le début d'aujourd'hui
+      ...additionalFilters
+    };
+  }
+  
   // ==================== CREATE ====================
   
   /**
