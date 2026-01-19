@@ -944,11 +944,33 @@ trajetSchema.statics.findTrajetsRecurrentsExpires = function() {
 trajetSchema.statics.marquerTrajetsExpires = async function() {
   const maintenant = new Date();
   
+  // Récupérer les trajets programmés avec leur date et heure
+  const trajetsAVerifier = await this.find({
+    statutTrajet: 'PROGRAMME',
+    dateDepart: { $exists: true },
+    heureDepart: { $exists: true }
+  });
+  
+  const trajetsExpires = [];
+  
+  for (const trajet of trajetsAVerifier) {
+    try {
+      // Combiner date et heure pour comparaison précise
+      const dateStr = trajet.dateDepart.toISOString().split('T')[0];
+      const dateTimeStr = `${dateStr}T${trajet.heureDepart}:00.000Z`;
+      const dateDepartComplete = new Date(dateTimeStr);
+      
+      if (dateDepartComplete < maintenant) {
+        trajetsExpires.push(trajet._id);
+      }
+    } catch (error) {
+      console.error(`⚠️ Erreur traitement trajet ${trajet._id}:`, error.message);
+    }
+  }
+  
+  // Mise à jour en masse des trajets expirés
   const result = await this.updateMany(
-    {
-      statutTrajet: 'PROGRAMME',
-      dateDepart: { $lt: maintenant }
-    },
+    { _id: { $in: trajetsExpires } },
     {
       $set: { 
         statutTrajet: 'EXPIRE',
@@ -958,7 +980,7 @@ trajetSchema.statics.marquerTrajetsExpires = async function() {
     }
   );
   
-  console.log(`✅ ${result.modifiedCount} trajets marqués comme expirés`);
+  console.log(`✅ ${result.modifiedCount} trajets marqués comme expirés (date + heure)`);
   return result;
 };
 

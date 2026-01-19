@@ -654,7 +654,7 @@ module.exports = (socket, io) => {
       const { reservationId } = data;
 
       const reservation = await Reservation.findById(reservationId)
-        .populate('passagerId', 'nom prenom')
+        .populate('passagerId', 'nom prenom fcmTokens')
         .populate('trajetId');
 
       if (!reservation) {
@@ -689,12 +689,31 @@ module.exports = (socket, io) => {
         pickupTime: new Date()
       });
 
-      // Notifier le passager
+      // Notifier le passager via Socket.IO
       io.to(`user_${reservation.passagerId._id}`).emit('pickedUpConfirmed', {
         reservationId,
         message: 'Le conducteur a confirmé votre prise en charge',
         pickupTime: new Date()
       });
+
+      // Notifier via FCM
+      const firebaseService = require('../../services/firebaseService');
+      if (reservation.passagerId?.fcmTokens?.length > 0) {
+        await firebaseService.sendToMultipleTokens(
+          reservation.passagerId.fcmTokens,
+          {
+            title: 'Prise en charge confirmée 🚗',
+            body: 'Le conducteur a confirmé votre montée à bord',
+            data: {
+              type: 'PASSENGER_PICKUP',
+              reservationId: reservationId.toString(),
+              trajetId: reservation.trajetId._id.toString(),
+              screen: 'ActiveTripPassenger'
+            }
+          },
+          { channelId: 'reservations' }
+        );
+      }
 
       socket.emit('pickupConfirmed', {
         reservationId,
@@ -710,6 +729,12 @@ module.exports = (socket, io) => {
         message: 'Erreur lors de la confirmation de prise en charge' 
       });
     }
+  });
+
+  // 🆕 Confirmer prise en charge (alias plus explicite)
+  socket.on('confirmPickup', async (data) => {
+    // Réutiliser la logique de markPassengerOnBoard
+    socket.emit('markPassengerOnBoard', data);
   });
 
   console.log(`📋 Reservation handler initialisé pour ${socket.user.nom}`);
