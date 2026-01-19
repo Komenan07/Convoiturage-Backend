@@ -1074,13 +1074,35 @@ trajetSchema.virtual('isExpired').get(function() {
     return true;
   }
   
-  // Sinon vérifier si la date est passée ET statut est PROGRAMME
-  if (this.statutTrajet === 'PROGRAMME' && this.dateDepart) {
-    const maintenant = new Date();
-    return maintenant > this.dateDepart;
+  // Vérifier si la date + heure de départ sont passées
+  if (!this.dateDepart || !this.heureDepart) {
+    return false;
   }
   
-  return false;
+  try {
+    // ✅ CORRECTION: Créer une NOUVELLE instance à chaque fois
+    const dateStr = this.dateDepart.toISOString().split('T')[0]; // "2026-01-18"
+    const dateTimeStr = `${dateStr}T${this.heureDepart}:00.000Z`; // "2026-01-18T16:40:00.000Z"
+    const dateDepartComplete = new Date(dateTimeStr);
+    
+    const maintenant = new Date();
+    const isExp = dateDepartComplete < maintenant;
+    
+    // // 🔍 DEBUG - Tu pourras retirer ces logs après
+    // console.log('🕐 isExpired:', {
+    //   trajetId: this._id,
+    //   dateDepart: dateDepartComplete.toISOString(),
+    //   maintenant: maintenant.toISOString(),
+    //   isExpired: isExp,
+    //   diff: Math.round((dateDepartComplete - maintenant) / 60000) + ' min'
+    // });
+    
+    return isExp;
+    
+  } catch (error) {
+    console.error('❌ Erreur calcul isExpired:', error.message);
+    return false;
+  }
 });
 
 // ===============================================

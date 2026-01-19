@@ -179,10 +179,7 @@ async recalculerDistance(req, res, next) {
   }
 }
   
-  /**
-   * Créer un trajet ponctuel
-   * ⭐ Suppression des calculs manuels (le hook s'en charge)
-   */
+ 
   /**
    * ⭐ Démarrer un trajet (PROGRAMME → EN_COURS)
    */
@@ -402,6 +399,11 @@ async recalculerDistance(req, res, next) {
     }
   }
 
+   /**
+   * Créer un trajet ponctuel
+   * ⭐ Suppression des calculs manuels (le hook s'en charge)
+   */
+
   async creerTrajetPonctuel(req, res, next) {
     try {
       const errors = validationResult(req);
@@ -426,13 +428,33 @@ async recalculerDistance(req, res, next) {
         typeTrajet: 'PONCTUEL'
       };
 
-      // Validation que la date n'est pas déjà passée
+      // Validation avec date + heure complète
       const dateDepart = new Date(trajetData.dateDepart);
-      if (dateDepart < new Date()) {
+      const heureDepart = trajetData.heureDepart; // Format: "14:30"
+      
+      // Créer la date/heure complète du départ
+      const [heures, minutes] = heureDepart.split(':').map(Number);
+      const dateDepartComplete = new Date(dateDepart);
+      dateDepartComplete.setHours(heures, minutes, 0, 0);
+      
+      // Comparer avec maintenant
+      const maintenant = new Date();
+      
+      if (dateDepartComplete < maintenant) {
         return res.status(400).json({
           success: false,
-          message: 'La date de départ doit être dans le futur'
+          message: 'La date et l\'heure de départ doivent être dans le futur',
+          details: {
+            dateDepartDemandee: dateDepartComplete.toISOString(),
+            dateActuelle: maintenant.toISOString()
+          }
         });
+      }
+
+      // ⭐ BONUS: Avertissement si le départ est dans moins de 30 minutes
+      const diffMinutes = (dateDepartComplete - maintenant) / (1000 * 60);
+      if (diffMinutes < 30) {
+        console.log(`⚠️ Trajet créé avec un délai court: ${Math.round(diffMinutes)} minutes`);
       }
 
       // ⭐ MODIFIÉ: On met des valeurs par défaut SEULEMENT si non fournies
@@ -442,6 +464,7 @@ async recalculerDistance(req, res, next) {
       }
 
       console.log('🚗 Création trajet ponctuel pour:', req.user.nom, req.user.prenom);
+      console.log('📅 Départ prévu:', dateDepartComplete.toLocaleString('fr-FR'));
       console.log('📊 Distance et durée seront calculées automatiquement...');
 
       // Créer et sauvegarder (le hook va calculer automatiquement)
@@ -450,14 +473,14 @@ async recalculerDistance(req, res, next) {
 
       await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
 
-      // Normaliser isExpired avant retour
-      const nouveauTrajetObj = this._attachIsExpired([nouveauTrajet])[0];
+      // ✅ Convertir en JSON (le virtual isExpired sera automatiquement inclus)
+      const nouveauTrajetObj = nouveauTrajet.toJSON();
 
       res.status(201).json({
         success: true,
         message: 'Trajet ponctuel créé avec succès',
         data: nouveauTrajetObj,
-        // ⭐ NOUVEAU: Inclure les infos calculées
+        // Inclure les infos calculées
         calculs: {
           distance: `${nouveauTrajet.distance} km`,
           duree: `${nouveauTrajet.dureeEstimee} min`,
@@ -485,7 +508,6 @@ async recalculerDistance(req, res, next) {
       }));
     }
   }
-
   /**
    * Créer un trajet récurrent
    * ⭐ MODIFIÉ: Suppression des calculs manuels
@@ -824,8 +846,7 @@ async recalculerDistance(req, res, next) {
       }));
     }
   }
-
-  async rechercherTrajetsDisponibles(req, res, next) {
+    async rechercherTrajetsDisponibles(req, res, next) {
   try {
     const {
       longitude,
@@ -839,13 +860,12 @@ async recalculerDistance(req, res, next) {
       limit = 20
     } = req.query;
 
-    // ✅ baseQuery sans dateDepart initial
     let baseQuery = {
       statutTrajet: 'PROGRAMME',
       nombrePlacesDisponibles: { $gte: parseInt(nombrePlacesMin) }
     };
 
-    // ✅ Gestion conditionnelle des dates
+    // Gestion conditionnelle des dates
     if (dateDepart || dateFin) {
       baseQuery.dateDepart = {};
       
@@ -970,7 +990,8 @@ async recalculerDistance(req, res, next) {
           page: pageNum,
           limit: limitNum,
           sort: { dateDepart: 1 },
-          populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' }
+          populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' },
+          lean: true // ✅ Important pour avoir des objets JS simples
         };
         
         result = await Trajet.paginate(baseQuery, options);
@@ -981,18 +1002,34 @@ async recalculerDistance(req, res, next) {
         page: pageNum,
         limit: limitNum,
         sort: { dateDepart: 1 },
-        populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' }
+        populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' },
+        lean: true // ✅ Important pour avoir des objets JS simples
       };
       
       result = await Trajet.paginate(baseQuery, options);
       result.docs = this._attachIsExpired(result.docs);
     }
 
-    const currentUserId = req.user?._id || req.user?.id || req.user?.userId;
+    // ✅ CORRECTION: Vérification des réservations de l'utilisateur
+    let currentUserId = req.user?._id || req.user?.id || req.user?.userId;
+    
+    // Si req.user n'existe pas, essayer de décoder le token manuellement
+    if (!currentUserId && req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        currentUserId = decoded._id || decoded.id || decoded.userId;
+        console.log('✅ UserId récupéré depuis le token:', currentUserId);
+      } catch (error) {
+        console.log('⚠️ Token invalide ou absent, recherche sans info utilisateur');
+      }
+    }
     
     if (currentUserId && result.docs.length > 0) {
+      console.log(`🔍 Recherche des réservations pour l'utilisateur ${currentUserId}`);
       const Reservation = require('../models/Reservation');
-      const trajetIds = result.docs.map(t => t._id);
+      const trajetIds = result.docs.map(t => t._id || t.id);
       
       // Trouver toutes les réservations actives de l'utilisateur pour ces trajets
       const reservationsExistantes = await Reservation.find({
@@ -1006,17 +1043,23 @@ async recalculerDistance(req, res, next) {
         reservationsExistantes.map(r => [r.trajetId.toString(), r.statutReservation])
       );
       
-      // Ajouter l'info à chaque trajet
+      // ✅ FIX: Conversion correcte des objets avec toJSON() ou Object.assign()
       result.docs = result.docs.map(trajet => {
-        const trajetId = trajet._id.toString();
+        // Convertir le document Mongoose en objet JS simple si nécessaire
+        const trajetObj = trajet.toJSON ? trajet.toJSON() : trajet;
+        
+        const trajetId = (trajetObj._id || trajetObj.id).toString();
         const reservationStatut = reservationMap.get(trajetId);
         
+        // Retourner un nouvel objet avec les propriétés ajoutées
         return {
-          ...trajet,
+          ...trajetObj,
           isReservedByUser: !!reservationStatut,
           userReservationStatus: reservationStatut || null
         };
       });
+
+      console.log(`✅ Statut de réservation ajouté pour ${reservationsExistantes.length} trajet(s)`);
     }
 
     res.json({
@@ -1037,7 +1080,7 @@ async recalculerDistance(req, res, next) {
       originalError: error.message 
     }));
   }
-  }
+}
 
   async obtenirTrajetParId(req, res, next) {
     try {
