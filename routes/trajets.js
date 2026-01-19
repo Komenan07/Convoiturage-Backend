@@ -710,6 +710,49 @@ router.patch(
   authMiddleware,
   TrajetController.recalculerDistance
 );
+
+/**
+ * @route   POST /api/trajets/:id/demarrer
+ * @desc    Démarrer un trajet (PROGRAMME → EN_COURS)
+ * @access  Privé (Conducteur uniquement)
+ */
+router.post('/:id/demarrer', 
+  authMiddleware,
+  [
+    param('id')
+      .isMongoId().withMessage('ID du trajet invalide'),
+    body('heureDepart')
+      .optional()
+      .isISO8601().withMessage('Format de date invalide')
+  ],
+  handleValidationErrors,
+  TrajetController.demarrerTrajet
+);
+
+/**
+ * @route   POST /api/trajets/:id/terminer
+ * @desc    Terminer un trajet (EN_COURS → TERMINE)
+ * @access  Privé (Conducteur uniquement)
+ */
+router.post('/:id/terminer', 
+  authMiddleware,
+  [
+    param('id')
+      .isMongoId().withMessage('ID du trajet invalide'),
+    body('heureArrivee')
+      .optional()
+      .isISO8601().withMessage('Format de date invalide'),
+    body('distanceReelle')
+      .optional()
+      .isFloat({ min: 0 }).withMessage('Distance invalide'),
+    body('dureeReelle')
+      .optional()
+      .isInt({ min: 0 }).withMessage('Durée invalide')
+  ],
+  handleValidationErrors,
+  TrajetController.terminerTrajet
+);
+
 /**
  * @route   PATCH /api/trajets/:id/statut
  * @desc    Mettre à jour le statut d'un trajet
