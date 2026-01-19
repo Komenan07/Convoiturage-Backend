@@ -16,8 +16,6 @@ const Evenement = require('../models/Evenement');
 const Evaluation = require('../models/Evaluation');
 const AlerteUrgence = require('../models/AlerteUrgence');
 const { logger } = require('../utils/logger');
-
-
 /**
  * Utilitaire pour générer un token JWT
  */

@@ -45,7 +45,7 @@ class TrajetController {
       ...additionalFilters
     };
   }
-  
+
   // ==================== CREATE ====================
   
   /**
@@ -625,12 +625,7 @@ async recalculerDistance(req, res, next) {
       const { conducteurId } = req.params;
       const { page = 1, limit = 20 } = req.query;
 
-      const query = {
-        conducteurId,
-        statutTrajet: { $in: ['PROGRAMME', 'EN_COURS'] },
-        dateDepart: { $gte: new Date() }
-      };
-
+    const query = this._buildActiveTripsQuery({ conducteurId });
       const options = {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -675,15 +670,15 @@ async recalculerDistance(req, res, next) {
       } = req.query;
 
       let query = {
-        statutTrajet: 'PROGRAMME',
-        dateDepart: { $gte: new Date() }
+      statutTrajet: 'PROGRAMME',
+      dateDepart: { $gte: this._getStartOfToday() } 
       };
 
       if (dateDepart) {
-        query.dateDepart = { $gte: new Date(dateDepart) };
-        if (dateFin) {
-          query.dateDepart.$lte = new Date(dateFin);
-        }
+      query.dateDepart = { $gte: new Date(dateDepart) };
+      if (dateFin) {
+        query.dateDepart.$lte = new Date(dateFin);
+      }
       }
 
       if (prixMin || prixMax) {
@@ -877,7 +872,7 @@ async recalculerDistance(req, res, next) {
       }));
     }
   }
-    async rechercherTrajetsDisponibles(req, res, next) {
+  async rechercherTrajetsDisponibles(req, res, next) {
   try {
     const {
       longitude,
@@ -904,14 +899,14 @@ async recalculerDistance(req, res, next) {
         const dateDebutFilter = new Date(dateDepart);
         baseQuery.dateDepart.$gte = dateDebutFilter;
       } else {
-        baseQuery.dateDepart.$gte = new Date();
+        baseQuery.dateDepart.$gte = this._getStartOfToday();
       }
       
       if (dateFin) {
         baseQuery.dateDepart.$lte = new Date(dateFin);
       }
     } else {
-      baseQuery.dateDepart = { $gte: new Date() };
+      baseQuery.dateDepart = { $gte: this._getStartOfToday() };
     }
 
     if (prixMax) {
@@ -1222,11 +1217,7 @@ async recalculerDistance(req, res, next) {
       const { conducteurId } = req.params;
       const { page = 1, limit = 20 } = req.query;
 
-      const query = {
-        conducteurId,
-        statutTrajet: { $in: ['PROGRAMME', 'EN_COURS'] },
-        dateDepart: { $gte: new Date() } 
-      };
+      const query = this._buildActiveTripsQuery({ conducteurId });
 
       const options = {
         page: parseInt(page),
@@ -1688,28 +1679,46 @@ async obtenirTrajetsExpires(req, res, next) {
 
   // ==================== MÉTHODES UTILITAIRES ====================
 
-  // Normalise la virtual `isExpired` pour les objets renvoyés par
-  // aggregate/lean/paginate (qui peuvent être des POJO sans virtuals)
-  _attachIsExpired(docs) {
-    if (!docs) return docs;
-    return docs.map(d => {
-      const obj = (d && typeof d.toObject === 'function') ? d.toObject() : d;
-      // Si la valeur est déjà un booléen, ne pas la recalculer
-      //if (typeof obj.isExpired === 'boolean') return obj;
-      const dateDepart = obj.dateDepart ? new Date(obj.dateDepart) : null;
+// Normalise la virtual `isExpired` pour les objets renvoyés par
+// aggregate/lean/paginate (qui peuvent être des POJO sans virtuals)
+_attachIsExpired(docs) {
+  if (!docs) return docs;
+  return docs.map(d => {
+    const obj = (d && typeof d.toObject === 'function') ? d.toObject() : d;
+    
+    // ✅ CORRECTION: Calculer avec date + heure complète
+    const dateDepart = obj.dateDepart ? new Date(obj.dateDepart) : null;
+    const heureDepart = obj.heureDepart; // Format: "14:30" ou "08:00"
+    
+    if (dateDepart && heureDepart) {
+      // Créer la date/heure complète du départ
+      const [heures, minutes] = heureDepart.split(':').map(Number);
+      const dateDepartComplete = new Date(dateDepart);
+      dateDepartComplete.setHours(heures, minutes, 0, 0);
+      
       const now = new Date();
-      obj.isExpired = (obj.statutTrajet === 'EXPIRE') || (dateDepart && now > dateDepart && obj.statutTrajet === 'PROGRAMME');
-      return obj;
-    });
-  }
+      
+      // Un trajet est expiré si :
+      // - Son statut est EXPIRE
+      // - OU sa date/heure de départ est passée ET il est encore PROGRAMME
+      obj.isExpired = (obj.statutTrajet === 'EXPIRE') || 
+                      (dateDepartComplete < now && obj.statutTrajet === 'PROGRAMME');
+    } else {
+      // Si pas d'heure de départ, se baser uniquement sur le statut
+      obj.isExpired = obj.statutTrajet === 'EXPIRE';
+    }
+    
+    return obj;
+  });
+}
 
-  async gererNotificationsStatut(trajet, ancienStatut, nouveauStatut) {
-    console.log(`Notification: Trajet ${trajet._id} changé de ${ancienStatut} à ${nouveauStatut}`);
-  }
+async gererNotificationsStatut(trajet, ancienStatut, nouveauStatut) {
+  console.log(`Notification: Trajet ${trajet._id} changé de ${ancienStatut} à ${nouveauStatut}`);
+}
 
-  async envoyerNotificationsAnnulation(trajet, motif) {
-    console.log(`Notification d'annulation pour le trajet ${trajet._id}: ${motif}`);
-  }
+async envoyerNotificationsAnnulation(trajet, motif) {
+  console.log(`Notification d'annulation pour le trajet ${trajet._id}: ${motif}`);
+}
 }
 
 module.exports = new TrajetController();

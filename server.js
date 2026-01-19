@@ -2,6 +2,7 @@ const http = require('http');
 const connectDB = require('./config/db');
 const app = require('./app');
 const ExpireTrajetsJob = require('./jobs/expireTrajetsJob');
+const trajetAutomationService = require('./services/trajetAutomationService');
 
 const PORT = process.env.PORT || 5500;
 const HOST = '0.0.0.0';
@@ -23,6 +24,9 @@ const demarrerServeur = async () => {
     } catch (err) {
       console.error('⚠️ Erreur expiration initiale:', err.message);
     }
+
+    console.log('🚀 Démarrage du service d\'automation des trajets...');
+    trajetAutomationService.start();
 
     const server = http.createServer(app);
 
@@ -65,6 +69,8 @@ if (process.env.NODE_ENV !== 'test') {
 process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM reçu, fermeture...');
   try {
+    trajetAutomationService.stop();
+    
     const mongoose = require('mongoose');
     await mongoose.connection.close(false);
     console.log('✅ Connexion MongoDB fermée');
