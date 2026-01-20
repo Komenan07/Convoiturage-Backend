@@ -656,6 +656,7 @@ trajetSchema.pre('save', async function(next) {
   }
 });
 
+
 // Middleware pre-find pour filtrer les trajets expirés
 trajetSchema.pre(/^find/, function(next) {
   // Option pour inclure les trajets expirés
@@ -713,7 +714,7 @@ trajetSchema.methods.calculerTarifTotal = function(nombrePassagers = 1) {
 
 trajetSchema.methods.estExpire = function() {
   const maintenant = new Date();
-  return maintenant > this.dateDepart && this.statutTrajet === 'PROGRAMME';
+  return maintenant > new Date(this.dateDepart.getTime() + 24 * 60 * 60 * 1000) && (this.statutTrajet === 'PROGRAMME' || this.statutTrajet == 'EXPIRE');
 };
 
 trajetSchema.methods.marquerCommeExpire = async function() {

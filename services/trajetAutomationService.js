@@ -161,8 +161,8 @@ class TrajetAutomationService {
     try {
       const maintenant = new Date();
       
-      // Trajets PROGRAMME dont le départ était il y a plus de 30 minutes
-      const limiteExpiration = new Date(maintenant.getTime() - 30 * 60 * 1000);
+      // Trajets PROGRAMME dont le départ était il y a plus de 24 heures
+      const limiteExpiration = new Date(maintenant.getTime() - 24 * 60 * 60 * 1000);
       
       const trajetsAExpirer = await Trajet.find({
         statutTrajet: 'PROGRAMME'
@@ -179,7 +179,7 @@ class TrajetAutomationService {
         const dateDepartComplete = new Date(trajet.dateDepart);
         dateDepartComplete.setHours(heures, minutes, 0, 0);
         
-        // Si le départ était il y a plus de 30 minutes
+        // Si le départ était il y a plus de 24 heures, expirer le trajet
         if (dateDepartComplete < limiteExpiration) {
           trajet.statutTrajet = 'EXPIRE';
           trajet.dateExpiration = maintenant;

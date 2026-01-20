@@ -806,7 +806,7 @@ const listerTrajets = async (req, res, next) => {
     sortOptions[sortBy] = order === 'asc' ? 1 : -1;
 
     const trajets = await Trajet.find(filtres)
-      .populate('conducteurId', 'nom prenom email telephone photo')
+      .populate('conducteurId', 'nom prenom email telephone photoProfil')
       // .populate('vehicule', 'marque modele couleur immatriculation')
       .sort(sortOptions)
       .limit(limitNum)
@@ -850,7 +850,7 @@ const obtenirTrajet = async (req, res, next) => {
     }
 
     const reservations = await Reservation.find({ trajet: trajet._id })
-      .populate('passagerId', 'nom prenom email telephone photo')
+      .populate('passagerId', 'nom prenom email telephone photoProfil')
       .lean();
 
     res.status(200).json({
@@ -872,7 +872,7 @@ const obtenirTrajet = async (req, res, next) => {
 const obtenirReservationsTrajet = async (req, res, next) => {
   try {
     const reservations = await Reservation.find({ trajet: req.params.id })
-      .populate('passagerId', 'nom prenom email telephone photo')
+      .populate('passagerId', 'nom prenom email telephone photoProfil')
       .sort('-createdAt')
       .lean();
 

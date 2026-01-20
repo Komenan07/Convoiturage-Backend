@@ -133,7 +133,7 @@ class EvaluationService {
       // Exécution des requêtes en parallèle
       const [evaluations, total] = await Promise.all([
         Evaluation.find(query)
-          .populate('evaluateurId', 'nom prenom photo')
+          .populate('evaluateurId', 'nom prenom photoProfil')
           .populate('trajetId', 'depart destination dateDepart')
           .sort({ dateEvaluation: -1 })
           .skip((page - 1) * limite)
@@ -235,8 +235,8 @@ class EvaluationService {
   async obtenirEvaluationsTrajet(trajetId) {
     try {
       const evaluations = await Evaluation.find({ trajetId })
-        .populate('evaluateurId', 'nom prenom photo')
-        .populate('evalueId', 'nom prenom photo')
+        .populate('evaluateurId', 'nom prenom photoProfil')
+        .populate('evalueId', 'nom prenom photoProfil')
         .sort({ dateEvaluation: -1 });
       const statistiques = {
         totalEvaluations: evaluations.length,

@@ -1841,7 +1841,7 @@ vehiculeSchema.statics.topParNote = function(limite = 10) {
   })
   .sort({ 'statistiques.noteMoyenne': -1, 'statistiques.nombreTrajets': -1 })
   .limit(limite)
-  .populate('proprietaireId', 'nom prenom photo');
+  .populate('proprietaireId', 'nom prenom photoProfil');
 };
 
 // Véhicules les plus actifs
@@ -1852,7 +1852,7 @@ vehiculeSchema.statics.plusActifs = function(limite = 10) {
   })
   .sort({ 'statistiques.nombreTrajets': -1, 'statistiques.noteMoyenne': -1 })
   .limit(limite)
-  .populate('proprietaireId', 'nom prenom photo');
+  .populate('proprietaireId', 'nom prenom photoProfil');
 };
 
 // Véhicules avec signalements non traités

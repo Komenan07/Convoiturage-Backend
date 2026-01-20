@@ -38,13 +38,18 @@ class TrajetController {
   /**
    * 🆕 Vérifie si un trajet est actif (programmé ou en cours, avec date >= aujourd'hui)
    */
-  _buildActiveTripsQuery(additionalFilters = {}) {
+  _buildActiveTripsQuery(additionalFilters = {}, includeExpired = false) {
     return {
-      statutTrajet: { $in: ['PROGRAMME', 'EN_COURS'] },
-      dateDepart: { $gte: this._getStartOfToday() }, // ✅ Depuis le début d'aujourd'hui
+      statutTrajet: {
+        $in: includeExpired
+          ? ['PROGRAMME', 'EN_COURS', 'EXPIRE']
+          : ['PROGRAMME', 'EN_COURS']
+      },
+      dateDepart: { $gte: this._getStartOfToday() },
       ...additionalFilters
     };
   }
+
 
   // ==================== CREATE ====================
   
@@ -190,7 +195,7 @@ async recalculerDistance(req, res, next) {
     const infoDistance = await trajet.recalculerDistance();
 
     // Retourner le trajet normalisé avec isExpired
-    await trajet.populate('conducteurId', 'nom prenom photo');
+    await trajet.populate('conducteurId', 'nom prenom photoProfil');
     const trajetObj = this._attachIsExpired([trajet])[0];
 
     res.json({
@@ -225,8 +230,8 @@ async recalculerDistance(req, res, next) {
       }
 
       // Vérifier autorisation
-      if (trajet.conducteurId.toString() !== req.user.id) {
-        return next(AppError.forbidden('Seul le conducteur peut démarrer ce trajet'));
+      if (trajet.conducteurId.toString() !== req.user.id.toString()) {
+        return next(AppError.badRequest('Seul le conducteur peut démarrer ce trajet'));
       }
 
       // Vérifier le statut
@@ -243,15 +248,21 @@ async recalculerDistance(req, res, next) {
         statutReservation: 'CONFIRMEE'
       });
 
-      if (reservationsConfirmees === 0) {
-        return next(AppError.badRequest('Aucune réservation confirmée pour ce trajet'));
-      }
+      // if (reservationsConfirmees === 0) {
+      //   return next(AppError.badRequest('Aucune réservation confirmée pour ce trajet'));
+      // }
 
       console.log('🚀 Démarrage trajet:', id);
 
       // Mettre à jour le statut et l'heure de départ réelle
       trajet.statutTrajet = 'EN_COURS';
-      trajet.heureDepart = heureDepart || new Date();
+      // ✅ Formater l'heure au format HH:MM si non fournie
+      if (heureDepart) {
+        trajet.heureDepart = heureDepart;
+      } else {
+        const now = new Date();
+        trajet.heureDepart = now.toTimeString().slice(0, 5); // "HH:MM"
+      }
       await trajet.save();
 
       // Notifier tous les passagers confirmés via FCM
@@ -405,7 +416,7 @@ async recalculerDistance(req, res, next) {
         }
       }
 
-      await trajet.populate('conducteurId', 'nom prenom photo');
+      await trajet.populate('conducteurId', 'nom prenom photoProfil');
       const trajetObj = this._attachIsExpired([trajet])[0];
 
       res.json({
@@ -502,7 +513,7 @@ async recalculerDistance(req, res, next) {
       const nouveauTrajet = new Trajet(trajetData);
       await nouveauTrajet.save();
 
-      await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
+      await nouveauTrajet.populate('conducteurId', 'nom prenom photoProfil');
 
       // ✅ Convertir en JSON (le virtual isExpired sera automatiquement inclus)
       const nouveauTrajetObj = nouveauTrajet.toJSON();
@@ -589,7 +600,7 @@ async recalculerDistance(req, res, next) {
       const nouveauTrajet = new Trajet(trajetData);
       await nouveauTrajet.save();
 
-      await nouveauTrajet.populate('conducteurId', 'nom prenom photo');
+      await nouveauTrajet.populate('conducteurId', 'nom prenom photoProfil');
 
       // Normaliser isExpired avant retour
       const nouveauTrajetObj = this._attachIsExpired([nouveauTrajet])[0];
@@ -625,12 +636,15 @@ async recalculerDistance(req, res, next) {
       const { conducteurId } = req.params;
       const { page = 1, limit = 20 } = req.query;
 
-    const query = this._buildActiveTripsQuery({ conducteurId });
+      // Query qui inclut TOUS les statuts et bypass le middleware pre-find
+      const query = this._buildActiveTripsQuery({ conducteurId }, true);
+      
       const options = {
         page: parseInt(page),
         limit: parseInt(limit),
-        sort: { dateDepart: 1 },
-        populate: { path: 'conducteurId', select: 'nom prenom photo note' }
+        sort: { dateDepart: -1 }, // Plus récents en premier
+        populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' },
+        lean: true // ⭐ Bypass le middleware pre-find
       };
 
       const trajets = await Trajet.paginate(query, options);
@@ -651,6 +665,7 @@ async recalculerDistance(req, res, next) {
       });
 
     } catch (error) {
+      console.error('❌ Erreur obtenirTrajetsConducteur:', error);
       return next(AppError.serverError('Erreur serveur lors de la récupération des trajets', { 
         originalError: error.message 
       }));
@@ -747,7 +762,7 @@ async recalculerDistance(req, res, next) {
         page: parseInt(page),
         limit: parseInt(limit),
         sort: { dateDepart: -1 },
-        populate: { path: 'conducteurId', select: 'nom prenom photo' }
+        populate: { path: 'conducteurId', select: 'nom prenom photoProfil' }
       };
 
       const result = await Trajet.paginate(query, options);
@@ -1217,13 +1232,13 @@ async recalculerDistance(req, res, next) {
       const { conducteurId } = req.params;
       const { page = 1, limit = 20 } = req.query;
 
-      const query = this._buildActiveTripsQuery({ conducteurId });
+      const query = this._buildActiveTripsQuery({ conducteurId } , true);
 
       const options = {
         page: parseInt(page),
         limit: parseInt(limit),
         sort: { dateDepart: 1 },
-        populate: { path: 'conducteurId', select: 'nom prenom photo note' }
+        populate: { path: 'conducteurId', select: 'nom prenom photoProfil note' }
       };
 
       const trajets = await Trajet.paginate(query, options);
@@ -1364,8 +1379,13 @@ async recalculerDistance(req, res, next) {
       });
 
       if (req.body.dateDepart) {
-        const nouvelleDate = new Date(req.body.dateDepart);
-        if (nouvelleDate < new Date()) {
+        const nouvelleDateDepart = new Date(req.body.dateDepart);
+          const heureDepart = req.body.heureDepart || trajet.heureDepart;
+          
+          // Créer la date/heure complète
+          const [heures, minutes] = heureDepart.split(':').map(Number);
+          nouvelleDateDepart.setHours(heures, minutes, 0, 0);
+        if (nouvelleDateDepart < new Date()) {
           return res.status(400).json({
             success: false,
             message: 'La nouvelle date de départ doit être dans le futur'
@@ -1373,10 +1393,14 @@ async recalculerDistance(req, res, next) {
         }
       }
 
+      if(trajet.statutTrajet == 'EXPIRE'){
+        trajet.statutTrajet = 'PROGRAMME';
+      }
+
       // ⭐ Le hook va recalculer automatiquement distance/durée/arrivée
       await trajet.save();
 
-      await trajet.populate('conducteurId', 'nom prenom photo');
+      await trajet.populate('conducteurId', 'nom prenom photoProfil');
 
       // Normaliser isExpired avant retour
       const trajetObj = this._attachIsExpired([trajet])[0];
@@ -1444,7 +1468,7 @@ async recalculerDistance(req, res, next) {
       await this.gererNotificationsStatut(trajet, ancienStatut, statutTrajet);
 
       // Retourner le trajet avec isExpired normalisé
-      await trajet.populate('conducteurId', 'nom prenom photo');
+      await trajet.populate('conducteurId', 'nom prenom photoProfil');
       const trajetObj = this._attachIsExpired([trajet])[0];
 
       res.json({
@@ -1501,7 +1525,7 @@ async recalculerDistance(req, res, next) {
       await this.envoyerNotificationsAnnulation(trajet, motifAnnulation);
 
       // Retourner le trajet normalisé
-      await trajet.populate('conducteurId', 'nom prenom photo');
+      await trajet.populate('conducteurId', 'nom prenom photoProfil');
       const trajetObj = this._attachIsExpired([trajet])[0];
 
       res.json({

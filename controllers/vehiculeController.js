@@ -156,7 +156,7 @@ const creerVehicule = async (req, res, next) => {
     
     const nouveauVehicule = new Vehicule(vehiculeData);
     await nouveauVehicule.save();
-    await nouveauVehicule.populate('proprietaireId', 'nom prenom email telephone photo');
+    await nouveauVehicule.populate('proprietaireId', 'nom prenom email telephone photoProfil');
 
     logger.info('✅ Véhicule créé avec succès', { 
       vehiculeId: nouveauVehicule._id, 
@@ -292,7 +292,7 @@ const obtenirMesVehicules = async (req, res, next) => {
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit))
-      .populate('proprietaireId', 'nom prenom email telephone photo');
+      .populate('proprietaireId', 'nom prenom email telephone photoProfil');
 
     const total = await Vehicule.countDocuments(criteres);
 
@@ -1870,7 +1870,7 @@ const obtenirVehiculePrincipal = async (req, res, next) => {
     const vehiculePrincipal = await Vehicule.findOne({
       proprietaireId: req.user.userId,
       estPrincipal: true
-    }).populate('proprietaireId', 'nom prenom email telephone photo');
+    }).populate('proprietaireId', 'nom prenom email telephone photoProfil');
 
     if (!vehiculePrincipal) {
       return res.status(404).json({
