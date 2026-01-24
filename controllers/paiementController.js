@@ -63,7 +63,7 @@ class PaiementController {
         path: 'trajetId',
         populate: {
           path: 'conducteurId',
-          select: 'nom prenom compteCovoiturage noteMoyenne statistiques'
+          select: 'nom prenom compteCovoiturage noteGenerale statistiques'
         }
       });
 
@@ -289,7 +289,7 @@ class PaiementController {
       const { trajetId } = req.params;
 
       const trajet = await Trajet.findById(trajetId)
-        .populate('conducteurId', 'nom prenom compteCovoiturage noteMoyenne');
+        .populate('conducteurId', 'nom prenom compteCovoiturage noteGenerale');
 
       if (!trajet) {
         return res.status(404).json({

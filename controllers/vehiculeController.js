@@ -354,7 +354,7 @@ const obtenirVehicule = async (req, res, next) => {
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
-    }).populate('proprietaireId', 'nom prenom email telephone photo noteMoyenne estCertifie');
+    }).populate('proprietaireId', 'nom prenom email telephone photoProfil noteGenerale estCertifie');
 
     if (!vehicule) {
       return res.status(404).json({

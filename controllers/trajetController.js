@@ -710,7 +710,7 @@ async recalculerDistance(req, res, next) {
         page: parseInt(page),
         limit: parseInt(limit),
         sort: { dateDepart: 1 },
-        populate: { path: 'conducteurId', select: 'nom prenom photo note' }
+        populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' }
       };
 
       const result = await Trajet.paginate(query, options);
@@ -985,8 +985,8 @@ async recalculerDistance(req, res, next) {
                       _id: '$conducteurInfo._id',
                       nom: '$conducteurInfo.nom',
                       prenom: '$conducteurInfo.prenom',
-                      photo: '$conducteurInfo.photoProfil',
-                      note: '$conducteurInfo.noteGenerale'
+                      photoProfil: '$conducteurInfo.photoProfil',
+                      noteGenerale: '$conducteurInfo.noteGenerale'
                     },
                     distanceKm: { 
                       $round: [{ $divide: ['$distanceFromSearch', 1000] }, 2] 
@@ -1238,7 +1238,7 @@ async recalculerDistance(req, res, next) {
         page: parseInt(page),
         limit: parseInt(limit),
         sort: { dateDepart: 1 },
-        populate: { path: 'conducteurId', select: 'nom prenom photoProfil note' }
+        populate: { path: 'conducteurId', select: 'nom prenom photoProfil noteGenerale' }
       };
 
       const trajets = await Trajet.paginate(query, options);
