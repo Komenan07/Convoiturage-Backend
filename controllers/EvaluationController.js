@@ -1,4 +1,5 @@
 const AppError = require('../utils/AppError');
+const Evaluation = require('../models/Evaluation'); 
 
 const logger = console; 
 
@@ -25,7 +26,11 @@ class evaluationController {
       'masquerEvaluation',
       'demasquerEvaluation',
       'obtenirMeilleuresEvaluations',
-      'verifierDelaiEvaluation'
+      'verifierDelaiEvaluation',
+      'validerLangueCommentaire', 
+      'obtenirPrisesEnChargeTrajet',
+      'signalerPriseEnCharge',
+      'getEvaluationPourRepondre'
     ];
     
     methods.forEach(method => {
@@ -38,262 +43,374 @@ class evaluationController {
    * Remplace creerEvaluation pour le workflow initial
    */
   async creerEvaluationEnAttente(req, res, next) {
+  try {
+    const { trajetId, evalueId, typeEvaluateur } = req.body;
+    const evaluateurId = req.user.id;
+
+    // Validation des données obligatoires
+    if (!trajetId || !evalueId || !typeEvaluateur) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Trajet, utilisateur évalué et type d\'évaluateur sont obligatoires' 
+      });
+    }
+
+    // Validation du type d'évaluateur
+    if (!['CONDUCTEUR', 'PASSAGER'].includes(typeEvaluateur)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Type d\'évaluateur invalide. Doit être CONDUCTEUR ou PASSAGER' 
+      });
+    }
+
+    const evaluation = await this.evaluationService.creerEvaluationEnAttente(
+      trajetId,
+      evaluateurId,
+      evalueId,
+      typeEvaluateur
+    );
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Évaluation créée en attente. Veuillez la compléter dans les 7 jours.', 
+      data: evaluation 
+    });
+  } catch (error) {
+    // Gérer les erreurs métier spécifiques
+    if (error.message.includes('déjà créé une évaluation')) {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+        code: 'EVALUATION_ALREADY_EXISTS'
+      });
+    }
+
+    if (error.message.includes('Trajet introuvable') || error.message.includes('Utilisateur introuvable')) {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+        code: 'RESOURCE_NOT_FOUND'
+      });
+    }
+
+    if (error.message.includes('n\'avez pas participé') || error.message.includes('ne pouvez pas')) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+        code: 'FORBIDDEN'
+      });
+    }
+
+    // Erreur serveur non gérée
+    logger.error('Erreur création évaluation en attente:', error);
+    return next(AppError.serverError('Erreur serveur lors de la création de l\'évaluation', { originalError: error.message }));
+  }
+}
+
+  /**
+ * Compléter une évaluation en attente
+ * C'est la méthode principale pour évaluer après un trajet
+ */
+  async completerEvaluation(req, res, next) {
+  try {
+    const { id } = req.params;
+    const {
+      notes, 
+      commentaire,
+      aspectsPositifs = [], 
+      aspectsAmeliorer = [],
+      estSignalement = false, 
+      motifSignalement, 
+      gravite
+    } = req.body;
+
+    const userId = req.user.id;
+
+    // Validation des notes obligatoires
+    if (!notes) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Les notes sont obligatoires' 
+      });
+    }
+
+    // Validation des critères de notes
+    const criteres = ['ponctualite', 'proprete', 'qualiteConduite', 'respect', 'communication'];
+    const notesValides = criteres.every(critere => {
+      const note = notes[critere];
+      return note !== undefined && Number.isInteger(note) && note >= 1 && note <= 5;
+    });
+
+    if (!notesValides) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Toutes les notes doivent être des entiers entre 1 et 5 (ponctualite, proprete, qualiteConduite, respect, communication)' 
+      });
+    }
+
+    // Validation de la langue française
+    if (commentaire && commentaire.trim().length > 0) {
+      const detection = Evaluation.detecterLangue(commentaire);
+
+      if (!detection.estFrancais) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Le commentaire doit être rédigé en français conformément à la réglementation ivoirienne',
+          details: {
+            langueDetectee: detection.langue,
+            confiance: detection.confiance,
+            suggestion: 'Veuillez reformuler votre commentaire en français'
+          }
+        });
+      }
+
+      logger.info(`✅ Commentaire validé en français (confiance: ${detection.confiance}%)`);
+    }
+
+    // ✅ Appel du service sans typeUtilisateur
+    const evaluation = await this.evaluationService.completerEvaluation(
+      id,
+      userId,
+      null,  // Le service déterminera automatiquement
+      {
+        notes,
+        commentaire,
+        aspectsPositifs,
+        aspectsAmeliorer,
+        estSignalement,
+        motifSignalement,
+        gravite
+      }
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Évaluation complétée avec succès', 
+      data: evaluation 
+    });
+  } catch (error) {
+    logger.error('Erreur complétion évaluation:', error);
+    
+    if (error.message.includes('non trouvée')) {
+      return next(AppError.notFound('Évaluation non trouvée'));
+    }
+    if (error.message.includes('pas autorisé') || error.message.includes('expiré')) {
+      return next(AppError.forbidden(error.message));
+    }
+    
+    return next(AppError.serverError('Erreur serveur lors de la complétion de l\'évaluation', { originalError: error.message }));
+  }
+  }
+
+  /**
+ * 🆕 Signaler qu'un passager a été pris en charge
+ * Fonctionnalité anti-fraude pour éviter les doubles prises en charge
+ */
+  async signalerPriseEnCharge(req, res, next) {
     try {
-      const { trajetId, evalueId, typeEvaluateur } = req.body;
-      const evaluateurId = req.user.id;
+      const { trajetId, passagerId, localisation } = req.body;
+      const conducteurId = req.user._id; // ✅ CORRECTION : Utiliser _id
 
       // Validation des données obligatoires
-      if (!trajetId || !evalueId || !typeEvaluateur) {
+      if (!trajetId || !passagerId) {
         return res.status(400).json({ 
           success: false, 
-          message: 'Trajet, utilisateur évalué et type d\'évaluateur sont obligatoires' 
+          message: 'Trajet et passager sont obligatoires' 
         });
       }
 
-      // Validation du type d'évaluateur
-      if (!['CONDUCTEUR', 'PASSAGER'].includes(typeEvaluateur)) {
+      if (!localisation || !localisation.latitude || !localisation.longitude) {
         return res.status(400).json({ 
           success: false, 
-          message: 'Type d\'évaluateur invalide. Doit être CONDUCTEUR ou PASSAGER' 
+          message: 'La localisation (latitude, longitude) est obligatoire' 
         });
       }
 
-      const evaluation = await this.evaluationService.creerEvaluationEnAttente(
+      // Valider le format des coordonnées
+      const lat = parseFloat(localisation.latitude);
+      const lng = parseFloat(localisation.longitude);
+
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Coordonnées GPS invalides' 
+        });
+      }
+
+      // ✅ Appeler le service (AJOUTER LA MÉTHODE DANS evaluationService)
+      const result = await this.evaluationService.signalerPriseEnCharge(
         trajetId,
-        evaluateurId,
-        evalueId,
-        typeEvaluateur
+        conducteurId,
+        passagerId,
+        { latitude: lat, longitude: lng }
       );
 
-      res.status(201).json({ 
+      // Déterminer le message de réponse
+      let message = 'Prise en charge confirmée avec succès';
+
+      if (result.alerteFraude) {
+        message = `⚠️ ALERTE: ${result.nombreConducteursProches} autre(s) conducteur(s) ont signalé une prise en charge à proximité`;
+      }
+
+      res.status(200).json({ 
         success: true, 
-        message: 'Évaluation créée en attente. Veuillez la compléter dans les 7 jours.', 
-        data: evaluation 
+        message,
+        data: result,
+        alerte: result.alerteFraude ? {
+          type: 'FRAUDE_POTENTIELLE',
+          gravite: result.nombreConducteursProches > 1 ? 'ELEVEE' : 'MOYENNE',
+          detail: `${result.nombreConducteursProches} conducteur(s) dans un rayon de 500m`
+        } : null
       });
     } catch (error) {
-      logger.error('Erreur création évaluation en attente:', error);
-      return next(AppError.serverError('Erreur serveur lors de la création de l\'évaluation', { originalError: error.message }));
+      logger.error('Erreur signalement prise en charge:', error);
+      
+      if (error.message.includes('non trouvée') || error.message.includes('introuvable')) {
+        return next(AppError.notFound(error.message));
+      }
+      if (error.message.includes('déjà confirmée')) {
+        return next(AppError.conflict(error.message));
+      }
+      
+      return next(AppError.serverError('Erreur serveur lors du signalement de prise en charge', { originalError: error.message }));
     }
   }
 
   /**
-   * Compléter une évaluation en attente
-   * C'est la méthode principale pour évaluer après un trajet
+   * 🆕 Valider la langue d'un commentaire
+   * Endpoint pour vérifier si un commentaire est en français avant soumission
    */
-  async completerEvaluation(req, res, next) {
+  async validerLangueCommentaire(req, res, next) {
     try {
-      const { id } = req.params;
-      const {
-        notes, 
-        commentaire,
-        aspectsPositifs = [], 
-        aspectsAmeliorer = [],
-        estSignalement = false, 
-        motifSignalement, 
-        gravite
-      } = req.body;
+      const { commentaire } = req.body;
 
-      const userId = req.user.id;
-      const typeUtilisateur = req.user.typeUtilisateur; // CONDUCTEUR ou PASSAGER
-
-      // Validation des notes obligatoires
-      if (!notes) {
+      if (!commentaire || commentaire.trim().length === 0) {
         return res.status(400).json({ 
           success: false, 
-          message: 'Les notes sont obligatoires' 
+          message: 'Le commentaire est obligatoire' 
         });
       }
 
-      // Validation des critères de notes
-      const criteres = ['ponctualite', 'proprete', 'qualiteConduite', 'respect', 'communication'];
-      const notesValides = criteres.every(critere => {
-        const note = notes[critere];
-        return note !== undefined && Number.isInteger(note) && note >= 1 && note <= 5;
-      });
-
-      if (!notesValides) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Toutes les notes doivent être des entiers entre 1 et 5 (ponctualite, proprete, qualiteConduite, respect, communication)' 
-        });
-      }
-
-      // Validation du signalement si présent
-      if (estSignalement) {
-        if (!motifSignalement) {
-          return res.status(400).json({ 
-            success: false, 
-            message: 'Le motif de signalement est obligatoire' 
-          });
-        }
-
-        const motifsValides = [
-          'COMPORTEMENT_INAPPROPRIE',
-          'CONDUITE_DANGEREUSE',
-          'RETARD_EXCESSIF',
-          'VEHICULE_INSALUBRE',
-          'MANQUE_RESPECT',
-          'AUTRE'
-        ];
-
-        if (!motifsValides.includes(motifSignalement)) {
-          return res.status(400).json({ 
-            success: false, 
-            message: `Motif de signalement invalide. Valeurs acceptées: ${motifsValides.join(', ')}` 
-          });
-        }
-
-        if (!gravite) {
-          return res.status(400).json({ 
-            success: false, 
-            message: 'La gravité du signalement est obligatoire' 
-          });
-        }
-
-        const gravitesValides = ['LEGER', 'MOYEN', 'GRAVE'];
-        if (!gravitesValides.includes(gravite)) {
-          return res.status(400).json({ 
-            success: false, 
-            message: `Gravité invalide. Valeurs acceptées: ${gravitesValides.join(', ')}` 
-          });
-        }
-      }
-
-      // Validation des aspects positifs
-      const aspectsPositifsValides = [
-        'PONCTUEL', 'SYMPATHIQUE', 'VEHICULE_PROPRE', 'BONNE_CONDUITE',
-        'RESPECTUEUX', 'COMMUNICATIF', 'SERVIABLE', 'COURTOIS',
-        'AMBIANCE_AGREABLE', 'MUSIQUE_ADAPTEE', 'CLIMATISATION_OK',
-        'BAGAGES_BIEN_GERES', 'FLEXIBLE_HORAIRES'
-      ];
-
-      const aspectsPositifsInvalides = aspectsPositifs.filter(
-        aspect => !aspectsPositifsValides.includes(aspect)
-      );
-
-      if (aspectsPositifsInvalides.length > 0) {
-        return res.status(400).json({ 
-          success: false, 
-          message: `Aspects positifs invalides: ${aspectsPositifsInvalides.join(', ')}` 
-        });
-      }
-
-      // Validation des aspects à améliorer
-      const aspectsAmeliorerValides = [
-        'PONCTUALITE', 'PROPRETE', 'CONDUITE', 'COMMUNICATION',
-        'RESPECT', 'PATIENCE', 'ORGANISATION', 'GESTION_BAGAGES',
-        'ENTRETIEN_VEHICULE'
-      ];
-
-      const aspectsAmeliorerInvalides = aspectsAmeliorer.filter(
-        aspect => !aspectsAmeliorerValides.includes(aspect)
-      );
-
-      if (aspectsAmeliorerInvalides.length > 0) {
-        return res.status(400).json({ 
-          success: false, 
-          message: `Aspects à améliorer invalides: ${aspectsAmeliorerInvalides.join(', ')}` 
-        });
-      }
-
-      const evaluation = await this.evaluationService.completerEvaluation(
-        id,
-        userId,
-        typeUtilisateur,
-        {
-          notes,
-          commentaire,
-          aspectsPositifs,
-          aspectsAmeliorer,
-          estSignalement,
-          motifSignalement,
-          gravite
-        }
-      );
+      const Evaluation = require('../models/Evaluation');
+      const detection = Evaluation.detecterLangue(commentaire);
 
       res.json({ 
         success: true, 
-        message: 'Évaluation complétée avec succès', 
-        data: evaluation 
+        data: {
+          estFrancais: detection.estFrancais,
+          langue: detection.langue,
+          confiance: detection.confiance,
+          message: detection.estFrancais ? 
+            '✅ Commentaire en français validé' : 
+            `⚠️ Le commentaire doit être rédigé en français. Langue détectée: ${detection.langue}`,
+          accepte: detection.estFrancais
+        }
       });
     } catch (error) {
-      logger.error('Erreur complétion évaluation:', error);
-      
-      // Gestion des erreurs spécifiques
-      if (error.message.includes('non trouvée')) {
-        return next(AppError.notFound('Évaluation non trouvée'));
-      }
-      if (error.message.includes('pas autorisé') || error.message.includes('expiré')) {
-        return next(AppError.forbidden(error.message));
-      }
-      
-      return next(AppError.serverError('Erreur serveur lors de la complétion de l\'évaluation', { originalError: error.message }));
+      logger.error('Erreur validation langue:', error);
+      return next(AppError.serverError('Erreur serveur lors de la validation de la langue', { originalError: error.message }));
+    }
+  }
+
+  /**
+   * 🆕 Obtenir l'historique des prises en charge d'un trajet
+   * Pour détecter les fraudes et conflits
+   */
+  async obtenirPrisesEnChargeTrajet(req, res, next) {
+    try {
+      const { trajetId } = req.params;
+
+      const prisesEnCharge = await this.evaluationService.obtenirPrisesEnChargeTrajet(trajetId);
+
+      res.json({ 
+        success: true, 
+        count: prisesEnCharge.length,
+        data: prisesEnCharge,
+        alerte: prisesEnCharge.some(p => p.alerteDoublon) ? {
+          type: 'DOUBLONS_DETECTES',
+          message: 'Des doublons de prise en charge ont été détectés'
+        } : null
+      });
+    } catch (error) {
+      logger.error('Erreur récupération prises en charge:', error);
+      return next(AppError.serverError('Erreur serveur lors de la récupération des prises en charge', { originalError: error.message }));
     }
   }
 
   async creerEvaluation(req, res, next) {
-    try {
-      const {
-        trajetId, 
-        evalueId, 
-        notes, 
-        commentaire,
-        aspectsPositifs = [], 
-        aspectsAmeliorer = [],
-        estSignalement = false, 
-        motifSignalement, 
-        gravite
-      } = req.body;
+  try {
+    const {
+      trajetId, 
+      evalueId, 
+      typeEvaluateur, // ✅ AJOUT DU CHAMP MANQUANT
+      notes, 
+      commentaire,
+      aspectsPositifs = [], 
+      aspectsAmeliorer = [],
+      estSignalement = false, 
+      motifSignalement, 
+      gravite
+    } = req.body;
 
-      const evaluateurId = req.user.id;
+    const evaluateurId = req.user.id;
 
-      // Validation des données obligatoires
-      if (!trajetId || !evalueId || !notes) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Trajet, utilisateur évalué et notes sont obligatoires' 
-        });
-      }
-
-      // Validation des notes
-      const criteres = ['ponctualite', 'proprete', 'qualiteConduite', 'respect', 'communication'];
-      const notesValides = criteres.every(critere => {
-        const note = notes[critere];
-        return note !== undefined && Number.isInteger(note) && note >= 1 && note <= 5;
+    // Validation des données obligatoires
+    if (!trajetId || !evalueId || !notes || !typeEvaluateur) { // ✅ VALIDATION AJOUTÉE
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Trajet, utilisateur évalué, type d\'évaluateur et notes sont obligatoires' 
       });
-
-      if (!notesValides) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Toutes les notes doivent être des entiers entre 1 et 5' 
-        });
-      }
-
-      const evaluation = await this.evaluationService.creerEvaluation(
-        {
-          trajetId,
-          evalueId,
-          notes,
-          commentaire,
-          aspectsPositifs,
-          aspectsAmeliorer,
-          estSignalement,
-          motifSignalement,
-          gravite
-        },
-        evaluateurId
-      );
-
-      res.status(201).json({ 
-        success: true, 
-        message: 'Évaluation créée avec succès', 
-        data: evaluation 
-      });
-    } catch (error) {
-      logger.error('Erreur création évaluation:', error);
-      return next(AppError.serverError('Erreur serveur lors de la création de l\'évaluation', { originalError: error.message }));
     }
+
+    // ✅ VALIDATION DU TYPE D'ÉVALUATEUR
+    if (!['CONDUCTEUR', 'PASSAGER'].includes(typeEvaluateur)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Type d\'évaluateur invalide. Doit être CONDUCTEUR ou PASSAGER' 
+      });
+    }
+
+    // Validation des notes
+    const criteres = ['ponctualite', 'proprete', 'qualiteConduite', 'respect', 'communication'];
+    const notesValides = criteres.every(critere => {
+      const note = notes[critere];
+      return note !== undefined && Number.isInteger(note) && note >= 1 && note <= 5;
+    });
+
+    if (!notesValides) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Toutes les notes doivent être des entiers entre 1 et 5 (ponctualite, proprete, qualiteConduite, respect, communication)' 
+      });
+    }
+
+    // ✅ PASSAGE DU typeEvaluateur AU SERVICE
+    const evaluation = await this.evaluationService.creerEvaluation(
+      {
+        trajetId,
+        evalueId,
+        typeEvaluateur, 
+        notes,
+        commentaire,
+        aspectsPositifs,
+        aspectsAmeliorer,
+        estSignalement,
+        motifSignalement,
+        gravite
+      },
+      evaluateurId
+    );
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Évaluation créée avec succès', 
+      data: evaluation 
+    });
+  } catch (error) {
+    logger.error('❌ Erreur création évaluation:', error);
+    return next(AppError.serverError('Erreur serveur lors de la création de l\'évaluation', { originalError: error.message }));
   }
+}
 
   /**
    *  Obtenir les évaluations en attente d'un utilisateur
@@ -413,6 +530,39 @@ class evaluationController {
     } catch (error) {
       logger.error('Erreur réponse évaluation:', error);
       return next(AppError.serverError('Erreur serveur lors de l\'ajout de la réponse', { originalError: error.message }));
+    }
+  }
+
+  // EvaluationController.js - Méthode temporaire de debug
+  async getEvaluationPourRepondre(req, res) {
+    try {
+      const userId = req.user.id;
+
+      const evaluations = await Evaluation.find({
+        evalueId: userId,
+        statutEvaluation: 'COMPLETEE',
+        reponseEvalue: { $exists: false }
+      })
+      .populate('evaluateurId', 'nom prenom')
+      .populate('trajetId', 'pointDepart pointArrivee')
+      .sort({ dateEvaluation: -1 })
+      .limit(10);
+
+      res.json({
+        success: true,
+        message: `${evaluations.length} évaluation(s) sans réponse trouvée(s)`,
+        data: evaluations.map(e => ({
+          id: e._id,
+          evaluateur: e.evaluateurId,
+          trajet: e.trajetId,
+          note: e.notes.noteGlobale,
+          commentaire: e.commentaire,
+          date: e.dateEvaluation
+        }))
+      });
+
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
     }
   }
 
@@ -609,4 +759,5 @@ class evaluationController {
   }
 }
 
-module.exports = evaluationController;
+const evaluationService = require('../services/EvaluationService');
+module.exports = new evaluationController(evaluationService);

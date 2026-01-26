@@ -160,7 +160,7 @@ class PaiementController {
 
       // 🆕 Calculer commission dynamique selon distance et note
       const distanceKm = trajet.distanceKm || 0;
-      const noteConducteur = conducteur.noteMoyenne || 0;
+      const noteConducteur = conducteur.noteGenerale || 0;
       await paiement.calculerCommissionDynamique(distanceKm, noteConducteur);
 
       // 🆕 Appliquer bonus si applicable
@@ -367,7 +367,7 @@ class PaiementController {
             nom: `${conducteur.prenom} ${conducteur.nom}`,
             compteRecharge,
             solde: compteRecharge ? soldeConducteur : 0,
-            noteMoyenne: conducteur.noteMoyenne || 0
+            noteGenerale: conducteur.noteGenerale || 0 
           },
           informations: {
             commissionPlateforme: 'Commission de base 10% (peut être réduite selon la note du conducteur)',
