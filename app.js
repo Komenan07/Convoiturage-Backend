@@ -222,6 +222,7 @@ const routesConfig = [
   { nom: 'authentification', chemins: ['./routes/authRoute.js'], url: '/api/auth' },
   { nom: 'utilisateurs', chemins: ['./routes/utilisateur.js'], url: '/api/utilisateurs' },
   { nom: 'véhicules', chemins: ['./routes/vehicules.js'], url: '/api/vehicules' },
+  { nom: 'recherche-trajets', chemins: ['./routes/trajetSearch.js'], url: '/api/trajets/search' },
   { nom: 'trajets', chemins: ['./routes/trajets.js'], url: '/api/trajets' },
   { nom: 'réservations', chemins: ['./routes/reservations.js'], url: '/api/reservations' },
   { nom: 'messages', chemins: ['./routes/messages.js'], url: '/api/messages' },
@@ -235,6 +236,7 @@ const routesConfig = [
   { nom: 'places', chemins: ['./routes/placesV2Routes.js'], url: '/api/places' },
   { nom: 'verifications', chemins: ['./routes/verificationRoute.js'], url: '/api/verification' },
   { nom: 'notifications', chemins: ['./routes/notifications.js'], url: '/api/notifications' },
+  
 ];
 
 let routesChargees = 0;
