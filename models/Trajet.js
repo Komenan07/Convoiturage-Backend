@@ -423,8 +423,8 @@ const trajetSchema = new mongoose.Schema({
   index: true
   },
   raisonExpiration: {
-    type: String,
-    enum: ['DATE_PASSEE', 'RECURRENCE_TERMINEE', 'INACTIVITE', 'AUTRE']
+  type: String,
+  enum: ['DATE_PASSEE', 'RECURRENCE_TERMINEE', 'INACTIVITE', 'RETARD_EXCESSIF', 'AUTRE']
   },
 
   // Métadonnées

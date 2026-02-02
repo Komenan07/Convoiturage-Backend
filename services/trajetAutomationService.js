@@ -2,13 +2,15 @@
 
 const cron = require('node-cron');
 const Trajet = require('../models/Trajet');
+const Utilisateur = require('../models/Utilisateur'); 
+const firebaseService = require('./firebaseService'); 
 
 /**
  * 🚀 SERVICE UNIFIÉ DE GESTION AUTOMATIQUE DES TRAJETS
  * 
  * Logique complète:
- * 1. PROGRAMME + heure départ atteinte (±15min) → EN_COURS
- * 2. PROGRAMME + heure départ dépassée (>15min) → EXPIRE
+ * 1. PROGRAMME + heure départ atteinte (±30min) → EN_COURS
+ * 2. PROGRAMME + heure départ dépassée (>30min) → EXPIRE
  * 3. EN_COURS + arrivée prévue + 30min → TERMINE
  * 4. EN_COURS + arrivée dépassée (sans terminaison) → EN_RETARD
  * 5. EN_RETARD + 2h → EXPIRE
@@ -24,13 +26,14 @@ class TrajetAutomationService {
 
   /**
    * 🔄 1. ACTIVER les trajets dont l'heure de départ est atteinte
-   * PROGRAMME → EN_COURS (dans une fenêtre de ±15 minutes)
+   * PROGRAMME → EN_COURS (dans une fenêtre de ±30 minutes)
    */
   async activerTrajetsEnAttente() {
     try {
       const maintenant = new Date();
-      const margeAvant = new Date(maintenant.getTime() - 15 * 60 * 1000); // -15 min
-      const margeApres = new Date(maintenant.getTime() + 15 * 60 * 1000); // +15 min
+      // ✅ APRÈS (±30 min = 1h total)
+      const margeAvant = new Date(maintenant.getTime() - 30 * 60 * 1000); // -30 min
+      const margeApres = new Date(maintenant.getTime() + 30 * 60 * 1000); // +30 min
       
       const trajetsAActiver = await Trajet.find({
         statutTrajet: 'PROGRAMME',
@@ -46,7 +49,7 @@ class TrajetAutomationService {
           const dateDepartComplete = new Date(trajet.dateDepart);
           dateDepartComplete.setHours(heures, minutes, 0, 0);
           
-          // Activer si dans la fenêtre [-15min, +15min]
+          // Activer si dans la fenêtre [-30min, +30min]
           if (dateDepartComplete >= margeAvant && dateDepartComplete <= margeApres) {
             trajet.statutTrajet = 'EN_COURS';
             await trajet.save();
@@ -80,12 +83,12 @@ class TrajetAutomationService {
 
   /**
    * ⏰ 2. EXPIRER les trajets PROGRAMME dont le départ est trop ancien
-   * PROGRAMME + départ > 15min → EXPIRE
+   * PROGRAMME + départ > 30min → EXPIRE
    */
   async expirerTrajetsNonActives() {
     try {
       const maintenant = new Date();
-      const limiteActivation = new Date(maintenant.getTime() - 15 * 60 * 1000); // -15 min
+      const limiteActivation = new Date(maintenant.getTime() - 30 * 60 * 1000); // -30 min
       
       const trajetsAExpirer = await Trajet.find({
         statutTrajet: 'PROGRAMME',
@@ -101,7 +104,7 @@ class TrajetAutomationService {
           const dateDepartComplete = new Date(trajet.dateDepart);
           dateDepartComplete.setHours(heures, minutes, 0, 0);
           
-          // Expirer si départ > 15 minutes
+          // Expirer si départ > 30 minutes
           if (dateDepartComplete < limiteActivation) {
             idsAExpirer.push(trajet._id);
           }
@@ -126,6 +129,14 @@ class TrajetAutomationService {
         
         if (expired > 0) {
           console.log(`⏰ ${expired} trajet(s) PROGRAMME expiré(s)`);
+          
+          // ✅ AJOUTER : Envoyer notifications d'expiration
+          for (const trajetId of idsAExpirer) {
+            const trajetExpire = await Trajet.findById(trajetId).populate('conducteurId', 'nom prenom');
+            if (trajetExpire) {
+              await this._envoyerNotificationExpiration(trajetExpire);
+            }
+          }
         }
       }
 
@@ -246,6 +257,14 @@ class TrajetAutomationService {
         
         if (enRetard > 0) {
           console.log(`⚠️ ${enRetard} trajet(s) marqué(s) EN_RETARD`);
+          
+          // ✅ AJOUTER : Envoyer notifications de retard
+          for (const trajetId of idsEnRetard) {
+            const trajetRetard = await Trajet.findById(trajetId).populate('conducteurId', 'nom prenom');
+            if (trajetRetard) {
+              await this._envoyerNotificationRetard(trajetRetard);
+            }
+          }
         }
       }
 
@@ -265,6 +284,12 @@ class TrajetAutomationService {
       const maintenant = new Date();
       const limiteRetard = new Date(maintenant.getTime() - 2 * 60 * 60 * 1000); // -2h
       
+      // ✅ RÉCUPÉRER LES TRAJETS AVANT L'UPDATE
+      const trajetsAExpirer = await Trajet.find({
+        statutTrajet: 'EN_RETARD',
+        dateDebutRetard: { $lt: limiteRetard, $exists: true }
+      }).populate('conducteurId', 'nom prenom');
+      
       const result = await Trajet.updateMany(
         {
           statutTrajet: 'EN_RETARD',
@@ -281,6 +306,12 @@ class TrajetAutomationService {
 
       if (result.modifiedCount > 0) {
         console.log(`❌ ${result.modifiedCount} trajet(s) EN_RETARD expiré(s)`);
+        
+        // ✅ AJOUTER : Envoyer notifications
+        for (const trajet of trajetsAExpirer) {
+          trajet.raisonExpiration = 'RETARD_EXCESSIF';
+          await this._envoyerNotificationExpiration(trajet);
+        }
       }
 
       return { expiredFromDelay: result.modifiedCount };
@@ -394,6 +425,7 @@ class TrajetAutomationService {
 
     console.log('\n🚀 ========== SERVICE AUTOMATIQUE UNIFIÉ ==========');
     console.log('📋 Gestion complète des transitions de statuts');
+    console.log('🔧 Fenêtre d\'activation: ±30 minutes (1h total)'); 
     console.log('⏰ Fréquence: Toutes les minutes');
     console.log('===================================================\n');
 
@@ -431,17 +463,144 @@ class TrajetAutomationService {
     };
   }
 
-  // Notifications (TODO)
+  /**
+   * 🚗 Notification : Trajet activé
+   */
   async _envoyerNotificationActivation(trajet) {
-    console.log(`📧 Notification activation: ${trajet._id}`);
+    if (!firebaseService.isEnabled()) {
+      console.log(`📧 [SIMULATION] Notification activation: ${trajet._id}`);
+      return;
+    }
+
+    try {
+      await firebaseService.sendToUser(
+        trajet.conducteurId._id || trajet.conducteurId,
+        {
+          title: '🚗 Votre trajet a démarré !',
+          message: `${trajet.pointDepart.nom} → ${trajet.pointArrivee.nom}`,
+          data: {
+            type: 'TRAJET_ACTIVE',
+            trajetId: trajet._id.toString(),
+            depart: trajet.pointDepart.nom,
+            arrivee: trajet.pointArrivee.nom,
+            heureDepart: trajet.heureDepart,
+            screen: 'TrajetDetails'
+          },
+          channelId: 'trajets',
+          type: 'trajets'
+        },
+        Utilisateur
+      );
+      
+      console.log(`✅ Notification activation envoyée: ${trajet._id}`);
+    } catch (error) {
+      console.error(`❌ Erreur notification activation ${trajet._id}:`, error.message);
+    }
   }
 
+
+  /**
+   * 🏁 Notification : Trajet terminé
+   */
   async _envoyerNotificationTerminaison(trajet) {
-    console.log(`📧 Notification terminaison: ${trajet._id}`);
+    if (!firebaseService.isEnabled()) {
+      console.log(`📧 [SIMULATION] Notification terminaison: ${trajet._id}`);
+      return;
+    }
+
+    try {
+      await firebaseService.sendToUser(
+        trajet.conducteurId._id || trajet.conducteurId,
+        {
+          title: '🏁 Trajet terminé avec succès !',
+          message: `Félicitations ! ${trajet.pointDepart.nom} → ${trajet.pointArrivee.nom}`,
+          data: {
+            type: 'TRAJET_TERMINE',
+            trajetId: trajet._id.toString(),
+            depart: trajet.pointDepart.nom,
+            arrivee: trajet.pointArrivee.nom,
+            heureArrivee: trajet.heureArriveePrevue,
+            screen: 'TrajetHistory'
+          },
+          channelId: 'trajets',
+          type: 'trajets'
+        },
+        Utilisateur
+      );
+      
+      console.log(`✅ Notification terminaison envoyée: ${trajet._id}`);
+    } catch (error) {
+      console.error(`❌ Erreur notification terminaison ${trajet._id}:`, error.message);
+    }
   }
 
+  /**
+   * ⏰ Notification : Trajet expiré
+   */
   async _envoyerNotificationExpiration(trajet) {
-    console.log(`📧 Notification expiration: ${trajet._id}`);
+    if (!firebaseService.isEnabled()) {
+      console.log(`📧 [SIMULATION] Notification expiration: ${trajet._id}`);
+      return;
+    }
+
+    try {
+      await firebaseService.sendToUser(
+        trajet.conducteurId._id || trajet.conducteurId,
+        {
+          title: '⏰ Trajet expiré',
+          message: `Le trajet ${trajet.pointDepart.nom} → ${trajet.pointArrivee.nom} a expiré`,
+          data: {
+            type: 'TRAJET_EXPIRE',
+            trajetId: trajet._id.toString(),
+            depart: trajet.pointDepart.nom,
+            arrivee: trajet.pointArrivee.nom,
+            raisonExpiration: trajet.raisonExpiration || 'DATE_PASSEE',
+            screen: 'TrajetHistory'
+          },
+          channelId: 'trajets',
+          type: 'trajets'
+        },
+        Utilisateur
+      );
+      
+      console.log(`✅ Notification expiration envoyée: ${trajet._id}`);
+    } catch (error) {
+      console.error(`❌ Erreur notification expiration ${trajet._id}:`, error.message);
+    }
+  }
+   /**
+   * ⚠️ Notification : Trajet en retard (NOUVEAU)
+   */
+  async _envoyerNotificationRetard(trajet) {
+    if (!firebaseService.isEnabled()) {
+      console.log(`📧 [SIMULATION] Notification retard: ${trajet._id}`);
+      return;
+    }
+
+    try {
+      await firebaseService.sendToUser(
+        trajet.conducteurId._id || trajet.conducteurId,
+        {
+          title: '⚠️ Trajet en retard',
+          message: `Votre trajet vers ${trajet.pointArrivee.nom} est marqué en retard`,
+          data: {
+            type: 'TRAJET_RETARD',
+            trajetId: trajet._id.toString(),
+            depart: trajet.pointDepart.nom,
+            arrivee: trajet.pointArrivee.nom,
+            heureArriveePrevue: trajet.heureArriveePrevue,
+            screen: 'TrajetDetails'
+          },
+          channelId: 'trajets',
+          type: 'trajets'
+        },
+        Utilisateur
+      );
+      
+      console.log(`✅ Notification retard envoyée: ${trajet._id}`);
+    } catch (error) {
+      console.error(`❌ Erreur notification retard ${trajet._id}:`, error.message);
+    }
   }
 }
 
