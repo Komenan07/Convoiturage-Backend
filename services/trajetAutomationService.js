@@ -1,13 +1,18 @@
+// services/trajetAutomationService.js - VERSION UNIFIÉE COMPLÈTE
+
 const cron = require('node-cron');
 const Trajet = require('../models/Trajet');
 
 /**
- * 🚀 SERVICE AUTOMATIQUE DE GESTION DES TRAJETS
+ * 🚀 SERVICE UNIFIÉ DE GESTION AUTOMATIQUE DES TRAJETS
  * 
- * Ce service gère automatiquement :
- * 1. L'activation des trajets (PROGRAMME → EN_COURS) à l'heure de départ
- * 2. La terminaison des trajets (EN_COURS → TERMINE) à l'heure d'arrivée
- * 3. L'expiration des trajets (PROGRAMME → EXPIRE) après l'heure de départ
+ * Logique complète:
+ * 1. PROGRAMME + heure départ atteinte (±15min) → EN_COURS
+ * 2. PROGRAMME + heure départ dépassée (>15min) → EXPIRE
+ * 3. EN_COURS + arrivée prévue + 30min → TERMINE
+ * 4. EN_COURS + arrivée dépassée (sans terminaison) → EN_RETARD
+ * 5. EN_RETARD + 2h → EXPIRE
+ * 6. RECURRENT + date fin dépassée → EXPIRE
  */
 
 class TrajetAutomationService {
@@ -18,265 +23,384 @@ class TrajetAutomationService {
   }
 
   /**
-   * 🔄 Activer les trajets dont l'heure de départ est atteinte
+   * 🔄 1. ACTIVER les trajets dont l'heure de départ est atteinte
+   * PROGRAMME → EN_COURS (dans une fenêtre de ±15 minutes)
    */
   async activerTrajetsEnAttente() {
     try {
       const maintenant = new Date();
-      
-      // Trouver les trajets PROGRAMME dont l'heure de départ est passée
-      // mais qui ne sont pas encore expirés (marge de 15 minutes)
-      const margeActivation = new Date(maintenant.getTime() - 15 * 60 * 1000); // -15 min
+      const margeAvant = new Date(maintenant.getTime() - 15 * 60 * 1000); // -15 min
+      const margeApres = new Date(maintenant.getTime() + 15 * 60 * 1000); // +15 min
       
       const trajetsAActiver = await Trajet.find({
         statutTrajet: 'PROGRAMME',
-        dateDepart: {
-          $gte: margeActivation,  // Pas trop vieux (max 15 min)
-          $lte: maintenant        // Départ passé
-        }
+        dateDepart: { $exists: true },
+        heureDepart: { $exists: true }
       }).populate('conducteurId', 'nom prenom');
-
-      if (trajetsAActiver.length === 0) {
-        return { activated: 0, details: [] };
-      }
 
       const results = [];
       
       for (const trajet of trajetsAActiver) {
-        // Créer la date/heure exacte du départ
-        const [heures, minutes] = trajet.heureDepart.split(':').map(Number);
-        const dateDepartComplete = new Date(trajet.dateDepart);
-        dateDepartComplete.setHours(heures, minutes, 0, 0);
-        
-        // Vérifier si l'heure de départ est vraiment atteinte
-        if (dateDepartComplete <= maintenant) {
-          trajet.statutTrajet = 'EN_COURS';
-          await trajet.save();
+        try {
+          const [heures, minutes] = trajet.heureDepart.split(':').map(Number);
+          const dateDepartComplete = new Date(trajet.dateDepart);
+          dateDepartComplete.setHours(heures, minutes, 0, 0);
           
-          results.push({
-            id: trajet._id,
-            conducteur: `${trajet.conducteurId.nom} ${trajet.conducteurId.prenom}`,
-            depart: trajet.pointDepart.nom,
-            arrivee: trajet.pointArrivee.nom,
-            heureDepart: trajet.heureDepart
-          });
-          
-          console.log(`✅ Trajet activé: ${trajet._id} - ${trajet.pointDepart.nom} → ${trajet.pointArrivee.nom}`);
-          
-          // TODO: Envoyer notification au conducteur et aux passagers
-          await this._envoyerNotificationActivation(trajet);
+          // Activer si dans la fenêtre [-15min, +15min]
+          if (dateDepartComplete >= margeAvant && dateDepartComplete <= margeApres) {
+            trajet.statutTrajet = 'EN_COURS';
+            await trajet.save();
+            
+            results.push({
+              id: trajet._id,
+              conducteur: `${trajet.conducteurId.nom} ${trajet.conducteurId.prenom}`,
+              depart: trajet.pointDepart.nom,
+              arrivee: trajet.pointArrivee.nom,
+              heureDepart: trajet.heureDepart
+            });
+            
+            console.log(`✅ Trajet activé: ${trajet._id}`);
+            await this._envoyerNotificationActivation(trajet);
+          }
+        } catch (error) {
+          console.error(`⚠️ Erreur activation trajet ${trajet._id}:`, error.message);
         }
       }
 
       if (results.length > 0) {
-        console.log(`🚀 ${results.length} trajet(s) activé(s) automatiquement`);
+        console.log(`🚀 ${results.length} trajet(s) activé(s)`);
       }
 
       return { activated: results.length, details: results };
-
     } catch (error) {
-      console.error('❌ Erreur lors de l\'activation automatique des trajets:', error);
+      console.error('❌ Erreur activation:', error);
       return { activated: 0, error: error.message };
     }
   }
 
   /**
-   * 🏁 Terminer les trajets dont l'heure d'arrivée est atteinte
-   */
-  async terminerTrajetsEnCours() {
-    try {
-      const maintenant = new Date();
-      
-      const trajetsATerminer = await Trajet.find({
-        statutTrajet: 'EN_COURS'
-      }).populate('conducteurId', 'nom prenom');
-
-      if (trajetsATerminer.length === 0) {
-        return { terminated: 0, details: [] };
-      }
-
-      const results = [];
-      
-      for (const trajet of trajetsATerminer) {
-        // Créer la date/heure d'arrivée prévue
-        if (!trajet.heureArriveePrevue) {
-          console.log(`⚠️ Trajet ${trajet._id} sans heure d'arrivée prévue`);
-          continue;
-        }
-
-        const [heures, minutes] = trajet.heureArriveePrevue.split(':').map(Number);
-        const dateArriveePrevue = new Date(trajet.dateDepart);
-        dateArriveePrevue.setHours(heures, minutes, 0, 0);
-        
-        // Ajouter la durée du trajet si l'arrivée est le lendemain
-        if (trajet.dureeEstimee) {
-          const [heuresDepart, minutesDepart] = trajet.heureDepart.split(':').map(Number);
-          const dateDepartComplete = new Date(trajet.dateDepart);
-          dateDepartComplete.setHours(heuresDepart, minutesDepart, 0, 0);
-          
-          // Si l'heure d'arrivée est "avant" l'heure de départ, c'est le lendemain
-          if (heures < heuresDepart || (heures === heuresDepart && minutes < minutesDepart)) {
-            dateArriveePrevue.setDate(dateArriveePrevue.getDate() + 1);
-          }
-        }
-        
-        // Ajouter une marge de 30 minutes après l'arrivée prévue
-        const margeTerminaison = new Date(dateArriveePrevue.getTime() + 30 * 60 * 1000);
-        
-        if (maintenant >= margeTerminaison) {
-          trajet.statutTrajet = 'TERMINE';
-          await trajet.save();
-          
-          results.push({
-            id: trajet._id,
-            conducteur: `${trajet.conducteurId.nom} ${trajet.conducteurId.prenom}`,
-            depart: trajet.pointDepart.nom,
-            arrivee: trajet.pointArrivee.nom,
-            heureArrivee: trajet.heureArriveePrevue
-          });
-          
-          console.log(`🏁 Trajet terminé: ${trajet._id} - Arrivée prévue: ${trajet.heureArriveePrevue}`);
-          
-          // TODO: Envoyer notification de fin de trajet
-          await this._envoyerNotificationTerminaison(trajet);
-        }
-      }
-
-      if (results.length > 0) {
-        console.log(`🏁 ${results.length} trajet(s) terminé(s) automatiquement`);
-      }
-
-      return { terminated: results.length, details: results };
-
-    } catch (error) {
-      console.error('❌ Erreur lors de la terminaison automatique des trajets:', error);
-      return { terminated: 0, error: error.message };
-    }
-  }
-
-  /**
-   * ⏰ Expirer les trajets PROGRAMME qui sont trop anciens
+   * ⏰ 2. EXPIRER les trajets PROGRAMME dont le départ est trop ancien
+   * PROGRAMME + départ > 15min → EXPIRE
    */
   async expirerTrajetsNonActives() {
     try {
       const maintenant = new Date();
-      
-      // Trajets PROGRAMME dont le départ était il y a plus de 24 heures
-      const limiteExpiration = new Date(maintenant.getTime() - 24 * 60 * 60 * 1000);
+      const limiteActivation = new Date(maintenant.getTime() - 15 * 60 * 1000); // -15 min
       
       const trajetsAExpirer = await Trajet.find({
-        statutTrajet: 'PROGRAMME'
-      }).populate('conducteurId', 'nom prenom');
+        statutTrajet: 'PROGRAMME',
+        dateDepart: { $exists: true },
+        heureDepart: { $exists: true }
+      });
 
-      if (trajetsAExpirer.length === 0) {
-        return { expired: 0, details: [] };
-      }
-
-      const results = [];
+      const idsAExpirer = [];
       
       for (const trajet of trajetsAExpirer) {
-        const [heures, minutes] = trajet.heureDepart.split(':').map(Number);
-        const dateDepartComplete = new Date(trajet.dateDepart);
-        dateDepartComplete.setHours(heures, minutes, 0, 0);
-        
-        // Si le départ était il y a plus de 24 heures, expirer le trajet
-        if (dateDepartComplete < limiteExpiration) {
-          trajet.statutTrajet = 'EXPIRE';
-          trajet.dateExpiration = maintenant;
-          trajet.raisonExpiration = 'Trajet non activé - heure de départ dépassée';
-          await trajet.save();
+        try {
+          const [heures, minutes] = trajet.heureDepart.split(':').map(Number);
+          const dateDepartComplete = new Date(trajet.dateDepart);
+          dateDepartComplete.setHours(heures, minutes, 0, 0);
           
-          results.push({
-            id: trajet._id,
-            conducteur: `${trajet.conducteurId.nom} ${trajet.conducteurId.prenom}`,
-            depart: trajet.pointDepart.nom,
-            heureDepart: trajet.heureDepart,
-            retard: Math.round((maintenant - dateDepartComplete) / (60 * 1000))
-          });
-          
-          console.log(`⏰ Trajet expiré: ${trajet._id} - Retard: ${results[results.length - 1].retard} min`);
-          
-          // TODO: Envoyer notification d'expiration
-          await this._envoyerNotificationExpiration(trajet);
+          // Expirer si départ > 15 minutes
+          if (dateDepartComplete < limiteActivation) {
+            idsAExpirer.push(trajet._id);
+          }
+        } catch (error) {
+          console.error(`⚠️ Erreur traitement ${trajet._id}:`, error.message);
         }
       }
 
-      if (results.length > 0) {
-        console.log(`⏰ ${results.length} trajet(s) expiré(s) automatiquement`);
+      let expired = 0;
+      if (idsAExpirer.length > 0) {
+        const result = await Trajet.updateMany(
+          { _id: { $in: idsAExpirer } },
+          {
+            $set: { 
+              statutTrajet: 'EXPIRE',
+              dateExpiration: maintenant,
+              raisonExpiration: 'DATE_PASSEE'
+            }
+          }
+        );
+        expired = result.modifiedCount;
+        
+        if (expired > 0) {
+          console.log(`⏰ ${expired} trajet(s) PROGRAMME expiré(s)`);
+        }
       }
 
-      return { expired: results.length, details: results };
-
+      return { expired, details: [] };
     } catch (error) {
-      console.error('❌ Erreur lors de l\'expiration automatique des trajets:', error);
+      console.error('❌ Erreur expiration PROGRAMME:', error);
       return { expired: 0, error: error.message };
     }
   }
 
   /**
-   * 🔄 Exécuter toutes les vérifications
+   * 🏁 3. TERMINER les trajets EN_COURS dont l'arrivée est atteinte
+   * EN_COURS + arrivée + 30min → TERMINE
+   */
+  async terminerTrajetsEnCours() {
+    try {
+      const maintenant = new Date();
+      
+      const trajetsEnCours = await Trajet.find({
+        statutTrajet: 'EN_COURS',
+        heureArriveePrevue: { $exists: true }
+      }).populate('conducteurId', 'nom prenom');
+
+      const results = [];
+      
+      for (const trajet of trajetsEnCours) {
+        try {
+          const [heures, minutes] = trajet.heureArriveePrevue.split(':').map(Number);
+          const dateArriveePrevue = new Date(trajet.dateDepart);
+          dateArriveePrevue.setHours(heures, minutes, 0, 0);
+          
+          // Gérer le cas où l'arrivée est le lendemain
+          const [hDepart, mDepart] = trajet.heureDepart.split(':').map(Number);
+          if (heures < hDepart || (heures === hDepart && minutes < mDepart)) {
+            dateArriveePrevue.setDate(dateArriveePrevue.getDate() + 1);
+          }
+          
+          // Terminer 30 minutes après l'arrivée prévue
+          const margeTerminaison = new Date(dateArriveePrevue.getTime() + 30 * 60 * 1000);
+          
+          if (maintenant >= margeTerminaison) {
+            trajet.statutTrajet = 'TERMINE';
+            await trajet.save();
+            
+            results.push({
+              id: trajet._id,
+              conducteur: `${trajet.conducteurId.nom} ${trajet.conducteurId.prenom}`,
+              arrivee: trajet.pointArrivee.nom
+            });
+            
+            console.log(`🏁 Trajet terminé: ${trajet._id}`);
+            await this._envoyerNotificationTerminaison(trajet);
+          }
+        } catch (error) {
+          console.error(`⚠️ Erreur terminaison ${trajet._id}:`, error.message);
+        }
+      }
+
+      if (results.length > 0) {
+        console.log(`🏁 ${results.length} trajet(s) terminé(s)`);
+      }
+
+      return { terminated: results.length, details: results };
+    } catch (error) {
+      console.error('❌ Erreur terminaison:', error);
+      return { terminated: 0, error: error.message };
+    }
+  }
+
+  /**
+   * ⚠️ 4. MARQUER EN RETARD les trajets EN_COURS dont l'arrivée est dépassée
+   * EN_COURS + arrivée dépassée (sans terminaison) → EN_RETARD
+   */
+  async marquerTrajetsEnRetard() {
+    try {
+      const maintenant = new Date();
+      
+      const trajetsEnCours = await Trajet.find({
+        statutTrajet: 'EN_COURS',
+        heureArriveePrevue: { $exists: true }
+      });
+
+      const idsEnRetard = [];
+      
+      for (const trajet of trajetsEnCours) {
+        try {
+          const [heures, minutes] = trajet.heureArriveePrevue.split(':').map(Number);
+          const dateArriveePrevue = new Date(trajet.dateDepart);
+          dateArriveePrevue.setHours(heures, minutes, 0, 0);
+          
+          // Gérer le lendemain
+          const [hDepart, mDepart] = trajet.heureDepart.split(':').map(Number);
+          if (heures < hDepart || (heures === hDepart && minutes < mDepart)) {
+            dateArriveePrevue.setDate(dateArriveePrevue.getDate() + 1);
+          }
+          
+          // Marquer EN_RETARD si arrivée dépassée (sans marge)
+          if (maintenant > dateArriveePrevue) {
+            idsEnRetard.push(trajet._id);
+          }
+        } catch (error) {
+          console.error(`⚠️ Erreur traitement ${trajet._id}:`, error.message);
+        }
+      }
+
+      let enRetard = 0;
+      if (idsEnRetard.length > 0) {
+        const result = await Trajet.updateMany(
+          { _id: { $in: idsEnRetard } },
+          {
+            $set: { 
+              statutTrajet: 'EN_RETARD',
+              dateDebutRetard: maintenant
+            }
+          }
+        );
+        enRetard = result.modifiedCount;
+        
+        if (enRetard > 0) {
+          console.log(`⚠️ ${enRetard} trajet(s) marqué(s) EN_RETARD`);
+        }
+      }
+
+      return { enRetard };
+    } catch (error) {
+      console.error('❌ Erreur marquage retard:', error);
+      return { enRetard: 0, error: error.message };
+    }
+  }
+
+  /**
+   * ❌ 5. EXPIRER les trajets EN_RETARD depuis trop longtemps
+   * EN_RETARD + 2h → EXPIRE
+   */
+  async expirerTrajetsEnRetard() {
+    try {
+      const maintenant = new Date();
+      const limiteRetard = new Date(maintenant.getTime() - 2 * 60 * 60 * 1000); // -2h
+      
+      const result = await Trajet.updateMany(
+        {
+          statutTrajet: 'EN_RETARD',
+          dateDebutRetard: { $lt: limiteRetard, $exists: true }
+        },
+        {
+          $set: { 
+            statutTrajet: 'EXPIRE',
+            dateExpiration: maintenant,
+            raisonExpiration: 'RETARD_EXCESSIF'
+          }
+        }
+      );
+
+      if (result.modifiedCount > 0) {
+        console.log(`❌ ${result.modifiedCount} trajet(s) EN_RETARD expiré(s)`);
+      }
+
+      return { expiredFromDelay: result.modifiedCount };
+    } catch (error) {
+      console.error('❌ Erreur expiration retards:', error);
+      return { expiredFromDelay: 0, error: error.message };
+    }
+  }
+
+  /**
+   * 🔁 6. EXPIRER les récurrences terminées
+   */
+  async expirerRecurrences() {
+    try {
+      const maintenant = new Date();
+      
+      const result = await Trajet.updateMany(
+        {
+          typeTrajet: 'RECURRENT',
+          'recurrence.dateFinRecurrence': { $lt: maintenant },
+          statutTrajet: 'PROGRAMME'
+        },
+        {
+          $set: { 
+            statutTrajet: 'EXPIRE',
+            dateExpiration: maintenant,
+            raisonExpiration: 'RECURRENCE_TERMINEE'
+          }
+        }
+      );
+
+      if (result.modifiedCount > 0) {
+        console.log(`🔁 ${result.modifiedCount} récurrence(s) expirée(s)`);
+      }
+
+      return { recurrencesExpired: result.modifiedCount };
+    } catch (error) {
+      console.error('❌ Erreur expiration récurrences:', error);
+      return { recurrencesExpired: 0, error: error.message };
+    }
+  }
+
+  /**
+   * 🔄 Exécuter toutes les vérifications (ordre important!)
    */
   async executerVerificationComplete() {
-    console.log('\n🔄 ========== VERIFICATION AUTOMATIQUE DES TRAJETS ==========');
+    console.log('\n🔄 ========== VERIFICATION AUTOMATIQUE UNIFIÉE ==========');
     console.log(`⏰ ${new Date().toLocaleString('fr-FR')}\n`);
 
     const debut = Date.now();
 
-    const [activation, terminaison, expiration] = await Promise.all([
-      this.activerTrajetsEnAttente(),
-      this.terminerTrajetsEnCours(),
-      this.expirerTrajetsNonActives()
-    ]);
+    // ⚠️ ORDRE IMPORTANT pour éviter les conflits
+    const resultats = {};
+    
+    // 1. Activation (PROGRAMME → EN_COURS)
+    resultats.activation = await this.activerTrajetsEnAttente();
+    
+    // 2. Expiration PROGRAMME trop anciens
+    resultats.expirationProgramme = await this.expirerTrajetsNonActives();
+    
+    // 3. Terminaison normale (EN_COURS → TERMINE)
+    resultats.terminaison = await this.terminerTrajetsEnCours();
+    
+    // 4. Marquage retards (EN_COURS → EN_RETARD)
+    resultats.retards = await this.marquerTrajetsEnRetard();
+    
+    // 5. Expiration retards excessifs (EN_RETARD → EXPIRE)
+    resultats.expirationRetards = await this.expirerTrajetsEnRetard();
+    
+    // 6. Expiration récurrences
+    resultats.recurrences = await this.expirerRecurrences();
 
     const duree = Date.now() - debut;
 
-    const total = activation.activated + terminaison.terminated + expiration.expired;
+    const total = 
+      resultats.activation.activated + 
+      resultats.expirationProgramme.expired + 
+      resultats.terminaison.terminated + 
+      resultats.retards.enRetard +
+      resultats.expirationRetards.expiredFromDelay +
+      resultats.recurrences.recurrencesExpired;
 
-    console.log('\n📊 Résumé de la vérification:');
-    console.log(`   ✅ Trajets activés: ${activation.activated}`);
-    console.log(`   🏁 Trajets terminés: ${terminaison.terminated}`);
-    console.log(`   ⏰ Trajets expirés: ${expiration.expired}`);
+    console.log('\n📊 Résumé:');
+    console.log(`   ✅ Activés: ${resultats.activation.activated}`);
+    console.log(`   ⏰ PROGRAMME expirés: ${resultats.expirationProgramme.expired}`);
+    console.log(`   🏁 Terminés: ${resultats.terminaison.terminated}`);
+    console.log(`   ⚠️ En retard: ${resultats.retards.enRetard}`);
+    console.log(`   ❌ Retards expirés: ${resultats.expirationRetards.expiredFromDelay}`);
+    console.log(`   🔁 Récurrences expirées: ${resultats.recurrences.recurrencesExpired}`);
     console.log(`   ⏱️  Durée: ${duree}ms`);
     
     if (total > 0) {
-      console.log(`\n🎉 ${total} trajet(s) mis à jour avec succès`);
+      console.log(`\n🎉 ${total} trajet(s) mis à jour`);
     } else {
       console.log('\n✅ Aucun trajet à mettre à jour');
     }
     
     console.log('========================================================\n');
 
-    return {
-      timestamp: new Date().toISOString(),
-      activation,
-      terminaison,
-      expiration,
-      total,
-      duree: `${duree}ms`
-    };
+    return { ...resultats, total, duree: `${duree}ms` };
   }
 
   /**
-   * 🚀 Démarrer le service automatique
+   * 🚀 Démarrer le service (toutes les minutes)
    */
   start() {
     if (this.isRunning) {
-      console.log('⚠️ Le service de gestion automatique des trajets est déjà démarré');
+      console.log('⚠️ Service déjà démarré');
       return;
     }
 
-    console.log('\n🚀 ========== DEMARRAGE DU SERVICE AUTOMATIQUE ==========');
-    console.log('📋 Fonctionnalités actives:');
-    console.log('   1. Activation automatique des trajets');
-    console.log('   2. Terminaison automatique des trajets');
-    console.log('   3. Expiration des trajets non activés');
+    console.log('\n🚀 ========== SERVICE AUTOMATIQUE UNIFIÉ ==========');
+    console.log('📋 Gestion complète des transitions de statuts');
     console.log('⏰ Fréquence: Toutes les minutes');
-    console.log('========================================================\n');
+    console.log('===================================================\n');
 
-    // Exécuter immédiatement une première fois
+    // Exécution immédiate
     this.executerVerificationComplete();
 
-    // Puis exécuter toutes les minutes
+    // Puis toutes les minutes
     const job = cron.schedule('* * * * *', async () => {
       await this.executerVerificationComplete();
     });
@@ -284,69 +408,42 @@ class TrajetAutomationService {
     this.jobs.push(job);
     this.isRunning = true;
 
-    console.log('✅ Service automatique démarré avec succès\n');
+    console.log('✅ Service démarré\n');
   }
 
-  /**
-   * 🛑 Arrêter le service automatique
-   */
   stop() {
     if (!this.isRunning) {
-      console.log('⚠️ Le service n\'est pas démarré');
+      console.log('⚠️ Service non démarré');
       return;
     }
 
-    console.log('🛑 Arrêt du service de gestion automatique des trajets...');
-    
+    console.log('🛑 Arrêt du service...');
     this.jobs.forEach(job => job.stop());
     this.jobs = [];
     this.isRunning = false;
-
     console.log('✅ Service arrêté\n');
   }
 
-  /**
-   * 📊 Obtenir le statut du service
-   */
   getStatus() {
     return {
       isRunning: this.isRunning,
-      jobsCount: this.jobs.length,
-      startedAt: this.isRunning ? new Date().toISOString() : null
+      jobsCount: this.jobs.length
     };
   }
 
-  // ==================== NOTIFICATIONS ====================
-
-  /**
-   * 📧 Envoyer notification d'activation
-   */
+  // Notifications (TODO)
   async _envoyerNotificationActivation(trajet) {
-    // TODO: Implémenter l'envoi de notifications
-    // - Email au conducteur
-    // - Push notification
-    // - WhatsApp via Green API
-    console.log(`📧 Notification d'activation à envoyer pour trajet ${trajet._id}`);
+    console.log(`📧 Notification activation: ${trajet._id}`);
   }
 
-  /**
-   * 📧 Envoyer notification de terminaison
-   */
   async _envoyerNotificationTerminaison(trajet) {
-    // TODO: Implémenter l'envoi de notifications
-    console.log(`📧 Notification de terminaison à envoyer pour trajet ${trajet._id}`);
+    console.log(`📧 Notification terminaison: ${trajet._id}`);
   }
 
-  /**
-   * 📧 Envoyer notification d'expiration
-   */
   async _envoyerNotificationExpiration(trajet) {
-    // TODO: Implémenter l'envoi de notifications
-    console.log(`📧 Notification d'expiration à envoyer pour trajet ${trajet._id}`);
+    console.log(`📧 Notification expiration: ${trajet._id}`);
   }
 }
 
-// Créer et exporter l'instance singleton
 const trajetAutomationService = new TrajetAutomationService();
-
 module.exports = trajetAutomationService;

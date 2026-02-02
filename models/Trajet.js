@@ -405,7 +405,7 @@ const trajetSchema = new mongoose.Schema({
   // Statut et état
   statutTrajet: {
     type: String,
-    enum: ['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE', 'EXPIRE'],
+    enum: ['PROGRAMME','EN_RETARD', 'EN_COURS', 'TERMINE', 'ANNULE', 'EXPIRE'],
     default: 'PROGRAMME'
   },
   validationAutomatique: {
@@ -417,6 +417,10 @@ const trajetSchema = new mongoose.Schema({
   dateExpiration: {
     type: Date,
     index: true
+  },
+  dateDebutRetard: {
+  type: Date,
+  index: true
   },
   raisonExpiration: {
     type: String,
@@ -942,47 +946,132 @@ trajetSchema.statics.findTrajetsRecurrentsExpires = function() {
   });
 };
 
-trajetSchema.statics.marquerTrajetsExpires = async function() {
+/**
+ * ⭐ GESTION INTELLIGENTE DES EXPIRATIONS ET RETARDS
+ * 
+ * Logique:
+ * 1. PROGRAMME + heure passée → EXPIRE
+ * 2. EN_COURS + heure dépassée → EN_RETARD
+ * 3. EN_RETARD + 2h → EXPIRE
+ */
+trajetSchema.statics.gererExpirationEtRetards = async function() {
   const maintenant = new Date();
+  const dateRetardMax = new Date(maintenant.getTime() - 2 * 60 * 60 * 1000); // -2h
   
-  // Récupérer les trajets programmés avec leur date et heure
-  const trajetsAVerifier = await this.find({
+  const resultats = {
+    trajetsExpires: 0,
+    trajetsEnRetard: 0,
+    retardsExpires: 0
+  };
+  
+  // ========================================
+  // 1️⃣ PROGRAMME → EXPIRE (logique normale)
+  // ========================================
+  const trajetsProgrammes = await this.find({
     statutTrajet: 'PROGRAMME',
     dateDepart: { $exists: true },
     heureDepart: { $exists: true }
   });
   
-  const trajetsExpires = [];
+  const idsAExpirer = [];
   
-  for (const trajet of trajetsAVerifier) {
+  for (const trajet of trajetsProgrammes) {
     try {
-      // Combiner date et heure pour comparaison précise
       const dateStr = trajet.dateDepart.toISOString().split('T')[0];
       const dateTimeStr = `${dateStr}T${trajet.heureDepart}:00.000Z`;
       const dateDepartComplete = new Date(dateTimeStr);
       
       if (dateDepartComplete < maintenant) {
-        trajetsExpires.push(trajet._id);
+        idsAExpirer.push(trajet._id);
       }
     } catch (error) {
       console.error(`⚠️ Erreur traitement trajet ${trajet._id}:`, error.message);
     }
   }
   
-  // Mise à jour en masse des trajets expirés
+  if (idsAExpirer.length > 0) {
+    const result = await this.updateMany(
+      { _id: { $in: idsAExpirer } },
+      {
+        $set: { 
+          statutTrajet: 'EXPIRE',
+          dateExpiration: maintenant,
+          raisonExpiration: 'DATE_PASSEE'
+        }
+      }
+    );
+    resultats.trajetsExpires = result.modifiedCount;
+  }
+  
+  // ========================================
+  // 2️⃣ EN_COURS → EN_RETARD (nouveau)
+  // ========================================
+  const trajetsEnCours = await this.find({
+    statutTrajet: 'EN_COURS',
+    dateDepart: { $exists: true },
+    heureDepart: { $exists: true },
+    heureArriveePrevue: { $exists: true }
+  });
+  
+  const idsEnRetard = [];
+  
+  for (const trajet of trajetsEnCours) {
+    try {
+      // Calculer l'heure d'arrivée prévue complète
+      const dateStr = trajet.dateDepart.toISOString().split('T')[0];
+      const arriveeTimeStr = `${dateStr}T${trajet.heureArriveePrevue}:00.000Z`;
+      const heureArriveePrevue = new Date(arriveeTimeStr);
+      
+      // Si l'heure d'arrivée est dépassée → EN_RETARD
+      if (heureArriveePrevue < maintenant) {
+        idsEnRetard.push(trajet._id);
+      }
+    } catch (error) {
+      console.error(`⚠️ Erreur traitement trajet ${trajet._id}:`, error.message);
+    }
+  }
+  
+  if (idsEnRetard.length > 0) {
+    const result = await this.updateMany(
+      { _id: { $in: idsEnRetard } },
+      {
+        $set: { 
+          statutTrajet: 'EN_RETARD',
+          dateDebutRetard: maintenant
+        }
+      }
+    );
+    resultats.trajetsEnRetard = result.modifiedCount;
+  }
+  
+  // ========================================
+  // 3️⃣ EN_RETARD + 2h → EXPIRE (gradation)
+  // ========================================
   const result = await this.updateMany(
-    { _id: { $in: trajetsExpires } },
+    {
+      statutTrajet: 'EN_RETARD',
+      dateDebutRetard: { $lt: dateRetardMax, $exists: true }
+    },
     {
       $set: { 
         statutTrajet: 'EXPIRE',
         dateExpiration: maintenant,
-        raisonExpiration: 'DATE_PASSEE'
+        raisonExpiration: 'RETARD_EXCESSIF'
       }
     }
   );
   
-  console.log(`✅ ${result.modifiedCount} trajets marqués comme expirés (date + heure)`);
-  return result;
+  resultats.retardsExpires = result.modifiedCount;
+  
+  // Log détaillé
+  console.log('✅ Gestion expiration/retards:', {
+    trajetsExpires: resultats.trajetsExpires,
+    trajetsEnRetard: resultats.trajetsEnRetard,
+    retardsExpires: resultats.retardsExpires,
+    total: resultats.trajetsExpires + resultats.trajetsEnRetard + resultats.retardsExpires
+  });
+  
+  return resultats;
 };
 
 trajetSchema.statics.marquerRecurrencesExpirees = async function() {

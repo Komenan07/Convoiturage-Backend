@@ -6,7 +6,7 @@ const sendEmail = require('../utils/emailService');
 const { sendSMS } = require('../services/smsService');
 const { logger } = require('../utils/logger');
 const AppError = require('../utils/AppError');
-const greenApiService = require('../services/greenApiService');
+const infobipService = require('../services/infobipService');
 const fs = require('fs');
 const path = require('path');
 
@@ -446,7 +446,7 @@ const register = async (req, res, next) => {
 
     // Envoyer le code via WhatsApp
     const nomComplet = `${prenom} ${nom}`;
-    const resultatEnvoi = await greenApiService.envoyerCodeVerification(
+    const resultatEnvoi = await infobipService.envoyerCodeVerification(
       phoneProcessed,
       code,
       nomComplet
@@ -574,7 +574,7 @@ const verifyCode = async (req, res, next) => {
     await utilisateur.save({ validateBeforeSave: false });
 
     // Envoyer message de bienvenue
-    await greenApiService.envoyerMessageBienvenue(
+    await infobipService.envoyerMessageBienvenue(
       phoneProcessed,
       utilisateur.prenom
     );
@@ -671,7 +671,7 @@ const resendCode = async (req, res, next) => {
     await utilisateur.save({ validateBeforeSave: false });
 
     const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-    const resultatEnvoi = await greenApiService.envoyerCodeVerification(
+    const resultatEnvoi = await infobipService.envoyerCodeVerification(
       phoneProcessed,
       code,
       nomComplet
@@ -2222,7 +2222,7 @@ const forgotPassword = async (req, res, next) => {
 
     // Envoyer le code via WhatsApp
     const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-    const resultatEnvoi = await greenApiService.envoyerCodeResetMotDePasse(
+    const resultatEnvoi = await infobipService.envoyerCodeResetMotDePasse(
       phoneProcessed,
       codeReset,
       nomComplet
@@ -2561,7 +2561,7 @@ const resetPassword = async (req, res, next) => {
 
     // Envoyer un message de confirmation WhatsApp
     try {
-      await greenApiService.envoyerConfirmationResetMotDePasse(
+      await infobipService.envoyerConfirmationResetMotDePasse(
         phoneProcessed,
         utilisateur.prenom
       );
@@ -2677,7 +2677,7 @@ const resendResetCode = async (req, res, next) => {
 
     // Envoyer le nouveau code via WhatsApp
     const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-    const resultatEnvoi = await greenApiService.envoyerCodeResetMotDePasse(
+    const resultatEnvoi = await infobipService.envoyerCodeResetMotDePasse(
       phoneProcessed,
       nouveauCode,
       nomComplet

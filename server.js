@@ -1,7 +1,6 @@
 const http = require('http');
 const connectDB = require('./config/db');
 const app = require('./app');
-const ExpireTrajetsJob = require('./jobs/expireTrajetsJob');
 const trajetAutomationService = require('./services/trajetAutomationService');
 
 const PORT = process.env.PORT || 5500;
@@ -11,19 +10,6 @@ const demarrerServeur = async () => {
   try {
     await connectDB();
     console.log('✅ Connexion MongoDB établie');
-
-     // Démarrer le job d'expiration
-    ExpireTrajetsJob.start();
-
-    // Exécuter une première fois au démarrage
-    try {
-      const result = await ExpireTrajetsJob.executer();
-      if (result.total > 0) {
-        console.log(`✅ Expiration initiale: ${result.total} trajet(s) expiré(s)`);
-      }
-    } catch (err) {
-      console.error('⚠️ Erreur expiration initiale:', err.message);
-    }
 
     console.log('🚀 Démarrage du service d\'automation des trajets...');
     trajetAutomationService.start();

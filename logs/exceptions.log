@@ -34480,3 +34480,977 @@
   version: '1.0.0',
   timestamp: '2026-01-12 12:00:14'
 }
+{
+  error: Error: listen EADDRINUSE: address already in use 0.0.0.0:3000
+      at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+      at listenInCluster (node:net:1996:12)
+      at node:net:2205:7
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    code: 'EADDRINUSE',
+    errno: -4091,
+    syscall: 'listen',
+    address: '0.0.0.0',
+    port: 3000
+  },
+  level: 'error',
+  message: 'uncaughtException: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  stack: 'Error: listen EADDRINUSE: address already in use 0.0.0.0:3000\n' +
+    '    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n' +
+    '    at listenInCluster (node:net:1996:12)\n' +
+    '    at node:net:2205:7\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)',
+  exception: true,
+  date: 'Mon Feb 02 2026 12:00:50 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 14800,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 160497664,
+      heapTotal: 108888064,
+      heapUsed: 85000408,
+      external: 22544507,
+      arrayBuffers: 18890711
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 66794.39 },
+  trace: [
+    {
+      column: 16,
+      file: 'node:net',
+      function: 'Server.setupListenHandle [as _listen2]',
+      line: 1939,
+      method: 'setupListenHandle [as _listen2]',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:net',
+      function: 'listenInCluster',
+      line: 1996,
+      method: null,
+      native: false
+    },
+    {
+      column: 7,
+      file: 'node:net',
+      function: null,
+      line: 2205,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 90,
+      method: 'processTicksAndRejections',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-02-02 12:00:50'
+}
+{
+  error: C:\Projet perso\Convoiturage-Backend\models\Trajet.js:980
+    const trajetsExpires = [];
+          ^
+  
+  SyntaxError: Identifier 'trajetsExpires' has already been declared
+      at wrapSafe (node:internal/modules/cjs/loader:1662:18)
+      at Module._compile (node:internal/modules/cjs/loader:1704:20)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\jobs\expireTrajetsJob.js:3:16)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24),
+  level: 'error',
+  message: "uncaughtException: Identifier 'trajetsExpires' has already been declared\n" +
+    'C:\\Projet perso\\Convoiturage-Backend\\models\\Trajet.js:980\n' +
+    '  const trajetsExpires = [];\n' +
+    '        ^\n' +
+    '\n' +
+    "SyntaxError: Identifier 'trajetsExpires' has already been declared\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\jobs\\expireTrajetsJob.js:3:16)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  stack: 'C:\\Projet perso\\Convoiturage-Backend\\models\\Trajet.js:980\n' +
+    '  const trajetsExpires = [];\n' +
+    '        ^\n' +
+    '\n' +
+    "SyntaxError: Identifier 'trajetsExpires' has already been declared\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\jobs\\expireTrajetsJob.js:3:16)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  exception: true,
+  date: 'Mon Feb 02 2026 14:24:48 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 5208,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 137453568,
+      heapTotal: 96047104,
+      heapUsed: 74400512,
+      external: 22191981,
+      arrayBuffers: 18750876
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 75432.046 },
+  trace: [
+    {
+      column: 18,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapSafe',
+      line: 1662,
+      method: null,
+      native: false
+    },
+    {
+      column: 20,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1704,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 16,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\jobs\\expireTrajetsJob.js',
+      function: null,
+      line: 3,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-02-02 14:24:48'
+}
+{
+  error: Error: Cannot find module './jobs/expireTrajetsJob'
+  Require stack:
+  - C:\Projet perso\Convoiturage-Backend\server.js
+      at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+      at Function._load (node:internal/modules/cjs/loader:1211:37)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:4:26)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ 'C:\\Projet perso\\Convoiturage-Backend\\server.js' ]
+  },
+  level: 'error',
+  message: "uncaughtException: Cannot find module './jobs/expireTrajetsJob'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    "Error: Cannot find module './jobs/expireTrajetsJob'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:4:26)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)',
+  stack: "Error: Cannot find module './jobs/expireTrajetsJob'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:4:26)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)',
+  exception: true,
+  date: 'Mon Feb 02 2026 16:12:35 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 22008,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 141201408,
+      heapTotal: 99713024,
+      heapUsed: 77987864,
+      external: 22191981,
+      arrayBuffers: 18750876
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 81898.968 },
+  trace: [
+    {
+      column: 15,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._resolveFilename',
+      line: 1401,
+      method: '_resolveFilename',
+      native: false
+    },
+    {
+      column: 19,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'defaultResolveImpl',
+      line: 1057,
+      method: null,
+      native: false
+    },
+    {
+      column: 22,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'resolveForCJSWithHooks',
+      line: 1062,
+      method: null,
+      native: false
+    },
+    {
+      column: 37,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1211,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 26,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 4,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/modules/run_main',
+      function: 'Function.executeUserEntryPoint [as runMain]',
+      line: 170,
+      method: 'executeUserEntryPoint [as runMain]',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-02-02 16:12:35'
+}
+{
+  error: Error: Cannot find module './jobs/expireTrajetsJob'
+  Require stack:
+  - C:\Projet perso\Convoiturage-Backend\server.js
+      at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+      at Function._load (node:internal/modules/cjs/loader:1211:37)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:4:26)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ 'C:\\Projet perso\\Convoiturage-Backend\\server.js' ]
+  },
+  level: 'error',
+  message: "uncaughtException: Cannot find module './jobs/expireTrajetsJob'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    "Error: Cannot find module './jobs/expireTrajetsJob'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:4:26)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)',
+  stack: "Error: Cannot find module './jobs/expireTrajetsJob'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:4:26)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)',
+  exception: true,
+  date: 'Mon Feb 02 2026 16:16:42 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 22380,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 140713984,
+      heapTotal: 99188736,
+      heapUsed: 77125272,
+      external: 22191981,
+      arrayBuffers: 18750876
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 82146.484 },
+  trace: [
+    {
+      column: 15,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._resolveFilename',
+      line: 1401,
+      method: '_resolveFilename',
+      native: false
+    },
+    {
+      column: 19,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'defaultResolveImpl',
+      line: 1057,
+      method: null,
+      native: false
+    },
+    {
+      column: 22,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'resolveForCJSWithHooks',
+      line: 1062,
+      method: null,
+      native: false
+    },
+    {
+      column: 37,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1211,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 26,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 4,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/modules/run_main',
+      function: 'Function.executeUserEntryPoint [as runMain]',
+      line: 170,
+      method: 'executeUserEntryPoint [as runMain]',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-02-02 16:16:42'
+}
+{
+  error: Error: Cannot find module './jobs/expireTrajetsJob'
+  Require stack:
+  - C:\Projet perso\Convoiturage-Backend\server.js
+      at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+      at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+      at Function._load (node:internal/modules/cjs/loader:1211:37)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:4:26)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ 'C:\\Projet perso\\Convoiturage-Backend\\server.js' ]
+  },
+  level: 'error',
+  message: "uncaughtException: Cannot find module './jobs/expireTrajetsJob'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    "Error: Cannot find module './jobs/expireTrajetsJob'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:4:26)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)',
+  stack: "Error: Cannot find module './jobs/expireTrajetsJob'\n" +
+    'Require stack:\n' +
+    '- C:\\Projet perso\\Convoiturage-Backend\\server.js\n' +
+    '    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)\n' +
+    '    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)\n' +
+    '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1211:37)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:4:26)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)',
+  exception: true,
+  date: 'Mon Feb 02 2026 16:20:04 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 9260,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 140431360,
+      heapTotal: 98926592,
+      heapUsed: 77072720,
+      external: 22191981,
+      arrayBuffers: 18750876
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 82348.656 },
+  trace: [
+    {
+      column: 15,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._resolveFilename',
+      line: 1401,
+      method: '_resolveFilename',
+      native: false
+    },
+    {
+      column: 19,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'defaultResolveImpl',
+      line: 1057,
+      method: null,
+      native: false
+    },
+    {
+      column: 22,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'resolveForCJSWithHooks',
+      line: 1062,
+      method: null,
+      native: false
+    },
+    {
+      column: 37,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1211,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 26,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 4,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/modules/run_main',
+      function: 'Function.executeUserEntryPoint [as runMain]',
+      line: 170,
+      method: 'executeUserEntryPoint [as runMain]',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-02-02 16:20:04'
+}
