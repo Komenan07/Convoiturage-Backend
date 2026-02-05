@@ -35677,3 +35677,1118 @@
   version: '1.0.0',
   timestamp: '2026-02-02 18:12:33'
 }
+{
+  error: C:\Projet perso\Convoiturage-Backend\models\Trajet.js:506
+  });
+  ^
+  
+  SyntaxError: Unexpected token '}'
+      at wrapSafe (node:internal/modules/cjs/loader:1662:18)
+      at Module._compile (node:internal/modules/cjs/loader:1704:20)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\services\trajetAutomationService.js:4:16)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24),
+  level: 'error',
+  message: "uncaughtException: Unexpected token '}'\n" +
+    'C:\\Projet perso\\Convoiturage-Backend\\models\\Trajet.js:506\n' +
+    '});\n' +
+    '^\n' +
+    '\n' +
+    "SyntaxError: Unexpected token '}'\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:4:16)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  stack: 'C:\\Projet perso\\Convoiturage-Backend\\models\\Trajet.js:506\n' +
+    '});\n' +
+    '^\n' +
+    '\n' +
+    "SyntaxError: Unexpected token '}'\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:4:16)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  exception: true,
+  date: 'Wed Feb 04 2026 23:17:03 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 5536,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 147906560,
+      heapTotal: 95793152,
+      heapUsed: 70505664,
+      external: 22191981,
+      arrayBuffers: 18750876
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 105859.625 },
+  trace: [
+    {
+      column: 18,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapSafe',
+      line: 1662,
+      method: null,
+      native: false
+    },
+    {
+      column: 20,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1704,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 16,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js',
+      function: null,
+      line: 4,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-02-04 23:17:03'
+}
+{
+  error: C:\Projet perso\Convoiturage-Backend\models\Trajet.js:538
+  });
+  ^
+  
+  SyntaxError: Unexpected token '}'
+      at wrapSafe (node:internal/modules/cjs/loader:1662:18)
+      at Module._compile (node:internal/modules/cjs/loader:1704:20)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\services\trajetAutomationService.js:4:16)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24),
+  level: 'error',
+  message: "uncaughtException: Unexpected token '}'\n" +
+    'C:\\Projet perso\\Convoiturage-Backend\\models\\Trajet.js:538\n' +
+    '});\n' +
+    '^\n' +
+    '\n' +
+    "SyntaxError: Unexpected token '}'\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:4:16)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  stack: 'C:\\Projet perso\\Convoiturage-Backend\\models\\Trajet.js:538\n' +
+    '});\n' +
+    '^\n' +
+    '\n' +
+    "SyntaxError: Unexpected token '}'\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:4:16)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  exception: true,
+  date: 'Wed Feb 04 2026 23:17:30 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 12324,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 148123648,
+      heapTotal: 95793152,
+      heapUsed: 70051272,
+      external: 22191981,
+      arrayBuffers: 18750876
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 105886.812 },
+  trace: [
+    {
+      column: 18,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapSafe',
+      line: 1662,
+      method: null,
+      native: false
+    },
+    {
+      column: 20,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1704,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 16,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js',
+      function: null,
+      line: 4,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-02-04 23:17:30'
+}
+{
+  error: C:\Projet perso\Convoiturage-Backend\models\Trajet.js:823
+  };
+  ^
+  
+  SyntaxError: Unexpected token '}'
+      at wrapSafe (node:internal/modules/cjs/loader:1662:18)
+      at Module._compile (node:internal/modules/cjs/loader:1704:20)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\services\trajetAutomationService.js:4:16)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24),
+  level: 'error',
+  message: "uncaughtException: Unexpected token '}'\n" +
+    'C:\\Projet perso\\Convoiturage-Backend\\models\\Trajet.js:823\n' +
+    '};\n' +
+    '^\n' +
+    '\n' +
+    "SyntaxError: Unexpected token '}'\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:4:16)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  stack: 'C:\\Projet perso\\Convoiturage-Backend\\models\\Trajet.js:823\n' +
+    '};\n' +
+    '^\n' +
+    '\n' +
+    "SyntaxError: Unexpected token '}'\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:4:16)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  exception: true,
+  date: 'Thu Feb 05 2026 12:22:20 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 16288,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 137310208,
+      heapTotal: 95797248,
+      heapUsed: 74417544,
+      external: 22191981,
+      arrayBuffers: 18750876
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 152976.656 },
+  trace: [
+    {
+      column: 18,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapSafe',
+      line: 1662,
+      method: null,
+      native: false
+    },
+    {
+      column: 20,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1704,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 16,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js',
+      function: null,
+      line: 4,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-02-05 12:22:20'
+}
+{
+  error: C:\Projet perso\Convoiturage-Backend\services\trajetAutomationService.js:9
+  const cron = require('node-cron');
+        ^
+  
+  SyntaxError: Identifier 'cron' has already been declared
+      at wrapSafe (node:internal/modules/cjs/loader:1662:18)
+      at Module._compile (node:internal/modules/cjs/loader:1704:20)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:4:33)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24),
+  level: 'error',
+  message: "uncaughtException: Identifier 'cron' has already been declared\n" +
+    'C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:9\n' +
+    "const cron = require('node-cron');\n" +
+    '      ^\n' +
+    '\n' +
+    "SyntaxError: Identifier 'cron' has already been declared\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:4:33)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  stack: 'C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:9\n' +
+    "const cron = require('node-cron');\n" +
+    '      ^\n' +
+    '\n' +
+    "SyntaxError: Identifier 'cron' has already been declared\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:4:33)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  exception: true,
+  date: 'Thu Feb 05 2026 13:27:31 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 17900,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 143683584,
+      heapTotal: 102088704,
+      heapUsed: 74100696,
+      external: 22191981,
+      arrayBuffers: 18750876
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 156886.875 },
+  trace: [
+    {
+      column: 18,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapSafe',
+      line: 1662,
+      method: null,
+      native: false
+    },
+    {
+      column: 20,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1704,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 33,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 4,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-02-05 13:27:31'
+}
+{
+  error: C:\Projet perso\Convoiturage-Backend\services\trajetAutomationService.js:9
+  const cron = require('node-cron');
+        ^
+  
+  SyntaxError: Identifier 'cron' has already been declared
+      at wrapSafe (node:internal/modules/cjs/loader:1662:18)
+      at Module._compile (node:internal/modules/cjs/loader:1704:20)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+      at Module.require (node:internal/modules/cjs/loader:1487:12)
+      at require (node:internal/modules/helpers:135:16)
+      at Object.<anonymous> (C:\Projet perso\Convoiturage-Backend\server.js:4:33)
+      at Module._compile (node:internal/modules/cjs/loader:1730:14)
+      at Object..js (node:internal/modules/cjs/loader:1895:10)
+      at Module.load (node:internal/modules/cjs/loader:1465:32)
+      at Function._load (node:internal/modules/cjs/loader:1282:12)
+      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:235:24),
+  level: 'error',
+  message: "uncaughtException: Identifier 'cron' has already been declared\n" +
+    'C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:9\n' +
+    "const cron = require('node-cron');\n" +
+    '      ^\n' +
+    '\n' +
+    "SyntaxError: Identifier 'cron' has already been declared\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:4:33)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  stack: 'C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:9\n' +
+    "const cron = require('node-cron');\n" +
+    '      ^\n' +
+    '\n' +
+    "SyntaxError: Identifier 'cron' has already been declared\n" +
+    '    at wrapSafe (node:internal/modules/cjs/loader:1662:18)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1704:20)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n' +
+    '    at Module.require (node:internal/modules/cjs/loader:1487:12)\n' +
+    '    at require (node:internal/modules/helpers:135:16)\n' +
+    '    at Object.<anonymous> (C:\\Projet perso\\Convoiturage-Backend\\server.js:4:33)\n' +
+    '    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n' +
+    '    at Object..js (node:internal/modules/cjs/loader:1895:10)\n' +
+    '    at Module.load (node:internal/modules/cjs/loader:1465:32)\n' +
+    '    at Function._load (node:internal/modules/cjs/loader:1282:12)\n' +
+    '    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n' +
+    '    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)',
+  exception: true,
+  date: 'Thu Feb 05 2026 13:27:43 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 16196,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 145166336,
+      heapTotal: 103395328,
+      heapUsed: 75342992,
+      external: 22191981,
+      arrayBuffers: 18750876
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 156899.687 },
+  trace: [
+    {
+      column: 18,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapSafe',
+      line: 1662,
+      method: null,
+      native: false
+    },
+    {
+      column: 20,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1704,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.require',
+      line: 1487,
+      method: 'require',
+      native: false
+    },
+    {
+      column: 16,
+      file: 'node:internal/modules/helpers',
+      function: 'require',
+      line: 135,
+      method: null,
+      native: false
+    },
+    {
+      column: 33,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\server.js',
+      function: null,
+      line: 4,
+      method: null,
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module._compile',
+      line: 1730,
+      method: '_compile',
+      native: false
+    },
+    {
+      column: 10,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Object..js',
+      line: 1895,
+      method: '.js',
+      native: false
+    },
+    {
+      column: 32,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Module.load',
+      line: 1465,
+      method: 'load',
+      native: false
+    },
+    {
+      column: 12,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'Function._load',
+      line: 1282,
+      method: '_load',
+      native: false
+    },
+    {
+      column: 14,
+      file: 'node:diagnostics_channel',
+      function: 'TracingChannel.traceSync',
+      line: 322,
+      method: 'traceSync',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'node:internal/modules/cjs/loader',
+      function: 'wrapModuleLoad',
+      line: 235,
+      method: null,
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-02-05 13:27:43'
+}

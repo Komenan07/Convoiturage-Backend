@@ -264,6 +264,14 @@ const trajetSchema = new mongoose.Schema({
       message: 'L\'heure d\'arrivée prévue doit être au format HH:MM (24h)'
     }
   },
+  dateDepartReelle: {
+    type: Date
+  },
+
+  dateArriveeReelle: {
+    type: Date
+  },
+
   dureeEstimee: {
     type: Number,
     min: 1,
@@ -402,31 +410,75 @@ const trajetSchema = new mongoose.Schema({
     default: () => ({})
   },
 
+  // Assurance voyage (UC09.3)
+  assuranceVoyage: {
+    active: {
+      type: Boolean,
+      default: false
+    },
+    numeroPolice: String,
+    compagnieAssurance: String,
+    montantCouverture: Number,
+    dateExpiration: Date,
+    documentUrl: String
+  },
+
+  // Validation documents (UC09.4)
+  documentsValidite: {
+    assuranceValide: {
+      type: Boolean,
+      default: false
+    },
+    visiteTechniqueValide: {
+      type: Boolean,
+      default: false
+    },
+    dateExpirationAssurance: Date,
+    dateExpirationVisite: Date,
+    derniereVerification: Date
+  },
   // Statut et état
   statutTrajet: {
     type: String,
-    enum: ['PROGRAMME','EN_RETARD', 'EN_COURS', 'TERMINE', 'ANNULE', 'EXPIRE'],
+    enum: ['PROGRAMME', 'EN_ATTENTE_DEPART', 'EN_COURS', 'ARRIVE_NON_CONFIRME', 'TERMINE', 'ANNULE', 'EXPIRE'],
     default: 'PROGRAMME'
   },
   validationAutomatique: {
     type: Boolean,
     default: false
   },
+    // Rappel arrivée
+  notificationArriveeEnvoyee: {
+    type: Boolean,
+    default: false
+  },
 
+  dateNotificationArrivee: {
+    type: Date
+  },
+    // Rappel retard de départ
+  notificationRetardDepartEnvoyee: {
+    type: Boolean,
+    default: false
+  },
+
+  dateNotificationRetardDepart: {
+    type: Date
+  },
   // Gestion de l'expiration
   dateExpiration: {
     type: Date,
     index: true
   },
-  dateDebutRetard: {
-  type: Date,
-  index: true
-  },
   raisonExpiration: {
   type: String,
-  enum: ['DATE_PASSEE', 'RECURRENCE_TERMINEE', 'INACTIVITE', 'RETARD_EXCESSIF', 'AUTRE']
+  enum: ['DATE_PASSEE', 'RECURRENCE_TERMINEE', 'INACTIVITE', 'DEPART_MANQUE', 'AUTRE'] 
   },
-
+    typeExpiration: {
+    type: String,
+    enum: ['AUTOMATIQUE', 'MANUELLE'],
+    default: 'AUTOMATIQUE'
+  },
   // Métadonnées
   commentaireConducteur: {
     type: String,
@@ -476,13 +528,13 @@ trajetSchema.index({
 // ===============================================
 
 // Middleware pre-save pour validation croisée
-trajetSchema.pre('save', function(next) {
+  trajetSchema.pre('save', function(next) {
   // Validation des préférences de genre
   if (this.preferences.accepteFemmesSeulement && this.preferences.accepteHommesSeulement) {
-  return next(new Error('Ne peut pas accepter exclusivement les femmes ET les hommes'));
-}
+    return next(new Error('Ne peut pas accepter exclusivement les femmes ET les hommes'));
+  }
 
-// Validation que les places disponibles ne dépassent jamais le total
+  // Validation que les places disponibles ne dépassent jamais le total
   if (this.nombrePlacesDisponibles > this.nombrePlacesTotal) {
     return next(new Error('Le nombre de places disponibles ne peut pas dépasser le total'));
   }
@@ -499,7 +551,8 @@ trajetSchema.pre('save', function(next) {
     this.arretsIntermediaires.sort((a, b) => a.ordreArret - b.ordreArret);
   }
 
-  // Vérifier l'expiration automatique
+  // ✅ CORRECTION : Vérifier l'expiration SEULEMENT si c'est une modification (pas création)
+  // ET seulement si le trajet n'est pas nouveau
   if (!this.isNew && this.estExpire() && this.statutTrajet === 'PROGRAMME') {
     this.statutTrajet = 'EXPIRE';
     this.dateExpiration = new Date();
@@ -716,11 +769,42 @@ trajetSchema.methods.calculerTarifTotal = function(nombrePassagers = 1) {
   return this.prixParPassager * nombrePassagers;
 };
 
+/**
+ * Vérifier expiration avec date + heure complète
+ */
 trajetSchema.methods.estExpire = function() {
-  const maintenant = new Date();
-  return maintenant > new Date(this.dateDepart.getTime() + 24 * 60 * 60 * 1000) && (this.statutTrajet === 'PROGRAMME' || this.statutTrajet == 'EXPIRE');
-};
+  // ❌ Ne jamais expirer un trajet en cours ou terminé
+  if (['EN_COURS', 'TERMINE'].includes(this.statutTrajet)) {
+    return false;
+  }
 
+  // Si une dateExpiration est définie, on la respecte
+  if (this.dateExpiration) {
+    return new Date() > this.dateExpiration;
+  }
+
+  // Sinon, vérifier la date + heure de départ pour un trajet PROGRAMME
+  if (!this.dateDepart || !this.heureDepart) {
+    return false;
+  }
+
+  try {
+    const maintenant = new Date();
+    const [heures, minutes] = this.heureDepart.split(':').map(Number);
+    const dateDepartComplete = new Date(this.dateDepart);
+    dateDepartComplete.setUTCHours(heures, minutes, 0, 0); // UTC
+
+    // Trajet expiré si départ passé ET statut PROGRAMME
+    return dateDepartComplete < maintenant && this.statutTrajet === 'PROGRAMME';
+    
+  } catch (error) {
+    console.error('❌ Erreur estExpire:', error.message);
+    return false;
+  }
+};
+/**
+ * Marquer comme expiré seulement si vraiment expiré
+ */
 trajetSchema.methods.marquerCommeExpire = async function() {
   if (this.estExpire()) {
     this.statutTrajet = 'EXPIRE';
@@ -946,134 +1030,6 @@ trajetSchema.statics.findTrajetsRecurrentsExpires = function() {
   });
 };
 
-/**
- * ⭐ GESTION INTELLIGENTE DES EXPIRATIONS ET RETARDS
- * 
- * Logique:
- * 1. PROGRAMME + heure passée → EXPIRE
- * 2. EN_COURS + heure dépassée → EN_RETARD
- * 3. EN_RETARD + 2h → EXPIRE
- */
-trajetSchema.statics.gererExpirationEtRetards = async function() {
-  const maintenant = new Date();
-  const dateRetardMax = new Date(maintenant.getTime() - 2 * 60 * 60 * 1000); // -2h
-  
-  const resultats = {
-    trajetsExpires: 0,
-    trajetsEnRetard: 0,
-    retardsExpires: 0
-  };
-  
-  // ========================================
-  // 1️⃣ PROGRAMME → EXPIRE (logique normale)
-  // ========================================
-  const trajetsProgrammes = await this.find({
-    statutTrajet: 'PROGRAMME',
-    dateDepart: { $exists: true },
-    heureDepart: { $exists: true }
-  });
-  
-  const idsAExpirer = [];
-  
-  for (const trajet of trajetsProgrammes) {
-    try {
-      const dateStr = trajet.dateDepart.toISOString().split('T')[0];
-      const dateTimeStr = `${dateStr}T${trajet.heureDepart}:00.000Z`;
-      const dateDepartComplete = new Date(dateTimeStr);
-      
-      if (dateDepartComplete < maintenant) {
-        idsAExpirer.push(trajet._id);
-      }
-    } catch (error) {
-      console.error(`⚠️ Erreur traitement trajet ${trajet._id}:`, error.message);
-    }
-  }
-  
-  if (idsAExpirer.length > 0) {
-    const result = await this.updateMany(
-      { _id: { $in: idsAExpirer } },
-      {
-        $set: { 
-          statutTrajet: 'EXPIRE',
-          dateExpiration: maintenant,
-          raisonExpiration: 'DATE_PASSEE'
-        }
-      }
-    );
-    resultats.trajetsExpires = result.modifiedCount;
-  }
-  
-  // ========================================
-  // 2️⃣ EN_COURS → EN_RETARD (nouveau)
-  // ========================================
-  const trajetsEnCours = await this.find({
-    statutTrajet: 'EN_COURS',
-    dateDepart: { $exists: true },
-    heureDepart: { $exists: true },
-    heureArriveePrevue: { $exists: true }
-  });
-  
-  const idsEnRetard = [];
-  
-  for (const trajet of trajetsEnCours) {
-    try {
-      // Calculer l'heure d'arrivée prévue complète
-      const dateStr = trajet.dateDepart.toISOString().split('T')[0];
-      const arriveeTimeStr = `${dateStr}T${trajet.heureArriveePrevue}:00.000Z`;
-      const heureArriveePrevue = new Date(arriveeTimeStr);
-      
-      // Si l'heure d'arrivée est dépassée → EN_RETARD
-      if (heureArriveePrevue < maintenant) {
-        idsEnRetard.push(trajet._id);
-      }
-    } catch (error) {
-      console.error(`⚠️ Erreur traitement trajet ${trajet._id}:`, error.message);
-    }
-  }
-  
-  if (idsEnRetard.length > 0) {
-    const result = await this.updateMany(
-      { _id: { $in: idsEnRetard } },
-      {
-        $set: { 
-          statutTrajet: 'EN_RETARD',
-          dateDebutRetard: maintenant
-        }
-      }
-    );
-    resultats.trajetsEnRetard = result.modifiedCount;
-  }
-  
-  // ========================================
-  // 3️⃣ EN_RETARD + 2h → EXPIRE (gradation)
-  // ========================================
-  const result = await this.updateMany(
-    {
-      statutTrajet: 'EN_RETARD',
-      dateDebutRetard: { $lt: dateRetardMax, $exists: true }
-    },
-    {
-      $set: { 
-        statutTrajet: 'EXPIRE',
-        dateExpiration: maintenant,
-        raisonExpiration: 'RETARD_EXCESSIF'
-      }
-    }
-  );
-  
-  resultats.retardsExpires = result.modifiedCount;
-  
-  // Log détaillé
-  console.log('✅ Gestion expiration/retards:', {
-    trajetsExpires: resultats.trajetsExpires,
-    trajetsEnRetard: resultats.trajetsEnRetard,
-    retardsExpires: resultats.retardsExpires,
-    total: resultats.trajetsExpires + resultats.trajetsEnRetard + resultats.retardsExpires
-  });
-  
-  return resultats;
-};
-
 trajetSchema.statics.marquerRecurrencesExpirees = async function() {
   const maintenant = new Date();
   
@@ -1180,6 +1136,9 @@ trajetSchema.virtual('tauxOccupation').get(function() {
   return Math.round((this.placesReservees / this.nombrePlacesTotal) * 100);
 });
 
+/**
+ * Virtual cohérent avec UTC
+ */
 trajetSchema.virtual('isExpired').get(function() {
   // Vérifier d'abord si déjà marqué comme expiré
   if (this.statutTrajet === 'EXPIRE') {
@@ -1192,22 +1151,24 @@ trajetSchema.virtual('isExpired').get(function() {
   }
   
   try {
-    // ✅ CORRECTION: Créer une NOUVELLE instance à chaque fois
-    const dateStr = this.dateDepart.toISOString().split('T')[0]; // "2026-01-18"
-    const dateTimeStr = `${dateStr}T${this.heureDepart}:00.000Z`; // "2026-01-18T16:40:00.000Z"
-    const dateDepartComplete = new Date(dateTimeStr);
-    
+    // ✅ Construire la date complète en UTC (cohérent avec la création)
+    const dateDepartComplete = new Date(this.dateDepart);
+    const [h, m] = (this.heureDepart || '00:00').split(':').map(Number);
+    dateDepartComplete.setUTCHours(h, m, 0, 0);  // ✅ UTC
+
     const maintenant = new Date();
-    const isExp = dateDepartComplete < maintenant;
-    
-    // // 🔍 DEBUG - Tu pourras retirer ces logs après
-    // console.log('🕐 isExpired:', {
-    //   trajetId: this._id,
-    //   dateDepart: dateDepartComplete.toISOString(),
-    //   maintenant: maintenant.toISOString(),
-    //   isExpired: isExp,
-    //   diff: Math.round((dateDepartComplete - maintenant) / 60000) + ' min'
-    // });
+    const isExp = dateDepartComplete < maintenant && this.statutTrajet === 'PROGRAMME';
+
+    // 🔍 DEBUG - Retirer après correction
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🕐 isExpired calc:', {
+        trajetId: this._id,
+        dateDepartComplete: dateDepartComplete.toISOString(),
+        maintenant: maintenant.toISOString(),
+        diff: Math.round((dateDepartComplete - maintenant) / 60000) + ' min',
+        isExpired: isExp
+      });
+    }
     
     return isExp;
     

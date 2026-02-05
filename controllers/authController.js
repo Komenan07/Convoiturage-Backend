@@ -879,7 +879,7 @@ const inscription = async (req, res, next) => {
 /**
  * Inscription avec vérification SMS
  */
-const inscriptionSMS = async (req, res, next) => {
+  const inscriptionSMS = async (req, res, next) => {
   let telephone, email;
   
   try {
@@ -1047,32 +1047,65 @@ const inscriptionSMS = async (req, res, next) => {
     const newUser = new User(userData);
     await newUser.save({ maxTimeMS: 30000 });
 
-    // Envoyer le SMS de vérification
+    // ✅ Envoyer le SMS de vérification via InfoBip
     try {
-      logger.info('Tentative envoi SMS', {
+      logger.info('Tentative envoi SMS via InfoBip', {
         originalPhone: req.body.telephone,
         processedPhone: newUser.telephone,
         userId: newUser._id,
         phoneLength: newUser.telephone.length
       });
 
-      await sendSMS({
-        to: newUser.telephone,
-        message: `Votre code de vérification WAYZ-ECO est: ${codeSMS}. Ce code expire dans 10 minutes.`
-      });
+      const nomComplet = `${prenom} ${nom}`;
+      const resultatEnvoi = await infobipService.envoyerCodeVerification(
+        newUser.telephone,
+        codeSMS,
+        nomComplet
+      );
 
-      logger.info('SMS de vérification envoyé avec succès', { 
+      if (!resultatEnvoi.success) {
+        // Supprimer l'utilisateur en cas d'échec
+        await User.findByIdAndDelete(newUser._id);
+        
+        logger.error('Échec envoi SMS InfoBip', {
+          error: resultatEnvoi.error,
+          originalPhone: req.body.telephone,
+          processedPhone: newUser.telephone,
+          userId: newUser._id,
+          phoneLength: newUser.telephone.length
+        });
+        
+        return res.status(500).json({
+          success: false,
+          message: 'Impossible d\'envoyer le SMS de vérification. Vérifiez votre numéro de téléphone.',
+          errorType: 'SMS_SEND_FAILED',
+          field: 'telephone',
+          originalValue: req.body.telephone,
+          processedValue: newUser.telephone,
+          suggestion: 'Vérifiez que votre numéro est correct. Format: 0707070708 ou +22507070708',
+          debug: process.env.NODE_ENV === 'development' ? {
+            originalPhone: req.body.telephone,
+            processedPhone: newUser.telephone,
+            phoneLength: newUser.telephone.length,
+            infobipError: resultatEnvoi.error,
+            provider: resultatEnvoi.provider
+          } : undefined
+        });
+      }
+
+      logger.info('✅ SMS de vérification envoyé avec succès via InfoBip', { 
         userId: newUser._id, 
-        telephone: newUser.telephone 
+        telephone: newUser.telephone,
+        messageId: resultatEnvoi.messageId,
+        provider: resultatEnvoi.provider
       });
       
     } catch (smsError) {
-      logger.error('Échec envoi SMS', {
+      logger.error('❌ Erreur lors de l\'envoi SMS InfoBip', {
         error: smsError.message,
         originalPhone: req.body.telephone,
         processedPhone: newUser.telephone,
         userId: newUser._id,
-        phoneLength: newUser.telephone.length,
         stackTrace: smsError.stack
       });
       
@@ -1081,18 +1114,14 @@ const inscriptionSMS = async (req, res, next) => {
       
       return res.status(500).json({
         success: false,
-        message: 'Impossible d\'envoyer le SMS de vérification. Vérifiez votre numéro de téléphone.',
-        errorType: 'SMS_SEND_FAILED',
+        message: 'Erreur technique lors de l\'envoi du SMS. Veuillez réessayer.',
+        errorType: 'SMS_SEND_ERROR',
         field: 'telephone',
         originalValue: req.body.telephone,
         processedValue: newUser.telephone,
-        suggestion: 'Vérifiez que votre numéro est correct. Format: 0707070708 ou +22507070708',
         debug: process.env.NODE_ENV === 'development' ? {
-          originalPhone: req.body.telephone,
-          processedPhone: newUser.telephone,
-          phoneLength: newUser.telephone.length,
-          twilioError: smsError.message,
-          fullError: smsError.stack
+          error: smsError.message,
+          stack: smsError.stack
         } : undefined
       });
     }
@@ -1321,7 +1350,7 @@ const verifierCodeSMS = async (req, res, next) => {
     }
 
     const user = await User.findOne({ telephone: phoneProcessed })
-      .select('+codeSMS +expirationCodeSMS')
+      .select('+codeSMS +expirationCodeSMS +refreshTokens')
       .maxTimeMS(30000);
 
     if (!user) {
@@ -1339,40 +1368,123 @@ const verifierCodeSMS = async (req, res, next) => {
       });
     }
 
-    // Vérifier le code SMS
-    if (!user.codeSMS || user.codeSMS !== codeSMS) {
-      logger.warn('Vérification SMS échouée - Code incorrect', { userId: user._id, telephone: phoneProcessed });
-      return res.status(400).json({
-        success: false,
-        message: 'Code SMS incorrect'
+    // 🔥 LOGS DE DEBUG EN MODE DÉVELOPPEMENT
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 DEBUG - Vérification code SMS:', {
+        userId: user._id,
+        telephone: user.telephone,
+        codeSMSExists: !!user.codeSMS,
+        codeStocke: user.codeSMS,
+        codeSaisi: codeSMS,
+        codeStockeType: typeof user.codeSMS,
+        codeSaisiType: typeof codeSMS,
+        expiration: user.expirationCodeSMS,
+        expirationDate: user.expirationCodeSMS ? new Date(user.expirationCodeSMS) : null,
+        maintenant: Date.now(),
+        maintenantDate: new Date(),
+        estExpire: user.expirationCodeSMS ? (user.expirationCodeSMS < Date.now()) : null
       });
     }
 
-    // Vérifier l'expiration
+    // ✅ VÉRIFIER SI LE CODE SMS EXISTE
+    if (!user.codeSMS) {
+      logger.warn('Vérification SMS échouée - Aucun code SMS enregistré', { 
+        userId: user._id, 
+        telephone: phoneProcessed 
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Aucun code de vérification actif. Veuillez en demander un nouveau.',
+        errorType: 'NO_CODE_FOUND',
+        suggestion: 'Utilisez /api/auth/renvoyer-code-sms pour obtenir un nouveau code'
+      });
+    }
+
+    // ✅ VÉRIFIER L'EXPIRATION AVANT LA COMPARAISON
     if (!user.expirationCodeSMS || user.expirationCodeSMS < Date.now()) {
-      logger.warn('Vérification SMS échouée - Code expiré', { userId: user._id, telephone: phoneProcessed });
+      logger.warn('Vérification SMS échouée - Code expiré', { 
+        userId: user._id, 
+        telephone: phoneProcessed,
+        expiration: user.expirationCodeSMS,
+        maintenant: Date.now()
+      });
+      
+      // Nettoyer le code expiré
+      user.codeSMS = undefined;
+      user.expirationCodeSMS = undefined;
+      await user.save({ validateBeforeSave: false });
+      
       return res.status(400).json({
         success: false,
-        message: 'Code SMS expiré'
+        message: 'Code SMS expiré. Veuillez en demander un nouveau.',
+        errorType: 'CODE_EXPIRED',
+        suggestion: 'Utilisez /api/auth/renvoyer-code-sms pour obtenir un nouveau code'
       });
     }
 
-    // Code valide - confirmer le téléphone
+    // ✅ COMPARAISON ROBUSTE DES CODES (conversion en String + trim)
+    const codeStocke = String(user.codeSMS).trim();
+    const codeSaisi = String(codeSMS).trim();
+
+    if (codeStocke !== codeSaisi) {
+      logger.warn('Vérification SMS échouée - Code incorrect', { 
+        userId: user._id, 
+        telephone: phoneProcessed,
+        codeStocke: codeStocke,
+        codeSaisi: codeSaisi,
+        longueurStocke: codeStocke.length,
+        longueurSaisi: codeSaisi.length
+      });
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Code SMS incorrect',
+        errorType: 'INVALID_CODE',
+        debug: process.env.NODE_ENV === 'development' ? {
+          codeStocke: codeStocke,
+          codeSaisi: codeSaisi,
+          match: codeStocke === codeSaisi
+        } : undefined
+      });
+    }
+
+    // ✅ CODE VALIDE - ACTIVER LE COMPTE
     user.statutCompte = 'ACTIF';
     user.codeSMS = undefined;
     user.expirationCodeSMS = undefined;
     user.estVerifie = true;
-    await user.save();
+    user.telephoneVerifie = true;
+    
+    await user.save({ validateBeforeSave: false });
 
-    // Générer le token JWT
-    const token = user.getSignedJwtToken();
+    // ✨ Récupérer les informations de l'appareil
+    const deviceInfo = {
+      userAgent: req.headers['user-agent'] || 'Unknown',
+      ip: req.ip || req.connection.remoteAddress,
+      deviceType: detectDeviceType(req.headers['user-agent']),
+      os: detectOS(req.headers['user-agent']),
+      browser: detectBrowser(req.headers['user-agent'])
+    };
 
-    logger.info('Vérification SMS réussie', { userId: user._id, telephone: phoneProcessed });
+    // Générer Access Token ET Refresh Token
+    const accessToken = user.getSignedJwtToken();
+    const refreshToken = await user.generateRefreshToken(deviceInfo);
+
+    logger.info('✅ Vérification SMS réussie - Compte activé', { 
+      userId: user._id, 
+      telephone: phoneProcessed 
+    });
 
     res.status(200).json({
       success: true,
-      message: 'Téléphone vérifié avec succès. Votre compte est maintenant actif.',
-      token,
+      message: '✅ Téléphone vérifié avec succès. Votre compte est maintenant actif !',
+      data: {
+        accessToken,
+        refreshToken,
+        expiresIn: process.env.JWT_EXPIRE || '15m',
+        refreshTokenExpiresIn: `${process.env.REFRESH_TOKEN_DAYS || 30} jours`,
+        tokenType: 'Bearer'
+      },
       user: {
         id: user._id,
         nom: user.nom,
@@ -1381,6 +1493,7 @@ const verifierCodeSMS = async (req, res, next) => {
         email: user.email || null,
         role: user.role,
         statutCompte: user.statutCompte,
+        telephoneVerifie: user.telephoneVerifie,
         compteCovoiturage: {
           solde: user.compteCovoiturage.solde,
           estRecharge: user.compteCovoiturage.estRecharge,
@@ -1390,7 +1503,7 @@ const verifierCodeSMS = async (req, res, next) => {
     });
 
   } catch (error) {
-    logger.error('Erreur vérification SMS:', error);
+    logger.error('❌ Erreur vérification SMS:', error);
     return next(AppError.serverError('Erreur serveur lors de la vérification SMS', { 
       originalError: error.message
     }));
@@ -1475,6 +1588,9 @@ const renvoyerConfirmationEmail = async (req, res, next) => {
 /**
  * Renvoyer un code SMS
  */
+/**
+ * Renvoyer un code SMS
+ */
 const renvoyerCodeSMS = async (req, res, next) => {
   try {
     const { telephone } = req.body;
@@ -1534,27 +1650,72 @@ const renvoyerCodeSMS = async (req, res, next) => {
     const nouveauCode = Math.floor(100000 + Math.random() * 900000).toString();
     user.codeSMS = nouveauCode;
     user.expirationCodeSMS = Date.now() + 10 * 60 * 1000;
-    await user.save();
+    await user.save({ validateBeforeSave: false });
 
-    // Envoyer le SMS
+    // ✅ Envoyer le SMS via InfoBip
     try {
-      await sendSMS({
-        to: user.telephone,
-        message: `Votre nouveau code de vérification WAYZ-ECO est: ${nouveauCode}. Ce code expire dans 10 minutes.`
+      logger.info('Tentative renvoi SMS via InfoBip', {
+        telephone: phoneProcessed,
+        userId: user._id
       });
 
-      logger.info('Nouveau SMS envoyé', { userId: user._id, telephone: phoneProcessed });
+      const nomComplet = `${user.prenom} ${user.nom}`;
+      const resultatEnvoi = await infobipService.envoyerCodeVerification(
+        phoneProcessed,
+        nouveauCode,
+        nomComplet
+      );
+
+      if (!resultatEnvoi.success) {
+        logger.error('Échec renvoi SMS InfoBip', {
+          error: resultatEnvoi.error,
+          telephone: phoneProcessed,
+          userId: user._id
+        });
+        
+        return res.status(500).json({
+          success: false,
+          message: 'Impossible de renvoyer le SMS. Veuillez réessayer plus tard.',
+          errorType: 'SMS_SEND_FAILED',
+          debug: process.env.NODE_ENV === 'development' ? {
+            infobipError: resultatEnvoi.error,
+            provider: resultatEnvoi.provider
+          } : undefined
+        });
+      }
+
+      logger.info('✅ Nouveau SMS envoyé via InfoBip', { 
+        userId: user._id, 
+        telephone: phoneProcessed,
+        messageId: resultatEnvoi.messageId,
+        provider: resultatEnvoi.provider
+      });
       
       res.status(200).json({
         success: true,
-        message: 'Un nouveau code de vérification a été envoyé par SMS'
+        message: 'Un nouveau code de vérification a été envoyé par SMS',
+        data: {
+          telephone: user.telephone,
+          expiration: user.expirationCodeSMS
+        }
       });
 
     } catch (smsError) {
-      logger.error('Erreur envoi SMS:', smsError);
+      logger.error('❌ Erreur renvoi SMS InfoBip:', {
+        error: smsError.message,
+        telephone: phoneProcessed,
+        userId: user._id,
+        stack: smsError.stack
+      });
+      
       return res.status(500).json({
         success: false,
-        message: 'Impossible d\'envoyer le SMS. Veuillez réessayer plus tard.'
+        message: 'Erreur technique lors de l\'envoi du SMS. Veuillez réessayer.',
+        errorType: 'SMS_SEND_ERROR',
+        debug: process.env.NODE_ENV === 'development' ? {
+          error: smsError.message,
+          stack: smsError.stack
+        } : undefined
       });
     }
 

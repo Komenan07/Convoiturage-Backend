@@ -5,12 +5,20 @@ const { logger } = require('../utils/logger');
 class InfobipService {
   constructor() {
     this.apiKey = process.env.INFOBIP_API_KEY;
-    this.baseUrl = process.env.INFOBIP_BASE_URL || 'k2gldx.api.infobip.com';
-    this.smsSender = process.env.INFOBIP_SMS_SENDER || 'WAYZECO';
+    this.baseUrl = process.env.INFOBIP_BASE_URL || 'z3xnw6.api.infobip.com';
+    this.smsSender = process.env.INFOBIP_SMS_SENDER || 'InfoSMS';
     this.whatsappSender = process.env.INFOBIP_WHATSAPP_SENDER || '447860099299';
     
-    this.mockMode = process.env.INFOBIP_MOCK_MODE === 'true';
+    this.mockMode = process.env.INFOBIP_MOCK_MODE === 'false';
     this.showCodes = process.env.SHOW_VERIFICATION_CODES === 'true';
+
+    console.log('🔥🔥🔥 DEBUG INFOBIP CONSTRUCTOR 🔥🔥🔥');
+    console.log('  INFOBIP_MOCK_MODE (env):', process.env.INFOBIP_MOCK_MODE);
+    console.log('  this.mockMode:', this.mockMode);
+    console.log('  Type:', typeof this.mockMode);
+    console.log('  API Key present:', !!this.apiKey);
+    console.log('  API Key length:', this.apiKey ? this.apiKey.length : 0);
+    console.log('🔥🔥🔥 FIN DEBUG 🔥🔥🔥');
 
     if (!this.apiKey && !this.mockMode) {
       logger.warn('⚠️ InfoBip API Key manquante - Mode mock activé');
@@ -18,7 +26,8 @@ class InfobipService {
     } else if (this.apiKey) {
       logger.info('✅ InfoBip Service initialisé', {
         baseUrl: this.baseUrl,
-        smsSender: this.smsSender
+        smsSender: this.smsSender,
+        mockMode: this.mockMode
       });
     }
   }
@@ -98,6 +107,14 @@ class InfobipService {
       request.on('error', (error) => {
         logger.error('❌ Erreur réseau InfoBip SMS', error);
         reject(error);
+      });
+
+      // Timeout safety
+      request.setTimeout(10000, () => {
+        const err = new Error('Timeout InfoBip SMS');
+        logger.error('⏱️ ' + err.message);
+        try { request.abort(); } catch(e) {}
+        reject(err);
       });
 
       const postData = JSON.stringify({
@@ -192,6 +209,14 @@ class InfobipService {
         reject(error);
       });
 
+      // Timeout safety
+      request.setTimeout(10000, () => {
+        const err = new Error('Timeout InfoBip WhatsApp');
+        logger.error('⏱️ ' + err.message);
+        try { request.abort(); } catch(e) {}
+        reject(err);
+      });
+
       const postData = JSON.stringify({
         from: this.whatsappSender,
         to: telephone,
@@ -227,21 +252,34 @@ class InfobipService {
         };
       }
 
-      logger.info('🎯 Stratégie: SMS uniquement (InfoBip)');
+      logger.info('🎯 Stratégie: WhatsApp -> SMS (fallback)');
 
-      // Envoyer via SMS
-      const result = await this.envoyerSMS(telephone, message);
-      
-      if (result.success) {
-        logger.info('✅ ✅ Code envoyé via SMS InfoBip');
-        return result;
+      // Essayer WhatsApp d'abord
+      try {
+        const waResult = await this.envoyerWhatsApp(telephone, message);
+        if (waResult && waResult.success) {
+          logger.info('✅ ✅ Code envoyé via WhatsApp InfoBip', { messageId: waResult.messageId });
+          return waResult;
+        }
+      } catch (waErr) {
+        logger.warn('⚠️ Échec envoi WhatsApp, tentative SMS', { error: waErr.message || waErr });
       }
 
-      // Si échec
-      logger.error('❌ Échec envoi code InfoBip');
+      // Fallback vers SMS
+      try {
+        const smsResult = await this.envoyerSMS(telephone, message);
+        if (smsResult && smsResult.success) {
+          logger.info('✅ ✅ Code envoyé via SMS InfoBip', { messageId: smsResult.messageId });
+          return smsResult;
+        }
+      } catch (smsErr) {
+        logger.error('❌ Échec envoi SMS lors du fallback', { error: smsErr.message || smsErr });
+      }
+
+      logger.error('❌ Échec envoi code InfoBip (WhatsApp + SMS)');
       return {
         success: false,
-        error: 'Impossible d\'envoyer le code par SMS',
+        error: 'Impossible d\'envoyer le code par WhatsApp ou SMS',
         provider: 'infobip-failed'
       };
 

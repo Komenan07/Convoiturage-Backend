@@ -604,6 +604,19 @@ const utilisateurSchema = new mongoose.Schema({
     type: Date,
     select: false
   },
+  codeSMS: {
+    type: String,
+    select: false
+  },
+  expirationCodeSMS: {
+    type: Date,
+    select: false
+  },
+  
+  telephoneVerifie: {
+    type: Boolean,
+    default: false
+  },
   // Confirmation d'email
   tokenConfirmationEmail: {
     type: String,

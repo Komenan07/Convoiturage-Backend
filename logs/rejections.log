@@ -13492,3 +13492,161 @@
   version: '1.0.0',
   timestamp: '2025-12-25 20:14:30'
 }
+{
+  error: StrictPopulateError: Cannot populate path `passagers` because it is not in your schema. Set the `strictPopulate` option to false to override.
+      at getModelsMapForPopulate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\helpers\populate\getModelsMapForPopulate.js:50:12)
+      at populate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\model.js:4394:21)
+      at _populate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\model.js:4354:5)
+      at C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\model.js:4326:5
+      at new Promise (<anonymous>)
+      at Function.populate (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\model.js:4325:10)
+      at model.Query._find (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\query.js:2316:24)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async model.Query.exec (C:\Projet perso\Convoiturage-Backend\node_modules\mongoose\lib\query.js:4447:11)
+      at async TrajetAutomationService.activerTrajetsEnAttente (C:\Projet perso\Convoiturage-Backend\services\trajetAutomationService.js:20:21)
+      at async TrajetAutomationService.executerVerificationComplete (C:\Projet perso\Convoiturage-Backend\services\trajetAutomationService.js:330:28) {
+    path: 'passagers'
+  },
+  level: 'error',
+  message: 'unhandledRejection: Cannot populate path `passagers` because it is not in your schema. Set the `strictPopulate` option to false to override.\n' +
+    'StrictPopulateError: Cannot populate path `passagers` because it is not in your schema. Set the `strictPopulate` option to false to override.\n' +
+    '    at getModelsMapForPopulate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\helpers\\populate\\getModelsMapForPopulate.js:50:12)\n' +
+    '    at populate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js:4394:21)\n' +
+    '    at _populate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js:4354:5)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js:4326:5\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at Function.populate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js:4325:10)\n' +
+    '    at model.Query._find (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\query.js:2316:24)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+    '    at async model.Query.exec (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\query.js:4447:11)\n' +
+    '    at async TrajetAutomationService.activerTrajetsEnAttente (C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:20:21)\n' +
+    '    at async TrajetAutomationService.executerVerificationComplete (C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:330:28)',
+  stack: 'StrictPopulateError: Cannot populate path `passagers` because it is not in your schema. Set the `strictPopulate` option to false to override.\n' +
+    '    at getModelsMapForPopulate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\helpers\\populate\\getModelsMapForPopulate.js:50:12)\n' +
+    '    at populate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js:4394:21)\n' +
+    '    at _populate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js:4354:5)\n' +
+    '    at C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js:4326:5\n' +
+    '    at new Promise (<anonymous>)\n' +
+    '    at Function.populate (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js:4325:10)\n' +
+    '    at model.Query._find (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\query.js:2316:24)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n' +
+    '    at async model.Query.exec (C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\query.js:4447:11)\n' +
+    '    at async TrajetAutomationService.activerTrajetsEnAttente (C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:20:21)\n' +
+    '    at async TrajetAutomationService.executerVerificationComplete (C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js:330:28)',
+  rejection: true,
+  date: 'Thu Feb 05 2026 13:28:36 GMT+0000 (temps universel coordonné)',
+  process: {
+    pid: 24000,
+    uid: null,
+    gid: null,
+    cwd: 'C:\\Projet perso\\Convoiturage-Backend',
+    execPath: 'C:\\Program Files\\nodejs\\node.exe',
+    version: 'v22.15.0',
+    argv: [
+      'C:\\Program Files\\nodejs\\node.exe',
+      'C:\\Projet perso\\Convoiturage-Backend\\server.js'
+    ],
+    memoryUsage: {
+      rss: 156057600,
+      heapTotal: 110735360,
+      heapUsed: 77990112,
+      external: 22427001,
+      arrayBuffers: 18807727
+    }
+  },
+  os: { loadavg: [ 0, 0, 0 ], uptime: 156951.968 },
+  trace: [
+    {
+      column: 12,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\helpers\\populate\\getModelsMapForPopulate.js',
+      function: 'getModelsMapForPopulate',
+      line: 50,
+      method: null,
+      native: false
+    },
+    {
+      column: 21,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js',
+      function: 'populate',
+      line: 4394,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js',
+      function: '_populate',
+      line: 4354,
+      method: null,
+      native: false
+    },
+    {
+      column: 5,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js',
+      function: null,
+      line: 4326,
+      method: null,
+      native: false
+    },
+    {
+      column: null,
+      file: null,
+      function: 'new Promise',
+      line: null,
+      method: null,
+      native: false
+    },
+    {
+      column: 10,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\model.js',
+      function: 'Function.populate',
+      line: 4325,
+      method: 'populate',
+      native: false
+    },
+    {
+      column: 24,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\query.js',
+      function: 'model.Query._find',
+      line: 2316,
+      method: '_find',
+      native: false
+    },
+    {
+      column: 5,
+      file: 'node:internal/process/task_queues',
+      function: 'process.processTicksAndRejections',
+      line: 105,
+      method: 'processTicksAndRejections',
+      native: false
+    },
+    {
+      column: 11,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\node_modules\\mongoose\\lib\\query.js',
+      function: 'async model.Query.exec',
+      line: 4447,
+      method: 'exec',
+      native: false
+    },
+    {
+      column: 21,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js',
+      function: 'async TrajetAutomationService.activerTrajetsEnAttente',
+      line: 20,
+      method: 'activerTrajetsEnAttente',
+      native: false
+    },
+    {
+      column: 28,
+      file: 'C:\\Projet perso\\Convoiturage-Backend\\services\\trajetAutomationService.js',
+      function: 'async TrajetAutomationService.executerVerificationComplete',
+      line: 330,
+      method: 'executerVerificationComplete',
+      native: false
+    }
+  ],
+  service: 'covoiturage-api',
+  environment: 'development',
+  version: '1.0.0',
+  timestamp: '2026-02-05 13:28:36'
+}
