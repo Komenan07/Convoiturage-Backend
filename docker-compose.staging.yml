@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # ==================== Application Backend Staging ====================
+  app:
+    image: registry.gitlab.com/${CI_PROJECT_PATH}:staging
+    container_name: covoiturage-backend-staging
+    restart: always
+    ports:
+      - "5500:5500"
+    environment:
+      NODE_ENV: staging
+      PORT: 5500
+      HOST: 0.0.0.0
+    env_file:
+      - .env.staging
+    volumes:
+      # Persister uniquement les données, pas le code
+      - uploads-staging:/app/uploads
+      - logs-staging:/app/logs
+      - backups-staging:/app/backups
+    networks:
+      - covoiturage-network-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5500/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ==================== Redis Staging ====================
+  redis:
+    image: redis:7-alpine
+    container_name: covoiturage-redis-staging
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data-staging:/data
+    networks:
+      - covoiturage-network-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== Nginx Reverse Proxy (optionnel) ====================
+  nginx:
+    image: nginx:alpine
+    container_name: covoiturage-nginx-staging
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/staging.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - covoiturage-network-staging
+    depends_on:
+      - app
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+networks:
+  covoiturage-network-staging:
+    driver: bridge
+
+volumes:
+  uploads-staging:
+    driver: local
+  logs-staging:
+    driver: local
+  backups-staging:
+    driver: local
+  redis-data-staging:
+    driver: local

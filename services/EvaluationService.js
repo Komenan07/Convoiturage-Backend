@@ -6,6 +6,10 @@ const Utilisateur = require('../models/Utilisateur');
 const { logger } = require('../utils/logger');
 
 class EvaluationService {
+
+  constructor(){
+    
+  }
   
   // ========================================
   // 🆕 WORKFLOW ÉVALUATION EN ATTENTE

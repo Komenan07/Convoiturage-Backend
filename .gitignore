@@ -36,4 +36,17 @@ test
 
 # Firebase
 config/serviceAccountKey.json
-*.json
+
+# Docker
+docker-compose.override.yml
+.env.staging
+.env.production
+
+# Backups
+backups/*.gz
+
+# Uploads (ne pas versionner les fichiers uploadés)
+uploads/photos/*
+uploads/documents/*
+!uploads/photos/.gitkeep
+!uploads/documents/.gitkeep

@@ -1,0 +1,2263 @@
+{
+	"info": {
+		"_postman_id": "12345678-1234-1234-1234-123456789abc",
+		"name": "🚗 Covoiturage API - Collection Complète",
+		"description": "Collection Postman complète pour l'API de covoiturage avec auto-token, body pré-remplis et configuration WebSocket",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{authToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-refresh token si expiré",
+					"const tokenExpiry = pm.environment.get('tokenExpiry');",
+					"const currentTime = new Date().getTime();",
+					"",
+					"if (tokenExpiry && currentTime > tokenExpiry) {",
+					"    console.log('Token expiré, rafraîchissement...');",
+					"    // Le token sera rafraîchi dans la requête de refresh",
+					"}"
+				]
+			}
+		}
+	],
+	"item": [
+		{
+			"name": "01. 🔐 Authentification",
+			"item": [
+				{
+					"name": "Inscription Standard",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201 || pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.token || jsonData.data?.token) {",
+									"        const token = jsonData.token || jsonData.data.token;",
+									"        pm.environment.set('authToken', token);",
+									"        const expiry = new Date().getTime() + (24 * 60 * 60 * 1000);",
+									"        pm.environment.set('tokenExpiry', expiry);",
+									"        console.log('Token enregistré:', token);",
+									"    }",
+									"    if (jsonData.data?.utilisateur?._id) {",
+									"        pm.environment.set('userId', jsonData.data.utilisateur._id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nom\": \"Koné\",\n  \"prenom\": \"Abdoulaye\",\n  \"email\": \"abdoulaye.kone@example.ci\",\n  \"telephone\": \"+2250707123456\",\n  \"motDePasse\": \"Password123!\",\n  \"confirmMotDePasse\": \"Password123!\",\n  \"dateNaissance\": \"1995-03-15\",\n  \"sexe\": \"M\",\n  \"accepteConditions\": true,\n  \"ville\": \"Abidjan\",\n  \"commune\": \"Cocody\",\n  \"quartier\": \"Angré\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/inscription",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"inscription"
+							]
+						},
+						"description": "Inscription d'un nouvel utilisateur avec validation complète"
+					},
+					"response": []
+				},
+				{
+					"name": "Connexion Standard",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.token || jsonData.data?.token) {",
+									"        const token = jsonData.token || jsonData.data.token;",
+									"        pm.environment.set('authToken', token);",
+									"        const expiry = new Date().getTime() + (24 * 60 * 60 * 1000);",
+									"        pm.environment.set('tokenExpiry', expiry);",
+									"        console.log('✅ Token enregistré automatiquement');",
+									"    }",
+									"    if (jsonData.refreshToken || jsonData.data?.refreshToken) {",
+									"        const refreshToken = jsonData.refreshToken || jsonData.data.refreshToken;",
+									"        pm.environment.set('refreshToken', refreshToken);",
+									"        console.log('✅ Refresh token enregistré');",
+									"    }",
+									"    if (jsonData.data?.utilisateur?._id || jsonData.utilisateur?._id) {",
+									"        const userId = jsonData.data?.utilisateur?._id || jsonData.utilisateur._id;",
+									"        pm.environment.set('userId', userId);",
+									"        console.log('✅ User ID enregistré:', userId);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"abdoulaye.kone@example.ci\",\n  \"motDePasse\": \"Password123!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/connexion",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"connexion"
+							]
+						},
+						"description": "Connexion avec email et mot de passe. Le token est automatiquement sauvegardé."
+					},
+					"response": []
+				},
+				{
+					"name": "Connexion Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.token || jsonData.data?.token) {",
+									"        const token = jsonData.token || jsonData.data.token;",
+									"        pm.environment.set('authToken', token);",
+									"        pm.environment.set('adminToken', token);",
+									"        const expiry = new Date().getTime() + (24 * 60 * 60 * 1000);",
+									"        pm.environment.set('tokenExpiry', expiry);",
+									"    }",
+									"    if (jsonData.refreshToken || jsonData.data?.refreshToken) {",
+									"        pm.environment.set('refreshToken', jsonData.refreshToken || jsonData.data.refreshToken);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@covoiturage.ci\",\n  \"motDePasse\": \"AdminPass123!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/admin/connexion",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"admin",
+								"connexion"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Vérifier Token",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/verify",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"verify"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.token || jsonData.data?.token) {",
+									"        pm.environment.set('authToken', jsonData.token || jsonData.data.token);",
+									"        const expiry = new Date().getTime() + (24 * 60 * 60 * 1000);",
+									"        pm.environment.set('tokenExpiry', expiry);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/refresh-token",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"refresh-token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Déconnexion",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/deconnexion",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"deconnexion"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mot de passe oublié",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"abdoulaye.kone@example.ci\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/mot-de-passe-oublie",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"mot-de-passe-oublie"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Réinitialiser mot de passe",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"telephone\": \"+2250707123456\",\n  \"code\": \"123456\",\n  \"nouveauMotDePasse\": \"NewPassword123!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/reinitialiser-mot-de-passe",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"reinitialiser-mot-de-passe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Obtenir utilisateur connecté",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"me"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints d'authentification et gestion des sessions"
+		},
+		{
+			"name": "02. 🚙 Trajets",
+			"item": [
+				{
+					"name": "Créer Trajet Ponctuel",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data?.trajet?._id || jsonData.trajet?._id) {",
+									"        const trajetId = jsonData.data?.trajet?._id || jsonData.trajet._id;",
+									"        pm.environment.set('trajetId', trajetId);",
+									"        console.log('✅ Trajet ID enregistré:', trajetId);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pointDepart\": {\n    \"nom\": \"Aéroport Félix Houphouët-Boigny\",\n    \"adresse\": \"Port-Bouët, Abidjan\",\n    \"coordonnees\": {\n      \"type\": \"Point\",\n      \"coordinates\": [-3.9263, 5.2614]\n    },\n    \"ville\": \"Abidjan\",\n    \"commune\": \"Port-Bouët\"\n  },\n  \"pointArrivee\": {\n    \"nom\": \"Plateau Centre Commercial\",\n    \"adresse\": \"Boulevard Carde, Plateau, Abidjan\",\n    \"coordonnees\": {\n      \"type\": \"Point\",\n      \"coordinates\": [-4.0262, 5.3254]\n    },\n    \"ville\": \"Abidjan\",\n    \"commune\": \"Plateau\"\n  },\n  \"dateHeureDepart\": \"2024-12-25T10:00:00.000Z\",\n  \"nombrePlacesDisponibles\": 3,\n  \"prixParPlace\": 2000,\n  \"typeTrajet\": \"PONCTUEL\",\n  \"statutTrajet\": \"PROGRAMME\",\n  \"preferences\": {\n    \"fumeur\": false,\n    \"animaux\": false,\n    \"musique\": true,\n    \"climatisation\": true,\n    \"discussion\": \"MODERE\"\n  },\n  \"bagagesAutorises\": true,\n  \"arretsPossibles\": [\n    {\n      \"nom\": \"Adjamé Gare\",\n      \"coordonnees\": {\n        \"type\": \"Point\",\n        \"coordinates\": [-4.0217, 5.3584]\n      }\n    }\n  ],\n  \"description\": \"Trajet direct aéroport vers Plateau, climatisation garantie\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/trajets/ponctuel",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"trajets",
+								"ponctuel"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rechercher Trajets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/trajets/recherche?villeDepart=Abidjan&villeArrivee=Yamoussoukro&dateDepart=2024-12-25&nombrePlaces=2&prixMax=15000",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"trajets",
+								"recherche"
+							],
+							"query": [
+								{
+									"key": "villeDepart",
+									"value": "Abidjan"
+								},
+								{
+									"key": "villeArrivee",
+									"value": "Yamoussoukro"
+								},
+								{
+									"key": "dateDepart",
+									"value": "2024-12-25"
+								},
+								{
+									"key": "nombrePlaces",
+									"value": "2"
+								},
+								{
+									"key": "prixMax",
+									"value": "15000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Obtenir Détails Trajet",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/trajets/{{trajetId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"trajets",
+								"{{trajetId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mes Trajets Conducteur",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/trajets/conducteur/{{userId}}?statut=PROGRAMME",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"trajets",
+								"conducteur",
+								"{{userId}}"
+							],
+							"query": [
+								{
+									"key": "statut",
+									"value": "PROGRAMME"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Historique Trajets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/trajets/historique?page=1&limite=20",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"trajets",
+								"historique"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limite",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Modifier Trajet",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombrePlacesDisponibles\": 2,\n  \"prixParPlace\": 2500,\n  \"description\": \"Trajet mis à jour - départ anticipé de 30 minutes\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/trajets/{{trajetId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"trajets",
+								"{{trajetId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Annuler Trajet",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"raisonAnnulation\": \"Problème mécanique du véhicule\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/trajets/{{trajetId}}/annuler",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"trajets",
+								"{{trajetId}}",
+								"annuler"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Commencer Trajet",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/trajets/{{trajetId}}/commencer",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"trajets",
+								"{{trajetId}}",
+								"commencer"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Terminer Trajet",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"distanceParcourue\": 45.2,\n  \"dureeTotale\": 65\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/trajets/{{trajetId}}/terminer",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"trajets",
+								"{{trajetId}}",
+								"terminer"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Gestion complète des trajets"
+		},
+		{
+			"name": "03. 🎫 Réservations",
+			"item": [
+				{
+					"name": "Créer Réservation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data?.reservation?._id || jsonData.reservation?._id) {",
+									"        const reservationId = jsonData.data?.reservation?._id || jsonData.reservation._id;",
+									"        pm.environment.set('reservationId', reservationId);",
+									"        console.log('✅ Réservation ID enregistré:', reservationId);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"trajetId\": \"{{trajetId}}\",\n  \"nombrePlacesReservees\": 2,\n  \"pointPriseEnCharge\": {\n    \"nom\": \"Aéroport FHB - Parking A\",\n    \"adresse\": \"Port-Bouët\",\n    \"coordonnees\": [-3.9263, 5.2614]\n  },\n  \"pointDepose\": {\n    \"nom\": \"Plateau - Boulevard Carde\",\n    \"adresse\": \"Plateau Centre\",\n    \"coordonnees\": [-4.0262, 5.3254]\n  },\n  \"bagages\": {\n    \"quantite\": 2,\n    \"poids\": 25,\n    \"description\": \"2 valises cabine\"\n  },\n  \"notes\": \"Merci d'arriver 10 minutes en avance\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/reservations",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reservations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mes Réservations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/reservations/mes-reservations?statut=CONFIRMEE&page=1&limite=20",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reservations",
+								"mes-reservations"
+							],
+							"query": [
+								{
+									"key": "statut",
+									"value": "CONFIRMEE"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limite",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Réservations Reçues (Conducteur)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/reservations/reservations-recues?statut=EN_ATTENTE",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reservations",
+								"reservations-recues"
+							],
+							"query": [
+								{
+									"key": "statut",
+									"value": "EN_ATTENTE"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Confirmer Réservation",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"messageConfirmation\": \"Réservation confirmée ! Rendez-vous au parking A.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/reservations/{{reservationId}}/confirmer",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reservations",
+								"{{reservationId}}",
+								"confirmer"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refuser Réservation",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"raisonRefus\": \"Trajet complet, toutes les places sont prises\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/reservations/{{reservationId}}/refuser",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reservations",
+								"{{reservationId}}",
+								"refuser"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Annuler Réservation",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"raisonAnnulation\": \"Changement de plans\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/reservations/{{reservationId}}/annuler",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reservations",
+								"{{reservationId}}",
+								"annuler"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Confirmer Prise en Charge",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"coordonnees\": {\n    \"latitude\": 5.2614,\n    \"longitude\": -3.9263\n  },\n  \"commentaire\": \"Passager à bord, départ imminent\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/reservations/{{reservationId}}/confirmer-prise-en-charge",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reservations",
+								"{{reservationId}}",
+								"confirmer-prise-en-charge"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Gestion des réservations de trajets"
+		},
+		{
+			"name": "04. 💬 Messages & Conversations",
+			"item": [
+				{
+					"name": "Créer Conversation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data?.conversation?._id || jsonData.conversation?._id) {",
+									"        const conversationId = jsonData.data?.conversation?._id || jsonData.conversation._id;",
+									"        pm.environment.set('conversationId', conversationId);",
+									"        console.log('✅ Conversation ID enregistré:', conversationId);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"trajetId\": \"{{trajetId}}\",\n  \"type\": \"trajet\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/conversations",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"conversations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mes Conversations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/conversations?page=1&limit=20",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"conversations"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Envoyer Message Texte",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"conversationId\": \"{{conversationId}}\",\n  \"contenu\": \"Bonjour, je confirme ma présence au point de rendez-vous à 10h\",\n  \"type\": \"TEXTE\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/messages/texte",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"texte"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Envoyer Position GPS",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"conversationId\": \"{{conversationId}}\",\n  \"coordonnees\": {\n    \"latitude\": 5.3254,\n    \"longitude\": -4.0262\n  },\n  \"precision\": 10,\n  \"message\": \"Je suis arrivé au point de rendez-vous\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/messages/position",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"position"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Messages Conversation",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/messages/conversation/{{conversationId}}?page=1&limite=50",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"conversation",
+								"{{conversationId}}"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limite",
+									"value": "50"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Marquer Conversation Comme Lue",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/messages/conversation/{{conversationId}}/lu",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"conversation",
+								"{{conversationId}}",
+								"lu"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Messages Non Lus",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/messages/non-lus",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"messages",
+								"non-lus"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Messagerie et conversations"
+		},
+		{
+			"name": "05. ⭐ Évaluations",
+			"item": [
+				{
+					"name": "Créer Évaluation",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"trajetId\": \"{{trajetId}}\",\n  \"utilisateurEvalueId\": \"USER_ID_A_EVALUER\",\n  \"typeEvaluation\": \"PASSAGER\",\n  \"note\": 5,\n  \"commentaire\": \"Excellent passager, ponctuel et respectueux\",\n  \"criteres\": {\n    \"ponctualite\": 5,\n    \"comportement\": 5,\n    \"proprete\": 5,\n    \"respect\": 5\n  },\n  \"recommande\": true\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/evaluations",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"evaluations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Évaluations En Attente",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evaluations/en-attente",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"evaluations",
+								"en-attente"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Compléter Évaluation",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"note\": 5,\n  \"commentaire\": \"Trajet très agréable, conducteur professionnel et courtois\",\n  \"criteres\": {\n    \"ponctualite\": 5,\n    \"conduite\": 5,\n    \"vehicule\": 5,\n    \"trajet\": 5\n  },\n  \"recommande\": true\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/evaluations/EVALUATION_ID/completer",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"evaluations",
+								"EVALUATION_ID",
+								"completer"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Évaluations Utilisateur",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evaluations/user/{{userId}}?type=CONDUCTEUR&page=1&limite=20",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"evaluations",
+								"user",
+								"{{userId}}"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "CONDUCTEUR"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limite",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Moyenne Utilisateur",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evaluations/user/{{userId}}/moyenne",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"evaluations",
+								"user",
+								"{{userId}}",
+								"moyenne"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Système d'évaluations et notations"
+		},
+		{
+			"name": "06. 🎉 Événements",
+			"item": [
+				{
+					"name": "Événements À Venir",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evenements/a-venir?limite=20",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"evenements",
+								"a-venir"
+							],
+							"query": [
+								{
+									"key": "limite",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Créer Événement Manuel",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nom\": \"Concert Zouglou - Stade FHB\",\n  \"description\": \"Grand concert de zouglou avec les meilleurs artistes ivoiriens\",\n  \"type\": \"CONCERT\",\n  \"dateDebut\": \"2024-12-30T19:00:00.000Z\",\n  \"dateFin\": \"2024-12-31T02:00:00.000Z\",\n  \"lieu\": {\n    \"nom\": \"Stade Félix Houphouët-Boigny\",\n    \"adresse\": \"Boulevard de la République, Plateau\",\n    \"coordonnees\": {\n      \"type\": \"Point\",\n      \"coordinates\": [-4.0262, 5.3254]\n    },\n    \"ville\": \"Abidjan\",\n    \"commune\": \"Plateau\"\n  },\n  \"capaciteEstimee\": 30000,\n  \"tagsRecherche\": [\"concert\", \"zouglou\", \"musique\", \"abidjan\"],\n  \"urlSource\": \"https://example.com/concert-zouglou\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/evenements/creer-manuel",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"evenements",
+								"creer-manuel"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Recherche Événements Par Localisation",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evenements/recherche-localisation?latitude=5.3254&longitude=-4.0262&rayon=5000&limite=20",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"evenements",
+								"recherche-localisation"
+							],
+							"query": [
+								{
+									"key": "latitude",
+									"value": "5.3254"
+								},
+								{
+									"key": "longitude",
+									"value": "-4.0262"
+								},
+								{
+									"key": "rayon",
+									"value": "5000"
+								},
+								{
+									"key": "limite",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Créer Trajet Pour Événement",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pointDepart\": {\n    \"nom\": \"Cocody Angré\",\n    \"adresse\": \"Angré 8ème tranche\",\n    \"coordonnees\": {\n      \"type\": \"Point\",\n      \"coordinates\": [-3.9818, 5.3736]\n    }\n  },\n  \"dateHeureDepart\": \"2024-12-30T17:00:00.000Z\",\n  \"nombrePlacesDisponibles\": 3,\n  \"prixParPlace\": 1500,\n  \"preferences\": {\n    \"fumeur\": false,\n    \"musique\": true\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/evenements/EVENT_ID/creer-trajet",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"evenements",
+								"EVENT_ID",
+								"creer-trajet"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Trajets Pour Événement",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/evenements/EVENT_ID/trajets",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"evenements",
+								"EVENT_ID",
+								"trajets"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Gestion des événements et covoiturages associés"
+		},
+		{
+			"name": "07. 💳 Paiements",
+			"item": [
+				{
+					"name": "Initier Recharge",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"montant\": 10000,\n  \"methodePaiement\": \"CINETPAY_MOBILE_MONEY\",\n  \"operateur\": \"MTN\",\n  \"numeroTelephone\": \"+2250707123456\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/paiements/recharge/initier",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"paiements",
+								"recharge",
+								"initier"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Confirmer Recharge",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"referenceTransaction\": \"REF123456789\",\n  \"codePaiement\": \"OTP_CODE_FROM_MOBILE\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/paiements/recharge/confirmer",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"paiements",
+								"recharge",
+								"confirmer"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Historique Recharges",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/paiements/recharge/historique?page=1&limite=20",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"paiements",
+								"recharge",
+								"historique"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limite",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Initier Paiement Trajet",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reservationId\": \"{{reservationId}}\",\n  \"montant\": 4000,\n  \"methodePaiement\": \"WALLET\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/paiements/initier",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"paiements",
+								"initier"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Solde Wallet",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/paiements/wallet/solde",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"paiements",
+								"wallet",
+								"solde"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Historique Paiements",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/paiements/historique?type=RECHARGE&statut=COMPLETE",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"paiements",
+								"historique"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "RECHARGE"
+								},
+								{
+									"key": "statut",
+									"value": "COMPLETE"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Gestion des paiements et recharges"
+		},
+		{
+			"name": "08. 🚗 Véhicules",
+			"item": [
+				{
+					"name": "Créer Véhicule",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "marque",
+									"value": "Toyota",
+									"type": "text"
+								},
+								{
+									"key": "modele",
+									"value": "Corolla",
+									"type": "text"
+								},
+								{
+									"key": "annee",
+									"value": "2020",
+									"type": "text"
+								},
+								{
+									"key": "couleur",
+									"value": "Blanc",
+									"type": "text"
+								},
+								{
+									"key": "immatriculation",
+									"value": "AB-1234-CI",
+									"type": "text"
+								},
+								{
+									"key": "nombrePlaces",
+									"value": "4",
+									"type": "text"
+								},
+								{
+									"key": "typeCarburant",
+									"value": "ESSENCE",
+									"type": "text"
+								},
+								{
+									"key": "climatisation",
+									"value": "true",
+									"type": "text"
+								},
+								{
+									"key": "photoVehicule",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "carteGrise",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "assurance",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/vehicules",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"vehicules"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mes Véhicules",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/vehicules/mes-vehicules",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"vehicules",
+								"mes-vehicules"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Véhicule Principal",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/vehicules/principal",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"vehicules",
+								"principal"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Définir Véhicule Principal",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/vehicules/VEHICULE_ID/principal",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"vehicules",
+								"VEHICULE_ID",
+								"principal"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Modifier Véhicule",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "couleur",
+									"value": "Gris",
+									"type": "text"
+								},
+								{
+									"key": "nombrePlaces",
+									"value": "5",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/vehicules/VEHICULE_ID",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"vehicules",
+								"VEHICULE_ID"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Activer Pour Covoiturage",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/vehicules/VEHICULE_ID/activer-covoiturage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"vehicules",
+								"VEHICULE_ID",
+								"activer-covoiturage"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Gestion des véhicules"
+		},
+		{
+			"name": "09. 👤 Utilisateurs",
+			"item": [
+				{
+					"name": "Mon Profil",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/utilisateurs/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"utilisateurs",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mettre À Jour Profil",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nom\": \"Koné\",\n  \"prenom\": \"Abdoulaye\",\n  \"bio\": \"Passionné de covoiturage et d'économie collaborative\",\n  \"ville\": \"Abidjan\",\n  \"commune\": \"Cocody\",\n  \"quartier\": \"Angré\",\n  \"preferences\": {\n    \"fumeur\": false,\n    \"animaux\": true,\n    \"musique\": true,\n    \"discussion\": \"MODERE\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/utilisateurs/profil",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"utilisateurs",
+								"profil"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Changer Mot De Passe",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ancienMotDePasse\": \"Password123!\",\n  \"nouveauMotDePasse\": \"NewPassword456!\",\n  \"confirmationMotDePasse\": \"NewPassword456!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/utilisateurs/profil/mot-de-passe",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"utilisateurs",
+								"profil",
+								"mot-de-passe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Photo Profil",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "photoProfil",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/utilisateurs/profil/photo",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"utilisateurs",
+								"profil",
+								"photo"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Dashboard Utilisateur",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/utilisateurs/profil/dashboard",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"utilisateurs",
+								"profil",
+								"dashboard"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Gestion du profil utilisateur"
+		},
+		{
+			"name": "10. 🔔 Notifications",
+			"item": [
+				{
+					"name": "Enregistrer Token FCM",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fcmToken\": \"FIREBASE_FCM_TOKEN_HERE\",\n  \"deviceType\": \"android\",\n  \"deviceInfo\": {\n    \"model\": \"Samsung Galaxy S21\",\n    \"os\": \"Android 12\",\n    \"appVersion\": \"1.0.0\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/register-token",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"register-token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mes Notifications",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications?page=1&limite=20&nonLues=true",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limite",
+									"value": "20"
+								},
+								{
+									"key": "nonLues",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Marquer Notification Lue",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/NOTIFICATION_ID/lire",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"NOTIFICATION_ID",
+								"lire"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Préférences Notifications",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"push\": true,\n  \"email\": true,\n  \"sms\": false,\n  \"types\": {\n    \"reservations\": true,\n    \"messages\": true,\n    \"evaluations\": true,\n    \"promotions\": false\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/preferences",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"preferences"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Gestion des notifications push Firebase"
+		},
+		{
+			"name": "11. 🔍 Recherche & Places",
+			"item": [
+				{
+					"name": "Autocomplete Places",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"Cocody\",\n  \"latitude\": 5.3254,\n  \"longitude\": -4.0262,\n  \"rayon\": 10000\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/places/autocomplete",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"places",
+								"autocomplete"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Recherche Communes",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"Abidjan\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/places/communes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"places",
+								"communes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Recherche Gares Routières",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"latitude\": 5.3254,\n  \"longitude\": -4.0262,\n  \"rayon\": 5000\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/places/gares",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"places",
+								"gares"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Détails Place",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/places/PLACE_ID",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"places",
+								"PLACE_ID"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Recherche de lieux et autocomplétion"
+		},
+		{
+			"name": "12. 👨‍💼 Admin",
+			"item": [
+				{
+					"name": "Dashboard Admin",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/dashboard",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"dashboard"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Statistiques Globales",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/statistiques",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"statistiques"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Utilisateurs En Attente Vérification",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/verification/admin/pending",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"verification",
+								"admin",
+								"pending"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Approuver Vérification",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"commentaire\": \"Documents conformes, utilisateur vérifié\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/verification/admin/approve/USER_ID",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"verification",
+								"admin",
+								"approve",
+								"USER_ID"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rejeter Vérification",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"raison\": \"Documents illisibles, veuillez soumettre de nouvelles photos\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/verification/admin/reject/USER_ID",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"verification",
+								"admin",
+								"reject",
+								"USER_ID"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Véhicules En Attente Validation",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/vehicules/admin/en-attente-validation",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"vehicules",
+								"admin",
+								"en-attente-validation"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints administration"
+		},
+		{
+			"name": "📋 WebSocket Events Documentation",
+			"item": [],
+			"description": "# Documentation des événements Socket.IO\n\n## Connexion WebSocket\n```javascript\nconst socket = io('BASE_URL', {\n  auth: { token: 'AUTH_TOKEN' },\n  transports: ['websocket', 'polling']\n});\n```\n\n## Événements Client → Serveur\n\n### 1. Messages\n- `message:send` - Envoyer un message\n- `message:typing` - Indiquer la frappe\n- `message:read` - Marquer comme lu\n\n### 2. Position GPS\n- `position:update` - Mettre à jour la position\n- `position:share` - Partager la position\n\n### 3. Trajet\n- `trajet:start` - Démarrer un trajet\n- `trajet:end` - Terminer un trajet\n- `trajet:update` - Mise à jour du trajet\n\n### 4. Réservation\n- `reservation:request` - Demande de réservation\n- `reservation:accept` - Accepter réservation\n- `reservation:reject` - Refuser réservation\n\n## Événements Serveur → Client\n\n### 1. Messages\n- `message:new` - Nouveau message reçu\n- `message:delivered` - Message délivré\n- `user:typing` - Utilisateur en train de taper\n\n### 2. Notifications\n- `notification:new` - Nouvelle notification\n- `notification:urgent` - Notification urgente\n\n### 3. Position\n- `driver:location` - Position conducteur\n- `passenger:location` - Position passager\n\n### 4. Trajet\n- `trajet:started` - Trajet démarré\n- `trajet:updated` - Trajet mis à jour\n- `trajet:completed` - Trajet terminé\n- `trajet:cancelled` - Trajet annulé\n\n### 5. Réservation\n- `reservation:confirmed` - Réservation confirmée\n- `reservation:cancelled` - Réservation annulée\n\n## Exemple d'utilisation\n\n```javascript\n// Écouter les nouveaux messages\nsocket.on('message:new', (data) => {\n  console.log('Nouveau message:', data);\n});\n\n// Envoyer un message\nsocket.emit('message:send', {\n  conversationId: '123',\n  content: 'Bonjour!'\n});\n\n// Écouter la position du conducteur\nsocket.on('driver:location', (data) => {\n  console.log('Position:', data.latitude, data.longitude);\n});\n```"
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "default"
+		},
+		{
+			"key": "authToken",
+			"value": "",
+			"type": "default"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "default"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "default"
+		},
+		{
+			"key": "trajetId",
+			"value": "",
+			"type": "default"
+		},
+		{
+			"key": "reservationId",
+			"value": "",
+			"type": "default"
+		},
+		{
+			"key": "conversationId",
+			"value": "",
+			"type": "default"
+		},
+		{
+			"key": "tokenExpiry",
+			"value": "",
+			"type": "default"
+		}
+	]
+}
