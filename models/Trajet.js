@@ -465,6 +465,44 @@ const trajetSchema = new mongoose.Schema({
   dateNotificationRetardDepart: {
     type: Date
   },
+
+  // ✅ Flags pour chaque seuil de retard (éviter doublons)
+  notificationsRetardSeuils: {
+    seuil_3min: { type: Boolean, default: false },
+    seuil_5min: { type: Boolean, default: false },
+    seuil_10min: { type: Boolean, default: false },
+    seuil_15min: { type: Boolean, default: false },
+    seuil_20min: { type: Boolean, default: false },
+    seuil_25min: { type: Boolean, default: false }
+  },
+
+  // ✅ Flags pour éviter les notifications doublons d'ACTIVATION
+  notificationActivationEnvoyee: {
+    type: Boolean,
+    default: false
+  },
+  dateNotificationActivation: {
+    type: Date
+  },
+
+  // ✅ Flags pour éviter les notifications doublons de TERMINAISON
+  notificationTerminaisonEnvoyee: {
+    type: Boolean,
+    default: false
+  },
+  dateNotificationTerminaison: {
+    type: Date
+  },
+
+  // ✅ Flags pour éviter les notifications doublons d'EXPIRATION
+  notificationExpirationEnvoyee: {
+    type: Boolean,
+    default: false
+  },
+  dateNotificationExpiration: {
+    type: Date
+  },
+
   // Gestion de l'expiration
   dateExpiration: {
     type: Date,

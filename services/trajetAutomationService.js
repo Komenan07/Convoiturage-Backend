@@ -53,6 +53,8 @@ class TrajetAutomationService {
         // Activer si dans la fenêtre [-30min, +30min]
         if (dateDepartComplete >= margeAvant && dateDepartComplete <= margeApres) {
           trajet.statutTrajet = 'EN_COURS';
+          
+          // ✅ IMPORTANT: Sauvegarder AVANT les notifications
           await trajet.save();
 
           results.push({
@@ -65,11 +67,19 @@ class TrajetAutomationService {
 
           console.log(`✅ Trajet activé: ${trajet._id}`);
           
-          // 1️⃣ Notification conducteur
-          await this._envoyerNotificationActivation(trajet);
+          // ✅ VERIFIER si notification déjà envoyée
+          if (!trajet.notificationActivationEnvoyee) {
+            // 1️⃣ Notification conducteur
+            await this._envoyerNotificationActivation(trajet);
 
-          // 2️⃣ Notification passagers confirmés
-          await this._notifierPassagersConfirmation(trajet);
+            // 2️⃣ Notification passagers confirmés
+            await this._notifierPassagersConfirmation(trajet);
+            
+            // ✅ Marquer les notifications comme envoyées
+            trajet.notificationActivationEnvoyee = true;
+            trajet.dateNotificationActivation = new Date();
+            await trajet.save();
+          }
         }
 
       } catch (error) {
@@ -144,14 +154,22 @@ class TrajetAutomationService {
           for (const trajetId of idsAExpirer) {
           const trajetExpire = await Trajet.findById(trajetId)
             .populate('conducteurId', 'nom prenom')
-            .populate('passagers'); // Assure-toi que passagers sont peuplés
+            .populate('passagers');
 
           if (trajetExpire) {
-            // 1️⃣ Notification conducteur
-            await this._envoyerNotificationExpiration(trajetExpire);
+            // ✅ VERIFIER si notification déjà envoyée
+            if (!trajetExpire.notificationExpirationEnvoyee) {
+              // 1️⃣ Notification conducteur
+              await this._envoyerNotificationExpiration(trajetExpire);
 
-            // 2️⃣ Notification passagers confirmés
-            await this._notifierPassagersExpiration(trajetExpire);
+              // 2️⃣ Notification passagers confirmés
+              await this._notifierPassagersExpiration(trajetExpire);
+              
+              // ✅ Marquer les notifications comme envoyées
+              trajetExpire.notificationExpirationEnvoyee = true;
+              trajetExpire.dateNotificationExpiration = new Date();
+              await trajetExpire.save();
+            }
             }
           }
 
@@ -205,7 +223,16 @@ class TrajetAutomationService {
             });
             
             console.log(`🏁 Trajet terminé: ${trajet._id}`);
-            await this._envoyerNotificationTerminaison(trajet);
+            
+            // ✅ VERIFIER si notification déjà envoyée
+            if (!trajet.notificationTerminaisonEnvoyee) {
+              await this._envoyerNotificationTerminaison(trajet);
+              
+              // ✅ Marquer les notifications comme envoyées
+              trajet.notificationTerminaisonEnvoyee = true;
+              trajet.dateNotificationTerminaison = new Date();
+              await trajet.save();
+            }
           }
         } catch (error) {
           console.error(`⚠️ Erreur terminaison ${trajet._id}:`, error.message);
@@ -259,19 +286,20 @@ class TrajetAutomationService {
   /**
    * 🔔 5. Notifier les conducteurs en retard de DÉPART
    * (Pas de changement de statut, juste des notifications)
+   * ✅ CORRIGÉ: Ajoute des flags pour éviter les notifications doublons
    */
   async notifierRetardsDepart() {
   try {
     const maintenant = new Date();
     
-    // ✅ Populate conducteurId
     const trajetsEnRetardDepart = await Trajet.find({
       statutTrajet: 'PROGRAMME',
       dateDepart: { $exists: true },
       heureDepart: { $exists: true }
-    }).populate('conducteurId', 'fcmTokens nom prenom'); // ✅ AJOUT
+    }).populate('conducteurId', 'fcmTokens nom prenom');
 
     let notificationsEnvoyees = 0;
+    const seuilsNotification = [3, 5, 10, 15, 20, 25];
     
     for (const trajet of trajetsEnRetardDepart) {
       try {
@@ -280,31 +308,39 @@ class TrajetAutomationService {
         dateDepartComplete.setUTCHours(hDepart, mDepart, 0, 0);
         
         const retardMinutes = Math.floor((maintenant - dateDepartComplete) / (1000 * 60));
-        const seuilsNotification = [3, 5, 10, 15, 20, 25];
         
+        // ✅ Chercher si ce seuil doit être notifié
         if (seuilsNotification.includes(retardMinutes)) {
-          // ✅ Utiliser directement trajet.conducteurId (déjà populé)
+          
           if (!trajet.conducteurId?.fcmTokens?.length) {
             continue;
           }
           
-          await firebaseService.sendToMultipleTokens(
-            trajet.conducteurId.fcmTokens,
-            {
-              title: '⏰ Retard de départ',
-              body: `Vous avez ${retardMinutes} min de retard. Démarrez le trajet vers ${trajet.pointArrivee.nom}`,
-              data: {
-                type: 'DEPARTURE_DELAY',
-                trajetId: trajet._id.toString(),
-                retardMinutes: retardMinutes.toString(),
-                screen: 'TripDetails'
-              }
-            },
-            { channelId: 'trajets', priority: 'high' }
-          );
-          
-          notificationsEnvoyees++;
-          console.log(`🔔 Notification retard départ ${retardMinutes} min: ${trajet._id}`);
+          // ✅ NE NOTIFIER QUE SI PAS DÉJÀ NOTIFIÉ À CE SEUIL
+          if (!trajet.notificationsRetardSeuils?.[`seuil_${retardMinutes}min`]) {
+            
+            await firebaseService.sendToMultipleTokens(
+              trajet.conducteurId.fcmTokens,
+              {
+                title: '⏰ Retard de départ',
+                body: `Vous avez ${retardMinutes} min de retard. Démarrez le trajet vers ${trajet.pointArrivee.nom}`,
+                data: {
+                  type: 'DEPARTURE_DELAY',
+                  trajetId: trajet._id.toString(),
+                  retardMinutes: retardMinutes.toString(),
+                  screen: 'TripDetails'
+                }
+              },
+              { channelId: 'trajets', priority: 'high' }
+            );
+            
+            // ✅ MARQUER LE SEUIL COMME NOTIFIÉ
+            trajet.notificationsRetardSeuils[`seuil_${retardMinutes}min`] = true;
+            await trajet.save();
+            
+            notificationsEnvoyees++;
+            console.log(`🔔 Notification retard départ ${retardMinutes} min: ${trajet._id}`);
+          }
         }
         
       } catch (error) {
