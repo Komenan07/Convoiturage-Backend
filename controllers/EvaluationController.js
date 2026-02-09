@@ -1,9 +1,8 @@
 const AppError = require('../utils/AppError');
 const Evaluation = require('../models/Evaluation'); 
+const { logger } = require('../utils/logger');
 
-const logger = console; 
-
-class evaluationController {
+class EvaluationController {
   constructor(evaluationService) {
     this.evaluationService = evaluationService;
 
@@ -138,13 +137,13 @@ class evaluationController {
     const criteres = ['ponctualite', 'proprete', 'qualiteConduite', 'respect', 'communication'];
     const notesValides = criteres.every(critere => {
       const note = notes[critere];
-      return note !== undefined && Number.isInteger(note) && note >= 1 && note <= 5;
+      return note !== undefined && typeof note === 'number' && note >= 1 && note <= 5;
     });
 
     if (!notesValides) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Toutes les notes doivent être des entiers entre 1 et 5 (ponctualite, proprete, qualiteConduite, respect, communication)' 
+        message: 'Toutes les notes doivent être des nombres entre 1 et 5 (ponctualite, proprete, qualiteConduite, respect, communication)' 
       });
     }
 
@@ -167,11 +166,16 @@ class evaluationController {
       logger.info(`✅ Commentaire validé en français (confiance: ${detection.confiance}%)`);
     }
 
-    // ✅ Appel du service sans typeUtilisateur
+    // ✅ Déterminer le typeEvaluateur en fonction du contexte
+    // On va récupérer d'abord l'évaluation pour connaître son type
+    const evaluationTemp = await this.evaluationService.obtenirEvaluationsEnAttente(userId);
+    const evalEnAttente = evaluationTemp?.find(e => e._id.toString() === id);
+    const typeEvaluateur = evalEnAttente?.typeEvaluateur || null;
+
     const evaluation = await this.evaluationService.completerEvaluation(
       id,
       userId,
-      null,  // Le service déterminera automatiquement
+      typeEvaluateur,
       {
         notes,
         commentaire,
@@ -189,13 +193,16 @@ class evaluationController {
       data: evaluation 
     });
   } catch (error) {
-    logger.error('Erreur complétion évaluation:', error);
+    logger.error('❌ ❌ Erreur complétion évaluation:', error);
     
     if (error.message.includes('non trouvée')) {
       return next(AppError.notFound('Évaluation non trouvée'));
     }
     if (error.message.includes('pas autorisé') || error.message.includes('expiré')) {
       return next(AppError.forbidden(error.message));
+    }
+    if (error.message.includes('doit être')) {
+      return next(AppError.badRequest(error.message));
     }
     
     return next(AppError.serverError('Erreur serveur lors de la complétion de l\'évaluation', { originalError: error.message }));
@@ -263,8 +270,7 @@ class evaluationController {
         } : null
       });
     } catch (error) {
-      logger.error('Erreur signalement prise en charge:', error);
-      
+    logger.error('❌ Erreur signalement prise en charge:', error);
       if (error.message.includes('non trouvée') || error.message.includes('introuvable')) {
         return next(AppError.notFound(error.message));
       }
@@ -307,7 +313,7 @@ class evaluationController {
         }
       });
     } catch (error) {
-      logger.error('Erreur validation langue:', error);
+      logger.error('❌ Erreur validation langue:', error);
       return next(AppError.serverError('Erreur serveur lors de la validation de la langue', { originalError: error.message }));
     }
   }
@@ -332,7 +338,7 @@ class evaluationController {
         } : null
       });
     } catch (error) {
-      logger.error('Erreur récupération prises en charge:', error);
+      logger.error('❌ Erreur récupération prises en charge:', error);
       return next(AppError.serverError('Erreur serveur lors de la récupération des prises en charge', { originalError: error.message }));
     }
   }
@@ -374,13 +380,13 @@ class evaluationController {
     const criteres = ['ponctualite', 'proprete', 'qualiteConduite', 'respect', 'communication'];
     const notesValides = criteres.every(critere => {
       const note = notes[critere];
-      return note !== undefined && Number.isInteger(note) && note >= 1 && note <= 5;
+      return note !== undefined && typeof note === 'number' && note >= 1 && note <= 5;
     });
 
     if (!notesValides) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Toutes les notes doivent être des entiers entre 1 et 5 (ponctualite, proprete, qualiteConduite, respect, communication)' 
+        message: 'Toutes les notes doivent être des nombres entre 1 et 5 (ponctualite, proprete, qualiteConduite, respect, communication)' 
       });
     }
 
@@ -407,7 +413,7 @@ class evaluationController {
       data: evaluation 
     });
   } catch (error) {
-    logger.error('❌ Erreur création évaluation:', error);
+    logger.error('❌ Erreur création évaluation en attente:', error);
     return next(AppError.serverError('Erreur serveur lors de la création de l\'évaluation', { originalError: error.message }));
   }
 }
@@ -430,7 +436,7 @@ class evaluationController {
         data: evaluations 
       });
     } catch (error) {
-      logger.error('Erreur récupération évaluations en attente:', error);
+      logger.error('❌ Erreur récupération évaluations en attente:', error);
       return next(AppError.serverError('Erreur serveur lors de la récupération des évaluations en attente', { originalError: error.message }));
     }
   }
@@ -453,7 +459,7 @@ class evaluationController {
           : `Il vous reste ${delai.joursRestants} jour(s) pour compléter cette évaluation`
       });
     } catch (error) {
-      logger.error('Erreur vérification délai:', error);
+      logger.error('❌ Erreur vérification délai:', error);
       return next(AppError.serverError('Erreur serveur lors de la vérification du délai', { originalError: error.message }));
     }
   }
@@ -498,7 +504,7 @@ class evaluationController {
       const evaluations = await this.evaluationService.obtenirEvaluationsTrajet(trajetId);
       res.json({ success: true, data: evaluations });
     } catch (error) {
-      logger.error('Erreur récupération évaluation:', error);
+      logger.error('❌ Erreur création évaluation:', error);
       return next(AppError.serverError('Erreur serveur lors de la récupération de l\'évaluation', { originalError: error.message }));
     }
   }
@@ -528,7 +534,7 @@ class evaluationController {
         data: evaluation 
       });
     } catch (error) {
-      logger.error('Erreur réponse évaluation:', error);
+      logger.error('❌ Erreur réponse évaluation:', error);
       return next(AppError.serverError('Erreur serveur lors de l\'ajout de la réponse', { originalError: error.message }));
     }
   }
@@ -587,7 +593,7 @@ class evaluationController {
       
       res.json({ success: true, data: result });
     } catch (error) {
-      logger.error('Erreur signalement évaluation:', error);
+      logger.error('❌ Erreur signalement évaluation:', error);
       return next(AppError.serverError('Erreur serveur lors du signalement', { originalError: error.message }));
     }
   }
@@ -665,7 +671,7 @@ class evaluationController {
       const result = await this.evaluationService.supprimerEvaluation(id, adminId);
       res.json({ success: true, data: result });
     } catch (error) {
-      logger.error('Erreur suppression évaluation:', error);
+      logger.error('❌ Erreur suppression évaluation:', error);
       return next(AppError.serverError('Erreur serveur lors de la suppression de l\'évaluation', { originalError: error.message }));
     }
   }
@@ -676,7 +682,7 @@ class evaluationController {
       const detection = await this.evaluationService.detecterEvaluationsSuspectes(userId);
       res.json({ success: true, data: detection });
     } catch (error) {
-      logger.error('Erreur détection évaluations suspectes:', error);
+      logger.error('❌ Erreur détection évaluations suspectes:', error);
       return next(AppError.serverError('Erreur serveur lors de la détection', { originalError: error.message }));
     }
   }
@@ -716,7 +722,7 @@ class evaluationController {
           : 'Continuez vos efforts pour débloquer des badges'
       });
     } catch (error) {
-      logger.error('Erreur récupération stats badges:', error);
+      logger.error('❌ Erreur récupération stats badges:', error);
       return next(AppError.serverError('Erreur serveur lors de la récupération des statistiques pour badges', { originalError: error.message }));
     }
   }
@@ -738,7 +744,7 @@ class evaluationController {
         data: evaluations 
       });
     } catch (error) {
-      logger.error('Erreur récupération meilleures évaluations:', error);
+      logger.error('❌ Erreur récupération meilleures évaluations:', error);
       return next(AppError.serverError('Erreur serveur lors de la récupération des meilleures évaluations', { originalError: error.message }));
     }
   }
@@ -753,11 +759,11 @@ class evaluationController {
         data: { scoreConfiance: score } 
       });
     } catch (error) {
-      logger.error('Erreur recalcul score confiance:', error);
+      logger.error('❌ Erreur recalcul score confiance:', error);
       return next(AppError.serverError('Erreur serveur lors du recalcul du score', { originalError: error.message }));
     }
   }
 }
 
 const evaluationService = require('../services/EvaluationService');
-module.exports = new evaluationController(evaluationService);
+module.exports = new EvaluationController(evaluationService);
