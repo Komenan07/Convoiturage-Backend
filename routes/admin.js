@@ -113,9 +113,15 @@ const {
   // Gestion Évaluations
   listerEvaluations,
   obtenirEvaluation,
+  masquerEvaluation, 
+  demasquerEvaluation, 
   supprimerEvaluation,
   signalerEvaluation,
+  detecterEvaluationsSuspectes,
   obtenirStatistiquesEvaluations,
+  obtenirMeilleuresEvaluations,
+  obtenirStatsPourBadges, 
+  recalculerScoreConfiance, 
   // Gestion Alertes
   listerAlertes,
   obtenirAlerte,
@@ -1223,6 +1229,18 @@ router.get('/evaluations/statistiques',
 );
 
 /**
+ * @route   GET /api/admin/evaluations/meilleures
+ * @desc    Obtenir les meilleures évaluations (top 10)
+ * @access  Private (Admin)
+ */
+router.get('/evaluations/meilleures',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'MODERATION', 'ANALYTICS']),
+  obtenirMeilleuresEvaluations || creerControleurParDefaut('obtenirMeilleuresEvaluations')
+);
+
+/**
  * @route   GET /api/admin/evaluations
  * @desc    Lister toutes les évaluations
  * @access  Private (Admin avec permission MODERATION)
@@ -1247,17 +1265,37 @@ router.get('/evaluations/:id',
 );
 
 /**
- * @route   DELETE /api/admin/evaluations/:id
- * @desc    Supprimer une évaluation
- * @access  Private (Admin avec permission MODERATION)
+ * @route   PATCH /api/admin/evaluations/:id/masquer
+ * @desc    Masquer une évaluation (modération)
+ * @access  Private (Admin/Modérateur)
  */
-router.delete('/evaluations/:id',
+router.patch('/evaluations/:id/masquer',
   middlewareAuth,
   middlewareRateLimit('standard'),
   middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'MODERATION']),
   validationId,
-  middlewareLogSensitiveAction('EVALUATION_SUPPRESSION'),
-  supprimerEvaluation || creerControleurParDefaut('supprimerEvaluation')
+  [
+    body('raison')
+      .notEmpty()
+      .isLength({ min: 10 })
+      .withMessage('La raison du masquage doit contenir au moins 10 caractères')
+  ],
+  middlewareLogSensitiveAction('EVALUATION_MASQUEE'),
+  masquerEvaluation || creerControleurParDefaut('masquerEvaluation')
+);
+
+/**
+ * @route   PATCH /api/admin/evaluations/:id/demasquer
+ * @desc    Démasquer une évaluation
+ * @access  Private (Admin/Modérateur)
+ */
+router.patch('/evaluations/:id/demasquer',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'MODERATION']),
+  validationId,
+  middlewareLogSensitiveAction('EVALUATION_DEMASQUEE'),
+  demasquerEvaluation || creerControleurParDefaut('demasquerEvaluation')
 );
 
 /**
@@ -1274,6 +1312,59 @@ router.post('/evaluations/:id/signaler',
   signalerEvaluation || creerControleurParDefaut('signalerEvaluation')
 );
 
+/**
+ * @route   DELETE /api/admin/evaluations/:id
+ * @desc    Supprimer une évaluation
+ * @access  Private (Admin avec permission MODERATION)
+ */
+router.delete('/evaluations/:id',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'MODERATION']),
+  validationId,
+  middlewareLogSensitiveAction('EVALUATION_SUPPRESSION'),
+  supprimerEvaluation || creerControleurParDefaut('supprimerEvaluation')
+);
+
+/**
+ * @route   GET /api/admin/evaluations/utilisateur/:userId/suspectes
+ * @desc    Détecter les évaluations suspectes d'un utilisateur
+ * @access  Private (Admin/Modérateur)
+ */
+router.get('/evaluations/utilisateur/:userId/suspectes',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'MODERATION']),
+  param('userId').matches(/^[0-9a-fA-F]{24}$/).withMessage('ID utilisateur invalide'),
+  detecterEvaluationsSuspectes || creerControleurParDefaut('detecterEvaluationsSuspectes')
+);
+
+/**
+ * @route   GET /api/admin/evaluations/utilisateur/:userId/badges
+ * @desc    Obtenir les stats pour badges d'un utilisateur
+ * @access  Private (Admin)
+ */
+router.get('/evaluations/utilisateur/:userId/badges',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  middlewareAuthorize(['SUPER_ADMIN', 'MODERATEUR'], ['ALL', 'ANALYTICS']),
+  param('userId').matches(/^[0-9a-fA-F]{24}$/).withMessage('ID utilisateur invalide'),
+  obtenirStatsPourBadges || creerControleurParDefaut('obtenirStatsPourBadges')
+);
+
+/**
+ * @route   POST /api/admin/evaluations/utilisateur/:userId/recalculer-score
+ * @desc    Recalculer le score de confiance d'un utilisateur
+ * @access  Private (Super Admin)
+ */
+router.post('/evaluations/utilisateur/:userId/recalculer-score',
+  middlewareAuth,
+  middlewareRateLimit('standard'),
+  middlewareAuthorize(['SUPER_ADMIN'], ['ALL']),
+  param('userId').matches(/^[0-9a-fA-F]{24}$/).withMessage('ID utilisateur invalide'),
+  middlewareLogSensitiveAction('SCORE_CONFIANCE_RECALCULE'),
+  recalculerScoreConfiance || creerControleurParDefaut('recalculerScoreConfiance')
+);
 // =====================================================
 // ROUTES DE GESTION DES ALERTES D'URGENCE
 // =====================================================

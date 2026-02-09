@@ -2806,7 +2806,7 @@ const supprimerEvenement = async (req, res, next) => {
 };
 
 // =====================================================
-// GESTION DES ÉVALUATIONS (ADMIN)
+// GESTION DES ÉVALUATIONS (ADMIN) - VERSION COMPLÈTE
 // =====================================================
 
 /**
@@ -2819,42 +2819,108 @@ const listerEvaluations = async (req, res, next) => {
     const {
       page = 1,
       limit = 20,
-      note,
-      signale
+      noteMinimum,
+      noteMaximum,
+      typeEvaluateur,
+      statutEvaluation,
+      visibilite,
+      estSignalement,
+      dateDebut,
+      dateFin,
+      evaluateurId,
+      evalueId,
+      trajetId
     } = req.query;
 
     const pageNum = parseInt(page);
     const limitNum = Math.min(parseInt(limit), 100);
 
+    // Construction des filtres
     const filtres = {};
 
-    if (note) filtres.note = parseInt(note);
-    if (signale === 'true') filtres.signale = true;
+    // Filtre par note globale
+    if (noteMinimum || noteMaximum) {
+      filtres['notes.noteGlobale'] = {};
+      if (noteMinimum) filtres['notes.noteGlobale'].$gte = parseFloat(noteMinimum);
+      if (noteMaximum) filtres['notes.noteGlobale'].$lte = parseFloat(noteMaximum);
+    }
+
+    // Filtre par type d'évaluateur
+    if (typeEvaluateur) {
+      filtres.typeEvaluateur = typeEvaluateur.toUpperCase();
+    }
+
+    // Filtre par statut
+    if (statutEvaluation) {
+      filtres.statutEvaluation = statutEvaluation.toUpperCase();
+    }
+
+    // Filtre par visibilité
+    if (visibilite) {
+      filtres.visibilite = visibilite.toUpperCase();
+    } else {
+      // Par défaut, ne pas afficher les évaluations masquées
+      filtres.visibilite = { $ne: 'MASQUEE' };
+    }
+
+    // Filtre signalements
+    if (estSignalement === 'true') {
+      filtres.estSignalement = true;
+    }
+
+    // Filtre par date
+    if (dateDebut || dateFin) {
+      filtres.dateEvaluation = {};
+      if (dateDebut) filtres.dateEvaluation.$gte = new Date(dateDebut);
+      if (dateFin) filtres.dateEvaluation.$lte = new Date(dateFin);
+    }
+
+    // Filtres spécifiques
+    if (evaluateurId) filtres.evaluateurId = evaluateurId;
+    if (evalueId) filtres.evalueId = evalueId;
+    if (trajetId) filtres.trajetId = trajetId;
 
     const evaluations = await Evaluation.find(filtres)
-      .populate('auteur', 'nom prenom')
-      .populate('cible', 'nom prenom')
-      .sort('-createdAt')
+      .populate('evaluateurId', 'nom prenom email photoProfil')
+      .populate('evalueId', 'nom prenom email photoProfil')
+      .populate('trajetId', 'pointDepart pointArrivee dateDepart')
+      .sort('-dateEvaluation')
       .limit(limitNum)
       .skip((pageNum - 1) * limitNum)
       .lean();
 
     const total = await Evaluation.countDocuments(filtres);
 
+    // Statistiques rapides
+    const stats = {
+      total,
+      completees: await Evaluation.countDocuments({ ...filtres, statutEvaluation: 'COMPLETEE' }),
+      enAttente: await Evaluation.countDocuments({ ...filtres, statutEvaluation: 'EN_ATTENTE' }),
+      signalements: await Evaluation.countDocuments({ ...filtres, estSignalement: true }),
+      masquees: await Evaluation.countDocuments({ visibilite: 'MASQUEE' }),
+      enRevision: await Evaluation.countDocuments({ visibilite: 'EN_REVISION' })
+    };
+
     res.status(200).json({
       success: true,
+      message: 'Liste des évaluations récupérée',
       data: {
         evaluations,
         pagination: {
           currentPage: pageNum,
           totalPages: Math.ceil(total / limitNum),
-          totalItems: total
-        }
+          totalItems: total,
+          itemsPerPage: limitNum
+        },
+        statistiques: stats
       }
     });
 
   } catch (error) {
-    return next(AppError.serverError('Erreur lors de la récupération des évaluations', { originalError: error.message }));
+    logger.error('Erreur listerEvaluations admin:', error);
+    return next(AppError.serverError('Erreur lors de la récupération des évaluations', { 
+      originalError: error.message 
+    }));
   }
 };
 
@@ -2866,40 +2932,197 @@ const listerEvaluations = async (req, res, next) => {
 const obtenirEvaluation = async (req, res, next) => {
   try {
     const evaluation = await Evaluation.findById(req.params.id)
-      .populate('auteur', 'nom prenom email')
-      .populate('cible', 'nom prenom email')
+      .populate('evaluateurId', 'nom prenom email photoProfil telephone')
+      .populate('evalueId', 'nom prenom email photoProfil telephone')
+      .populate('trajetId', 'pointDepart pointArrivee dateDepart prixParPassager')
       .lean();
 
     if (!evaluation) {
       return next(AppError.notFound('Évaluation introuvable'));
     }
 
+    // Enrichir avec des infos calculées
+    const delaiReponse = evaluation.dateReponse && evaluation.dateEvaluation ?
+      Math.ceil((evaluation.dateReponse - evaluation.dateEvaluation) / (1000 * 60 * 60 * 24)) : null;
+
     res.status(200).json({
       success: true,
-      data: { evaluation }
+      data: { 
+        evaluation: {
+          ...evaluation,
+          delaiReponseJours: delaiReponse,
+          resumeNotes: evaluation.notes ? {
+            ponctualite: evaluation.notes.ponctualite,
+            proprete: evaluation.notes.proprete,
+            qualiteConduite: evaluation.notes.qualiteConduite,
+            respect: evaluation.notes.respect,
+            communication: evaluation.notes.communication,
+            noteGlobale: evaluation.notes.noteGlobale
+          } : null
+        }
+      }
     });
 
   } catch (error) {
-    return next(AppError.serverError('Erreur lors de la récupération de l\'évaluation', { originalError: error.message }));
+    logger.error('Erreur obtenirEvaluation admin:', error);
+    return next(AppError.serverError('Erreur lors de la récupération de l\'évaluation', { 
+      originalError: error.message 
+    }));
   }
 };
 
 /**
- * @desc    Supprimer une évaluation (admin)
- * @route   DELETE /api/admin/evaluations/:id
- * @access  Private (Admin)
+ * @desc    Masquer une évaluation (admin - modération)
+ * @route   PATCH /api/admin/evaluations/:id/masquer
+ * @access  Private (Admin/Modérateur)
  */
-const supprimerEvaluation = async (req, res, next) => {
+const masquerEvaluation = async (req, res, next) => {
   try {
-    await Evaluation.findByIdAndDelete(req.params.id);
+    const { raison } = req.body;
+    const adminId = req.user.id;
+
+    if (!raison || raison.trim().length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Raison du masquage requise (minimum 10 caractères)',
+        code: 'RAISON_MANQUANTE'
+      });
+    }
+
+    const evaluation = await Evaluation.findById(req.params.id);
+
+    if (!evaluation) {
+      return next(AppError.notFound('Évaluation introuvable'));
+    }
+
+    if (evaluation.visibilite === 'MASQUEE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cette évaluation est déjà masquée',
+        code: 'ALREADY_HIDDEN'
+      });
+    }
+
+    // Masquer l'évaluation
+    evaluation.visibilite = 'MASQUEE';
+    evaluation.raisonMasquage = raison.trim();
+    evaluation.dateRevision = new Date();
+    await evaluation.save();
+
+    logger.info('🙈 Évaluation masquée par admin', {
+      evaluationId: evaluation._id,
+      adminId,
+      raison
+    });
 
     res.status(200).json({
       success: true,
-      message: 'Évaluation supprimée avec succès'
+      message: 'Évaluation masquée avec succès',
+      data: {
+        evaluation: {
+          id: evaluation._id,
+          visibilite: evaluation.visibilite,
+          raisonMasquage: evaluation.raisonMasquage,
+          dateRevision: evaluation.dateRevision
+        }
+      }
     });
 
   } catch (error) {
-    return next(AppError.serverError('Erreur lors de la suppression', { originalError: error.message }));
+    logger.error('Erreur masquerEvaluation:', error);
+    return next(AppError.serverError('Erreur lors du masquage', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Démasquer une évaluation (admin)
+ * @route   PATCH /api/admin/evaluations/:id/demasquer
+ * @access  Private (Admin/Modérateur)
+ */
+const demasquerEvaluation = async (req, res, next) => {
+  try {
+    const adminId = req.user.id;
+
+    const evaluation = await Evaluation.findById(req.params.id);
+
+    if (!evaluation) {
+      return next(AppError.notFound('Évaluation introuvable'));
+    }
+
+    if (evaluation.visibilite !== 'MASQUEE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cette évaluation n\'est pas masquée',
+        code: 'NOT_HIDDEN'
+      });
+    }
+
+    // Démasquer l'évaluation
+    evaluation.visibilite = 'PUBLIQUE';
+    evaluation.raisonMasquage = null;
+    await evaluation.save();
+
+    logger.info('👁️ Évaluation démasquée par admin', {
+      evaluationId: evaluation._id,
+      adminId
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Évaluation démasquée avec succès',
+      data: {
+        evaluation: {
+          id: evaluation._id,
+          visibilite: evaluation.visibilite
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur demasquerEvaluation:', error);
+    return next(AppError.serverError('Erreur lors du démasquage', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Supprimer définitivement une évaluation (admin uniquement)
+ * @route   DELETE /api/admin/evaluations/:id
+ * @access  Private (Super Admin)
+ */
+const supprimerEvaluation = async (req, res, next) => {
+  try {
+    const adminId = req.user.id;
+
+    const evaluation = await Evaluation.findById(req.params.id);
+
+    if (!evaluation) {
+      return next(AppError.notFound('Évaluation introuvable'));
+    }
+
+    // Supprimer définitivement
+    await evaluation.deleteOne();
+
+    logger.warn('🗑️ Évaluation supprimée définitivement par admin', {
+      evaluationId: req.params.id,
+      adminId,
+      evalueId: evaluation.evalueId,
+      evaluateurId: evaluation.evaluateurId
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Évaluation supprimée définitivement'
+    });
+
+  } catch (error) {
+    logger.error('Erreur supprimerEvaluation:', error);
+    return next(AppError.serverError('Erreur lors de la suppression', { 
+      originalError: error.message 
+    }));
   }
 };
 
@@ -2916,7 +3139,7 @@ const signalerEvaluation = async (req, res, next) => {
       return next(AppError.notFound('Évaluation introuvable'));
     }
 
-    evaluation.signale = true;
+    evaluation.estSignalement = true;
     await evaluation.save();
 
     res.status(200).json({
@@ -2925,43 +3148,260 @@ const signalerEvaluation = async (req, res, next) => {
     });
 
   } catch (error) {
-    return next(AppError.serverError('Erreur lors du signalement', { originalError: error.message }));
+    return next(AppError.serverError('Erreur lors du signalement', { 
+      originalError: error.message 
+    }));
   }
 };
 
 /**
- * @desc    Obtenir les statistiques des évaluations (admin)
+ * @desc    Détecter les évaluations suspectes (admin)
+ * @route   GET /api/admin/evaluations/utilisateur/:userId/suspectes
+ * @access  Private (Admin/Modérateur)
+ */
+const detecterEvaluationsSuspectes = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+
+    const detection = await Evaluation.detecterEvaluationsSuspectes(userId);
+
+    res.status(200).json({
+      success: true,
+      data: detection
+    });
+
+  } catch (error) {
+    logger.error('Erreur detecterEvaluationsSuspectes:', error);
+    return next(AppError.serverError('Erreur lors de la détection', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Obtenir les statistiques détaillées des évaluations (admin)
  * @route   GET /api/admin/evaluations/statistiques
  * @access  Private (Admin)
  */
 const obtenirStatistiquesEvaluations = async (req, res, next) => {
   try {
-    const stats = await Evaluation.aggregate([
+    const { periode = '30' } = req.query;
+    const joursArriere = parseInt(periode);
+    const dateDebut = new Date(Date.now() - joursArriere * 24 * 60 * 60 * 1000);
+
+    // Stats globales
+    const statsGlobales = await Evaluation.aggregate([
       {
         $group: {
-          _id: '$note',
+          _id: null,
+          totalEvaluations: { $sum: 1 },
+          moyenneGlobale: { $avg: '$notes.noteGlobale' },
+          totalSignalements: {
+            $sum: { $cond: ['$estSignalement', 1, 0] }
+          },
+          completees: {
+            $sum: { $cond: [{ $eq: ['$statutEvaluation', 'COMPLETEE'] }, 1, 0] }
+          },
+          enAttente: {
+            $sum: { $cond: [{ $eq: ['$statutEvaluation', 'EN_ATTENTE'] }, 1, 0] }
+          },
+          masquees: {
+            $sum: { $cond: [{ $eq: ['$visibilite', 'MASQUEE'] }, 1, 0] }
+          }
+        }
+      }
+    ]);
+
+    // Répartition par notes
+    const repartitionNotes = await Evaluation.aggregate([
+      {
+        $match: { statutEvaluation: 'COMPLETEE' }
+      },
+      {
+        $group: {
+          _id: { 
+            $floor: '$notes.noteGlobale'  // Grouper par note entière (1, 2, 3, 4, 5)
+          },
           count: { $sum: 1 }
         }
       },
       {
-        $sort: { _id: -1 }
+        $sort: { '_id': -1 }
       }
     ]);
 
-    const total = await Evaluation.countDocuments();
-    const signalees = await Evaluation.countDocuments({ signale: true });
+    // Évolution temporelle
+    const evolutionTemporelle = await Evaluation.aggregate([
+      {
+        $match: {
+          dateEvaluation: { $gte: dateDebut }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$dateEvaluation' }
+          },
+          nombreEvaluations: { $sum: 1 },
+          moyenneJour: { $avg: '$notes.noteGlobale' }
+        }
+      },
+      {
+        $sort: { '_id': 1 }
+      }
+    ]);
+
+    // Top critères les mieux notés
+    const criteresStatistiques = await Evaluation.aggregate([
+      {
+        $match: { statutEvaluation: 'COMPLETEE' }
+      },
+      {
+        $group: {
+          _id: null,
+          moyennePonctualite: { $avg: '$notes.ponctualite' },
+          moyenneProprete: { $avg: '$notes.proprete' },
+          moyenneQualiteConduite: { $avg: '$notes.qualiteConduite' },
+          moyenneRespect: { $avg: '$notes.respect' },
+          moyenneCommunication: { $avg: '$notes.communication' }
+        }
+      }
+    ]);
+
+    const stats = statsGlobales[0] || {
+      totalEvaluations: 0,
+      moyenneGlobale: 0,
+      totalSignalements: 0
+    };
 
     res.status(200).json({
       success: true,
       data: {
-        statistiques: stats,
-        total,
-        signalees
+        periode: `${joursArriere} derniers jours`,
+        statistiquesGlobales: stats,
+        repartitionNotes,
+        evolutionTemporelle,
+        criteresStatistiques: criteresStatistiques[0] || null
       }
     });
 
   } catch (error) {
-    return next(AppError.serverError('Erreur lors de la récupération des statistiques', { originalError: error.message }));
+    logger.error('Erreur obtenirStatistiquesEvaluations:', error);
+    return next(AppError.serverError('Erreur lors de la récupération des statistiques', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Obtenir les meilleures évaluations (admin)
+ * @route   GET /api/admin/evaluations/meilleures
+ * @access  Private (Admin)
+ */
+const obtenirMeilleuresEvaluations = async (req, res, next) => {
+  try {
+    const { limit = 10 } = req.query;
+
+    const evaluations = await Evaluation.getMeilleuresEvaluations(parseInt(limit));
+
+    res.status(200).json({
+      success: true,
+      count: evaluations.length,
+      data: { evaluations }
+    });
+
+  } catch (error) {
+    logger.error('Erreur obtenirMeilleuresEvaluations:', error);
+    return next(AppError.serverError('Erreur lors de la récupération', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Obtenir les stats pour badges d'un utilisateur (admin)
+ * @route   GET /api/admin/evaluations/utilisateur/:userId/badges
+ * @access  Private (Admin)
+ */
+const obtenirStatsPourBadges = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+
+    const stats = await Evaluation.getStatsForBadges(userId);
+
+    if (!stats) {
+      return res.json({
+        success: true,
+        message: 'Pas assez d\'évaluations pour calculer les badges',
+        data: null
+      });
+    }
+
+    res.json({
+      success: true,
+      data: stats,
+      message: stats.badgesSuggeres?.length > 0 
+        ? `${stats.badgesSuggeres.length} badge(s) suggéré(s)` 
+        : 'Aucun badge à débloquer pour le moment'
+    });
+
+  } catch (error) {
+    logger.error('Erreur obtenirStatsPourBadges:', error);
+    return next(AppError.serverError('Erreur lors de la récupération des stats badges', { 
+      originalError: error.message 
+    }));
+  }
+};
+
+/**
+ * @desc    Recalculer le score de confiance d'un utilisateur (admin)
+ * @route   POST /api/admin/evaluations/utilisateur/:userId/recalculer-score
+ * @access  Private (Super Admin)
+ */
+const recalculerScoreConfiance = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const adminId = req.user.id;
+
+    // Vérifier que l'utilisateur existe
+    const utilisateur = await User.findById(userId);
+    if (!utilisateur) {
+      return next(AppError.notFound('Utilisateur introuvable'));
+    }
+
+    // Utiliser la méthode du service
+    const EvaluationService = require('../services/EvaluationService');
+    const nouveauScore = await EvaluationService.mettreAJourScoreConfiance(userId);
+
+    logger.info('🔄 Score de confiance recalculé par admin', {
+      userId,
+      adminId,
+      ancienScore: utilisateur.scoreConfiance,
+      nouveauScore
+    });
+
+    res.json({
+      success: true,
+      message: 'Score de confiance recalculé avec succès',
+      data: {
+        utilisateur: {
+          id: userId,
+          nom: utilisateur.nom,
+          prenom: utilisateur.prenom
+        },
+        score: {
+          ancien: utilisateur.scoreConfiance,
+          nouveau: nouveauScore,
+          difference: nouveauScore - (utilisateur.scoreConfiance || 0)
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erreur recalculerScoreConfiance:', error);
+    return next(AppError.serverError('Erreur lors du recalcul du score', { 
+      originalError: error.message 
+    }));
   }
 };
 
@@ -5642,9 +6082,15 @@ module.exports = {
   // Gestion Évaluations
   listerEvaluations,
   obtenirEvaluation,
+  masquerEvaluation,            
+  demasquerEvaluation,
   supprimerEvaluation,
   signalerEvaluation,
+  detecterEvaluationsSuspectes,
   obtenirStatistiquesEvaluations,
+  obtenirMeilleuresEvaluations,  
+  obtenirStatsPourBadges,        
+  recalculerScoreConfiance, 
 
   // Gestion Alertes Urgence
   listerAlertes,
