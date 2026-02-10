@@ -509,8 +509,8 @@ const trajetSchema = new mongoose.Schema({
     index: true
   },
   raisonExpiration: {
-  type: String,
-  enum: ['DATE_PASSEE', 'RECURRENCE_TERMINEE', 'INACTIVITE', 'DEPART_MANQUE', 'AUTRE'] 
+    type: String,
+    enum: ['DATE_PASSEE', 'RECURRENCE_TERMINEE', 'INACTIVITE', 'DEPART_MANQUE', 'AUCUNE_CONFIRMATION_ARRIVEE', 'AUTRE']
   },
     typeExpiration: {
     type: String,

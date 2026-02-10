@@ -461,7 +461,12 @@ evaluationSchema.methods.peutEvaluer = function(userId, typeUtilisateur) {
 // ✅ Calculer le délai restant (version unique, pas de doublon)
 evaluationSchema.methods.calculerDelaiRestant = function(delaiMaxJours = 7) {
   const maintenant = new Date();
-  const dateCreation = this.dateEvaluation || this.createdAt;
+  // ✅ Vérifier que dateCreation est défini
+  const dateCreation = this.dateEvaluation || this.createdAt || new Date();
+  if (!dateCreation) {
+    logger.warn('⚠️ calculerDelaiRestant: dateCreation undefined', { evaluationId: this._id });
+    return { joursRestants: delaiMaxJours, heuresRestantes: delaiMaxJours * 24, expire: false, dateExpiration: new Date() };
+  }
   const dateExpiration = new Date(dateCreation);
   dateExpiration.setDate(dateExpiration.getDate() + delaiMaxJours);
   
