@@ -12,6 +12,7 @@ class EvaluationController {
       'obtenirEvaluationsUtilisateur',
       'obtenirMoyenneUtilisateur',
       'obtenirEvaluationsTrajet',
+      'obtenirEvaluationParId', 
       'repondreEvaluation',
       'signalerEvaluationAbusive',
       'supprimerEvaluation',
@@ -216,7 +217,7 @@ class EvaluationController {
   async signalerPriseEnCharge(req, res, next) {
     try {
       const { trajetId, passagerId, localisation } = req.body;
-      const conducteurId = req.user._id; // ✅ CORRECTION : Utiliser _id
+       const conducteurId = req.user.id;// ✅ CORRECTION : Utiliser _id
 
       // Validation des données obligatoires
       if (!trajetId || !passagerId) {
@@ -440,7 +441,33 @@ class EvaluationController {
       return next(AppError.serverError('Erreur serveur lors de la récupération des évaluations en attente', { originalError: error.message }));
     }
   }
-
+  async obtenirEvaluationParId(req, res, next) {
+    try {
+      const { id } = req.params;
+      
+      const evaluation = await this.evaluationService.getEvaluationById(id);
+      
+      res.json({ 
+        success: true, 
+        message: 'Évaluation récupérée avec succès',
+        data: evaluation 
+      });
+    } catch (error) {
+      logger.error('❌ Erreur récupération évaluation par ID:', error);
+      
+      if (error.message.includes('invalide')) {
+        return next(AppError.badRequest(error.message));
+      }
+      
+      if (error.message.includes('introuvable')) {
+        return next(AppError.notFound(error.message));
+      }
+      
+      return next(AppError.serverError('Erreur serveur lors de la récupération de l\'évaluation', { 
+        originalError: error.message 
+      }));
+    }
+  }
   /**
    *  Vérifier le délai restant pour une évaluation
    */
@@ -571,7 +598,6 @@ class EvaluationController {
       res.status(500).json({ success: false, message: error.message });
     }
   }
-
   async signalerEvaluationAbusive(req, res, next) {
     try {
       const { id } = req.params;
