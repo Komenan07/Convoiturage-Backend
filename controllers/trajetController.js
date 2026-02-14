@@ -292,18 +292,18 @@ async recalculerDistance(req, res, next) {
       for (const reservation of reservations) {
         if (reservation.passagerId?.fcmTokens?.length > 0) {
           await firebaseService.sendToMultipleTokens(
-            reservation.passagerId.fcmTokens,
+            reservation.passagerId.fcmTokens.map(t => t.token).filter(Boolean),
             {
               title: 'Trajet démarré ! 🚗',
-              body: `Le conducteur a démarré le trajet vers ${trajet.pointArrivee.adresse}`,
+              message: `Le conducteur a démarré le trajet vers ${trajet.pointArrivee.adresse}`,
+              channelId: 'trajets',
               data: {
                 type: 'RIDE_STARTED',
                 trajetId: id,
                 reservationId: reservation._id.toString(),
                 screen: 'ActiveTripPassenger'
               }
-            },
-            { channelId: 'trajets' }
+            }
           );
         }
       }
@@ -390,10 +390,11 @@ async recalculerDistance(req, res, next) {
         // Notification FCM
         if (reservation.passagerId?.fcmTokens?.length > 0) {
           await firebaseService.sendToMultipleTokens(
-            reservation.passagerId.fcmTokens,
+            reservation.passagerId.fcmTokens.map(t => t.token).filter(Boolean),
             {
               title: 'Trajet terminé ! 🎉',
-              body: 'N\'oubliez pas d\'évaluer votre conducteur',
+              message: 'N\'oubliez pas d\'évaluer votre conducteur',
+              channelId: 'trajets',
               data: {
                 type: 'RIDE_COMPLETED',
                 trajetId: id,
@@ -401,8 +402,7 @@ async recalculerDistance(req, res, next) {
                 screen: 'TripEvaluation',
                 requireEvaluation: 'true'
               }
-            },
-            { channelId: 'trajets' }
+            }
           );
         }
 
