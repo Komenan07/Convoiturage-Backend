@@ -6,7 +6,7 @@ const sendEmail = require('../utils/emailService');
 const { sendSMS } = require('../services/smsService');
 const { logger } = require('../utils/logger');
 const AppError = require('../utils/AppError');
-const infobipService = require('../services/infobipService');
+const twilioService = require('../services/twilioService');
 const fs = require('fs');
 const path = require('path');
 
@@ -446,7 +446,7 @@ const register = async (req, res, next) => {
 
     // Envoyer le code via WhatsApp
     const nomComplet = `${prenom} ${nom}`;
-    const resultatEnvoi = await infobipService.envoyerCodeVerification(
+    const resultatEnvoi = await twilioService.envoyerCodeVerification(
       phoneProcessed,
       code,
       nomComplet
@@ -574,7 +574,7 @@ const verifyCode = async (req, res, next) => {
     await utilisateur.save({ validateBeforeSave: false });
 
     // Envoyer message de bienvenue
-    await infobipService.envoyerMessageBienvenue(
+    await twilioService.envoyerMessageBienvenue(
       phoneProcessed,
       utilisateur.prenom
     );
@@ -671,7 +671,7 @@ const resendCode = async (req, res, next) => {
     await utilisateur.save({ validateBeforeSave: false });
 
     const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-    const resultatEnvoi = await infobipService.envoyerCodeVerification(
+    const resultatEnvoi = await twilioService.envoyerCodeVerification(
       phoneProcessed,
       code,
       nomComplet
@@ -1047,9 +1047,9 @@ const inscription = async (req, res, next) => {
     const newUser = new User(userData);
     await newUser.save({ maxTimeMS: 30000 });
 
-    // ✅ Envoyer le SMS de vérification via InfoBip
+    // ✅ Envoyer le SMS de vérification via Twilio
     try {
-      logger.info('Tentative envoi SMS via InfoBip', {
+      logger.info('Tentative envoi SMS via Twilio', {
         originalPhone: req.body.telephone,
         processedPhone: newUser.telephone,
         userId: newUser._id,
@@ -1057,7 +1057,7 @@ const inscription = async (req, res, next) => {
       });
 
       const nomComplet = `${prenom} ${nom}`;
-      const resultatEnvoi = await infobipService.envoyerCodeVerification(
+      const resultatEnvoi = await twilioService.envoyerCodeVerification(
         newUser.telephone,
         codeSMS,
         nomComplet
@@ -1067,7 +1067,7 @@ const inscription = async (req, res, next) => {
         // Supprimer l'utilisateur en cas d'échec
         await User.findByIdAndDelete(newUser._id);
         
-        logger.error('Échec envoi SMS InfoBip', {
+        logger.error('Échec envoi SMS Twilio', {
           error: resultatEnvoi.error,
           originalPhone: req.body.telephone,
           processedPhone: newUser.telephone,
@@ -1087,13 +1087,13 @@ const inscription = async (req, res, next) => {
             originalPhone: req.body.telephone,
             processedPhone: newUser.telephone,
             phoneLength: newUser.telephone.length,
-            infobipError: resultatEnvoi.error,
+            twilioError: resultatEnvoi.error,
             provider: resultatEnvoi.provider
           } : undefined
         });
       }
 
-      logger.info('✅ SMS de vérification envoyé avec succès via InfoBip', { 
+      logger.info('✅ SMS de vérification envoyé avec succès via Twilio', { 
         userId: newUser._id, 
         telephone: newUser.telephone,
         messageId: resultatEnvoi.messageId,
@@ -1101,7 +1101,7 @@ const inscription = async (req, res, next) => {
       });
       
     } catch (smsError) {
-      logger.error('❌ Erreur lors de l\'envoi SMS InfoBip', {
+      logger.error('❌ Erreur lors de l\'envoi SMS Twilio', {
         error: smsError.message,
         originalPhone: req.body.telephone,
         processedPhone: newUser.telephone,
@@ -1652,22 +1652,22 @@ const renvoyerCodeSMS = async (req, res, next) => {
     user.expirationCodeSMS = Date.now() + 10 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
-    // ✅ Envoyer le SMS via InfoBip
+    // ✅ Envoyer le SMS via Twilio
     try {
-      logger.info('Tentative renvoi SMS via InfoBip', {
+      logger.info('Tentative renvoi SMS via Twilio', {
         telephone: phoneProcessed,
         userId: user._id
       });
 
       const nomComplet = `${user.prenom} ${user.nom}`;
-      const resultatEnvoi = await infobipService.envoyerCodeVerification(
+      const resultatEnvoi = await twilioService.envoyerCodeVerification(
         phoneProcessed,
         nouveauCode,
         nomComplet
       );
 
       if (!resultatEnvoi.success) {
-        logger.error('Échec renvoi SMS InfoBip', {
+        logger.error('Échec renvoi SMS Twilio', {
           error: resultatEnvoi.error,
           telephone: phoneProcessed,
           userId: user._id
@@ -1678,13 +1678,13 @@ const renvoyerCodeSMS = async (req, res, next) => {
           message: 'Impossible de renvoyer le SMS. Veuillez réessayer plus tard.',
           errorType: 'SMS_SEND_FAILED',
           debug: process.env.NODE_ENV === 'development' ? {
-            infobipError: resultatEnvoi.error,
+            twilioError: resultatEnvoi.error,
             provider: resultatEnvoi.provider
           } : undefined
         });
       }
 
-      logger.info('✅ Nouveau SMS envoyé via InfoBip', { 
+      logger.info('✅ Nouveau SMS envoyé via Twilio', { 
         userId: user._id, 
         telephone: phoneProcessed,
         messageId: resultatEnvoi.messageId,
@@ -1701,7 +1701,7 @@ const renvoyerCodeSMS = async (req, res, next) => {
       });
 
     } catch (smsError) {
-      logger.error('❌ Erreur renvoi SMS InfoBip:', {
+      logger.error('❌ Erreur renvoi SMS Twilio:', {
         error: smsError.message,
         telephone: phoneProcessed,
         userId: user._id,
@@ -2383,7 +2383,7 @@ const forgotPassword = async (req, res, next) => {
 
     // Envoyer le code via WhatsApp
     const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-    const resultatEnvoi = await infobipService.envoyerCodeResetMotDePasse(
+    const resultatEnvoi = await twilioService.envoyerCodeResetMotDePasse(
       phoneProcessed,
       codeReset,
       nomComplet
@@ -2722,7 +2722,7 @@ const resetPassword = async (req, res, next) => {
 
     // Envoyer un message de confirmation WhatsApp
     try {
-      await infobipService.envoyerConfirmationResetMotDePasse(
+      await twilioService.envoyerConfirmationResetMotDePasse(
         phoneProcessed,
         utilisateur.prenom
       );
@@ -2838,7 +2838,7 @@ const resendResetCode = async (req, res, next) => {
 
     // Envoyer le nouveau code via WhatsApp
     const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-    const resultatEnvoi = await infobipService.envoyerCodeResetMotDePasse(
+    const resultatEnvoi = await twilioService.envoyerCodeResetMotDePasse(
       phoneProcessed,
       nouveauCode,
       nomComplet
