@@ -1,0 +1,59 @@
+{
+  "timestamp": "2025-12-16T16:11:12.885Z",
+  "baseURL": "http://localhost:3000",
+  "totalTests": 10,
+  "passedTests": 0,
+  "failedTests": 10,
+  "results": [
+    {
+      "name": "GET /status",
+      "success": false,
+      "error": "Request failed with status code 401"
+    },
+    {
+      "name": "POST /register-token",
+      "success": false,
+      "error": "Request failed with status code 401"
+    },
+    {
+      "name": "GET /tokens",
+      "success": false,
+      "error": "Request failed with status code 401"
+    },
+    {
+      "name": "POST /unregister-token",
+      "success": false,
+      "error": "Request failed with status code 401"
+    },
+    {
+      "name": "PUT /preferences",
+      "success": false,
+      "error": "Request failed with status code 401"
+    },
+    {
+      "name": "GET /preferences",
+      "success": false,
+      "error": "Request failed with status code 401"
+    },
+    {
+      "name": "POST /proximity",
+      "success": false,
+      "error": "Request failed with status code 401"
+    },
+    {
+      "name": "POST /emergency",
+      "success": false,
+      "error": "Request failed with status code 401"
+    },
+    {
+      "name": "PUT /language",
+      "success": false,
+      "error": "Request failed with status code 401"
+    },
+    {
+      "name": "POST /test",
+      "success": false,
+      "error": "Request failed with status code 401"
+    }
+  ]
+}

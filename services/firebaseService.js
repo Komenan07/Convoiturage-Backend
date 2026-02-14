@@ -77,7 +77,12 @@ class FirebaseService {
         token: token.substring(0, 20) + '...',
         title: notification.title
       });
-      return { success: false, reason: 'disabled' };
+      return { 
+        success: false, 
+        reason: 'disabled',
+        successCount: 0,
+        failureCount: 0
+      };
     }
 
     try {
@@ -131,21 +136,26 @@ class FirebaseService {
       
       return { 
         success: true, 
-        messageId: response 
+        messageId: response,
+        successCount: 1,
+        failureCount: 0
       };
       
     } catch (error) {
       console.error('❌ Erreur envoi notification Firebase:', {
         error: error.message,
         code: error.code,
-        token: token.substring(0, 20) + '...'
+        token: token.substring(0, 20) + '...',
+        title: notification.title
       });
       
       return { 
         success: false, 
         error: error.message,
         code: error.code,
-        isInvalidToken: this.isInvalidToken(error)
+        isInvalidToken: this.isInvalidToken(error),
+        successCount: 0,
+        failureCount: 1
       };
     }
   }
@@ -160,13 +170,23 @@ class FirebaseService {
   async sendToMultipleTokens(tokens, notification) {
     if (!this.enabled) {
       console.log('⚠️  Firebase désactivé - Notifications multiples simulées:', tokens.length);
-      return { success: false, reason: 'disabled' };
+      return { 
+        success: false, 
+        reason: 'disabled',
+        successCount: 0,
+        failureCount: 0,
+        invalidTokens: []
+      };
     }
 
     if (!tokens || tokens.length === 0) {
+      console.warn('⚠️  Aucun token fourni à sendToMultipleTokens');
       return { 
         success: false, 
-        error: 'Aucun token fourni' 
+        error: 'Aucun token fourni',
+        successCount: 0,
+        failureCount: 0,
+        invalidTokens: []
       };
     }
 
@@ -207,6 +227,14 @@ class FirebaseService {
         message.notification.imageUrl = notification.imageUrl;
       }
 
+      console.log('📦 Message FCM construit:', {
+        title: message.notification.title,
+        body: message.notification.body.substring(0, 50) + '...',
+        tokensCount: tokens.length,
+        channelId: message.android.notification.channelId,
+        dataKeys: Object.keys(message.data)
+      });
+
       // 📤 Envoi multicast
       const response = await this.messaging.sendEachForMulticast({
         tokens: tokens.slice(0, batchSize),
@@ -223,28 +251,49 @@ class FirebaseService {
       const invalidTokens = [];
       if (response.responses) {
         response.responses.forEach((resp, idx) => {
-          if (!resp.success && this.isInvalidToken(resp.error)) {
-            invalidTokens.push(tokens[idx]);
+          if (!resp.success) {
+            const errorCode = resp.error?.code || 'unknown';
+            const errorMessage = resp.error?.message || 'Unknown error';
+            
+            console.error(`❌ Token ${idx + 1}/${tokens.length} échec:`, {
+              token: tokens[idx].substring(0, 20) + '...',
+              errorCode: errorCode,
+              errorMessage: errorMessage
+            });
+            
+            if (this.isInvalidToken(resp.error)) {
+              invalidTokens.push(tokens[idx]);
+            }
           }
         });
       }
 
       if (invalidTokens.length > 0) {
-        console.log('🗑️  Tokens invalides détectés:', invalidTokens.length);
+        console.log('🗑️  Tokens invalides détectés:', {
+          count: invalidTokens.length,
+          tokens: invalidTokens.map(t => t.substring(0, 20) + '...')
+        });
       }
 
       return {
-        success: true,
+        success: response.successCount > 0,
         successCount: response.successCount,
         failureCount: response.failureCount,
         invalidTokens: invalidTokens
       };
 
     } catch (error) {
-      console.error('❌ Erreur notifications multiples:', error);
+      console.error('❌ Erreur notifications multiples:', {
+        error: error.message,
+        code: error.code,
+        stack: error.stack
+      });
       return {
         success: false,
-        error: error.message
+        error: error.message,
+        successCount: 0,
+        failureCount: tokens.length,
+        invalidTokens: []
       };
     }
   }
@@ -262,148 +311,233 @@ class FirebaseService {
       const utilisateur = await Utilisateur.findById(userId);
       
       if (!utilisateur) {
+        console.error('❌ Utilisateur non trouvé:', userId);
         return { 
           success: false, 
-          error: 'Utilisateur non trouvé' 
+          error: 'Utilisateur non trouvé',
+          successCount: 0,
+          failureCount: 0
         };
       }
 
       // ✅ Vérifier les préférences de notifications
       const type = notification.type || 'general';
-      if (!utilisateur.notificationsActivees(type)) {
-        console.log('⚠️  Notifications désactivées pour:', {
-          userId: userId,
-          type: type
-        });
-        return { 
-          success: false, 
-          reason: 'notifications_disabled' 
-        };
+      
+      // Vérifier si la méthode existe avant de l'appeler
+      if (typeof utilisateur.notificationsActivees === 'function') {
+        if (!utilisateur.notificationsActivees(type)) {
+          console.log('⚠️  Notifications désactivées pour:', {
+            userId: userId,
+            userName: utilisateur.nom || utilisateur.prenom || 'Utilisateur',
+            type: type,
+            preferences: utilisateur.preferences?.notifications
+          });
+          return { 
+            success: false, 
+            reason: 'notifications_disabled',
+            successCount: 0,
+            failureCount: 0
+          };
+        }
+      } else {
+        console.warn('⚠️  Méthode notificationsActivees() non disponible, notifications envoyées par défaut');
       }
 
       // 📱 Récupérer tous les tokens actifs
-      const tokens = utilisateur.getTokensActifs();
+      let tokens = [];
+      if (typeof utilisateur.getTokensActifs === 'function') {
+        tokens = utilisateur.getTokensActifs();
+      } else if (utilisateur.fcmTokens && Array.isArray(utilisateur.fcmTokens)) {
+        // Fallback si la méthode n'existe pas
+        tokens = utilisateur.fcmTokens
+          .filter(tokenObj => tokenObj && tokenObj.token && tokenObj.actif !== false)
+          .map(tokenObj => tokenObj.token);
+        console.warn('⚠️  Méthode getTokensActifs() non disponible, utilisation directe de fcmTokens');
+      }
       
       if (tokens.length === 0) {
-        console.log('⚠️  Aucun token FCM actif pour user:', userId);
+        console.log('⚠️  Aucun token FCM actif pour user:', {
+          userId: userId,
+          userName: utilisateur.nom || utilisateur.prenom || 'Utilisateur',
+          totalTokens: utilisateur.fcmTokens?.length || 0
+        });
         return { 
           success: false, 
-          error: 'Aucun token FCM disponible' 
+          error: 'Aucun token FCM disponible',
+          successCount: 0,
+          failureCount: 0
         };
       }
 
-      console.log(`📤 Envoi notification à ${tokens.length} device(s)`);
+      console.log(`📤 Envoi notification à ${tokens.length} device(s):`, {
+        userId: userId,
+        userName: utilisateur.nom || utilisateur.prenom || 'Utilisateur',
+        title: notification.title,
+        type: type,
+        tokensCount: tokens.length
+      });
 
       // 📤 Envoyer à tous les tokens
       const result = await this.sendToMultipleTokens(tokens, notification);
 
       // 🗑️ Nettoyer automatiquement les tokens invalides
       if (result.invalidTokens && result.invalidTokens.length > 0) {
-        console.log('🗑️  Nettoyage automatique:', result.invalidTokens.length, 'tokens invalides');
+        console.log('🗑️  Nettoyage automatique:', {
+          count: result.invalidTokens.length,
+          userId: userId
+        });
         
-        for (const token of result.invalidTokens) {
-          await utilisateur.supprimerFCMToken(token);
+        if (typeof utilisateur.supprimerFCMToken === 'function') {
+          for (const token of result.invalidTokens) {
+            try {
+              await utilisateur.supprimerFCMToken(token);
+            } catch (cleanError) {
+              console.error('❌ Erreur nettoyage token:', cleanError.message);
+            }
+          }
+        } else {
+          console.warn('⚠️  Méthode supprimerFCMToken() non disponible, tokens invalides non nettoyés');
         }
       }
 
       return result;
 
     } catch (error) {
-      console.error('❌ Erreur sendToUser:', error);
+      console.error('❌ Erreur sendToUser:', {
+        error: error.message,
+        stack: error.stack,
+        userId: userId
+      });
       return { 
         success: false, 
-        error: error.message 
+        error: error.message,
+        successCount: 0,
+        failureCount: 1
       };
     }
   }
 
   /**
- * Envoyer une notification à plusieurs utilisateurs
- * 
- * @param {Array<String>} userIds - IDs MongoDB des utilisateurs
- * @param {Object} notification - Objet notification
- * @param {Model} Utilisateur - Modèle Mongoose
- * @returns {Promise<Object>} Résultats agrégés
- */
-async sendToMultipleUsers(userIds, notification, Utilisateur) {
-  if (!this.enabled) {
-    console.log('⚠️  Firebase désactivé - Notifications multiples simulées');
-    return { 
-      success: false, 
-      reason: 'disabled',
-      successCount: 0,
-      failureCount: 0
-    };
-  }
-
-  if (!userIds || userIds.length === 0) {
-    return { 
-      success: false, 
-      error: 'Aucun utilisateur fourni',
-      successCount: 0,
-      failureCount: 0
-    };
-  }
-
-  try {
-    const results = {
-      successCount: 0,
-      failureCount: 0,
-      details: []
-    };
-
-    console.log(`📤 Envoi notification à ${userIds.length} utilisateur(s)`);
-
-    // Traiter chaque utilisateur séquentiellement
-    for (const userId of userIds) {
-      try {
-        const result = await this.sendToUser(userId, notification, Utilisateur);
-        
-        if (result.success) {
-          results.successCount += result.successCount || 1;
-        } else {
-          results.failureCount += result.failureCount || 1;
-        }
-
-        results.details.push({
-          userId: userId.toString(),
-          success: result.success,
-          reason: result.reason || result.error,
-          tokensUsed: result.successCount || 0
-        });
-        
-      } catch (userError) {
-        console.error(`❌ Erreur pour userId ${userId}:`, userError.message);
-        results.failureCount++;
-        results.details.push({
-          userId: userId.toString(),
-          success: false,
-          reason: userError.message
-        });
-      }
+   * Envoyer une notification à plusieurs utilisateurs
+   * 
+   * @param {Array<String>} userIds - IDs MongoDB des utilisateurs
+   * @param {Object} notification - Objet notification
+   * @param {Model} Utilisateur - Modèle Mongoose
+   * @returns {Promise<Object>} Résultats agrégés
+   */
+  async sendToMultipleUsers(userIds, notification, Utilisateur) {
+    if (!this.enabled) {
+      console.log('⚠️  Firebase désactivé - Notifications multiples simulées');
+      return { 
+        success: false, 
+        reason: 'disabled',
+        successCount: 0,
+        failureCount: 0,
+        disabledCount: 0,
+        noTokenCount: 0,
+        details: []
+      };
     }
 
-    console.log(`✅ Notifications multiples terminées:`, {
-      total: userIds.length,
-      success: results.successCount,
-      failed: results.failureCount
-    });
+    if (!userIds || userIds.length === 0) {
+      console.warn('⚠️  Aucun utilisateur fourni à sendToMultipleUsers');
+      return { 
+        success: false, 
+        error: 'Aucun utilisateur fourni',
+        successCount: 0,
+        failureCount: 0,
+        details: []
+      };
+    }
 
-    return {
-      success: results.successCount > 0,
-      ...results
-    };
+    try {
+      const results = {
+        successCount: 0,
+        failureCount: 0,
+        disabledCount: 0,
+        noTokenCount: 0,
+        details: []
+      };
 
-  } catch (error) {
-    console.error('❌ Erreur sendToMultipleUsers:', error);
-    return {
-      success: false,
-      error: error.message,
-      successCount: 0,
-      failureCount: userIds.length
-    };
+      console.log(`📤 Envoi notification à ${userIds.length} utilisateur(s):`, {
+        title: notification.title,
+        type: notification.type || 'general'
+      });
+
+      // Traiter chaque utilisateur séquentiellement
+      for (const userId of userIds) {
+        try {
+          const result = await this.sendToUser(userId, notification, Utilisateur);
+          
+          // ✅ CORRECTION: Mieux gérer les comptages
+          if (result.success) {
+            // Si succès, ajouter le nombre réel de notifications envoyées
+            results.successCount += (result.successCount || 0);
+            console.log(`✅ User ${userId}: ${result.successCount} notification(s) envoyée(s)`);
+          } else {
+            // Gérer les différents types d'échecs
+            if (result.reason === 'notifications_disabled') {
+              results.disabledCount++;
+              console.log(`⚠️  User ${userId}: notifications désactivées`);
+            } else if (result.error === 'Aucun token FCM disponible') {
+              results.noTokenCount++;
+              console.log(`⚠️  User ${userId}: aucun token FCM`);
+            } else {
+              results.failureCount += (result.failureCount || 1);
+              console.error(`❌ User ${userId}: ${result.error || result.reason}`);
+            }
+          }
+
+          results.details.push({
+            userId: userId.toString(),
+            success: result.success,
+            reason: result.reason || result.error,
+            tokensUsed: result.successCount || 0,
+            failedTokens: result.failureCount || 0
+          });
+          
+        } catch (userError) {
+          console.error(`❌ Erreur pour userId ${userId}:`, {
+            error: userError.message,
+            stack: userError.stack
+          });
+          results.failureCount++;
+          results.details.push({
+            userId: userId.toString(),
+            success: false,
+            reason: userError.message
+          });
+        }
+      }
+
+      console.log(`✅ Notifications multiples terminées:`, {
+        total: userIds.length,
+        envoyées: results.successCount,
+        échouées: results.failureCount,
+        désactivées: results.disabledCount,
+        sansToken: results.noTokenCount
+      });
+
+      return {
+        success: results.successCount > 0,
+        ...results
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur sendToMultipleUsers:', {
+        error: error.message,
+        stack: error.stack
+      });
+      return {
+        success: false,
+        error: error.message,
+        successCount: 0,
+        failureCount: userIds.length,
+        details: []
+      };
+    }
   }
-}
+
   /**
    * ===============================================
    * NOTIFICATIONS PRÉDÉFINIES POUR WAYZ-ECO

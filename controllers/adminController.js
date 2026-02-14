@@ -15,6 +15,7 @@ const Signalement = require('../models/Signalement');
 const Evenement = require('../models/Evenement');
 const Evaluation = require('../models/Evaluation');
 const AlerteUrgence = require('../models/AlerteUrgence');
+const firebaseService = require('../services/firebaseService');
 const { logger } = require('../utils/logger');
 /**
  * Utilitaire pour générer un token JWT
@@ -3416,7 +3417,7 @@ const recalculerScoreConfiance = async (req, res, next) => {
     }
 
     // Utiliser la méthode du service
-    const EvaluationService = require('../services/EvaluationService');
+    const EvaluationService = require('../services/evaluationService');
     const nouveauScore = await EvaluationService.mettreAJourScoreConfiance(userId);
 
     logger.info('🔄 Score de confiance recalculé par admin', {
@@ -4513,7 +4514,16 @@ if (utilisateur.email) {
           });
           logger.info('🔔 Notification WebSocket envoyée (refus validation)', { userId: utilisateur._id });
         }
-
+        // 🔔 FIREBASE — Refus conducteur
+        try {
+          await firebaseService.sendToUser(utilisateur._id.toString(), {
+            title: '❌ Demande conducteur refusée',
+            message: commentaire || 'Votre demande a été refusée par l\'administrateur',
+            type: 'compte',
+            channelId: 'compte',
+            data: { type: 'DRIVER_REJECTED', screen: 'Home' }
+          }, User);
+        } catch (e) { logger.error('Firebase refus conducteur:', e.message); }
         // TODO: Push notification (pas encore disponible)
         // await notificationService.sendPushNotification(
         //   utilisateur._id,
@@ -4707,7 +4717,16 @@ if (utilisateur.email) {
   } catch (notifError) {
     logger.error('Erreur envoi notification validation forcée:', notifError);
   }
-
+  // 🔔 FIREBASE — Validation forcée
+  try {
+    await firebaseService.sendToUser(utilisateur._id.toString(), {
+      title: '🎉 Compte conducteur validé !',
+      message: `Votre compte conducteur a été validé. ${erreursCritiques.length} document(s) à compléter.`,
+      type: 'compte',
+      channelId: 'compte',
+      data: { type: 'DRIVER_VALIDATED', forced: 'true', screen: 'Home' }
+    }, User);
+  } catch (e) { logger.error('Firebase validation forcée:', e.message); }
   return res.status(200).json({
     success: true,
     message: '✅ Demande de passage conducteur approuvée (VALIDATION FORCÉE)',

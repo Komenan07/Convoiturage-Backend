@@ -233,104 +233,138 @@ async recalculerDistance(req, res, next) {
     }));
   }
 }
-  
- 
   /**
-   * ⭐ Démarrer un trajet (PROGRAMME → EN_COURS)
-   */
-  async demarrerTrajet(req, res, next) {
-    try {
-      const { id } = req.params;
-      const { heureDepart } = req.body;
+ * ⭐ Démarrer un trajet (PROGRAMME → EN_COURS)
+ * 
+ */
+async demarrerTrajet(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { heureDepart } = req.body;
 
-      const trajet = await Trajet.findById(id);
-      if (!trajet) {
-        return next(AppError.notFound('Trajet non trouvé'));
-      }
+    const trajet = await Trajet.findById(id);
+    if (!trajet) {
+      return next(AppError.notFound('Trajet non trouvé'));
+    }
 
-      // Vérifier autorisation
-      if (trajet.conducteurId.toString() !== req.user.id.toString()) {
-        return next(AppError.badRequest('Seul le conducteur peut démarrer ce trajet'));
-      }
+    // Vérifier autorisation
+    if (trajet.conducteurId.toString() !== req.user.id.toString()) {
+      return next(AppError.badRequest('Seul le conducteur peut démarrer ce trajet'));
+    }
 
-      // Vérifier le statut
-      if (trajet.statutTrajet !== 'PROGRAMME') {
-        return next(AppError.badRequest('Ce trajet ne peut pas être démarré', {
-          details: `Statut actuel: ${trajet.statutTrajet}`
-        }));
-      }
-
-      // Vérifier qu'il y a au moins une réservation confirmée
-      const Reservation = require('../models/Reservation');
-      const reservationsConfirmees = await Reservation.countDocuments({
-        trajetId: id,
-        statutReservation: 'CONFIRMEE'
-      });
-
-      if (reservationsConfirmees === 0) {
-        return next(AppError.badRequest('Aucune réservation confirmée pour ce trajet'));
-      }
-
-      console.log('🚀 Démarrage trajet:', id);
-
-      // Mettre à jour le statut et l'heure de départ réelle
-      trajet.statutTrajet = 'EN_COURS';
-      // ✅ Formater l'heure au format HH:MM si non fournie
-      if (heureDepart) {
-        trajet.heureDepart = heureDepart;
-      } else {
-        const now = new Date();
-        trajet.heureDepart = now.toTimeString().slice(0, 5); // "HH:MM"
-      }
-      await trajet.save();
-
-      // Notifier tous les passagers confirmés via FCM
-      const reservations = await Reservation.find({
-        trajetId: id,
-        statutReservation: 'CONFIRMEE'
-      }).populate('passagerId', 'fcmTokens');
-
-      const firebaseService = require('../services/firebaseService');
-      
-      for (const reservation of reservations) {
-        if (reservation.passagerId?.fcmTokens?.length > 0) {
-          await firebaseService.sendToMultipleTokens(
-            reservation.passagerId.fcmTokens.map(t => t.token).filter(Boolean),
-            {
-              title: 'Trajet démarré ! 🚗',
-              message: `Le conducteur a démarré le trajet vers ${trajet.pointArrivee.adresse}`,
-              channelId: 'trajets',
-              data: {
-                type: 'RIDE_STARTED',
-                trajetId: id,
-                reservationId: reservation._id.toString(),
-                screen: 'ActiveTripPassenger'
-              }
-            }
-          );
-        }
-      }
-
-      await trajet.populate('conducteurId', 'nom prenom photoProfil');
-      const trajetObj = this._attachIsExpired([trajet])[0];
-
-      res.json({
-        success: true,
-        message: 'Trajet démarré avec succès',
-        data: trajetObj
-      });
-
-    } catch (error) {
-      console.error('❌ Erreur démarrage trajet:', error);
-      return next(AppError.serverError('Erreur lors du démarrage du trajet', { 
-        originalError: error.message 
+    // Vérifier le statut
+    if (trajet.statutTrajet !== 'PROGRAMME') {
+      return next(AppError.badRequest('Ce trajet ne peut pas être démarré', {
+        details: `Statut actuel: ${trajet.statutTrajet}`
       }));
     }
+
+    // Vérifier qu'il y a au moins une réservation confirmée
+    const Reservation = require('../models/Reservation');
+    const reservationsConfirmees = await Reservation.countDocuments({
+      trajetId: id,
+      statutReservation: 'CONFIRMEE'
+    });
+
+    if (reservationsConfirmees === 0) {
+      return next(AppError.badRequest('Aucune réservation confirmée pour ce trajet'));
+    }
+
+    console.log('🚀 Démarrage trajet:', id);
+
+    // Mettre à jour le statut et l'heure de départ réelle
+    trajet.statutTrajet = 'EN_COURS';
+    if (heureDepart) {
+      trajet.heureDepart = heureDepart;
+    } else {
+      const now = new Date();
+      trajet.heureDepart = now.toTimeString().slice(0, 5);
+    }
+    await trajet.save();
+
+    // ✅ CORRECTION: Notifier tous les passagers confirmés via FCM
+    const reservations = await Reservation.find({
+      trajetId: id,
+      statutReservation: 'CONFIRMEE'
+    }).select('passagerId');
+
+    const passagerIds = reservations.map(r => r.passagerId);
+
+    const firebaseService = require('../services/firebaseService');
+    const Utilisateur = require('../models/Utilisateur');
+
+    // ✅ Notifier TOUS les passagers en une seule fois
+    if (passagerIds.length > 0) {
+      console.log(`📤 Notification de ${passagerIds.length} passager(s)...`);
+      
+      const notifResult = await firebaseService.sendToMultipleUsers(
+        passagerIds,
+        {
+          title: '🚗 Trajet démarré !',
+          message: `Le conducteur a démarré le trajet vers ${trajet.pointArrivee.adresse}`,
+          type: 'trajets',
+          data: {
+            type: 'RIDE_STARTED',
+            trajetId: id,
+            screen: 'ActiveTripPassenger'
+          },
+          channelId: 'trajets'
+        },
+        Utilisateur
+      );
+
+      console.log('📊 Résultat notifications passagers:', {
+        envoyées: notifResult.successCount,
+        échouées: notifResult.failureCount,
+        désactivées: notifResult.disabledCount,
+        sansToken: notifResult.noTokenCount
+      });
+    }
+
+    // ✅ Notifier le conducteur (confirmation)
+    try {
+      await firebaseService.sendToUser(
+        trajet.conducteurId,
+        {
+          title: '✅ Trajet démarré',
+          message: `Vous avez ${passagerIds.length} passager(s) à bord`,
+          type: 'trajets',
+          data: {
+            type: 'RIDE_STARTED_CONFIRMATION',
+            trajetId: id,
+            passagersCount: passagerIds.length.toString(),
+            screen: 'ActiveTripDriver'
+          },
+          channelId: 'trajets'
+        },
+        Utilisateur
+      );
+    } catch (conducteurNotifError) {
+      console.error('⚠️ Erreur notification conducteur:', conducteurNotifError.message);
+      // Ne pas bloquer si la notification conducteur échoue
+    }
+
+    await trajet.populate('conducteurId', 'nom prenom photoProfil');
+    const trajetObj = this._attachIsExpired([trajet])[0];
+
+    res.json({
+      success: true,
+      message: 'Trajet démarré avec succès',
+      data: trajetObj
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur démarrage trajet:', error);
+    return next(AppError.serverError('Erreur lors du démarrage du trajet', { 
+      originalError: error.message 
+    }));
   }
+}
 
   /**
-   * ⭐ Terminer un trajet (EN_COURS → TERMINE)
-   */
+ * ⭐ Terminer un trajet (EN_COURS → TERMINE)
+ * ✅ VERSION CORRIGÉE
+ */
   async terminerTrajet(req, res, next) {
     try {
       const { id } = req.params;
@@ -357,7 +391,7 @@ async recalculerDistance(req, res, next) {
 
       // Mettre à jour le statut et les informations finales
       trajet.statutTrajet = 'TERMINE';
-      trajet.heureArriveePrevue = (heureArrivee || new Date()).toTimeString().slice(0, 5); // "HH:MM"
+      trajet.heureArriveePrevue = heureArrivee || new Date().toTimeString().slice(0, 5);
       
       if (distanceReelle) trajet.distance = distanceReelle;
       if (dureeReelle) trajet.dureeEstimee = dureeReelle;
@@ -379,59 +413,96 @@ async recalculerDistance(req, res, next) {
         }
       );
 
-      // Récupérer les réservations pour notifications
+      // ✅ CORRECTION: Récupérer les réservations pour notifications
       const reservations = await Reservation.find({
         trajetId: id,
         statutReservation: 'TERMINEE'
-      }).populate('passagerId', 'fcmTokens');
+      }).select('passagerId');
+
+      const passagerIds = reservations.map(r => r.passagerId);
 
       const firebaseService = require('../services/firebaseService');
+      const Utilisateur = require('../models/Utilisateur');
       const evaluationService = require('../services/evaluationService');
 
-      // Notifier les passagers et créer évaluations en attente
-      for (const reservation of reservations) {
-        // Notification FCM
-        if (reservation.passagerId?.fcmTokens?.length > 0) {
-          await firebaseService.sendToMultipleTokens(
-            reservation.passagerId.fcmTokens.map(t => t.token).filter(Boolean),
-            {
-              title: 'Trajet terminé ! 🎉',
-              message: 'N\'oubliez pas d\'évaluer votre conducteur',
-              channelId: 'trajets',
-              data: {
-                type: 'RIDE_COMPLETED',
-                trajetId: id,
-                reservationId: reservation._id.toString(),
-                screen: 'TripEvaluation',
-                requireEvaluation: 'true'
-              }
-            }
-          );
-        }
+      // ✅ Notifier TOUS les passagers
+      if (passagerIds.length > 0) {
+        console.log(`📤 Notification de fin pour ${passagerIds.length} passager(s)...`);
+        
+        const notifResult = await firebaseService.sendToMultipleUsers(
+          passagerIds,
+          {
+            title: '🎉 Trajet terminé !',
+            message: 'N\'oubliez pas d\'évaluer votre conducteur',
+            type: 'trajets',
+            data: {
+              type: 'RIDE_COMPLETED',
+              trajetId: id,
+              screen: 'TripEvaluation',
+              requireEvaluation: 'true'
+            },
+            channelId: 'trajets'
+          },
+          Utilisateur
+        );
 
-        // Créer évaluation en attente (passager évalue conducteur)
-        try {
-          await evaluationService.creerEvaluationEnAttente(
-            id,
-            reservation.passagerId._id.toString(),
-            trajet.conducteurId.toString(),
-            'PASSAGER'
-          );
-        } catch (evalError) {
-          console.error('Erreur création évaluation passager:', evalError);
-        }
+        console.log('📊 Résultat notifications passagers:', {
+          envoyées: notifResult.successCount,
+          échouées: notifResult.failureCount,
+          désactivées: notifResult.disabledCount,
+          sansToken: notifResult.noTokenCount
+        });
 
-        // Créer évaluation en attente (conducteur évalue passager)
-        try {
-          await evaluationService.creerEvaluationEnAttente(
-            id,
-            trajet.conducteurId.toString(),
-            reservation.passagerId._id.toString(),
-            'CONDUCTEUR'
-          );
-        } catch (evalError) {
-          console.error('Erreur création évaluation conducteur:', evalError);
+        // ✅ Créer les évaluations en attente
+        for (const reservation of reservations) {
+          // Passager évalue conducteur
+          try {
+            await evaluationService.creerEvaluationEnAttente(
+              id,
+              reservation.passagerId.toString(),
+              trajet.conducteurId.toString(),
+              'PASSAGER'
+            );
+          } catch (evalError) {
+            console.error('Erreur création évaluation passager:', evalError);
+          }
+
+          // Conducteur évalue passager
+          try {
+            await evaluationService.creerEvaluationEnAttente(
+              id,
+              trajet.conducteurId.toString(),
+              reservation.passagerId.toString(),
+              'CONDUCTEUR'
+            );
+          } catch (evalError) {
+            console.error('Erreur création évaluation conducteur:', evalError);
+          }
         }
+      }
+
+      // ✅ Notifier le conducteur
+      try {
+        await firebaseService.sendToUser(
+          trajet.conducteurId,
+          {
+            title: '✅ Trajet terminé',
+            message: `Votre trajet avec ${passagerIds.length} passager(s) est terminé. N'oubliez pas de les évaluer !`,
+            type: 'trajets',
+            data: {
+              type: 'RIDE_COMPLETED_DRIVER',
+              trajetId: id,
+              passagersCount: passagerIds.length.toString(),
+              screen: 'TripEvaluation',
+              requireEvaluation: 'true'
+            },
+            channelId: 'trajets'
+          },
+          Utilisateur
+        );
+      } catch (conducteurNotifError) {
+        console.error('⚠️ Erreur notification conducteur:', conducteurNotifError.message);
+        // Ne pas bloquer si la notification conducteur échoue
       }
 
       await trajet.populate('conducteurId', 'nom prenom photoProfil');
@@ -443,10 +514,10 @@ async recalculerDistance(req, res, next) {
         data: {
           trajet: trajetObj,
           statistiques: {
-            passagersTransportes: reservations.length,
+            passagersTransportes: passagerIds.length,
             distanceReelle: trajet.distance,
             dureeReelle: trajet.dureeEstimee,
-            evaluationsEnAttente: reservations.length * 2 // conducteur + passagers
+            evaluationsEnAttente: passagerIds.length * 2
           }
         }
       });
@@ -458,7 +529,6 @@ async recalculerDistance(req, res, next) {
       }));
     }
   }
-
    /**
    * Créer un trajet ponctuel
    * ⭐ Suppression des calculs manuels (le hook s'en charge)
