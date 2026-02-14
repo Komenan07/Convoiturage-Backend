@@ -7,9 +7,6 @@ const { logger } = require('../utils/logger');
 
 class EvaluationService {
 
-  constructor(){
-    
-  }
   
   // ========================================
   // 🆕 WORKFLOW ÉVALUATION EN ATTENTE
@@ -57,13 +54,24 @@ class EvaluationService {
   /**
  * Compléter une évaluation en attente
  */
-  async completerEvaluation(evaluationId, userId, typeUtilisateur, donnees) {
+  async completerEvaluation(id, userId, typeUtilisateur, donnees) {
   try {
-    const evaluation = await Evaluation.findById(evaluationId);
+    let evaluation = null;
+
+    evaluation = await Evaluation.findById(id);
+
+    if(!evaluation){
+      evaluation = await Evaluation.findOne({
+        trajetId : id,
+        evaluateurId: userId,
+      })
+    }
 
     if (!evaluation) {
       throw new Error('Évaluation non trouvée');
     }
+
+    
 
     // ✅ VÉRIFICATION : Est-ce le bon évaluateur ?
     if (evaluation.evaluateurId.toString() !== userId.toString()) {
@@ -73,7 +81,7 @@ class EvaluationService {
     // ✅ Si déjà complétée, retourner l'évaluation existante (comportement idempotent)
     if (evaluation.statutEvaluation === 'COMPLETEE') {
       logger.info('ℹ️ Évaluation déjà complétée, retour de l\'existante', { 
-        evaluationId, 
+        id, 
         userId 
       });
       return evaluation; // ✅ Retourne au lieu de throw
@@ -117,7 +125,7 @@ class EvaluationService {
     await this.mettreAJourScoreConfiance(evaluation.evalueId);
 
     logger.info('✅ Évaluation complétée', { 
-      evaluationId, 
+      id, 
       userId,
       noteGlobale: evaluation.notes.noteGlobale 
     });

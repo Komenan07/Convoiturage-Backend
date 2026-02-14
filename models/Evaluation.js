@@ -715,7 +715,7 @@ evaluationSchema.statics.getEvaluationsEnAttente = async function(userId) {
   const evaluations = await this.find({
     evaluateurId: userId,
     statutEvaluation: 'EN_ATTENTE',
-    evaluationObligatoire: true
+    // evaluationObligatoire: true
   })
   .populate('trajetId', 'pointDepart pointArrivee dateDepart')
   .populate('evalueId', 'nom prenom photoProfil')
