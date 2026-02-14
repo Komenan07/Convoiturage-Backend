@@ -884,6 +884,7 @@ router.get('/:id',
     param('id')
       .isMongoId().withMessage('ID du trajet invalide')
   ],
+  authMiddleware,
   handleValidationErrors,
   TrajetController.obtenirDetailsTrajet
 );

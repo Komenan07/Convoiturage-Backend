@@ -1325,7 +1325,7 @@ ReservationSchema.statics.obtenirReservationsUtilisateur = async function(userId
       const statutActif = ['EN_ATTENTE', 'CONFIRMEE'].includes(reservation.statutReservation);
       const trajetNonExpire = reservation.trajetId.statutTrajet !== 'EXPIRE'; 
       
-      return dateTrajet >= maintenant && statutActif && trajetNonExpire;
+      return (dateTrajet >= maintenant || reservation.trajetId.statutTrajet === 'EN_COURS') && statutActif && trajetNonExpire;
     });
     
   } else if (type === 'expired') {

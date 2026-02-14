@@ -267,9 +267,6 @@ async recalculerDistance(req, res, next) {
         statutReservation: 'CONFIRMEE'
       });
 
-      if (reservationsConfirmees === 0) {
-        return next(AppError.badRequest('Aucune réservation confirmée pour ce trajet'));
-      }
 
       console.log('🚀 Démarrage trajet:', id);
 
