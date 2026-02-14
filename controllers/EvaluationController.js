@@ -113,7 +113,7 @@ class EvaluationController {
  */
   async completerEvaluation(req, res, next) {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // evaluationId ou trajetId
     const {
       notes, 
       commentaire,

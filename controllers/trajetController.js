@@ -342,7 +342,7 @@ async recalculerDistance(req, res, next) {
       }
 
       // Vérifier autorisation
-      if (trajet.conducteurId.toString() !== req.user.id) {
+      if (trajet.conducteurId.toString() !== req.user.id.toString()) {
         return next(AppError.forbidden('Seul le conducteur peut terminer ce trajet'));
       }
 
@@ -357,7 +357,7 @@ async recalculerDistance(req, res, next) {
 
       // Mettre à jour le statut et les informations finales
       trajet.statutTrajet = 'TERMINE';
-      trajet.heureArriveePrevue = heureArrivee || new Date();
+      trajet.heureArriveePrevue = (heureArrivee || new Date()).toTimeString().slice(0, 5); // "HH:MM"
       
       if (distanceReelle) trajet.distance = distanceReelle;
       if (dureeReelle) trajet.dureeEstimee = dureeReelle;
@@ -386,8 +386,7 @@ async recalculerDistance(req, res, next) {
       }).populate('passagerId', 'fcmTokens');
 
       const firebaseService = require('../services/firebaseService');
-      const EvaluationService = require('../services/evaluationService');
-      const evaluationService = new EvaluationService();
+      const evaluationService = require('../services/evaluationService');
 
       // Notifier les passagers et créer évaluations en attente
       for (const reservation of reservations) {
