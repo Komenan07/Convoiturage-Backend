@@ -385,7 +385,157 @@ class EvaluationService {
       throw error;
     }
   }
+ /**
+ * Récupérer une évaluation par ID avec tous les détails enrichis
+ * @param {String} evaluationId - ID de l'évaluation
+ * @returns {Promise<Object>} Évaluation enrichie avec métadonnées
+ */
+  async getEvaluationById(evaluationId) {
+    try {
+      // 1. Valider le format de l'ID MongoDB
+      const mongoose = require('mongoose');
+      if (!mongoose.Types.ObjectId.isValid(evaluationId)) {
+        throw new Error('ID d\'évaluation invalide');
+      }
 
+      // 2. Récupérer l'évaluation avec tous les populates
+      const evaluation = await Evaluation.findById(evaluationId)
+        .populate({
+          path: 'evaluateurId',
+          select: 'nom prenom email telephone photoProfil scoreConfiance role statut'
+        })
+        .populate({
+          path: 'evalueId',
+          select: 'nom prenom email telephone photoProfil scoreConfiance role statut'
+        })
+        .populate({
+          path: 'trajetId',
+          select: 'pointDepart pointArrivee dateDepart heureDepart prixParPassager placesDisponibles statutTrajet distanceKm dureeEstimee',
+          populate: {
+            path: 'conducteurId',
+            select: 'nom prenom photoProfil'
+          }
+        })
+        .lean();
+
+      if (!evaluation) {
+        throw new Error('Évaluation introuvable');
+      }
+
+      // 3. Calculer les métadonnées supplémentaires
+      const delaiReponseJours = evaluation.dateReponse && evaluation.dateEvaluation
+        ? Math.ceil((new Date(evaluation.dateReponse) - new Date(evaluation.dateEvaluation)) / (1000 * 60 * 60 * 24))
+        : null;
+
+      // 4. Enrichir avec métadonnées utiles
+      const evaluationEnrichie = {
+        ...evaluation,
+        meta: {
+          delaiReponseJours,
+          aReponse: !!evaluation.reponseEvalue,
+          estMasquee: evaluation.visibilite === 'MASQUEE',
+          estEnRevision: evaluation.visibilite === 'EN_REVISION',
+          estSignalement: evaluation.estSignalement,
+          resumeNotes: evaluation.notes ? {
+            ponctualite: evaluation.notes.ponctualite,
+            proprete: evaluation.notes.proprete,
+            qualiteConduite: evaluation.notes.qualiteConduite,
+            respect: evaluation.notes.respect,
+            communication: evaluation.notes.communication,
+            noteGlobale: evaluation.notes.noteGlobale
+          } : null
+        }
+      };
+
+      logger.info('✅ Évaluation récupérée avec succès', { 
+        evaluationId,
+        evalueId: evaluation.evalueId?._id,
+        noteGlobale: evaluation.notes?.noteGlobale 
+      });
+
+      return evaluationEnrichie;
+
+    } catch (error) {
+      logger.error('❌ Erreur getEvaluationById:', error);
+      throw error;
+    }
+  }
+  /**
+   * Récupérer toutes les évaluations d'un utilisateur (admin)
+   * @param {String} userId - ID de l'utilisateur évalué
+   * @param {Object} options - Filtres et pagination
+   */
+  async getEvaluationsUtilisateur(userId, options = {}) {
+    try {
+      const { 
+        page = 1, 
+        limit = 20, 
+        statutEvaluation,
+        visibilite,
+        noteMinimum,
+        noteMaximum
+      } = options;
+
+      // Construction de la query
+      const query = { 
+        evalueId: userId
+      };
+
+      if (statutEvaluation) {
+        query.statutEvaluation = statutEvaluation;
+      }
+
+      if (visibilite) {
+        query.visibilite = visibilite;
+      }
+
+      if (noteMinimum || noteMaximum) {
+        query['notes.noteGlobale'] = {};
+        if (noteMinimum) query['notes.noteGlobale'].$gte = parseFloat(noteMinimum);
+        if (noteMaximum) query['notes.noteGlobale'].$lte = parseFloat(noteMaximum);
+      }
+
+      // Récupération avec populates
+      const evaluations = await Evaluation.find(query)
+        .populate({
+          path: 'evaluateurId',
+          select: 'nom prenom email photoProfil'
+        })
+        .populate({
+          path: 'trajetId',
+          select: 'pointDepart pointArrivee dateDepart'
+        })
+        .sort({ dateEvaluation: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+      const total = await Evaluation.countDocuments(query);
+
+      // Calculer les stats
+      const stats = await Evaluation.getStatistiquesUtilisateur(userId);
+
+      logger.info('✅ Évaluations utilisateur récupérées', { 
+        userId, 
+        count: evaluations.length 
+      });
+
+      return {
+        evaluations,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalItems: total,
+          itemsPerPage: limit
+        },
+        statistiques: stats
+      };
+
+    } catch (error) {
+      logger.error('❌ Erreur getEvaluationsUtilisateur:', error);
+      throw error;
+    }
+  }
   // ========================================
   // 📝 MÉTHODES EXISTANTES (conservées)
   // ========================================

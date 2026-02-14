@@ -98,4 +98,10 @@ router.put('/user/:userId/score', protect, controller.recalculerScoreConfiance);
 // Évaluations d'un trajet spécifique
 router.get('/trajet/:trajetId', protect, controller.obtenirEvaluationsTrajet);
 
+/**
+ * @route   GET /api/evaluations/:id
+ * @desc    Obtenir une évaluation par son ID avec tous les détails
+ * @access  Private
+ */
+router.get('/:id', protect, controller.obtenirEvaluationParId);
 module.exports = router;

@@ -3133,21 +3133,67 @@ const supprimerEvaluation = async (req, res, next) => {
  */
 const signalerEvaluation = async (req, res, next) => {
   try {
+    const { gravite = 'MOYEN' } = req.body; // ← Par défaut MOYEN si non fourni
+
+    // Validation du paramètre gravite
+    if (gravite && !['LEGER', 'MOYEN', 'GRAVE'].includes(gravite)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Gravité invalide. Valeurs acceptées: LEGER, MOYEN, GRAVE',
+        code: 'GRAVITE_INVALIDE'
+      });
+    }
+    
     const evaluation = await Evaluation.findById(req.params.id);
 
     if (!evaluation) {
       return next(AppError.notFound('Évaluation introuvable'));
     }
 
+    // Vérifier si déjà signalée
+    if (evaluation.estSignalement === true) {
+      return res.status(200).json({
+        success: true,
+        message: 'Évaluation déjà signalée',
+        data: {
+          evaluation: {
+            _id: evaluation._id,
+            estSignalement: evaluation.estSignalement,
+            dateSignalement: evaluation.dateSignalement,
+            gravite: evaluation.gravite
+          }
+        }
+      });
+    }
+
+    // ✅ Marquer comme signalée avec gravité
     evaluation.estSignalement = true;
+    evaluation.gravite = gravite;
+    evaluation.dateSignalement = new Date();
+    
     await evaluation.save();
+
+    logger.info('🚩 Évaluation signalée par admin', {
+      evaluationId: evaluation._id,
+      adminId: req.user.id,
+      gravite: gravite
+    });
 
     res.status(200).json({
       success: true,
-      message: 'Évaluation signalée'
+      message: 'Évaluation signalée avec succès',
+      data: {
+        evaluation: {
+          _id: evaluation._id,
+          estSignalement: evaluation.estSignalement,
+          gravite: evaluation.gravite,
+          dateSignalement: evaluation.dateSignalement
+        }
+      }
     });
 
   } catch (error) {
+    logger.error('Erreur signalerEvaluation:', error);
     return next(AppError.serverError('Erreur lors du signalement', { 
       originalError: error.message 
     }));

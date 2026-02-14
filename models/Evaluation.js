@@ -1,5 +1,6 @@
 // models/Evaluation.js
 const mongoose = require('mongoose');
+const { logger } = require('../utils/logger');
 
 const evaluationSchema = new mongoose.Schema({
   trajetId: {
@@ -197,6 +198,11 @@ const evaluationSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+
+  dateSignalement: {
+  type: Date,
+  default: null
+  },
   
   motifSignalement: {
     type: String,
@@ -213,6 +219,7 @@ const evaluationSchema = new mongoose.Schema({
   gravite: {
     type: String,
     enum: ['LEGER', 'MOYEN', 'GRAVE'],
+    default: 'MOYEN',
     required: function() {
       return this.estSignalement;
     }
