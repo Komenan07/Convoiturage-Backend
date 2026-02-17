@@ -125,7 +125,72 @@ class TwilioService {
     data.count++;
     return true;
   }
+  /**
+ * Envoie un message avec fallback automatique WhatsApp → SMS
+ */
+  async envoyerMessageAvecFallback(telephone, message) {
+    const results = {
+      success: false,
+      method: null,
+      error: null,
+      sid: null
+    };
 
+    // Mode MOCK
+    if (this.isMockMode) {
+      logger.info('📱 [MOCK] Code de vérification simulé', { 
+        telephone, 
+        code: message.match(/\d{6}/)?.[0] 
+      });
+      return { 
+        success: true, 
+        method: 'mock',
+        sid: `MOCK_${Date.now()}` 
+      };
+    }
+
+    // Tentative 1 : WhatsApp
+    try {
+      logger.info('📱 Tentative envoi WhatsApp', { telephone });
+      const whatsappResult = await this.envoyerMessage(telephone, message);
+      
+      results.success = true;
+      results.method = 'whatsapp';
+      results.sid = whatsappResult.sid;
+      
+      logger.info('✅ WhatsApp envoyé avec succès', { telephone, sid: whatsappResult.sid });
+      return results;
+      
+    } catch (whatsappError) {
+      logger.warn('⚠️ Échec WhatsApp, tentative SMS...', { 
+        telephone, 
+        error: whatsappError.message,
+        code: whatsappError.code 
+      });
+      
+      // Tentative 2 : SMS (fallback)
+      try {
+        const smsResult = await this.envoyerSMS(telephone, message);
+        
+        results.success = true;
+        results.method = 'sms';
+        results.sid = smsResult.sid;
+        
+        logger.info('✅ SMS envoyé (fallback)', { telephone, sid: smsResult.sid });
+        return results;
+        
+      } catch (smsError) {
+        logger.error('❌ Échec total (WhatsApp + SMS)', { 
+          telephone,
+          whatsappError: whatsappError.message,
+          smsError: smsError.message
+        });
+        
+        results.error = `WhatsApp et SMS ont échoué. WhatsApp: ${whatsappError.message}, SMS: ${smsError.message}`;
+        throw new Error(results.error);
+      }
+    }
+  }
   /**
    * ✅ Nettoyage périodique du rate limiter
    * @private
@@ -311,7 +376,7 @@ Ce code expire dans ${this.otpExpiration} minutes.
       // Seul le "to" (destinataire) doit avoir le préfixe whatsapp:
       const result = await this._retryWithBackoff(
         async () => await this.client.messages.create({
-          from: this.phoneNumber,  // ✅ CORRIGÉ : Pas de whatsapp: pour l'expéditeur
+          from: process.env.TWILIO_WHATSAPP_FROM, 
           to: this._formatWhatsAppNumber(telephone),
           body: message
         }),
