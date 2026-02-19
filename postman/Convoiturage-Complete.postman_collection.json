@@ -1,0 +1,149 @@
+{
+  "info": {
+    "name": "Convoiturage - Complete",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection to test all public/user endpoints. Uses environment variables and auto-login pre-request script to set {{token}}."
+  },
+  "variable": [],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Auto-login if no token or token is expired - uses env vars auth_email / auth_password",
+          "if (!pm.environment.get('token')) {",
+          "    var loginRequest = {",
+          "        url: pm.environment.get('baseUrl') + '/auth/login',",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/json' },",
+          "        body: {",
+          "            mode: 'raw',",
+          "            raw: JSON.stringify({ email: pm.environment.get('auth_email'), password: pm.environment.get('auth_password') })",
+          "        }",
+          "    };",
+          "    pm.sendRequest(loginRequest, function (err, res) {",
+          "        if (!err && res.code === 200) {",
+          "            try {",
+          "                var json = res.json();",
+          "                if (json && (json.token || json.data?.token)) {",
+          "                    var t = json.token || json.data.token;",
+          "                    pm.environment.set('token', t);",
+          "                    console.log('✅ Token set from /auth/login');",
+          "                } else {",
+          "                    console.log('⚠️ Login response missing token');",
+          "                }",
+          "            } catch (e) { console.log('⚠️ Could not parse login response', e); }",
+          "        } else {",
+          "            console.log('⚠️ Auto-login failed:', err || res && res.status);",
+          "        }",
+          "    });",
+          "}"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (set token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{auth_email}}\",\n  \"password\": \"{{auth_password}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth","login"] }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "var token = json.token || json.data?.token;",
+                  "if (token) { pm.environment.set('token', token); pm.test('token saved', function(){pm.expect(token).to.be.a('string');}); } else { pm.test('token present', function(){pm.expect(token).to.exist;}); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Trajets",
+      "item": [
+        {
+          "name": "Get all trajets (public search)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": { "raw": "{{baseUrl}}/trajets/search?dateDepart=2026-02-10&page=1&limit=10", "host": ["{{baseUrl}}"], "path": ["trajets","search"], "query": [ { "key": "dateDepart", "value": "2026-02-10" } ] }
+          }
+        },
+        {
+          "name": "Create trajet (conducteur)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key":"Authorization","value":"Bearer {{token}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"pointDepart\": { \"nom\": \"Abidjan\", \"coordonnees\": { \"type\": \"Point\", \"coordinates\": [ -3.986, 5.345 ] } },\n  \"pointArrivee\": { \"nom\": \"Bouake\" },\n  \"dateDepart\": \"2026-02-10\",\n  \"heureDepart\": \"08:00\",\n  \"nombrePlacesDisponibles\": 3,\n  \"prixParPassager\": 5000\n}" },
+            "url": { "raw": "{{baseUrl}}/trajets", "host": ["{{baseUrl}}"], "path": ["trajets"] }
+          }
+        },
+        {
+          "name": "Get my trajets (conducteur)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key":"Authorization","value":"Bearer {{token}}" } ],
+            "url": { "raw": "{{baseUrl}}/trajets/mine?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["trajets","mine"], "query": [ { "key":"page","value":"1" } ] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reservations",
+      "item": [
+        {
+          "name": "Create reservation",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key":"Authorization","value":"Bearer {{token}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"trajetId\": \"{{sample_trajet_id}}\",\n  \"passagerId\": \"{{user_id}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/reservations", "host": ["{{baseUrl}}"], "path": ["reservations"] }
+          }
+        },
+        {
+          "name": "Get my reservations",
+          "request": {
+            "method": "GET",
+            "header": [ { "key":"Authorization","value":"Bearer {{token}}" } ],
+            "url": { "raw": "{{baseUrl}}/reservations/mine", "host": ["{{baseUrl}}"], "path": ["reservations","mine"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Utilisateurs",
+      "item": [
+        {
+          "name": "Get my profile",
+          "request": { "method": "GET", "header": [ { "key":"Authorization","value":"Bearer {{token}}" } ], "url": { "raw": "{{baseUrl}}/utilisateur/me", "host": ["{{baseUrl}}"], "path": ["utilisateur","me"] } }
+      ]
+    },
+    {
+      "name": "Paiements",
+      "item": [
+        {
+          "name": "Init payment (cinetpay)",
+          "request": { "method": "POST", "header": [ { "key":"Content-Type","value":"application/json" }, { "key":"Authorization","value":"Bearer {{token}}" } ], "body": { "mode": "raw", "raw": "{\n  \"amount\": 5000,\n  \"trajetId\": \"{{sample_trajet_id}}\"\n}" }, "url": { "raw": "{{baseUrl}}/paiements/init", "host": ["{{baseUrl}}"], "path": ["paiements","init"] } }
+      ]
+    }
+  ]
+}
