@@ -757,7 +757,7 @@ trajetSchema.pre(/^find/, function(next) {
   // Option pour inclure les trajets expirés
   if (!this.getOptions().includeExpired) {
     // Par défaut, exclure les trajets expirés
-    this.where({ statutTrajet: { $ne: 'EXPIRE' } });
+    // this.where({ statutTrajet: { $ne: 'EXPIRE' } });
   }
   next();
 });

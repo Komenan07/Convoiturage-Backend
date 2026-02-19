@@ -272,7 +272,7 @@ const ReservationSchema = new Schema({
   },
   methodePaiement: {
     type: String,
-    enum: ['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'],
+    enum: ['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY','MOBILE_MONEY'],
     required: function() {
       return this.statutPaiement === 'PAYE';
     }

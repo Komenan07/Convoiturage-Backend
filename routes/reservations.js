@@ -105,7 +105,7 @@ const validateStatutPaiement = [
     .withMessage('Statut de paiement invalide'),
   body('methodePaiement')
     .optional()
-    .isIn(['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
+    .isIn(['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY','MOBILE_MONEY'])
     .withMessage('Méthode de paiement invalide'),
   body('referencePaiement')
     .optional()
