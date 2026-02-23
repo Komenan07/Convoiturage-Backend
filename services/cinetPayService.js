@@ -121,7 +121,7 @@ class CinetPayService {
         const paiementData = {
           payeurId: passager._id,
           montantTotal,
-          methodePaiement: options.methodePaiement || 'WAVE',
+          methodePaiement: options.methodePaiement || 'MOBILE_MONEY',
           statutPaiement: 'EN_ATTENTE',
           
           securite: {
@@ -144,7 +144,7 @@ class CinetPayService {
           };
           paiementData.reglesPaiement = {
             conducteurCompteRecharge: passager.compteCovoiturage?.estRecharge || false,
-            modesAutorises: ['wave', 'orange_money', 'mtn_money', 'moov_money'],
+            modesAutorises: ['MOBILE_MONEY'],
             raisonValidation: 'Recharge de compte conducteur',
             verificationsPassees: true,
             soldeSuffisant: true

@@ -126,8 +126,8 @@ const paiementSchema = new mongoose.Schema({
   methodePaiement: {
     type: String,
     enum: {
-      // 🔧 CORRECTION: Uniformisation à 'ESPECES' (pluriel)
-      values: ['ESPECES', 'WAVE' , 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'COMPTE_RECHARGE'],
+      // 🔧 Uniformisation à 'ESPECES' 
+      values: ['ESPECES', 'MOBILE_MONEY', 'COMPTE_RECHARGE'],
       message: 'Méthode de paiement non supportée'
     },
     required: [true, 'La méthode de paiement est requise']
@@ -158,7 +158,7 @@ const paiementSchema = new mongoose.Schema({
     },
     modesAutorises: [{
       type: String,
-      enum: ['ESPECES', 'WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'COMPTE_RECHARGE']
+      enum: ['ESPECES', 'MOBILE_MONEY', 'COMPTE_RECHARGE']
     }],
     raisonValidation: {
       type: String,
@@ -323,7 +323,7 @@ paiementSchema.virtual('estComplete').get(function() {
 });
 
 paiementSchema.virtual('estPaiementMobile').get(function() {
-  return ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'].includes(this.methodePaiement);
+  return this.methodePaiement === 'MOBILE_MONEY';
 });
 
 paiementSchema.virtual('montantNetConducteur').get(function() {
@@ -483,7 +483,7 @@ paiementSchema.methods.validerReglesPaiement = async function() {
       
     } 
     // 🟢 PAIEMENT NUMÉRIQUE : TOUJOURS AUTORISÉ
-    else if (this.estPaiementMobile) {
+    else if (this.methodePaiement === 'MOBILE_MONEY' || this.methodePaiement === 'COMPTE_RECHARGE') {
       this.reglesPaiement.verificationsPassees = true;
       this.reglesPaiement.soldeSuffisant = true; // N'a pas d'importance ici
       this.reglesPaiement.blocageActif = false;
@@ -510,7 +510,7 @@ paiementSchema.methods.validerReglesPaiement = async function() {
 
 // 🆕 Obtenir modes de paiement autorisés selon solde
 paiementSchema.methods.obtenirModesAutorisesSelonSolde = function(soldeConducteur, soldeMinimum) {
-  const modesNumeriques = ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'COMPTE_RECHARGE' , 'ORANGE', 'MTN', 'MOOV'];
+  const modesNumeriques = ['MOBILE_MONEY', 'COMPTE_RECHARGE'];
   
   // Toujours autoriser les modes numériques
   let modes = [...modesNumeriques];
@@ -553,8 +553,8 @@ paiementSchema.methods.traiterCommissionApresPayement = async function() {
       );
       
       // Enregistrer solde après
-      await conducteur.reload(); // Recharger pour avoir le nouveau solde
-      this.reglesPaiement.soldeConducteurApres = conducteur.compteCovoiturage.solde;
+      const conducteurMisAJour = await Utilisateur.findById(this.beneficiaireId);
+      this.reglesPaiement.soldeConducteurApres = conducteurMisAJour.compteCovoiturage.solde;
       
       this.ajouterLog('COMMISSION_PRELEVEE_COMPTE', {
         montant: this.commission.montant,
