@@ -723,7 +723,6 @@ router.post('/:id/demarrer',
       .isMongoId().withMessage('ID du trajet invalide'),
     body('heureDepart')
       .optional()
-      .isISO8601().withMessage('Format de date invalide')
   ],
   handleValidationErrors,
   TrajetController.demarrerTrajet

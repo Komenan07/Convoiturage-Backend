@@ -505,6 +505,35 @@ async demarrerTrajet(req, res, next) {
         // Ne pas bloquer si la notification conducteur échoue
       }
 
+      // ✅ Émettre événement Socket.IO pour notifier en temps réel
+      try {
+        const io = req.app.get('io');
+        if (io) {
+          // Notifier tous les passagers via Socket.IO
+          for (const passagerId of passagerIds) {
+            io.to(`user_${passagerId}`).emit('trajet_completed', {
+              trajetId: id,
+              message: 'Le trajet est terminé. Veuillez procéder au paiement.',
+              requirePayment: true,
+              conducteurId: trajet.conducteurId._id.toString()
+            });
+          }
+
+          // Notifier le conducteur
+          io.to(`user_${trajet.conducteurId}`).emit('trajet_completed', {
+            trajetId: id,
+            message: 'Trajet terminé avec succès',
+            passagersCount: passagerIds.length,
+            requireEvaluation: true
+          });
+
+          console.log(`✅ Événement trajet_completed émis pour ${passagerIds.length} passager(s) + conducteur`);
+        }
+      } catch (socketError) {
+        console.error('⚠️ Erreur émission Socket.IO trajet_completed:', socketError.message);
+        // Ne pas bloquer si Socket.IO échoue
+      }
+
       await trajet.populate('conducteurId', 'nom prenom photoProfil');
       const trajetObj = this._attachIsExpired([trajet])[0];
 

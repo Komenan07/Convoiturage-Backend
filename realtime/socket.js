@@ -12,6 +12,11 @@ const notificationService = require('../services/notificationService');
 const presenceService = require('../services/presenceService');
 //const locationService = require('../services/locationService');
 const { registerDriverValidationHandlers, notifyDriverValidation } = require('./handlers/driver_validation');
+const registerGpsHandlers = require('./handlers/gps');
+const registerReservationHandlers = require('./handlers/reservation');
+const registerChatHandlers = require('./handlers/chat');
+const registerAlerteHandlers = require('./handlers/alerte');
+const registerWazeHandlers = require('./handlers/waze');
 
 /**
  * Récupère le token d'authentification depuis diverses sources possibles
@@ -172,6 +177,13 @@ function initSocket(httpServer, app) {
           email: socket.user.email
         }
       });
+
+      // Enregistrer tous les handlers pour les utilisateurs authentifiés
+      registerGpsHandlers(socket, io);
+      registerReservationHandlers(socket, io);
+      // registerChatHandlers(socket, io);
+      registerAlerteHandlers(socket, io);
+      registerWazeHandlers(socket, io);
     } else {
       // Utilisateur non authentifié
       const anonymousId = `anon_${socket.id}`;

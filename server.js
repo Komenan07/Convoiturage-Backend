@@ -25,7 +25,9 @@ const demarrerServeur = async () => {
         console.log(`🔌 Socket connecté: ${socket.id}`);
       });
     } catch (e) {
-      // ignore
+      console.error('❌ ERREUR INITIALISATION SOCKET.IO:', e.message);
+      console.error('Stack trace:', e.stack);
+      throw e; // Ne pas ignorer les erreurs critiques
     }
 
     server.listen(PORT, HOST, () => {

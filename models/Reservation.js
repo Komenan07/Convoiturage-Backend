@@ -1317,6 +1317,7 @@ ReservationSchema.statics.obtenirReservationsUtilisateur = async function(userId
   // Filtrer selon le type demandé
   const type = options.type || 'active';
   const maintenant = new Date();
+  maintenant.setHours(maintenant.getHours() - 1)
   
   if (type === 'active') {
     // ✅ CHANGEMENT 3 : Ajouter filtre sur statutTrajet
@@ -1324,6 +1325,8 @@ ReservationSchema.statics.obtenirReservationsUtilisateur = async function(userId
       const dateTrajet = new Date(reservation.trajetId.dateDepart);
       const statutActif = ['EN_ATTENTE', 'CONFIRMEE'].includes(reservation.statutReservation);
       const trajetNonExpire = reservation.trajetId.statutTrajet !== 'EXPIRE'; 
+
+      dateTrajet.setHours(reservation.trajetId.heureDepart.split(':')[0], reservation.trajetId.heureDepart.split(':')[1], 0, 0); 
       
       return (dateTrajet >= maintenant || reservation.trajetId.statutTrajet === 'EN_COURS') && statutActif && trajetNonExpire;
     });
@@ -1333,6 +1336,8 @@ ReservationSchema.statics.obtenirReservationsUtilisateur = async function(userId
       const dateTrajet = new Date(reservation.trajetId.dateDepart);
       const statutFinal = ['TERMINEE', 'ANNULEE', 'REFUSEE'].includes(reservation.statutReservation);
       const trajetExpire = reservation.trajetId.statutTrajet === 'EXPIRE'; // ✅ AJOUTÉ
+
+      dateTrajet.setHours(reservation.trajetId.heureDepart.split(':')[0], reservation.trajetId.heureDepart.split(':')[1], 0, 0); 
       
       return dateTrajet < maintenant || statutFinal || trajetExpire;
     });
