@@ -615,8 +615,8 @@ router.get('/historique',
       .withMessage('Type d\'historique invalide (tous, conduits, reserves)'),
     query('statut')
       .optional()
-      .isIn(['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE', 'EXPIRE'])
-      .withMessage('Statut invalide'),
+      .isIn(['TERMINE', 'ANNULE'])
+      .withMessage('Statut invalide pour un historique'),
     query('page')
       .optional()
       .isInt({ min: 1 }).withMessage('Numéro de page invalide'),

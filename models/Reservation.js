@@ -408,7 +408,7 @@ ReservationSchema.index(
   { 
     unique: true,
     partialFilterExpression: { 
-      statutReservation: { $in: ['EN_ATTENTE', 'CONFIRMEE'] } 
+      statutReservation: { $in: ['EN_ATTENTE', 'CONFIRMEE', 'TERMINEE', 'ANNULEE'] } 
     },
     name: 'unique_active_reservation_per_trip'
   }

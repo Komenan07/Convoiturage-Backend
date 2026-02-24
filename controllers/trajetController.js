@@ -2,6 +2,7 @@ const Trajet = require('../models/Trajet');
 const { validationResult } = require('express-validator');
 const AppError = require('../utils/AppError');
 const distanceService = require('../services/distanceService'); 
+const Reservation = require('../models/Reservation');
 
 class TrajetController {
   
@@ -894,65 +895,86 @@ async demarrerTrajet(req, res, next) {
   }
 }
 
-  async obtenirHistoriqueTrajets(req, res, next) {
-    try {
-      const { type = 'tous', statut, page = 1, limit = 20 } = req.query;
+ async obtenirHistoriqueTrajets(req, res, next) {
+  try {
+    const { type = 'conduits', statut, page = 1, limit = 20 } = req.query;
+    let query = {};
 
-      let query = {};
+    if (type === 'conduits') {
+      query.conducteurId = req.user.id;
+      query.statutTrajet = statut || 'TERMINE';
 
-      if (type === 'conduits') {
-        // ✅ Les conducteurs VOIENT leurs trajets terminés (historique)
-        query.conducteurId = req.user.id;
-      } else if (type === 'reserves') {
-        // ✅ LES PASSAGERS NE VOIENT PAS LES TRAJETS TERMINÉS
-        const Reservation = require('../models/Reservation');
-        const reservationsPassager = await Reservation.find({
-          passagerId: req.user.id,
-          statutReservation: { $in: ['EN_ATTENTE', 'CONFIRMEE'] }  // ✅ Exclure TERMINEE
-        }).select('trajetId').lean();
-        
-        const trajetIds = reservationsPassager.map(r => r.trajetId);
-        query._id = { $in: trajetIds };
-        query.statutTrajet = { $ne: 'TERMINE' };  // ✅ Masquer les trajets terminés
-      } else {
-        // Par défaut = trajets du conducteur
-        query.conducteurId = req.user.id;
+    } else if (type === 'reserves') {
+      const reservationsPassager = await Reservation.find({
+        passagerId: req.user.id,
+        statutReservation: 'TERMINEE'  // ✅ inclure TERMINEE pour l'historique
+      }).select('trajetId').lean();
+
+      if (!reservationsPassager.length) {
+        return res.json({ success: true, message: "Aucun trajet dans l'historique", data: [], pagination: { total: 0, page: 1, pages: 0, limit: parseInt(limit) } });
       }
 
-      if (statut) {
-        query.statutTrajet = statut;
-      }
+      const trajetIds = reservationsPassager.map(r => r.trajetId);
+      query._id = { $in: trajetIds };
+      query.statutTrajet = statut || 'TERMINE';  // ✅ ne plus exclure TERMINE
 
-      const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        sort: { dateDepart: -1 },
-        populate: { path: 'conducteurId', select: 'nom prenom photoProfil' }
-      };
-
-      const result = await Trajet.paginate(query, options);
-
-      // Normaliser la virtual `isExpired`
-      result.docs = this._attachIsExpired(result.docs);
-
-      res.json({
-        success: true,
-        count: result.docs.length,
-        pagination: {
-          total: result.totalDocs,
-          page: result.page,
-          pages: result.totalPages,
-          limit: result.limit
-        },
-        data: result.docs
-      });
-
-    } catch (error) {
-      return next(AppError.serverError('Erreur lors de la récupération de l\'historique', { 
-        originalError: error.message 
-      }));
+    } else {
+      query.conducteurId = req.user.id;
+      query.statutTrajet = statut || { $in: ['TERMINE', 'ANNULE', 'EXPIRE'] };
     }
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { dateDepart: -1 },
+      populate: { path: 'conducteurId', select: 'nom prenom photoProfil' }
+      // ✅ Supprimé : populate 'reservations' inexistant dans le schéma
+    };
+
+    const result = await Trajet.paginate(query, options);
+
+    // Enrichir avec les réservations si type === 'reserves'
+    if (type === 'reserves' && result.docs.length) {
+      const ids = result.docs.map(t => t._id);
+      const reservations = await Reservation.find({
+        trajetId: { $in: ids },
+        passagerId: req.user.id,
+        statutReservation: 'TERMINEE'
+      }).lean();
+
+      const resaMap = reservations.reduce((acc, r) => {
+        acc[r.trajetId.toString()] = r;
+        return acc;
+      }, {});
+
+      result.docs = result.docs.map(t => {
+        const obj = t.toObject ? t.toObject() : t;
+        obj.maReservation = resaMap[obj._id.toString()] || null;
+        return obj;
+      });
+    }
+
+    result.docs = this._attachIsExpired(result.docs);
+
+    return res.json({
+      success: true,
+      count: result.docs.length,
+      pagination: {
+        total: result.totalDocs,
+        page: result.page,
+        pages: result.totalPages,
+        limit: result.limit
+      },
+      data: result.docs
+    });
+
+  } catch (error) {
+    console.error('❌ ERREUR obtenirHistoriqueTrajets:', error);
+    return next(AppError.serverError("Erreur lors de la récupération de l'historique", {
+      originalError: error.message
+    }));
   }
+}
 
   async modifierDetailsTrajet(req, res, next) {
     return this.modifierTrajet(req, res, next);
