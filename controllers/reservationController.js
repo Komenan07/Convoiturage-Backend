@@ -128,7 +128,7 @@ class ReservationController {
         bagages: bagages || {},
         statutReservation: 'EN_ATTENTE',
         statutPaiement: 'EN_ATTENTE',
-        methodePaiement: req.body.methodePaiement || 'ESPCES'
+        methodePaiement: req.body.methodePaiement || 'MOBILE_MONEY'
       });
 
       await nouvelleReservation.save();
