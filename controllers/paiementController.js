@@ -35,7 +35,7 @@ class PaiementController {
         numeroTelephone,
         operateur 
       } = req.body;
-      const userId = req.user._id;
+      const userId = req.user._id || req.user.id;
 
       // Validation des données
       if (!reservationId || !montant) {
