@@ -655,25 +655,6 @@ class FirebaseService {
       Utilisateur
     );
   }
-
-      async notifyRideCompleted(userId, rideData, Utilisateur) {
-      return this.sendToUser(
-        userId,
-        {
-          title: '🏁 Course terminée',
-          message: `Votre course vers ${rideData.destination} est terminée`,
-          data: {
-            type: 'RIDE_COMPLETED',
-            rideId: rideData.trajetId,
-            destination: rideData.destination,
-            screen: 'RideHistory'
-          },
-          channelId: 'trajets',
-          type: 'trajets'
-        },
-        Utilisateur
-      );
-    }
   /**
    * ❌ CONDUCTEUR REJETÉ
    */

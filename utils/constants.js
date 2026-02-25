@@ -835,21 +835,34 @@ const SOCKET_ERROR_TYPES = {
  * Types de notifications push
  */
 const NOTIFICATION_TYPES = {
-  NEW_MESSAGE: 'new_message',
-  NEW_RESERVATION: 'new_reservation',
-  RESERVATION_CONFIRMED: 'reservation_confirmed',
-  RESERVATION_REJECTED: 'reservation_rejected',
-  RESERVATION_CANCELLED: 'reservation_cancelled',
-  TRIP_STARTED: 'trip_started',
-  TRIP_ENDED: 'trip_ended',
-  DRIVER_NEARBY: 'driver_nearby',
-  TRIP_REMINDER: 'trip_reminder',
-  EMERGENCY_ALERT: 'emergency_alert',
-  PAYMENT_RECEIVED: 'payment_received',
-  PAYMENT_SUCCESS: 'payment_success',
-  PAYMENT_FAILED: 'payment_failed',
-  DOCUMENT_VERIFIED: 'document_verified',
-  DOCUMENT_REJECTED: 'document_rejected'
+  // Trajets
+  NEW_RIDE: 'NEW_RIDE',
+  RIDE_CANCELLED: 'RIDE_CANCELLED',
+  RIDE_REMINDER: 'RIDE_REMINDER',
+
+  // Réservations
+  RESERVATION_CONFIRMED: 'RESERVATION_CONFIRMED',
+  RESERVATION_REFUSEE: 'RESERVATION_REFUSEE',
+  NEW_RESERVATION: 'NEW_RESERVATION',
+
+  // Paiements
+  PAYMENT_SUCCESS: 'PAYMENT_SUCCESS',
+  PAYMENT_FAILED: 'PAYMENT_FAILED',
+  LOW_BALANCE: 'LOW_BALANCE',
+
+  // Conducteur
+  DRIVER_VALIDATED: 'DRIVER_VALIDATED',
+  DRIVER_REJECTED: 'DRIVER_REJECTED',
+
+  // Communication
+  NEW_MESSAGE: 'NEW_MESSAGE',
+  NEW_RATING: 'NEW_RATING',
+
+  // Promotions
+  PROMO_CODE: 'PROMO_CODE',
+
+  // Urgence
+  EMERGENCY_ALERT: 'EMERGENCY_ALERT'
 };
 
 /**
