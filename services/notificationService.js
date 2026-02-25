@@ -290,7 +290,80 @@ class NotificationService {
       ...data
     });
   }
+  /**
+ * Notifier confirmation de réservation au passager
+ * @param {Object} passager - Document Utilisateur populé
+ * @param {Object} data - Données de la réservation
+ * @param {Model} Utilisateur - Modèle Mongoose
+ */
+async notifierReservationConfirmee(passager, data, Utilisateur) {
+  try {
+    const firebaseService = require('./firebaseService');
+
+    // 1. Notification push FCM
+    await firebaseService.notifyReservationConfirmed(
+      passager._id,
+      {
+        reservationId: data.reservationId,
+        trajetId: data.trajetId,
+        destination: data.destination,
+        depart: data.depart,
+        dateDepart: String(data.dateDepart || ''),
+        heureDepart: String(data.heureDepart || ''),
+        montant: String(data.montant || '')
+      },
+      Utilisateur
+    );
+
+    // 2. Email si disponible
+    if (passager.email && this.emailTransporter) {
+      await this.sendEmail(
+        passager.email,
+        '✅ Votre réservation est confirmée',
+        `Bonjour ${passager.prenom},\n\nVotre trajet vers ${data.destination} a été confirmé.\n\nBonne route !`
+      );
+    }
+
+  } catch (error) {
+    console.error('⚠️ Erreur notifierReservationConfirmee:', error.message);
+  }
 }
 
-// Exporter une instance unique du service
+/**
+ * Notifier refus de réservation au passager
+ * @param {Object} passager - Document Utilisateur populé
+ * @param {Object} data - Données de la réservation
+ * @param {Model} Utilisateur - Modèle Mongoose
+ */
+async notifierReservationRefusee(passager, data, Utilisateur) {
+  try {
+    const firebaseService = require('./firebaseService');
+
+    // 1. Notification push FCM
+    await firebaseService.notifyReservationRefusee(
+      passager._id,
+      {
+        reservationId: data.reservationId,
+        trajetId: data.trajetId,
+        destination: data.destination,
+        raison: data.raison || 'Aucun motif spécifié'
+      },
+      Utilisateur
+    );
+
+    // 2. Email si disponible
+    if (passager.email && this.emailTransporter) {
+      await this.sendEmail(
+        passager.email,
+        '❌ Votre réservation a été refusée',
+        `Bonjour ${passager.prenom},\n\nVotre demande de réservation vers ${data.destination} a été refusée.\n\nMotif : ${data.raison || 'Aucun motif spécifié'}`
+      );
+    }
+
+  } catch (error) {
+    console.error('⚠️ Erreur notifierReservationRefusee:', error.message);
+  }
+}
+}
+
 module.exports = new NotificationService();

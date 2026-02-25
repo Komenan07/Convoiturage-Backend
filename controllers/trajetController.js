@@ -3,6 +3,10 @@ const { validationResult } = require('express-validator');
 const AppError = require('../utils/AppError');
 const distanceService = require('../services/distanceService'); 
 const Reservation = require('../models/Reservation');
+const firebaseService = require('../services/firebaseService');
+const notificationService = require('../services/notificationService');
+const Utilisateur = require('../models/Utilisateur');
+const evaluationService = require('../services/evaluationService');
 
 class TrajetController {
   
@@ -261,7 +265,6 @@ async demarrerTrajet(req, res, next) {
     }
 
     // Vérifier qu'il y a au moins une réservation confirmée
-    const Reservation = require('../models/Reservation');
     const reservationsConfirmees = await Reservation.countDocuments({
       trajetId: id,
       statutReservation: 'CONFIRMEE'
@@ -291,9 +294,6 @@ async demarrerTrajet(req, res, next) {
 
     const passagerIds = reservations.map(r => r.passagerId);
 
-    const firebaseService = require('../services/firebaseService');
-    const Utilisateur = require('../models/Utilisateur');
-
     // ✅ Notifier TOUS les passagers en une seule fois
     if (passagerIds.length > 0) {
       console.log(`📤 Notification de ${passagerIds.length} passager(s)...`);
@@ -305,9 +305,9 @@ async demarrerTrajet(req, res, next) {
           message: `Le conducteur a démarré le trajet vers ${trajet.pointArrivee.adresse}`,
           type: 'trajets',
           data: {
-            type: 'RIDE_STARTED',
+            type: 'RIDE_REMINDER',
             trajetId: id,
-            screen: 'ActiveTripPassenger'
+            screen: 'RideDetails'
           },
           channelId: 'trajets'
         },
@@ -331,10 +331,10 @@ async demarrerTrajet(req, res, next) {
           message: `Vous avez ${passagerIds.length} passager(s) à bord`,
           type: 'trajets',
           data: {
-            type: 'RIDE_STARTED_CONFIRMATION',
+            type: 'RIDE_REMINDER',
             trajetId: id,
             passagersCount: passagerIds.length.toString(),
-            screen: 'ActiveTripDriver'
+            screen: 'RideDetails'
           },
           channelId: 'trajets'
         },
@@ -400,7 +400,6 @@ async demarrerTrajet(req, res, next) {
       await trajet.save();
 
       // Marquer toutes les réservations comme TERMINEE
-      const Reservation = require('../models/Reservation');
       await Reservation.updateMany(
         { 
           trajetId: id, 
@@ -422,10 +421,6 @@ async demarrerTrajet(req, res, next) {
 
       const passagerIds = reservations.map(r => r.passagerId);
 
-      const firebaseService = require('../services/firebaseService');
-      const Utilisateur = require('../models/Utilisateur');
-      const evaluationService = require('../services/evaluationService');
-
       // ✅ Notifier TOUS les passagers
       if (passagerIds.length > 0) {
         console.log(`📤 Notification de fin pour ${passagerIds.length} passager(s)...`);
@@ -437,9 +432,9 @@ async demarrerTrajet(req, res, next) {
             message: 'N\'oubliez pas d\'évaluer votre conducteur',
             type: 'trajets',
             data: {
-              type: 'RIDE_COMPLETED',
+              type: 'NEW_RATING',
               trajetId: id,
-              screen: 'TripEvaluation',
+              screen: 'Ratings',
               requireEvaluation: 'true'
             },
             channelId: 'trajets'
@@ -491,10 +486,10 @@ async demarrerTrajet(req, res, next) {
             message: `Votre trajet avec ${passagerIds.length} passager(s) est terminé. N'oubliez pas de les évaluer !`,
             type: 'trajets',
             data: {
-              type: 'RIDE_COMPLETED_DRIVER',
+              type: 'NEW_RATING',
               trajetId: id,
               passagersCount: passagerIds.length.toString(),
-              screen: 'TripEvaluation',
+              screen: 'Ratings',
               requireEvaluation: 'true'
             },
             channelId: 'trajets'
@@ -1294,7 +1289,6 @@ async rechercherTrajetsDisponibles(req, res, next) {
     
     if (currentUserId && result.docs.length > 0) {
       console.log(`🔍 Vérification des réservations pour ${currentUserId}`);
-      const Reservation = require('../models/Reservation');
       const trajetIds = result.docs.map(t => t._id || t.id);
       
       const reservationsExistantes = await Reservation.find({
@@ -1380,7 +1374,6 @@ async rechercherTrajetsDisponibles(req, res, next) {
     let userReservationStatus = null;
 
     if (currentUserId) {
-      const Reservation = require('../models/Reservation');
       const reservationExistante = await Reservation.findOne({
         passagerId: currentUserId,
         trajetId: id,
@@ -1808,7 +1801,7 @@ async rechercherTrajetsDisponibles(req, res, next) {
       }
 
       try {
-        const Reservation = require('../models/Reservation');
+  
         const reservationsActives = await Reservation.countDocuments({ 
           trajetId: id, 
           statut: { $in: ['CONFIRMEE', 'EN_ATTENTE'] } 
@@ -1965,12 +1958,102 @@ _attachIsExpired(docs) {
 }
 
 async gererNotificationsStatut(trajet, ancienStatut, nouveauStatut) {
-  console.log(`Notification: Trajet ${trajet._id} changé de ${ancienStatut} à ${nouveauStatut}`);
+  try {
+    if (nouveauStatut === 'ANNULE') {
+      const reservations = await Reservation.find({
+        trajetId: trajet._id,
+        statutReservation: { $in: ['EN_ATTENTE', 'CONFIRMEE'] }
+      });
+
+      const passagerIds = reservations.map(r => r.passagerId);
+
+      if (passagerIds.length > 0) {
+        await firebaseService.sendToMultipleUsers(
+          passagerIds,
+          {
+            title: '⚠️ Trajet annulé',
+            message: `Votre trajet vers ${trajet.pointArrivee?.adresse} a été annulé`,
+            data: {
+              type: 'RIDE_CANCELLED',
+              trajetId: trajet._id.toString(),
+              destination: trajet.pointArrivee?.adresse || '',
+              screen: 'ReservationDetails'
+            },
+            channelId: 'reservations'
+          },
+          Utilisateur
+        );
+      }
+    }
+  } catch (error) {
+    console.error('⚠️ Erreur gererNotificationsStatut:', error.message);
+    // Ne jamais bloquer la réponse HTTP
+  }
 }
 
 async envoyerNotificationsAnnulation(trajet, motif) {
-  console.log(`Notification d'annulation pour le trajet ${trajet._id}: ${motif}`);
+  try {
+    const reservations = await Reservation.find({
+      trajetId: trajet._id,
+      statutReservation: { $in: ['EN_ATTENTE', 'CONFIRMEE'] }
+    }).populate('passagerId', 'email prenom nom fcmTokens');
+
+    const passagerIds = reservations.map(r => r.passagerId._id);
+
+    // 1. Push FCM groupé
+    if (passagerIds.length > 0) {
+      await firebaseService.sendToMultipleUsers(
+        passagerIds,
+        {
+          title: '⚠️ Trajet annulé',
+          message: `Votre trajet vers ${trajet.pointArrivee?.adresse} a été annulé`,
+          data: {
+            type: 'RIDE_CANCELLED',
+            trajetId: trajet._id.toString(),
+            destination: trajet.pointArrivee?.adresse || '',
+            reason: motif || '',
+            screen: 'ReservationDetails'
+          },
+          channelId: 'reservations'
+        },
+        Utilisateur
+      );
+    }
+
+    // 2. Email individuel à chaque passager
+    for (const reservation of reservations) {
+      const passager = reservation.passagerId;
+      if (passager?.email) {
+        await notificationService.sendEmail(
+          passager.email,
+          '⚠️ Votre trajet a été annulé',
+          `Bonjour ${passager.prenom}, votre trajet vers ${trajet.pointArrivee?.adresse} a été annulé.${motif ? ` Motif : ${motif}` : ''}`
+        );
+      }
+    }
+
+    // 3. Annuler les réservations
+    await Reservation.updateMany(
+      {
+        trajetId: trajet._id,
+        statutReservation: { $in: ['EN_ATTENTE', 'CONFIRMEE'] }
+      },
+      {
+        $set: {
+          statutReservation: 'ANNULEE',
+          motifRefus: motif || 'Trajet annulé par le conducteur'
+        }
+      }
+    );
+
+    console.log(`✅ Notifications d'annulation envoyées à ${passagerIds.length} passager(s)`);
+
+  } catch (error) {
+    console.error('⚠️ Erreur envoyerNotificationsAnnulation:', error.message);
+    // Ne jamais bloquer la réponse HTTP
+  }
 }
+
 }
 
 module.exports = new TrajetController();

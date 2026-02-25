@@ -463,7 +463,7 @@ router.post('/proximity', authMiddleware, async (req, res) => {
       passengerId,
       {
         title: '🚗 Votre conducteur arrive !',
-        body: `Il est à ${distance}m de vous${estimatedTime ? ` (environ ${estimatedTime} min)` : ''}`,
+        message: `Il est à ${distance}m de vous${estimatedTime ? ` (environ ${estimatedTime} min)` : ''}`,
         data: {
           type: 'CONDUCTEUR_PROCHE',
           driverId: driverId.toString(),
@@ -778,7 +778,7 @@ router.post('/trip-broadcast', authMiddleware, async (req, res) => {
       passengerIds,
       {
         title: title || '🚗 Message du conducteur',
-        body: message,
+        message: message,
         data: {
           type: type || 'TRIP_UPDATE',
           tripId: tripId.toString(),

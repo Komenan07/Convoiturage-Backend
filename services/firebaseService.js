@@ -656,6 +656,24 @@ class FirebaseService {
     );
   }
 
+      async notifyRideCompleted(userId, rideData, Utilisateur) {
+      return this.sendToUser(
+        userId,
+        {
+          title: '🏁 Course terminée',
+          message: `Votre course vers ${rideData.destination} est terminée`,
+          data: {
+            type: 'RIDE_COMPLETED',
+            rideId: rideData.trajetId,
+            destination: rideData.destination,
+            screen: 'RideHistory'
+          },
+          channelId: 'trajets',
+          type: 'trajets'
+        },
+        Utilisateur
+      );
+    }
   /**
    * ❌ CONDUCTEUR REJETÉ
    */
@@ -668,7 +686,7 @@ class FirebaseService {
         data: {
           type: 'DRIVER_REJECTED',
           reason: reason,
-          screen: 'Profile'
+          screen: 'DriverApplication'
         },
         channelId: 'trajets',
         type: 'trajets'
@@ -690,7 +708,8 @@ class FirebaseService {
           type: 'RIDE_CANCELLED',
           rideId: rideData.rideId,
           reason: rideData.reason || 'Non spécifié',
-          destination: rideData.destination
+          destination: rideData.destination,
+          screen: 'ReservationDetails'
         },
         channelId: 'reservations',
         type: 'reservations'
@@ -813,7 +832,83 @@ class FirebaseService {
       Utilisateur
     );
   }
+  /**
+ * ❌ RÉSERVATION REFUSÉE - Pour passager
+ */
+async notifyReservationRefusee(userId, reservationData, Utilisateur) {
+  return this.sendToUser(
+    userId,
+    {
+      title: '❌ Réservation refusée',
+      message: `Votre demande vers ${reservationData.destination} a été refusée`,
+      data: {
+        type: 'RESERVATION_REFUSEE',
+        reservationId: reservationData.reservationId,
+        trajetId: reservationData.trajetId,
+        destination: reservationData.destination,
+        raison: reservationData.raison || 'Aucun motif spécifié',
+        screen: 'ReservationDetails'
+      },
+      channelId: 'reservations',
+      type: 'reservations'
+    },
+    Utilisateur
+  );
+}
 
+/**
+ * 🔔 NOUVELLE RÉSERVATION - Pour conducteur
+ */
+async notifyNewReservation(conducteurId, reservationData, Utilisateur) {
+  return this.sendToUser(
+    conducteurId,
+    {
+      title: '🔔 Nouvelle réservation',
+      message: `${reservationData.passagerNom} ${reservationData.passagerPrenom} souhaite réserver ${reservationData.nombrePlaces} place(s) vers ${reservationData.destination}`,
+      data: {
+        type: 'NEW_RESERVATION',
+        reservationId: reservationData.reservationId,
+        trajetId: reservationData.trajetId,
+        passagerNom: reservationData.passagerNom,
+        passagerPrenom: reservationData.passagerPrenom,
+        nombrePlaces: String(reservationData.nombrePlaces),
+        montant: String(reservationData.montant),
+        depart: reservationData.depart,
+        destination: reservationData.destination,
+        screen: 'ReservationManagement'
+      },
+      channelId: 'reservations',
+      type: 'reservations'
+    },
+    Utilisateur
+  );
+}
+
+/**
+ * 🚨 ALERTE URGENCE - Pour admins
+ */
+async notifyEmergencyAlert(adminIds, alerteData, Utilisateur) {
+  return this.sendToMultipleUsers(
+    adminIds,
+    {
+      title: '🚨 ALERTE URGENCE',
+      message: `${alerteData.userName} a déclenché une alerte urgence`,
+      data: {
+        type: 'EMERGENCY_ALERT',
+        userId: alerteData.userId,
+        userName: alerteData.userName,
+        telephone: alerteData.telephone || '',
+        localisation: alerteData.localisation || '',
+        message: alerteData.message || '',
+        trajetId: alerteData.trajetId || '',
+        screen: 'EmergencyAlert'
+      },
+      channelId: 'emergency',
+      type: 'emergency'
+    },
+    Utilisateur
+  );
+}
   /**
    * ===============================================
    * MÉTHODES UTILITAIRES

@@ -2,9 +2,10 @@ const mongoose = require('mongoose');
 const { validationResult } = require('express-validator');
 const Reservation = require('../models/Reservation');
 const Trajet = require('../models/Trajet');
-//const Utilisateur = require('../models/Utilisateur');
+const Utilisateur = require('../models/Utilisateur');
 const AppError = require('../utils/AppError');
 const notificationService = require('../services/notificationService');
+const firebaseService = require('../services/firebaseService');
 
 // Fonctions utilitaires
 const validerDonnees = (req) => {
@@ -19,7 +20,52 @@ const validerDonnees = (req) => {
   }
   return null;
 };
+async function _notifierConfirmationReservation(reservation) {
+  try {
+    const passager = await Utilisateur.findById(reservation.passagerId._id)
+      .select('email prenom nom fcmTokens preferencesNotifications');
+    if (!passager) return;
 
+    const trajet = reservation.trajetId;
+    await notificationService.notifierReservationConfirmee(
+      passager,
+      {
+        reservationId: reservation._id.toString(),
+        trajetId: trajet._id.toString(),
+        destination: trajet.pointArrivee?.adresse || '',
+        depart: trajet.pointDepart?.adresse || '',
+        dateDepart: trajet.dateDepart,
+        heureDepart: trajet.heureDepart,
+        montant: reservation.montantTotal
+      },
+      Utilisateur
+    );
+  } catch (error) {
+    console.error('⚠️ Erreur _notifierConfirmationReservation:', error.message);
+  }
+}
+
+async function _notifierRefusReservation(reservation) {
+  try {
+    const passager = await Utilisateur.findById(reservation.passagerId._id)
+      .select('email prenom nom fcmTokens preferencesNotifications');
+    if (!passager) return;
+
+    const trajet = reservation.trajetId;
+    await notificationService.notifierReservationRefusee(
+      passager,
+      {
+        reservationId: reservation._id.toString(),
+        trajetId: trajet._id.toString(),
+        destination: trajet.pointArrivee?.adresse || '',
+        raison: reservation.motifRefus || 'Aucun motif spécifié'
+      },
+      Utilisateur
+    );
+  } catch (error) {
+    console.error('⚠️ Erreur _notifierRefusReservation:', error.message);
+  }
+}
 const calculerMontantTotal = (trajet, nombrePlaces) => {
   return trajet.prixParPassager * nombrePlaces;
 };
@@ -30,7 +76,6 @@ class ReservationController {
    */
   static async creerReservation(req, res, next) {
     try {
-      // Vérification de l'authentification
       if (!req.user || (!req.user._id && !req.user.id && !req.user.userId)) {
         return res.status(401).json({
           success: false,
@@ -57,7 +102,6 @@ class ReservationController {
       console.log('Utilisateur:', currentUserId);
       console.log('Trajet:', trajetId);
 
-      // Vérifier que l'utilisateur n'essaie pas de réserver son propre trajet
       const trajet = await Trajet.findById(trajetId).populate('conducteurId');
       if (!trajet) {
         return res.status(404).json({
@@ -75,7 +119,6 @@ class ReservationController {
         });
       }
 
-      // Vérifier si l'utilisateur a déjà une réservation pour ce trajet
       const reservationExistante = await Reservation.findOne({
         trajetId,
         passagerId: currentUserId,
@@ -90,7 +133,6 @@ class ReservationController {
         });
       }
 
-      // Vérifier la disponibilité des places
       const disponibilite = await Reservation.verifierDisponibilite(trajetId, nombrePlacesReservees);
       if (!disponibilite.disponible) {
         return res.status(400).json({
@@ -100,10 +142,8 @@ class ReservationController {
         });
       }
 
-      // Calculer le montant total
       const montantTotal = calculerMontantTotal(trajet, nombrePlacesReservees);
 
-      // Créer la réservation
       const nouvelleReservation = new Reservation({
         trajetId,
         passagerId: currentUserId,
@@ -134,12 +174,33 @@ class ReservationController {
       await nouvelleReservation.save();
       console.log('Réservation créée:', nouvelleReservation._id);
 
-      // ✅  Mettre à jour les places disponibles du trajet
+      // ✅ 1. Mettre à jour les places D'ABORD
       trajet.nombrePlacesDisponibles -= nombrePlacesReservees;
       await trajet.save();
       console.log(`✅ Places mises à jour: ${trajet.nombrePlacesDisponibles} places restantes`);
 
-      // Population pour la réponse
+      // ✅ 2. Notifier le conducteur ENSUITE
+      try {
+        const passager = await Utilisateur.findById(currentUserId).select('nom prenom');
+        await firebaseService.notifyNewReservation(
+          trajet.conducteurId._id,
+          {
+            reservationId: nouvelleReservation._id.toString(),
+            trajetId: trajetId.toString(),
+            passagerNom: passager.nom,
+            passagerPrenom: passager.prenom,
+            nombrePlaces: nombrePlacesReservees,
+            montant: montantTotal,
+            depart: trajet.pointDepart?.adresse || '',
+            destination: trajet.pointArrivee?.adresse || ''
+          },
+          Utilisateur
+        );
+      } catch (notifError) {
+        console.error('⚠️ Erreur notification conducteur:', notifError.message);
+      }
+
+      // ✅ 3. Population pour la réponse
       await nouvelleReservation.populate([
         {
           path: 'trajetId',
@@ -355,7 +416,7 @@ class ReservationController {
 
       // Notifier le passager
       try {
-        await notificationService.notifierConfirmationReservation(reservation);
+        await _notifierConfirmationReservation(reservation);
       } catch (notifError) {
         console.error('Erreur notification:', notifError);
       }
@@ -418,7 +479,7 @@ class ReservationController {
 
       // Notifier le passager
       try {
-        await notificationService.notifierRefusReservation(reservation);
+        await _notifierRefusReservation(reservation);
       } catch (notifError) {
         console.error('Erreur notification:', notifError);
       }
