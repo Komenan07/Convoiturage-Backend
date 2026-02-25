@@ -31,11 +31,11 @@ class PaiementController {
       const { 
         reservationId, 
         montant, 
-        methodePaiement = 'WAVE',
+        methodePaiement = 'MOBILE_MONEY',
         numeroTelephone,
         operateur 
       } = req.body;
-      const userId = req.user._id;
+      const userId = req.user._id || req.user.id;
 
       // Validation des données
       if (!reservationId || !montant) {
@@ -100,7 +100,7 @@ class PaiementController {
             success: false,
             error: 'PAIEMENT_ESPECES_NON_AUTORISE',
             message: 'Le conducteur n\'accepte pas les paiements en espèces. Veuillez choisir un paiement numérique.',
-            methodesDisponibles: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY']
+            methodesDisponibles: ['MOBILE_MONEY']
           });
         }
 
@@ -113,7 +113,7 @@ class PaiementController {
             success: false,
             error: 'SOLDE_INSUFFISANT_CONDUCTEUR',
             message: `Le conducteur doit avoir un solde minimum de ${soldeMinimum} FCFA pour accepter les paiements en espèces`,
-            methodesDisponibles: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY']
+            methodesDisponibles: ['MOBILE_MONEY']
           });
         }
       }
@@ -304,42 +304,15 @@ class PaiementController {
       const compteRecharge = conducteur.compteCovoiturage?.estRecharge && soldeConducteur >= soldeMinimum;
 
       // Méthodes numériques toujours disponibles
-      const methodesNumeriques = [
+     const methodesNumeriques = [
         {
-          id: 'WAVE',
-          nom: 'Wave',
+          id: 'MOBILE_MONEY',
+          nom: 'Mobile Money',
           type: 'mobile_money',
-          frais: '0%',
+          frais: 'Selon opérateur',
           actif: true,
           commission: '10%',
-          description: 'Commission prélevée automatiquement'
-        },
-        {
-          id: 'ORANGE_MONEY',
-          nom: 'Orange Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true,
-          commission: '10%',
-          description: 'Commission prélevée automatiquement'
-        },
-        {
-          id: 'MTN_MONEY',
-          nom: 'MTN Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true,
-          commission: '10%',
-          description: 'Commission prélevée automatiquement'
-        },
-        {
-          id: 'MOOV_MONEY',
-          nom: 'Moov Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true,
-          commission: '10%',
-          description: 'Commission prélevée automatiquement'
+          description: 'Wave, Orange Money, MTN, Moov — sélection sur CinetPay'
         }
       ];
 
@@ -578,7 +551,7 @@ async initierRecharge(req, res) {
     }
 
     // Validation méthode de paiement
-    const methodesValides = ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'];
+    const methodesValides = ['MOBILE_MONEY'];
     if (!methodesValides.includes(methodePaiement)) {
       return res.status(400).json({
         success: false,
@@ -622,7 +595,7 @@ async initierRecharge(req, res) {
       
       reglesPaiement: {
         conducteurCompteRecharge: user.compteCovoiturage?.estRecharge || false,
-        modesAutorises: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'],
+        modesAutorises: ['MOBILE_MONEY'],
         raisonValidation: 'Recharge de compte via CinetPay',
         verificationsPassees: true,
         soldeSuffisant: true
@@ -817,7 +790,7 @@ async confirmerRecharge(req, res) {
     // Trouver le paiement de recharge
     const paiement = await Paiement.findOne({
       referenceTransaction,
-      methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
+      methodePaiement: 'MOBILE_MONEY'
     }).populate('payeurId', 'compteCovoiturage nom prenom email');
 
     if (!paiement) {
@@ -1093,7 +1066,7 @@ async confirmerRecharge(req, res) {
       const filtres = {
         payeurId: userId,
         beneficiaireId: userId,
-        methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
+        methodePaiement: 'MOBILE_MONEY'
       };
 
       if (statut) {
@@ -1570,7 +1543,7 @@ async confirmerRecharge(req, res) {
       } else if (type === 'recharges') {
         filtres.payeurId = userId;
         filtres.beneficiaireId = userId;
-        filtres.methodePaiement = { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] };
+        filtres.methodePaiement = 'MOBILE_MONEY';
       }
       
       if (statut) {
@@ -1653,35 +1626,22 @@ async confirmerRecharge(req, res) {
     try {
       const methodes = [
         {
-          id: 'WAVE',
-          nom: 'Wave',
+          id: 'MOBILE_MONEY',
+          nom: 'Mobile Money',
           type: 'mobile_money',
+          frais: 'Selon opérateur',
+          actif: true,
+          description: 'Wave, Orange Money, MTN, Moov — sélection sur CinetPay'
+        },
+        {
+          id: 'ESPECES',
+          nom: 'Espèces',
+          type: 'cash',
           frais: '0%',
-          actif: true
-        },
-        {
-          id: 'ORANGE_MONEY',
-          nom: 'Orange Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true
-        },
-        {
-          id: 'MTN_MONEY',
-          nom: 'MTN Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true
-        },
-        {
-          id: 'MOOV_MONEY',
-          nom: 'Moov Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true
+          actif: true,
+          description: 'Paiement direct au conducteur (sous conditions)'
         }
       ];
-
       return res.status(200).json({
         success: true,
         methodes
@@ -1759,13 +1719,10 @@ async confirmerRecharge(req, res) {
     }
 
     const regexOperateurs = {
-      'ORANGE': /^(\+225)?07[0-9]{8}$/,
-      'ORANGE_MONEY': /^(\+225)?07[0-9]{8}$/,
-      'MTN': /^(\+225)?05[0-9]{8}$/,
-      'MTN_MONEY': /^(\+225)?05[0-9]{8}$/,
-      'MOOV': /^(\+225)?01[0-9]{8}$/,
-      'MOOV_MONEY': /^(\+225)?01[0-9]{8}$/,
-      'WAVE': /^(\+225)?[0-9]{8,10}$/
+    'MOBILE_MONEY': /^(\+225)?[0-9]{8,10}$/,
+    'ORANGE': /^(\+225)?07[0-9]{8}$/,
+    'MTN': /^(\+225)?05[0-9]{8}$/,
+    'MOOV': /^(\+225)?01[0-9]{8}$/
     };
 
     const regex = regexOperateurs[operateur.toUpperCase()];
@@ -1791,7 +1748,7 @@ async confirmerRecharge(req, res) {
       payeurId: userId,
       dateInitiation: { $gte: debutJour },
       statutPaiement: { $in: ['COMPLETE', 'EN_ATTENTE'] },
-      methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
+      methodePaiement: 'MOBILE_MONEY'
     });
 
     const montantRechargeAujourdhui = rechargesAujourdhui.reduce((sum, r) => sum + r.montantTotal, 0);
@@ -1828,30 +1785,11 @@ async confirmerRecharge(req, res) {
 
   genererInstructionsRecharge(methodePaiement, numeroTelephone, montant) {
     const instructions = {
-      'ORANGE_MONEY': [
-        'Composez #144# sur votre téléphone Orange Money',
-        'Sélectionnez "Transfert d\'argent"',
-        'Sélectionnez "Vers un marchand"',
+      'MOBILE_MONEY': [
+        'Cliquez sur le lien de paiement CinetPay',
+        'Choisissez votre opérateur (Wave, Orange, MTN, Moov)',
         `Entrez le montant: ${montant} FCFA`,
-        'Confirmez la transaction'
-      ],
-      'MTN_MONEY': [
-        'Composez *133# sur votre téléphone MTN Money',
-        'Sélectionnez "Paiement marchand"',
-        `Entrez le montant: ${montant} FCFA`,
-        'Suivez les instructions pour finaliser'
-      ],
-      'MOOV_MONEY': [
-        'Composez *555# sur votre téléphone Moov Money',
-        'Sélectionnez "Paiement"',
-        `Entrez le montant: ${montant} FCFA`,
-        'Confirmez votre paiement'
-      ],
-      'WAVE': [
-        'Ouvrez votre application Wave',
-        'Sélectionnez "Envoyer de l\'argent"',
-        `Envoyez ${montant} FCFA au marchand WAYZ-ECO`,
-        'Notez le code de transaction reçu'
+        'Confirmez la transaction sur votre téléphone'
       ]
     };
 

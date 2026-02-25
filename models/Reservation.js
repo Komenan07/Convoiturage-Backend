@@ -272,10 +272,15 @@ const ReservationSchema = new Schema({
   },
   methodePaiement: {
     type: String,
-    enum: ['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY','MOBILE_MONEY'],
+    enum: ['ESPECES', 'MOBILE_MONEY'],
     required: function() {
       return this.statutPaiement === 'PAYE';
     }
+  },
+  canalPaiement: {
+  type: String,
+  trim: true,
+  maxlength: 50
   },
   referencePaiement: {
     type: String,
@@ -584,7 +589,8 @@ ReservationSchema.post('save', async function(doc) {
           {
             transactionId: doc.referencePaiement || `PAY-${doc._id}`,
             montant: doc.montantTotal,
-            methode: doc.methodePaiement
+            methode: doc.methodePaiement,
+            canal: doc.canalPaiement 
           },
           Utilisateur
         );
