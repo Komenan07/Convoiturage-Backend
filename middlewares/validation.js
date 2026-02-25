@@ -160,9 +160,9 @@ const validatePaiement = [
     .toFloat(),
   body('methodePaiement')
     .optional()
-    .isIn(['WAVE', 'ORANGE', 'MTN', 'MOOV', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'ESPECES'])
+    .isIn(['MOBILE_MONEY', 'ESPECES'])
     .withMessage('Méthode de paiement non supportée')
-    .default('WAVE'),
+    .default('MOBILE_MONEY'),
   handleValidationErrors
 ];
 
