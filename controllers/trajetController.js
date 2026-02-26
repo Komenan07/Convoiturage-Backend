@@ -305,7 +305,7 @@ async demarrerTrajet(req, res, next) {
           message: `Le conducteur a démarré le trajet vers ${trajet.pointArrivee.adresse}`,
           type: 'trajets',
           data: {
-            type: 'RIDE_REMINDER',
+            type: 'RIDE_STARTED',
             trajetId: id,
             screen: 'RideDetails'
           },
@@ -432,8 +432,9 @@ async demarrerTrajet(req, res, next) {
             message: 'N\'oubliez pas d\'évaluer votre conducteur',
             type: 'trajets',
             data: {
-              type: 'NEW_RATING',
+              type: 'RIDE_COMPLETED',
               trajetId: id,
+              conducteurId: trajet.conducteurId.toString(),
               screen: 'Ratings',
               requireEvaluation: 'true'
             },

@@ -407,7 +407,7 @@ const utilisateurSchema = new mongoose.Schema({
       },
       methodePaiement: {
         type: String,
-        enum: ['MOBILE_MONEY'],
+        enum: ['MOBILE_MONEY', 'ORANGE'],
         required: true
       },
       referenceTransaction: {
