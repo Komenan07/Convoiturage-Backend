@@ -17,6 +17,8 @@ const registerReservationHandlers = require('./handlers/reservation');
 const registerChatHandlers = require('./handlers/chat');
 const registerAlerteHandlers = require('./handlers/alerte');
 const registerWazeHandlers = require('./handlers/waze');
+const TrajetPartage = require('../models/TrajetPartage');
+const { redisUtils } = require('../config/redis');
 
 /**
  * Récupère le token d'authentification depuis diverses sources possibles
@@ -202,6 +204,59 @@ function initSocket(httpServer, app) {
         anonymousId,
         message: 'Connecté en mode anonyme. Certaines fonctionnalités nécessitent une authentification.'
       });
+      // Suivi public pour les proches (sans authentification)
+      socket.on('joinPublicTracking', async (data, ack = () => {}) => {
+        try {
+          const { token } = data || {};
+          if (!token || token.length < 10) return ack({ success: false, error: 'TOKEN_INVALIDE' });
+
+          const partage = await TrajetPartage.findOne({ token, actif: true })
+            .populate({ path: 'trajetId', populate: { path: 'conducteurId', select: 'nom prenom photoProfil' } });
+
+          if (!partage || !partage.estValide()) return ack({ success: false, error: 'LIEN_EXPIRE_OU_INVALIDE' });
+
+          const trajet = partage.trajetId;
+          socket.join(`suivi:${token}`);
+          socket.suiviToken = token;
+          socket.suiviTrajetId = trajet._id.toString();
+          await partage.enregistrerVue();
+
+          const positionActuelle = await redisUtils.getUserPosition(trajet.conducteurId._id);
+
+          ack({
+            success: true,
+            trajet: {
+              _id: trajet._id,
+              statut: trajet.statutTrajet,
+              pointDepart: trajet.pointDepart,
+              pointArrivee: trajet.pointArrivee,
+              dateDepart: trajet.dateDepart,
+              heureDepart: trajet.heureDepart,
+              heureArriveePrevue: trajet.heureArriveePrevue,
+              distance: trajet.distance,
+              conducteur: {
+                nom: trajet.conducteurId?.nom,
+                prenom: trajet.conducteurId?.prenom,
+                photoProfil: trajet.conducteurId?.photoProfil
+              }
+            },
+            positionActuelle,
+            expiresAt: partage.expiresAt
+          });
+
+          console.log(`👁️ Proche anonyme connecté au suivi du trajet ${trajet._id}`);
+        } catch (error) {
+          console.error('Erreur joinPublicTracking anonyme:', error);
+          ack({ success: false, error: 'ERREUR_SERVEUR' });
+        }
+      });
+
+      socket.on('leavePublicTracking', async (data, ack = () => {}) => {
+        const { token } = data || {};
+        if (token) socket.leave(`suivi:${token}`);
+        ack({ success: true });
+      });
+
     }
 
     // ==================== ÉVÉNEMENTS DE CHAT (AUTHENTIFICATION REQUISE) ====================

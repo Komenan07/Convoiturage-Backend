@@ -223,6 +223,7 @@ const routesConfig = [
   { nom: 'utilisateurs', chemins: ['./routes/utilisateur.js'], url: '/api/utilisateurs' },
   { nom: 'véhicules', chemins: ['./routes/vehicules.js'], url: '/api/vehicules' },
   { nom: 'recherche-trajets', chemins: ['./routes/trajetSearch.js'], url: '/api/trajets/search' },
+  { nom: 'partage-trajet',    chemins: ['./routes/shareTrajet.js'],  url: '/api' },
   { nom: 'trajets', chemins: ['./routes/trajets.js'], url: '/api/trajets' },
   { nom: 'réservations', chemins: ['./routes/reservations.js'], url: '/api/reservations' },
   { nom: 'messages', chemins: ['./routes/messages.js'], url: '/api/messages' },
