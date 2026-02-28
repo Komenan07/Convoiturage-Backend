@@ -16,7 +16,7 @@ function notifyDriverValidation(io, userId, data) {
     const { approved, reason, validatedBy, rejectedBy, timestamp, vehiculesCount, commentaire } = data;
     
     const eventName = approved ? 'driver_validation_approved' : 'driver_validation_rejected';
-    const userRoom = `user:${userId}`;
+    const userRoom = `user_${userId}`;
     
     // Payload de la notification
     const notificationPayload = {

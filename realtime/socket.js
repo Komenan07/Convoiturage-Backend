@@ -100,9 +100,9 @@ function isAuthenticated(socket) {
  */
 function buildRoomNames(conversationId, userId, trajetId) {
   return {
-    conversationRoom: conversationId ? `conversation:${conversationId}` : null,
-    userRoom: userId ? `user:${userId}` : null,
-    trajetRoom: trajetId ? `trajet:${trajetId}` : null
+    conversationRoom: conversationId ? `conversation_${conversationId}` : null,
+    userRoom: userId ? `user_${userId}` : null,
+    trajetRoom: trajetId ? `trip_${trajetId}` : null
   };
 }
 
