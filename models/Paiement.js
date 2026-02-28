@@ -652,19 +652,27 @@ paiementSchema.methods.debloquerMontantPortefeuille = async function() {
 };
 
 // Autres méthodes existantes...
-paiementSchema.methods.initierPaiementMobile = function(numeroTelephone, operateur) {
+paiementSchema.methods.initierPaiementMobile = function(numeroTelephone, operateur = null) {
+  const operateursValides = ['WAVE', 'ORANGE', 'MTN', 'MOOV'];
+  const operateurNormalise = operateur?.toUpperCase();
+
   this.mobileMoney = {
-    operateur: operateur.toUpperCase(),
+    ...(operateurNormalise && operateursValides.includes(operateurNormalise) 
+      ? { operateur: operateurNormalise } 
+      : {}),
     numeroTelephone,
     statutMobileMoney: 'PENDING',
     dateTransaction: new Date()
   };
+
   this.commission.modePrelevement = 'paiement_mobile';
+
   this.ajouterLog('PAIEMENT_MOBILE_INITIE', {
-    operateur,
-    numero: numeroTelephone.replace(/(.{3})(.*)(.{3})/, '$1***$3'),
+    operateur: operateurNormalise || 'À définir via CinetPay',
+    numero: numeroTelephone?.replace(/(.{3})(.*)(.{3})/, '$1***$3'),
     montant: this.montantTotal
   });
+
   return this;
 };
 

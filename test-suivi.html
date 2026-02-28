@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Test Suite · Wayz GPS Tracking</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <style>
+    :root {
+      --bg:       #070a0f;
+      --s1:       #0c1018;
+      --s2:       #111720;
+      --border:   #1a2235;
+      --border2:  #222d42;
+      --green:    #22c55e;
+      --green-l:  #4ade80;
+      --green-d:  rgba(34,197,94,0.1);
+      --purple:   #a855f7;
+      --purple-l: #c084fc;
+      --purple-d: rgba(168,85,247,0.1);
+      --yellow:   #eab308;
+      --yellow-d: rgba(234,179,8,0.1);
+      --red:      #ef4444;
+      --red-d:    rgba(239,68,68,0.1);
+      --blue:     #3b82f6;
+      --blue-d:   rgba(59,130,246,0.1);
+      --text:     #dde4f0;
+      --muted:    #4a5578;
+      --font:     'Outfit', sans-serif;
+      --mono:     'JetBrains Mono', monospace;
+      --r:        12px;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── AMBIENT ── */
+    body::before {
+      content:'';
+      position:fixed; top:-40%; left:-20%;
+      width:70%; height:70%;
+      background: radial-gradient(ellipse, rgba(168,85,247,0.08) 0%, transparent 65%);
+      pointer-events:none; z-index:0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 16px 24px;
+      background: rgba(12,16,24,0.9);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top:0; z-index:100;
+    }
+
+    .header-left { display:flex; align-items:center; gap:14px; }
+
+    .logo {
+      font-weight:800; font-size:1.3rem; letter-spacing:-0.04em;
+      background: linear-gradient(135deg, var(--green-l), var(--purple-l));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    }
+
+    .header-tag {
+      font-family: var(--mono); font-size:0.65rem; font-weight:600;
+      color: var(--yellow); background: var(--yellow-d);
+      border: 1px solid rgba(234,179,8,0.25);
+      padding: 3px 10px; border-radius:50px;
+      letter-spacing:0.08em;
+    }
+
+    .conn-status {
+      display:flex; align-items:center; gap:7px;
+      font-family: var(--mono); font-size:0.7rem;
+      padding: 5px 13px; border-radius:50px;
+      border: 1px solid var(--border2);
+      background: var(--s2);
+      transition: all 0.3s;
+    }
+
+    .conn-dot {
+      width:7px; height:7px; border-radius:50%;
+      background: var(--muted);
+    }
+
+    .conn-status.connected { border-color:rgba(34,197,94,0.3); background:var(--green-d); color:var(--green-l); }
+    .conn-status.connected .conn-dot { background:var(--green); animation: blink 1.5s infinite; }
+    .conn-status.error { border-color:rgba(239,68,68,0.3); background:var(--red-d); color:var(--red); }
+    .conn-status.error .conn-dot { background:var(--red); }
+
+    @keyframes blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(1.5)} }
+
+    /* ── LAYOUT ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 0;
+      height: calc(100vh - 57px);
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--s1);
+      border-right: 1px solid var(--border);
+      display:flex; flex-direction:column;
+      overflow-y:auto;
+      position:relative; z-index:1;
+    }
+
+    .sidebar-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-family:var(--mono); font-size:0.6rem; font-weight:600;
+      color:var(--muted); text-transform:uppercase; letter-spacing:0.1em;
+      margin-bottom:12px;
+      display:flex; align-items:center; gap:8px;
+    }
+
+    .section-title::after {
+      content:''; flex:1; height:1px; background:var(--border);
+    }
+
+    /* ── INPUTS ── */
+    .field { margin-bottom:10px; }
+
+    label {
+      display:block; font-size:0.72rem; color:var(--muted);
+      margin-bottom:4px; font-weight:500;
+    }
+
+    input, textarea {
+      width:100%;
+      background: var(--s2);
+      border: 1px solid var(--border2);
+      border-radius:8px;
+      padding: 8px 11px;
+      font-family:var(--mono); font-size:0.75rem;
+      color: var(--text);
+      outline:none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--purple);
+      box-shadow: 0 0 0 3px rgba(168,85,247,0.1);
+    }
+
+    textarea { resize:vertical; min-height:60px; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      width:100%;
+      padding: 9px 14px;
+      border-radius:8px;
+      border:none; cursor:pointer;
+      font-family:var(--font); font-size:0.8rem; font-weight:600;
+      letter-spacing:0.01em;
+      transition: all 0.2s;
+      display:flex; align-items:center; justify-content:center; gap:7px;
+      margin-bottom:6px;
+    }
+
+    .btn:last-child { margin-bottom:0; }
+
+    .btn:active { transform:scale(0.97); }
+
+    .btn-green {
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+      color:#fff;
+      box-shadow: 0 4px 14px rgba(34,197,94,0.25);
+    }
+
+    .btn-green:hover { box-shadow:0 6px 20px rgba(34,197,94,0.4); }
+
+    .btn-purple {
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color:#fff;
+      box-shadow: 0 4px 14px rgba(168,85,247,0.25);
+    }
+
+    .btn-purple:hover { box-shadow:0 6px 20px rgba(168,85,247,0.4); }
+
+    .btn-blue {
+      background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+      color:#fff;
+      box-shadow: 0 4px 14px rgba(59,130,246,0.2);
+    }
+
+    .btn-red {
+      background: linear-gradient(135deg, #b91c1c, #ef4444);
+      color:#fff;
+      box-shadow: 0 4px 14px rgba(239,68,68,0.2);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--muted);
+    }
+
+    .btn-outline:hover { border-color:var(--border2); color:var(--text); background:var(--s2); }
+
+    .btn-yellow {
+      background: linear-gradient(135deg, #a16207, #eab308);
+      color:#000;
+      box-shadow: 0 4px 14px rgba(234,179,8,0.2);
+    }
+
+    .btn-sm { padding:6px 10px; font-size:0.72rem; width:auto; margin-bottom:0; }
+
+    /* ── GPS SIMULATOR ── */
+    .gps-row {
+      display:grid; grid-template-columns:1fr 1fr; gap:8px;
+    }
+
+    .speed-row {
+      display:flex; align-items:center; gap:10px; margin-top:8px;
+    }
+
+    .speed-row input { flex:1; }
+
+    .speed-val {
+      font-family:var(--mono); font-size:0.75rem;
+      color:var(--green-l); min-width:50px; text-align:right;
+    }
+
+    /* ── MAIN CONTENT ── */
+    .main {
+      display:flex; flex-direction:column;
+      overflow:hidden; position:relative; z-index:1;
+    }
+
+    /* ── TABS ── */
+    .tabs {
+      display:flex; gap:0;
+      border-bottom: 1px solid var(--border);
+      background: var(--s1);
+      padding: 0 20px;
+    }
+
+    .tab {
+      padding: 12px 18px;
+      font-size:0.78rem; font-weight:600;
+      color:var(--muted); cursor:pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      white-space:nowrap;
+    }
+
+    .tab:hover { color:var(--text); }
+    .tab.active { color:var(--green-l); border-bottom-color:var(--green); }
+
+    /* ── LOG PANEL ── */
+    .log-panel {
+      flex:1; overflow-y:auto;
+      padding: 16px 20px;
+      display:flex; flex-direction:column; gap:6px;
+    }
+
+    .log-entry {
+      display:flex; align-items:flex-start; gap:10px;
+      padding: 10px 13px;
+      border-radius: var(--r);
+      border: 1px solid var(--border);
+      background: var(--s1);
+      font-size:0.78rem;
+      animation: fade-in 0.2s ease;
+    }
+
+    @keyframes fade-in {
+      from { opacity:0; transform:translateY(4px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .log-entry.success { border-color:rgba(34,197,94,0.25); background:var(--green-d); }
+    .log-entry.error   { border-color:rgba(239,68,68,0.25);  background:var(--red-d); }
+    .log-entry.info    { border-color:rgba(59,130,246,0.25);  background:var(--blue-d); }
+    .log-entry.warn    { border-color:rgba(234,179,8,0.25);   background:var(--yellow-d); }
+    .log-entry.event   { border-color:rgba(168,85,247,0.25);  background:var(--purple-d); }
+
+    .log-icon { font-size:0.9rem; flex-shrink:0; margin-top:1px; }
+
+    .log-body { flex:1; min-width:0; }
+
+    .log-title {
+      font-weight:600; margin-bottom:2px;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+
+    .log-time {
+      font-family:var(--mono); font-size:0.65rem; color:var(--muted);
+    }
+
+    .log-detail {
+      font-family:var(--mono); font-size:0.68rem; color:var(--muted);
+      white-space:pre-wrap; word-break:break-all;
+      max-height:80px; overflow-y:auto;
+    }
+
+    /* ── JSON VIEWER ── */
+    .json-panel {
+      display:none;
+      flex:1; overflow-y:auto;
+      padding: 16px 20px;
+    }
+
+    .json-panel.active { display:block; }
+    .log-panel.active  { display:flex; }
+
+    pre.json-view {
+      font-family:var(--mono); font-size:0.72rem;
+      background:var(--s1); border:1px solid var(--border);
+      border-radius:var(--r); padding:14px;
+      color:var(--text); white-space:pre-wrap; word-break:break-all;
+      margin-bottom:10px;
+    }
+
+    /* ── STATS BAR ── */
+    .stats-bar {
+      display:flex; gap:0;
+      border-top: 1px solid var(--border);
+      background: var(--s1);
+    }
+
+    .stat-item {
+      flex:1; padding:10px 16px;
+      border-right:1px solid var(--border);
+      text-align:center;
+    }
+
+    .stat-item:last-child { border-right:none; }
+
+    .stat-n {
+      font-family:var(--mono); font-size:1rem; font-weight:600;
+      line-height:1;
+    }
+
+    .stat-n.g { color:var(--green-l); }
+    .stat-n.p { color:var(--purple-l); }
+    .stat-n.r { color:var(--red); }
+    .stat-n.y { color:var(--yellow); }
+
+    .stat-l {
+      font-size:0.62rem; color:var(--muted);
+      text-transform:uppercase; letter-spacing:0.07em; margin-top:3px;
+    }
+
+    /* ── TEST RESULTS ── */
+    .test-grid {
+      display:none;
+      flex:1; overflow-y:auto;
+      padding:16px 20px;
+      display:none; flex-direction:column; gap:8px;
+    }
+
+    .test-grid.active { display:flex; }
+
+    .test-item {
+      display:flex; align-items:center; gap:12px;
+      padding:12px 14px;
+      background:var(--s1); border:1px solid var(--border);
+      border-radius:var(--r);
+    }
+
+    .test-status {
+      width:28px; height:28px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:0.8rem; flex-shrink:0;
+      background:var(--s2); border:1px solid var(--border2);
+    }
+
+    .test-status.pass { background:var(--green-d); border-color:rgba(34,197,94,0.3); color:var(--green-l); }
+    .test-status.fail { background:var(--red-d);   border-color:rgba(239,68,68,0.3);  color:var(--red); }
+    .test-status.pending { color:var(--muted); }
+    .test-status.running { color:var(--yellow); animation:spin 1s linear infinite; }
+
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    .test-name { font-weight:600; font-size:0.82rem; }
+    .test-desc { font-size:0.72rem; color:var(--muted); margin-top:2px; }
+    .test-badge {
+      margin-left:auto;
+      font-family:var(--mono); font-size:0.62rem; font-weight:600;
+      padding:2px 8px; border-radius:50px;
+    }
+
+    .test-badge.pass { color:var(--green-l); background:var(--green-d); border:1px solid rgba(34,197,94,0.2); }
+    .test-badge.fail { color:var(--red);     background:var(--red-d);   border:1px solid rgba(239,68,68,0.2); }
+    .test-badge.pending { color:var(--muted); background:var(--s2); border:1px solid var(--border); }
+
+    /* ── GPS AUTO SIMULATOR ── */
+    .sim-active {
+      background: var(--green-d);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius:var(--r); padding:10px 13px;
+      font-size:0.76rem; color:var(--green-l);
+      display:none; align-items:center; gap:8px;
+      margin-bottom:8px;
+    }
+
+    .sim-active.show { display:flex; }
+
+    .sim-dot { width:6px;height:6px;border-radius:50%;background:var(--green); animation:blink 1s infinite; }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width:4px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-left">
+    <div class="logo">wayz</div>
+    <div class="header-tag">TEST SUITE</div>
+  </div>
+  <div class="conn-status" id="connStatus">
+    <div class="conn-dot"></div>
+    <span id="connText">Déconnecté</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <div class="sidebar">
+
+    <!-- Config serveur -->
+    <div class="sidebar-section">
+      <div class="section-title">Serveur</div>
+      <div class="field">
+        <label>URL du serveur</label>
+        <input id="serverUrl" value="http://localhost:3000" />
+      </div>
+      <button class="btn btn-green" onclick="connect()">⚡ Connecter</button>
+      <button class="btn btn-outline" onclick="disconnect()">✕ Déconnecter</button>
+    </div>
+
+    <!-- Auth -->
+    <div class="sidebar-section">
+      <div class="section-title">Authentification</div>
+      <div class="field">
+        <label>JWT Token</label>
+        <textarea id="jwtToken" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
+      </div>
+      <button class="btn btn-purple" onclick="authenticate()">🔐 Authentifier</button>
+    </div>
+
+    <!-- Suivi public -->
+    <div class="sidebar-section">
+      <div class="section-title">Suivi Public (Anonyme)</div>
+      <div class="field">
+        <label>Token de partage</label>
+        <input id="suiviToken" placeholder="abc123def456..." />
+      </div>
+      <button class="btn btn-blue" onclick="joinPublicTracking()">👁 Rejoindre suivi</button>
+      <button class="btn btn-outline" onclick="leavePublicTracking()">✕ Quitter suivi</button>
+    </div>
+
+    <!-- GPS -->
+    <div class="sidebar-section">
+      <div class="section-title">Simulateur GPS</div>
+      <div class="field">
+        <label>Trajet ID</label>
+        <input id="trajetId" placeholder="64f1a2b3c4d5e6f7a8b9c0d1" />
+      </div>
+      <div class="gps-row">
+        <div class="field">
+          <label>Latitude</label>
+          <input id="lat" value="5.3599" type="number" step="0.0001" />
+        </div>
+        <div class="field">
+          <label>Longitude</label>
+          <input id="lng" value="-3.9616" type="number" step="0.0001" />
+        </div>
+      </div>
+      <div class="speed-row">
+        <label style="margin:0;white-space:nowrap">Vitesse</label>
+        <input type="range" id="speedRange" min="0" max="120" value="40"
+          oninput="document.getElementById('speedVal').textContent=this.value+'km/h'"
+          style="flex:1;background:transparent;accent-color:var(--green)">
+        <span class="speed-val" id="speedVal">40km/h</span>
+      </div>
+
+      <div class="sim-active" id="simActive">
+        <div class="sim-dot"></div>
+        <span id="simText">Simulation en cours…</span>
+      </div>
+
+      <button class="btn btn-green" onclick="sendPosition()">📍 Envoyer position</button>
+      <button class="btn btn-yellow" onclick="toggleAutoSim()">🔄 Auto simulation</button>
+      <button class="btn btn-blue" onclick="startTracking()">▶ Start tracking</button>
+      <button class="btn btn-red" onclick="stopTracking()">⏹ Stop tracking</button>
+    </div>
+
+    <!-- Tests automatiques -->
+    <div class="sidebar-section">
+      <div class="section-title">Tests Auto</div>
+      <button class="btn btn-purple" onclick="runAllTests()">🧪 Lancer tous les tests</button>
+      <button class="btn btn-outline" onclick="clearLogs()">🗑 Vider les logs</button>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════ MAIN ═══════════════ -->
+  <div class="main">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('logs', this)">📋 Logs temps réel</div>
+      <div class="tab" onclick="switchTab('tests', this)">🧪 Résultats tests</div>
+      <div class="tab" onclick="switchTab('events', this)">📡 Événements reçus</div>
+    </div>
+
+    <!-- Logs -->
+    <div class="log-panel active" id="tab-logs">
+      <div class="log-entry info">
+        <div class="log-icon">ℹ️</div>
+        <div class="log-body">
+          <div class="log-title">Prêt <span class="log-time">--:--:--</span></div>
+          <div class="log-detail">Configure le serveur et connecte-toi pour commencer les tests.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tests -->
+    <div class="test-grid" id="tab-tests">
+      <!-- Généré dynamiquement -->
+    </div>
+
+    <!-- Events -->
+    <div class="json-panel" id="tab-events">
+      <!-- Généré dynamiquement -->
+    </div>
+
+    <!-- Stats bar -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-n g" id="statSent">0</div>
+        <div class="stat-l">Envoyés</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-n p" id="statReceived">0</div>
+        <div class="stat-l">Reçus</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-n g" id="statPass">0</div>
+        <div class="stat-l">Tests OK</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-n r" id="statFail">0</div>
+        <div class="stat-l">Tests KO</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-n y" id="statLatency">–</div>
+        <div class="stat-l">Latence</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let socket = null;
+let autoSimInterval = null;
+let autoSimRunning = false;
+let stats = { sent:0, received:0, pass:0, fail:0 };
+let receivedEvents = [];
+let simLat = 5.3599;
+let simLng = -3.9616;
+
+// ═══════════════════════════════════════════
+// CONNEXION
+// ═══════════════════════════════════════════
+function connect() {
+  const url = document.getElementById('serverUrl').value.trim();
+  if (socket) socket.disconnect();
+
+  log('info', '🔌 Connexion...', `→ ${url}`);
+
+  socket = io(url, {
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: 3
+  });
+
+  socket.on('connect', () => {
+    setConnStatus('connected', `Connecté · ${socket.id.slice(0,8)}…`);
+    log('success', '✅ Connecté', `Socket ID: ${socket.id}`);
+  });
+
+  socket.on('connect_error', (err) => {
+    setConnStatus('error', 'Erreur connexion');
+    log('error', '❌ Erreur connexion', err.message);
+  });
+
+  socket.on('disconnect', (reason) => {
+    setConnStatus('', 'Déconnecté');
+    log('warn', '⚠️ Déconnecté', reason);
+  });
+
+  socket.on('connection:ack', (data) => {
+    log('event', '📨 connection:ack', JSON.stringify(data, null, 2));
+    addEvent('connection:ack', data);
+    stats.received++;
+    updateStats();
+  });
+
+  // ── Événements GPS ──
+  socket.on('positionUpdate', (data) => {
+    log('event', '📍 positionUpdate reçu', JSON.stringify(data, null, 2));
+    addEvent('positionUpdate', data);
+    stats.received++; updateStats();
+  });
+
+  socket.on('trajet_location_update', (data) => {
+    log('event', '🗺 trajet_location_update', JSON.stringify(data, null, 2));
+    addEvent('trajet_location_update', data);
+    stats.received++; updateStats();
+  });
+
+  socket.on('personalizedLocationUpdate', (data) => {
+    log('event', '👤 personalizedLocationUpdate', JSON.stringify(data, null, 2));
+    addEvent('personalizedLocationUpdate', data);
+    stats.received++; updateStats();
+  });
+
+  socket.on('trackingStarted', (data) => {
+    log('success', '▶ trackingStarted', JSON.stringify(data, null, 2));
+    addEvent('trackingStarted', data);
+    stats.received++; updateStats();
+  });
+
+  socket.on('trackingStopped', (data) => {
+    log('warn', '⏹ trackingStopped', JSON.stringify(data, null, 2));
+    addEvent('trackingStopped', data);
+    stats.received++; updateStats();
+  });
+
+  socket.on('tripStarted', (data) => {
+    log('success', '🚦 tripStarted', JSON.stringify(data, null, 2));
+    addEvent('tripStarted', data);
+    stats.received++; updateStats();
+  });
+
+  socket.on('tripEnded', (data) => {
+    log('warn', '🏁 tripEnded', JSON.stringify(data, null, 2));
+    addEvent('tripEnded', data);
+    stats.received++; updateStats();
+  });
+
+  socket.on('conducteurProche', (data) => {
+    log('success', '🚗 conducteurProche', JSON.stringify(data, null, 2));
+    addEvent('conducteurProche', data);
+    stats.received++; updateStats();
+  });
+
+  socket.on('driverPosition', (data) => {
+    log('event', '📌 driverPosition', JSON.stringify(data, null, 2));
+    addEvent('driverPosition', data);
+    stats.received++; updateStats();
+  });
+
+  socket.on('batchPositionsSynced', (data) => {
+    log('success', '📦 batchPositionsSynced', JSON.stringify(data, null, 2));
+    addEvent('batchPositionsSynced', data);
+    stats.received++; updateStats();
+  });
+
+  socket.on('error', (data) => {
+    log('error', `❌ Erreur socket: ${data.type}`, data.message);
+    addEvent('error', data);
+    stats.received++; updateStats();
+  });
+
+  socket.on('pong', (data) => {
+    const latency = Date.now() - data._sentAt;
+    document.getElementById('statLatency').textContent = `${latency}ms`;
+    log('info', '🏓 Pong', `Latence: ${latency}ms`);
+  });
+}
+
+function disconnect() {
+  if (socket) { socket.disconnect(); socket = null; }
+  setConnStatus('', 'Déconnecté');
+  log('warn', '🔌 Déconnecté manuellement');
+}
+
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+function authenticate() {
+  if (!checkSocket()) return;
+  const token = document.getElementById('jwtToken').value.trim();
+  if (!token) { log('error', '❌ Token requis'); return; }
+
+  const t0 = Date.now();
+  log('info', '🔐 Authentification...', token.slice(0,40)+'…');
+  stats.sent++; updateStats();
+
+  socket.emit('authenticate', { token }, (res) => {
+    const ms = Date.now()-t0;
+    if (res.success) {
+      log('success', `✅ Authentifié en ${ms}ms`, `User: ${res.userInfo?.prenom} ${res.userInfo?.nom}`);
+    } else {
+      log('error', `❌ Auth échouée (${ms}ms)`, res.error);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+// SUIVI PUBLIC
+// ═══════════════════════════════════════════
+function joinPublicTracking() {
+  if (!checkSocket()) return;
+  const token = document.getElementById('suiviToken').value.trim();
+  if (!token) { log('error', '❌ Token de suivi requis'); return; }
+
+  const t0 = Date.now();
+  log('info', '👁 joinPublicTracking...', `token: ${token.slice(0,16)}…`);
+  stats.sent++; updateStats();
+
+  socket.emit('joinPublicTracking', { token }, (res) => {
+    const ms = Date.now()-t0;
+    if (res.success) {
+      log('success', `✅ Suivi rejoint en ${ms}ms`,
+        `Trajet: ${res.trajet?.statut} | Conducteur: ${res.trajet?.conducteur?.prenom} ${res.trajet?.conducteur?.nom}`);
+      addEvent('joinPublicTracking:response', res);
+    } else {
+      log('error', `❌ Suivi échoué (${ms}ms)`, res.error);
+    }
+  });
+}
+
+function leavePublicTracking() {
+  if (!checkSocket()) return;
+  const token = document.getElementById('suiviToken').value.trim();
+  socket.emit('leavePublicTracking', { token }, (res) => {
+    log(res.success ? 'success' : 'error', res.success ? '✅ Suivi quitté' : '❌ Erreur');
+  });
+}
+
+// ═══════════════════════════════════════════
+// GPS
+// ═══════════════════════════════════════════
+function sendPosition() {
+  if (!checkSocket()) return;
+  const trajetId = document.getElementById('trajetId').value.trim();
+  if (!trajetId) { log('error', '❌ Trajet ID requis'); return; }
+
+  const lat = parseFloat(document.getElementById('lat').value);
+  const lng = parseFloat(document.getElementById('lng').value);
+  const speed = parseInt(document.getElementById('speedRange').value);
+
+  const payload = {
+    trajetId,
+    latitude: lat,
+    longitude: lng,
+    altitude: 45,
+    accuracy: 5,
+    heading: 90,
+    speed,
+    speedAccuracy: 2,
+    timestamp: new Date().toISOString()
+  };
+
+  log('info', '📍 updatePosition', `lat:${lat} lng:${lng} speed:${speed}km/h`);
+  socket.emit('updatePosition', payload);
+  stats.sent++; updateStats();
+}
+
+function startTracking() {
+  if (!checkSocket()) return;
+  const trajetId = document.getElementById('trajetId').value.trim();
+  if (!trajetId) { log('error', '❌ Trajet ID requis'); return; }
+
+  log('info', '▶ startTripTracking', `trajetId: ${trajetId}`);
+  socket.emit('startTripTracking', { trajetId });
+  stats.sent++; updateStats();
+}
+
+function stopTracking() {
+  if (!checkSocket()) return;
+  const trajetId = document.getElementById('trajetId').value.trim();
+  if (!trajetId) { log('error', '❌ Trajet ID requis'); return; }
+
+  log('info', '⏹ stopTripTracking', `trajetId: ${trajetId}`);
+  socket.emit('stopTripTracking', { trajetId });
+  stats.sent++; updateStats();
+}
+
+function toggleAutoSim() {
+  if (autoSimRunning) {
+    clearInterval(autoSimInterval);
+    autoSimRunning = false;
+    document.getElementById('simActive').classList.remove('show');
+    log('warn', '⏸ Simulation arrêtée');
+  } else {
+    const trajetId = document.getElementById('trajetId').value.trim();
+    if (!trajetId) { log('error', '❌ Trajet ID requis pour la simulation'); return; }
+    if (!checkSocket()) return;
+
+    autoSimRunning = true;
+    simLat = parseFloat(document.getElementById('lat').value);
+    simLng = parseFloat(document.getElementById('lng').value);
+
+    document.getElementById('simActive').classList.add('show');
+    log('success', '▶ Simulation GPS démarrée', 'Envoi toutes les 3 secondes');
+
+    let step = 0;
+    autoSimInterval = setInterval(() => {
+      step++;
+      // Simuler un déplacement vers l'est
+      simLat += 0.0005 + (Math.random() * 0.0003);
+      simLng += 0.0008 + (Math.random() * 0.0004);
+
+      document.getElementById('lat').value = simLat.toFixed(6);
+      document.getElementById('lng').value = simLng.toFixed(6);
+
+      const speed = parseInt(document.getElementById('speedRange').value);
+
+      socket.emit('updatePosition', {
+        trajetId,
+        latitude: simLat,
+        longitude: simLng,
+        altitude: 45,
+        accuracy: 4,
+        heading: 90,
+        speed,
+        speedAccuracy: 1,
+        timestamp: new Date().toISOString()
+      });
+
+      document.getElementById('simText').textContent = `Simulation · Step ${step} · lat:${simLat.toFixed(4)}`;
+      stats.sent++; updateStats();
+    }, 3000);
+  }
+}
+
+// ═══════════════════════════════════════════
+// TESTS AUTOMATIQUES
+// ═══════════════════════════════════════════
+const TEST_SUITE = [
+  {
+    id: 'conn',
+    name: 'Connexion Socket.IO',
+    desc: 'Vérifier que la connexion WebSocket s\'établit',
+    run: () => new Promise((resolve, reject) => {
+      if (socket?.connected) resolve('Connecté: ' + socket.id);
+      else reject('Socket non connecté');
+    })
+  },
+  {
+    id: 'ack',
+    name: 'connection:ack reçu',
+    desc: 'Vérifier que le serveur envoie l\'acquittement',
+    run: () => new Promise((resolve, reject) => {
+      const found = receivedEvents.find(e => e.event === 'connection:ack');
+      if (found) resolve('ACK reçu: authenticated=' + found.data.authenticated);
+      else reject('Aucun connection:ack reçu');
+    })
+  },
+  {
+    id: 'ping',
+    name: 'Ping / Pong',
+    desc: 'Mesurer la latence avec le serveur',
+    run: () => new Promise((resolve, reject) => {
+      if (!socket?.connected) return reject('Non connecté');
+      const t0 = Date.now();
+      socket.emit('ping');
+      socket.once('pong', () => {
+        const ms = Date.now()-t0;
+        resolve(`Latence: ${ms}ms`);
+      });
+      setTimeout(() => reject('Timeout ping'), 3000);
+    })
+  },
+  {
+    id: 'status',
+    name: 'status:info',
+    desc: 'Récupérer les informations de statut',
+    run: () => new Promise((resolve, reject) => {
+      if (!socket?.connected) return reject('Non connecté');
+      socket.emit('status:info', {}, (res) => {
+        if (res.success) resolve(`Auth: ${res.status.authenticated}`);
+        else reject(res.error);
+      });
+      setTimeout(() => reject('Timeout'), 3000);
+    })
+  },
+  {
+    id: 'auth',
+    name: 'Authentification JWT',
+    desc: 'Vérifier que le token JWT est accepté',
+    run: () => new Promise((resolve, reject) => {
+      const token = document.getElementById('jwtToken').value.trim();
+      if (!token) return reject('Aucun token saisi');
+      if (!socket?.connected) return reject('Non connecté');
+      socket.emit('authenticate', { token }, (res) => {
+        if (res.success) resolve(`Utilisateur: ${res.userInfo?.prenom} ${res.userInfo?.nom}`);
+        else reject(res.error);
+      });
+      setTimeout(() => reject('Timeout'), 5000);
+    })
+  },
+  {
+    id: 'join_public',
+    name: 'joinPublicTracking',
+    desc: 'Rejoindre le suivi public avec un token',
+    run: () => new Promise((resolve, reject) => {
+      const token = document.getElementById('suiviToken').value.trim();
+      if (!token) return reject('Aucun token de suivi saisi');
+      if (!socket?.connected) return reject('Non connecté');
+      socket.emit('joinPublicTracking', { token }, (res) => {
+        if (res.success) resolve(`Trajet: ${res.trajet?.statut}`);
+        else reject(res.error);
+      });
+      setTimeout(() => reject('Timeout'), 5000);
+    })
+  },
+  {
+    id: 'invalid_token',
+    name: 'Token invalide → erreur',
+    desc: 'Vérifier que les tokens invalides sont rejetés',
+    run: () => new Promise((resolve, reject) => {
+      if (!socket?.connected) return reject('Non connecté');
+      socket.emit('joinPublicTracking', { token: 'INVALID' }, (res) => {
+        if (!res.success && res.error === 'TOKEN_INVALIDE') resolve('Token court rejeté ✓');
+        else if (!res.success) resolve(`Erreur retournée: ${res.error}`);
+        else reject('Token invalide accepté — problème de sécurité !');
+      });
+      setTimeout(() => reject('Timeout'), 3000);
+    })
+  },
+  {
+    id: 'start_tracking',
+    name: 'startTripTracking',
+    desc: 'Démarrer le suivi GPS (nécessite auth + trajetId valide)',
+    run: () => new Promise((resolve, reject) => {
+      const trajetId = document.getElementById('trajetId').value.trim();
+      if (!trajetId) return reject('Trajet ID requis');
+      if (!socket?.connected) return reject('Non connecté');
+      socket.emit('startTripTracking', { trajetId });
+      // Écouter la réponse
+      const onAck = (data) => {
+        if (data.trajetId === trajetId) { socket.off('trackingStarted', onAck); resolve('Tracking démarré ✓'); }
+      };
+      const onErr = (data) => {
+        if (data.type === 'TRACKING_ERROR') { socket.off('error', onErr); reject(data.message); }
+      };
+      socket.on('trackingStarted', onAck);
+      socket.on('error', onErr);
+      setTimeout(() => {
+        socket.off('trackingStarted', onAck);
+        socket.off('error', onErr);
+        reject('Timeout — vérifier trajetId et auth');
+      }, 5000);
+    })
+  },
+  {
+    id: 'send_position',
+    name: 'updatePosition',
+    desc: 'Envoyer une position GPS (nécessite tracking actif)',
+    run: () => new Promise((resolve, reject) => {
+      const trajetId = document.getElementById('trajetId').value.trim();
+      if (!trajetId) return reject('Trajet ID requis');
+      if (!socket?.connected) return reject('Non connecté');
+      socket.emit('updatePosition', {
+        trajetId, latitude: 5.36, longitude: -3.96,
+        speed: 40, heading: 90, accuracy: 5,
+        timestamp: new Date().toISOString()
+      });
+      resolve('Position envoyée (vérifier les logs pour la confirmation)');
+    })
+  },
+  {
+    id: 'leave_public',
+    name: 'leavePublicTracking',
+    desc: 'Quitter proprement le suivi public',
+    run: () => new Promise((resolve, reject) => {
+      const token = document.getElementById('suiviToken').value.trim();
+      if (!token) return reject('Token de suivi requis');
+      if (!socket?.connected) return reject('Non connecté');
+      socket.emit('leavePublicTracking', { token }, (res) => {
+        if (res.success) resolve('Suivi quitté ✓');
+        else reject(res.error || 'Erreur inconnue');
+      });
+      setTimeout(() => reject('Timeout'), 3000);
+    })
+  }
+];
+
+async function runAllTests() {
+  switchTab('tests', document.querySelectorAll('.tab')[1]);
+  renderTests('pending');
+  log('info', '🧪 Démarrage des tests...', `${TEST_SUITE.length} tests`);
+
+  stats.pass = 0; stats.fail = 0; updateStats();
+
+  for (let i = 0; i < TEST_SUITE.length; i++) {
+    const test = TEST_SUITE[i];
+    updateTestStatus(test.id, 'running');
+
+    try {
+      const result = await test.run();
+      updateTestStatus(test.id, 'pass', result);
+      log('success', `✅ ${test.name}`, result);
+      stats.pass++;
+    } catch (err) {
+      updateTestStatus(test.id, 'fail', err);
+      log('error', `❌ ${test.name}`, err.toString());
+      stats.fail++;
+    }
+
+    updateStats();
+    await sleep(300);
+  }
+
+  log('info', `🏁 Tests terminés`, `${stats.pass} ✅ / ${stats.fail} ❌`);
+}
+
+function renderTests(initialStatus = 'pending') {
+  const grid = document.getElementById('tab-tests');
+  grid.innerHTML = TEST_SUITE.map(t => `
+    <div class="test-item" id="test-${t.id}">
+      <div class="test-status pending" id="status-${t.id}">○</div>
+      <div>
+        <div class="test-name">${t.name}</div>
+        <div class="test-desc">${t.desc}</div>
+      </div>
+      <div class="test-badge pending" id="badge-${t.id}">EN ATTENTE</div>
+    </div>
+  `).join('');
+}
+
+function updateTestStatus(id, status, detail = '') {
+  const statusEl = document.getElementById(`status-${id}`);
+  const badgeEl  = document.getElementById(`badge-${id}`);
+  if (!statusEl) return;
+
+  const icons = { pass:'✓', fail:'✕', running:'⟳', pending:'○' };
+  statusEl.className = `test-status ${status}`;
+  statusEl.textContent = icons[status] || '○';
+
+  const labels = { pass:'PASS', fail:'FAIL', running:'…', pending:'EN ATTENTE' };
+  badgeEl.className = `test-badge ${status === 'running' ? 'pending' : status}`;
+  badgeEl.textContent = detail
+    ? (status === 'pass' ? detail.slice(0,30) : 'FAIL')
+    : labels[status];
+
+  if (status === 'fail' && detail) {
+    document.getElementById(`test-${id}`).title = detail;
+  }
+}
+
+// ═══════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════
+function log(type, title, detail = '') {
+  const panel = document.getElementById('tab-logs');
+  const icons = { success:'✅', error:'❌', info:'ℹ️', warn:'⚠️', event:'📡' };
+  const now = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+
+  const el = document.createElement('div');
+  el.className = `log-entry ${type}`;
+  el.innerHTML = `
+    <div class="log-icon">${icons[type] || '•'}</div>
+    <div class="log-body">
+      <div class="log-title">${title} <span class="log-time">${now}</span></div>
+      ${detail ? `<div class="log-detail">${detail}</div>` : ''}
+    </div>
+  `;
+
+  panel.appendChild(el);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function addEvent(eventName, data) {
+  receivedEvents.unshift({ event: eventName, data, time: new Date().toISOString() });
+  const panel = document.getElementById('tab-events');
+
+  const el = document.createElement('pre');
+  el.className = 'json-view';
+  el.textContent = `// ${eventName} · ${new Date().toLocaleTimeString()}\n${JSON.stringify(data, null, 2)}`;
+  panel.insertBefore(el, panel.firstChild);
+}
+
+function setConnStatus(cls, text) {
+  const el = document.getElementById('connStatus');
+  el.className = 'conn-status ' + cls;
+  document.getElementById('connText').textContent = text;
+}
+
+function updateStats() {
+  document.getElementById('statSent').textContent     = stats.sent;
+  document.getElementById('statReceived').textContent = stats.received;
+  document.getElementById('statPass').textContent     = stats.pass;
+  document.getElementById('statFail').textContent     = stats.fail;
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+
+  document.getElementById('tab-logs').classList.remove('active');
+  document.getElementById('tab-tests').classList.remove('active');
+  document.getElementById('tab-events').classList.remove('active');
+
+  const target = document.getElementById(`tab-${name}`);
+  target.classList.add('active');
+}
+
+function clearLogs() {
+  document.getElementById('tab-logs').innerHTML = '';
+  document.getElementById('tab-events').innerHTML = '';
+  receivedEvents = [];
+  stats = { sent:0, received:0, pass:0, fail:0 };
+  updateStats();
+}
+
+function checkSocket() {
+  if (!socket?.connected) {
+    log('error', '❌ Non connecté', 'Connecte-toi d\'abord au serveur.');
+    return false;
+  }
+  return true;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Init
+renderTests();
+</script>
+</body>
+</html>

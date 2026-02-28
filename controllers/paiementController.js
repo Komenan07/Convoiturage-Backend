@@ -187,7 +187,7 @@ class PaiementController {
       if (methodePaiement !== 'ESPECES') {
         paiement.initierPaiementMobile(
           numeroTelephone, 
-          operateur || methodePaiement.replace('_MONEY', '')
+          operateur || null
         );
       }
 

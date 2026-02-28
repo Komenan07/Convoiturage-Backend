@@ -2,6 +2,7 @@ const Reservation = require('../../models/Reservation');
 const Trajet = require('../../models/Trajet');
 //const Utilisateur = require('../../models/Utilisateur');
 const { redisUtils } = require('../../config/redis');
+const TrajetPartage = require('../../models/TrajetPartage');
 
 module.exports = (socket, io) => {
 
@@ -225,6 +226,29 @@ module.exports = (socket, io) => {
         position: positionUpdate,
         passagerUpdates
       });
+      // Diffuser aux proches connectés via lien public ──
+      try {
+        const partagesActifs = await TrajetPartage.findActifsByTrajet(trajetId);
+
+        for (const partage of partagesActifs) {
+          const etaArrivee = await calculateETA(
+            coordinates,
+            trajet.pointArrivee.coordonnees.coordinates,
+            vitesse
+          );
+
+          io.to(`suivi:${partage.token}`).emit('positionUpdate', {
+            trajetId,
+            position: positionUpdate,
+            eta: etaArrivee,
+            pointArrivee: trajet.pointArrivee,
+            statutTrajet: trajet.statutTrajet
+          });
+        }
+      } catch (err) {
+        // Ne pas bloquer le suivi principal si la diffusion aux proches échoue
+        console.warn('⚠️ Erreur diffusion proches:', err.message);
+      }
 
       // Vérifier si le conducteur est proche d'un point de prise en charge
       await checkProximityToPickupPoints(trajetId, coordinates, io);
@@ -356,7 +380,24 @@ module.exports = (socket, io) => {
         batchSync: true,
         positionsCount: positions.length
       });
-
+      // Diffuser aux proches via lien public
+      try {
+        const partagesActifs = await TrajetPartage.findActifsByTrajet(trajetId);
+        for (const partage of partagesActifs) {
+          const etaArrivee = await calculateETA(
+            coordinates,
+            trajet.pointArrivee.coordonnees.coordinates,
+            vitesse
+          );
+          io.to(`suivi:${partage.token}`).emit('positionUpdate', {
+            trajetId, position: positionUpdate,
+            eta: etaArrivee, pointArrivee: trajet.pointArrivee,
+            statutTrajet: trajet.statutTrajet
+          });
+        }
+      } catch (err) {
+        console.warn('⚠️ Erreur diffusion proches:', err.message);
+      }
       // Vérifier proximité points de prise en charge
       await checkProximityToPickupPoints(trajetId, coordinates, io);
 
@@ -542,7 +583,59 @@ module.exports = (socket, io) => {
       });
     }
   });
+  // Suivi public pour les proches (sans auth)
+socket.on('joinPublicTracking', async (data, ack = () => {}) => {
+  try {
+    const { token } = data || {};
+    if (!token || token.length < 10) return ack({ success: false, error: 'TOKEN_INVALIDE' });
 
+   
+    const partage = await TrajetPartage.findOne({ token, actif: true })
+      .populate({ path: 'trajetId', populate: { path: 'conducteurId', select: 'nom prenom photoProfil' } });
+
+    if (!partage || !partage.estValide()) return ack({ success: false, error: 'LIEN_EXPIRE_OU_INVALIDE' });
+
+    const trajet = partage.trajetId;
+    socket.join(`suivi:${token}`);
+    socket.suiviToken = token;
+    socket.suiviTrajetId = trajet._id.toString();
+    await partage.enregistrerVue();
+
+    const positionActuelle = await redisUtils.getUserPosition(trajet.conducteurId._id);
+
+    ack({
+      success: true,
+      trajet: {
+        _id: trajet._id,
+        statut: trajet.statutTrajet,
+        pointDepart: trajet.pointDepart,
+        pointArrivee: trajet.pointArrivee,
+        dateDepart: trajet.dateDepart,
+        heureDepart: trajet.heureDepart,
+        heureArriveePrevue: trajet.heureArriveePrevue,
+        distance: trajet.distance,
+        conducteur: {
+          nom: trajet.conducteurId?.nom,
+          prenom: trajet.conducteurId?.prenom,
+          photoProfil: trajet.conducteurId?.photoProfil
+        }
+      },
+      positionActuelle,
+      expiresAt: partage.expiresAt
+    });
+
+    console.log(`👁️ Proche connecté au suivi du trajet ${trajet._id}`);
+  } catch (error) {
+    console.error('Erreur joinPublicTracking:', error);
+    ack({ success: false, error: 'ERREUR_SERVEUR' });
+  }
+});
+
+socket.on('leavePublicTracking', async (data, ack = () => {}) => {
+  const { token } = data || {};
+  if (token) socket.leave(`suivi:${token}`);
+  ack({ success: true });
+});
   console.log(`📍 GPS handler initialisé pour ${socket.user.nom}`);
 };
 
