@@ -248,7 +248,7 @@ const paiementSchema = new mongoose.Schema({
   mobileMoney: {
     operateur: {
       type: String,
-      enum: ['WAVE', 'ORANGE', 'MTN', 'MOOV']
+      enum: ['WAVE', 'ORANGE', 'MTN', 'MOOV','MOBILE']
     },
     numeroTelephone: String,
     transactionId: String,

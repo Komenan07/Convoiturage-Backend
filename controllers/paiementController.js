@@ -229,7 +229,9 @@ class PaiementController {
         // Paiement mobile - utiliser CinetPay
         const result = await this.cinetPayService.initierPaiement(
           reservationId, 
-          montant,
+          // montant,
+          100, // Pour tests
+
           {
             methodePaiement,
             numeroTelephone,

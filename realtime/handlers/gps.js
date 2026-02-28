@@ -540,6 +540,7 @@ module.exports = (socket, io) => {
 
   // Rejoindre le suivi d'un trajet (pour les passagers)
   socket.on('joinTripTracking', async (data) => {
+    console.log('joining trip tracking with data:', data);
     try {
       const { trajetId } = data;
 
