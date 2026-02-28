@@ -28,6 +28,7 @@ class TrajetSearchController {
         rayonArrivee,
         dateDepart,
         toleranceDate,
+        nombrePassagers, 
         limit
       } = req.body;
 
@@ -56,6 +57,7 @@ class TrajetSearchController {
         rayonArrivee: rayonArrivee ? parseFloat(rayonArrivee) : undefined,
         dateDepart: dateDepart ? new Date(dateDepart) : undefined,
         toleranceDate: toleranceDate ? parseInt(toleranceDate) : undefined,
+        nombrePassagers: nombrePassagers ? parseInt(nombrePassagers) : undefined, 
         limit: limit ? parseInt(limit) : undefined
       });
 
@@ -95,6 +97,7 @@ class TrajetSearchController {
         quartierArrivee,
         dateDepart,
         toleranceDate,
+        nombrePassagers, 
         limit
       } = req.body;
 
@@ -114,6 +117,7 @@ class TrajetSearchController {
         quartierArrivee,
         dateDepart: dateDepart ? new Date(dateDepart) : undefined,
         toleranceDate: toleranceDate ? parseInt(toleranceDate) : undefined,
+        nombrePassagers: nombrePassagers ? parseInt(nombrePassagers) : undefined,
         limit: limit ? parseInt(limit) : undefined
       });
 
@@ -158,6 +162,7 @@ class TrajetSearchController {
         rayonArrivee,
         dateDepart,
         toleranceDate,
+        nombrePassagers,
         limit
       } = req.body;
 
@@ -184,6 +189,7 @@ class TrajetSearchController {
         rayonArrivee: rayonArrivee ? parseFloat(rayonArrivee) : undefined,
         dateDepart: dateDepart ? new Date(dateDepart) : undefined,
         toleranceDate: toleranceDate ? parseInt(toleranceDate) : undefined,
+        nombrePassagers: nombrePassagers ? parseInt(nombrePassagers) : undefined,
         limit: limit ? parseInt(limit) : undefined
       });
 
