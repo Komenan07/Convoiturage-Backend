@@ -134,6 +134,13 @@ class GeoSearchService {
         rayonArrivee = this.config.RAYON_DEFAUT_KM,
         dateDepart,
         toleranceDate = this.config.TOLERANCE_DATE_DEFAUT_HEURES,
+        nombrePassagers,   
+        prixMax,           
+        noteMin,           
+        musique,           
+        climatisation,     
+        bagages,           
+        nonFumeur,        
         limit = this.config.LIMITE_RESULTATS_DEFAUT
       } = params;
 
@@ -161,7 +168,13 @@ class GeoSearchService {
       // 2. Filtrer par statut
       pipeline.push({
         $match: {
-          statutTrajet: { $in: ['PROGRAMME', 'EN_COURS'] }
+          statutTrajet: { $in: ['PROGRAMME', 'EN_COURS'] },
+          ...(nombrePassagers && { nombrePlacesDisponibles: { $gte: nombrePassagers } }),
+          ...(prixMax && { prixParPassager: { $lte: prixMax } }),
+          ...(musique === true && { 'preferences.musique': true }),
+          ...(climatisation === true && { 'preferences.climatisation': true }),
+          ...(bagages === true && { 'preferences.bagages': true }),
+          ...(nonFumeur === true && { 'preferences.nonFumeur': true }),
         }
       });
 
@@ -358,6 +371,13 @@ class GeoSearchService {
         quartierArrivee,
         dateDepart,
         toleranceDate = this.config.TOLERANCE_DATE_DEFAUT_HEURES,
+        nombrePassagers,   
+        prixMax,           
+        noteMin,           
+        musique,           
+        climatisation,     
+        bagages,           
+        nonFumeur,         
         limit = this.config.LIMITE_RESULTATS_DEFAUT
       } = params;
 
@@ -378,6 +398,12 @@ class GeoSearchService {
       if (quartierArrivee) {
         query['pointArrivee.quartier'] = quartierArrivee;
       }
+      if (nombrePassagers) query.nombrePlacesDisponibles = { $gte: nombrePassagers };
+      if (prixMax) query.prixParPassager = { $lte: prixMax };
+      if (musique === true) query['preferences.musique'] = true;
+      if (climatisation === true) query['preferences.climatisation'] = true;
+      if (bagages === true) query['preferences.bagages'] = true;
+      if (nonFumeur === true) query['preferences.nonFumeur'] = true;
 
       // Filtrage par date
       if (dateDepart) {
@@ -436,21 +462,28 @@ class GeoSearchService {
     try {
       logger.info('🧠 Recherche intelligente de trajets...');
 
-      const {
-        departLat,
-        departLng,
-        arriveeLat,
-        arriveeLng,
-        communeDepart,
-        communeArrivee,
-        quartierDepart,
-        quartierArrivee,
-        rayonDepart,
-        rayonArrivee,
-        dateDepart,
-        toleranceDate,
-        limit
-      } = params;
+       const {
+      departLat,
+      departLng,
+      arriveeLat,
+      arriveeLng,
+      communeDepart,
+      communeArrivee,
+      quartierDepart,
+      quartierArrivee,
+      rayonDepart,
+      rayonArrivee,
+      dateDepart,
+      toleranceDate,
+      nombrePassagers,
+      prixMax,
+      noteMin,
+      musique,
+      climatisation,
+      bagages,
+      nonFumeur,
+      limit
+    } = params;
 
       let result;
 
@@ -466,6 +499,13 @@ class GeoSearchService {
             rayonArrivee: rayonArrivee ? parseFloat(rayonArrivee) : this.config.RAYON_DEFAUT_KM,
             dateDepart,
             toleranceDate: toleranceDate ? parseInt(toleranceDate) : this.config.TOLERANCE_DATE_DEFAUT_HEURES,
+            nombrePassagers,  
+            prixMax,          
+            noteMin,          
+            musique,          
+            climatisation,    
+            bagages,          
+            nonFumeur,        
             limit: limit ? parseInt(limit) : this.config.LIMITE_RESULTATS_DEFAUT
           });
 
@@ -480,6 +520,13 @@ class GeoSearchService {
               quartierArrivee,
               dateDepart,
               toleranceDate: toleranceDate ? parseInt(toleranceDate) : this.config.TOLERANCE_DATE_DEFAUT_HEURES,
+              nombrePassagers,  
+              prixMax,          
+              noteMin,          
+              musique,          
+              climatisation,    
+              bagages,          
+              nonFumeur,       
               limit: limit ? parseInt(limit) : this.config.LIMITE_RESULTATS_DEFAUT
             });
             
@@ -498,6 +545,13 @@ class GeoSearchService {
               quartierArrivee,
               dateDepart,
               toleranceDate: toleranceDate ? parseInt(toleranceDate) : this.config.TOLERANCE_DATE_DEFAUT_HEURES,
+              nombrePassagers,  
+              prixMax,          
+              noteMin,          
+              musique,          
+              climatisation,    
+              bagages,          
+              nonFumeur,       
               limit: limit ? parseInt(limit) : this.config.LIMITE_RESULTATS_DEFAUT
             });
             
@@ -518,6 +572,13 @@ class GeoSearchService {
           quartierArrivee,
           dateDepart,
           toleranceDate: toleranceDate ? parseInt(toleranceDate) : this.config.TOLERANCE_DATE_DEFAUT_HEURES,
+          nombrePassagers,  
+          prixMax,          
+          noteMin,          
+          musique,          
+          climatisation,    
+          bagages,          
+          nonFumeur,       
           limit: limit ? parseInt(limit) : this.config.LIMITE_RESULTATS_DEFAUT
         });
       }
