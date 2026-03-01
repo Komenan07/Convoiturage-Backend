@@ -29,6 +29,12 @@ class TrajetSearchController {
         dateDepart,
         toleranceDate,
         nombrePassagers, 
+        prixMax,        
+        noteMin,        
+        musique,        
+        climatisation,  
+        bagages,        
+        nonFumeur,      
         limit
       } = req.body;
 
@@ -58,6 +64,12 @@ class TrajetSearchController {
         dateDepart: dateDepart ? new Date(dateDepart) : undefined,
         toleranceDate: toleranceDate ? parseInt(toleranceDate) : undefined,
         nombrePassagers: nombrePassagers ? parseInt(nombrePassagers) : undefined, 
+        prixMax: prixMax ? parseFloat(prixMax) : undefined,
+        noteMin: noteMin ? parseFloat(noteMin) : undefined,
+        musique: musique !== undefined ? musique === 'true' || musique === true : undefined,
+        climatisation: climatisation !== undefined ? climatisation === 'true' || climatisation === true : undefined,
+        bagages: bagages !== undefined ? bagages === 'true' || bagages === true : undefined,
+        nonFumeur: nonFumeur !== undefined ? nonFumeur === 'true' || nonFumeur === true : undefined,
         limit: limit ? parseInt(limit) : undefined
       });
 
@@ -98,6 +110,12 @@ class TrajetSearchController {
         dateDepart,
         toleranceDate,
         nombrePassagers, 
+        prixMax,        
+        noteMin,        
+        musique,        
+        climatisation,  
+        bagages,        
+        nonFumeur,      
         limit
       } = req.body;
 
@@ -118,6 +136,12 @@ class TrajetSearchController {
         dateDepart: dateDepart ? new Date(dateDepart) : undefined,
         toleranceDate: toleranceDate ? parseInt(toleranceDate) : undefined,
         nombrePassagers: nombrePassagers ? parseInt(nombrePassagers) : undefined,
+        prixMax: prixMax ? parseFloat(prixMax) : undefined,
+        noteMin: noteMin ? parseFloat(noteMin) : undefined,
+        musique: musique !== undefined ? musique === 'true' || musique === true : undefined,
+        climatisation: climatisation !== undefined ? climatisation === 'true' || climatisation === true : undefined,
+        bagages: bagages !== undefined ? bagages === 'true' || bagages === true : undefined,
+        nonFumeur: nonFumeur !== undefined ? nonFumeur === 'true' || nonFumeur === true : undefined,
         limit: limit ? parseInt(limit) : undefined
       });
 
@@ -163,6 +187,12 @@ class TrajetSearchController {
         dateDepart,
         toleranceDate,
         nombrePassagers,
+        prixMax,
+        noteMin,
+        musique, 
+        climatisation,
+        bagages, 
+        nonFumeur, 
         limit
       } = req.body;
 
@@ -190,6 +220,12 @@ class TrajetSearchController {
         dateDepart: dateDepart ? new Date(dateDepart) : undefined,
         toleranceDate: toleranceDate ? parseInt(toleranceDate) : undefined,
         nombrePassagers: nombrePassagers ? parseInt(nombrePassagers) : undefined,
+        prixMax: prixMax ? parseFloat(prixMax) : undefined,                                                          
+        noteMin: noteMin ? parseFloat(noteMin) : undefined,                                                          
+        musique: musique !== undefined ? musique === 'true' || musique === true : undefined,                         
+        climatisation: climatisation !== undefined ? climatisation === 'true' || climatisation === true : undefined, 
+        bagages: bagages !== undefined ? bagages === 'true' || bagages === true : undefined,                         
+        nonFumeur: nonFumeur !== undefined ? nonFumeur === 'true' || nonFumeur === true : undefined,                 
         limit: limit ? parseInt(limit) : undefined
       });
 
