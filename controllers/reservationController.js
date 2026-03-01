@@ -187,6 +187,7 @@ class ReservationController {
           {
             reservationId: nouvelleReservation._id.toString(),
             trajetId: trajetId.toString(),
+            conducteurId: trajet.conducteurId._id.toString(), 
             passagerNom: passager.nom,
             passagerPrenom: passager.prenom,
             nombrePlaces: nombrePlacesReservees,

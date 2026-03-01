@@ -287,8 +287,17 @@ class GeoSearchService {
       });
 
       pipeline.push({
-        $unwind: '$conducteurInfo'
-      });
+  $unwind: '$conducteurInfo'
+});
+
+if (noteMin) {
+  pipeline.push({
+    $match: {
+      'conducteurInfo.noteGlobale': { $gte: noteMin }
+    }
+  });
+}
+
 
       // 10. Formater les résultats
       pipeline.push({
@@ -422,16 +431,20 @@ class GeoSearchService {
       }
 
       const trajets = await Trajet.find(query)
-        .populate('conducteurId', 'nom prenom photo noteGlobale nombreEvaluations telephoneVerifie scoreConfiance')
-        .sort({ dateDepart: 1, prixParPassager: 1 })
-        .limit(limit);
+      .populate('conducteurId', 'nom prenom photo noteGlobale nombreEvaluations telephoneVerifie scoreConfiance')
+      .sort({ dateDepart: 1, prixParPassager: 1 })
+      .limit(limit);
 
-      logger.info(`✅ ${trajets.length} trajet(s) trouvé(s) par commune`);
+      const trajetsFiltres = noteMin
+      ? trajets.filter(t => t.conducteurId?.noteGlobale >= noteMin)
+      : trajets;
+
+     logger.info(`✅ ${trajetsFiltres.length} trajet(s) trouvé(s) par commune`);
 
       return {
-        success: true,
-        count: trajets.length,
-        trajets,
+         success: true,
+        count: trajetsFiltres.length,
+        trajets: trajetsFiltres,
         methode: 'commune',
         parametres: {
           communeDepart,

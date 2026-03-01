@@ -542,7 +542,7 @@ ReservationSchema.post('save', async function(doc) {
       // ===== RÉSERVATION REFUSÉE =====
       if (doc.isModified('statutReservation') && doc.statutReservation === 'REFUSEE') {
         console.log('❌ Réservation refusée:', doc._id);
-        
+        const trajetRefus = await Trajet.findById(doc.trajetId).select('conducteurId'); 
         await firebaseService.sendToUser(
           doc.passagerId,
           {
@@ -552,6 +552,7 @@ ReservationSchema.post('save', async function(doc) {
               type: 'RESERVATION_REFUSED',
               reservationId: doc._id.toString(),
               trajetId: doc.trajetId.toString(),
+              conducteurId: trajetRefus?.conducteurId?.toString() || '',
               motif: doc.motifRefus || 'Non spécifié'
             },
             channelId: 'reservations',
@@ -1049,6 +1050,7 @@ ReservationSchema.methods.notifierConducteur = async function() {
       {
         rideId: this.trajetId.toString(),
         reservationId: this._id.toString(),
+        conducteurId: trajet.conducteurId._id.toString(),
         depart: trajet.pointDepart.nom,
         arrivee: trajet.pointArrivee.nom,
         passagerNom: `${passager.prenom} ${passager.nom}`,

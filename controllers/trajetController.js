@@ -307,6 +307,7 @@ async demarrerTrajet(req, res, next) {
           data: {
             type: 'RIDE_STARTED',
             trajetId: id,
+            conducteurId: trajet.conducteurId.toString(),
             screen: 'RideDetails'
           },
           channelId: 'trajets'
@@ -1977,6 +1978,7 @@ async gererNotificationsStatut(trajet, ancienStatut, nouveauStatut) {
             data: {
               type: 'RIDE_CANCELLED',
               trajetId: trajet._id.toString(),
+              conducteurId: trajet.conducteurId.toString(),
               destination: trajet.pointArrivee?.adresse || '',
               screen: 'ReservationDetails'
             },
@@ -2011,6 +2013,7 @@ async envoyerNotificationsAnnulation(trajet, motif) {
           data: {
             type: 'RIDE_CANCELLED',
             trajetId: trajet._id.toString(),
+            conducteurId: trajet.conducteurId.toString(),
             destination: trajet.pointArrivee?.adresse || '',
             reason: motif || '',
             screen: 'ReservationDetails'
