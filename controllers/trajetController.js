@@ -1942,15 +1942,33 @@ _attachIsExpired(docs) {
     const heureDepart = obj.heureDepart;
     const now = new Date();
     
-    if (dateDepart && heureDepart) {
-      const [heures, minutes] = heureDepart.split(':').map(Number);
-      const dateDepartComplete = new Date(dateDepart);
-      dateDepartComplete.setUTCHours(heures, minutes, 0, 0);  // ✅ CORRECTION : setUTCHours
-      
-      obj.isExpired = (obj.statutTrajet === 'EXPIRE') || 
-                      (dateDepartComplete < now && obj.statutTrajet === 'PROGRAMME');
-    } else if (dateDepart && !heureDepart) {
-      obj.isExpired = (obj.statutTrajet === 'EXPIRE') || (dateDepart < now && obj.statutTrajet === 'PROGRAMME');
+    if (dateDepart) {
+      // construire date de référence en prenant l'arrivée si disponible
+      let referenceDate = null;
+      if (obj.heureArriveePrevue) {
+        const [hArr, mArr] = obj.heureArriveePrevue.split(':').map(Number);
+        referenceDate = new Date(dateDepart);
+        referenceDate.setUTCHours(hArr, mArr, 0, 0);
+
+        if (obj.heureDepart) {
+          const [hDep, mDep] = obj.heureDepart.split(':').map(Number);
+          // arrivée précédant le départ signifie traversée de minuit
+          if (hArr < hDep || (hArr === hDep && mArr < mDep)) {
+            referenceDate.setDate(referenceDate.getDate() + 1);
+          }
+        }
+      } else if (heureDepart) {
+        const [h, m] = heureDepart.split(':').map(Number);
+        referenceDate = new Date(dateDepart);
+        referenceDate.setUTCHours(h, m, 0, 0);  // ✅ CORRECTION : setUTCHours
+      }
+
+      if (referenceDate) {
+        obj.isExpired = (obj.statutTrajet === 'EXPIRE') || 
+                        (referenceDate < now && obj.statutTrajet === 'PROGRAMME');
+      } else {
+        obj.isExpired = (obj.statutTrajet === 'EXPIRE');
+      }
     } else {
       obj.isExpired = obj.statutTrajet === 'EXPIRE';
     }

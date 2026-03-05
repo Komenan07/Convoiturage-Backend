@@ -821,20 +821,50 @@ trajetSchema.methods.estExpire = function() {
     return new Date() > this.dateExpiration;
   }
 
-  // Sinon, vérifier la date + heure de départ pour un trajet PROGRAMME
-  if (!this.dateDepart || !this.heureDepart) {
+  // Sinon, construire une "date de référence" à partir des heures fournies
+  // Si l'heure d'arrivée prévue est renseignée, elle prend le pas sur le départ.
+  if (!this.dateDepart) {
     return false;
   }
 
   try {
     const maintenant = new Date();
-    const [heures, minutes] = this.heureDepart.split(':').map(Number);
-    const dateDepartComplete = new Date(this.dateDepart);
-    dateDepartComplete.setUTCHours(heures, minutes, 0, 0); // UTC
 
-    // Trajet expiré si départ passé ET statut PROGRAMME
-    return dateDepartComplete < maintenant && this.statutTrajet === 'PROGRAMME';
-    
+    // fonction utilitaire locale pour créer une date UTC à partir du jour de départ
+    const makeUtc = (hours, mins) => {
+      const d = new Date(this.dateDepart);
+      d.setUTCHours(hours, mins, 0, 0);
+      return d;
+    };
+
+    let referenceDate = null;
+
+    if (this.heureArriveePrevue) {
+      const [hArr, mArr] = this.heureArriveePrevue.split(':').map(Number);
+      // si heure de départ disponible, servir de base pour déterminer si l'arrivée tombe le lendemain
+      if (this.heureDepart) {
+        const [hDep, mDep] = this.heureDepart.split(':').map(Number);
+        referenceDate = makeUtc(hArr, mArr);
+        // arrivée avant le départ ==> la course passe minuit
+        if (hArr < hDep || (hArr === hDep && mArr < mDep)) {
+          referenceDate.setDate(referenceDate.getDate() + 1);
+        }
+      } else {
+        // sans heure de départ, on se contente de l'heure d'arrivée même si elle pourrait être le lendemain
+        referenceDate = makeUtc(hArr, mArr);
+      }
+    } else if (this.heureDepart) {
+      const [h, m] = this.heureDepart.split(':').map(Number);
+      referenceDate = makeUtc(h, m);
+    }
+
+    if (!referenceDate) {
+      return false;
+    }
+
+    // Trajet expiré si la date de référence est passée et que le statut est encore PROGRAMME
+    return referenceDate < maintenant && this.statutTrajet === 'PROGRAMME';
+
   } catch (error) {
     console.error('❌ Erreur estExpire:', error.message);
     return false;
@@ -1183,27 +1213,50 @@ trajetSchema.virtual('isExpired').get(function() {
     return true;
   }
   
-  // Vérifier si la date + heure de départ sont passées
-  if (!this.dateDepart || !this.heureDepart) {
+  // Vérifier si la date + heure de départ/arrivée sont passées
+  if (!this.dateDepart) {
     return false;
   }
   
   try {
-    // ✅ Construire la date complète en UTC (cohérent avec la création)
-    const dateDepartComplete = new Date(this.dateDepart);
-    const [h, m] = (this.heureDepart || '00:00').split(':').map(Number);
-    dateDepartComplete.setUTCHours(h, m, 0, 0);  // ✅ UTC
-
     const maintenant = new Date();
-    const isExp = dateDepartComplete < maintenant && this.statutTrajet === 'PROGRAMME';
+
+    // helper pour construire date UTC
+    const makeUtc = (hours, mins) => {
+      const d = new Date(this.dateDepart);
+      d.setUTCHours(hours, mins, 0, 0);
+      return d;
+    };
+
+    let referenceDate = null;
+
+    if (this.heureArriveePrevue) {
+      const [hArr, mArr] = this.heureArriveePrevue.split(':').map(Number);
+      referenceDate = makeUtc(hArr, mArr);
+      if (this.heureDepart) {
+        const [hDep, mDep] = this.heureDepart.split(':').map(Number);
+        if (hArr < hDep || (hArr === hDep && mArr < mDep)) {
+          referenceDate.setDate(referenceDate.getDate() + 1);
+        }
+      }
+    } else if (this.heureDepart) {
+      const [h, m] = this.heureDepart.split(':').map(Number);
+      referenceDate = makeUtc(h, m);
+    }
+
+    if (!referenceDate) {
+      return false;
+    }
+
+    const isExp = referenceDate < maintenant && this.statutTrajet === 'PROGRAMME';
 
     // 🔍 DEBUG - Retirer après correction
     if (process.env.NODE_ENV === 'development') {
       console.log('🕐 isExpired calc:', {
         trajetId: this._id,
-        dateDepartComplete: dateDepartComplete.toISOString(),
+        referenceDate: referenceDate.toISOString(),
         maintenant: maintenant.toISOString(),
-        diff: Math.round((dateDepartComplete - maintenant) / 60000) + ' min',
+        diff: Math.round((referenceDate - maintenant) / 60000) + ' min',
         isExpired: isExp
       });
     }

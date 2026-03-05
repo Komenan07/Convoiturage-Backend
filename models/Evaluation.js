@@ -826,16 +826,24 @@ evaluationSchema.statics.detecterConducteursProches = async function(trajetId, l
 };
 
 evaluationSchema.statics.detecterLangue = function(texte) {
-  if (!texte || texte.trim().length < 10) {
+  if (!texte || texte.trim().length < 2) {
     return { langue: 'NON_DETECTE', confiance: 0, estFrancais: false };
   }
 
-  const motsFrancais = [
+    const motsFrancais = [
     'merci', 'bien', 'très', 'bon', 'super', 'excellent', 'sympathique',
     'ponctuel', 'propre', 'conduite', 'respect', 'agréable', 'confortable',
     'voyage', 'trajet', 'chauffeur', 'conducteur', 'véhicule', 'voiture',
     'est', 'était', 'a', 'le', 'la', 'les', 'un', 'une', 'des', 'du',
-    'pour', 'avec', 'sans', 'dans', 'sur', 'sous', 'mais', 'ou', 'et'
+    'pour', 'avec', 'sans', 'dans', 'sur', 'sous', 'mais', 'ou', 'et',
+    'satisfait', 'content', 'sympa', 'rapide', 'correct', 'nickel',
+    'genial', 'génial', 'formidable', 'recommande', 'recommandé',
+    'serieux', 'sérieux', 'professionnel', 'aimable', 'courtois',
+    'parfait', 'bravo', 'top', 'impeccable', 'fiable', 'efficace',
+    'cool', 'convivial', 'accueillant', 'disponible', 'serviable',
+    'déçu', 'mauvais', 'nul', 'retard', 'problème', 'difficile',
+    'je', 'il', 'elle', 'nous', 'vous', 'ils', 'elles', 'mon', 'ma',
+    'son', 'sa', 'notre', 'votre', 'leur', 'pas', 'ne', 'que', 'qui', 'ok'
   ];
 
   const accents = /[àâäéèêëïîôùûüÿæœç]/i;

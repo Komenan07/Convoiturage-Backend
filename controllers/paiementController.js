@@ -517,7 +517,8 @@ class PaiementController {
  */
 async initierRecharge(req, res) {
   try {
-    const { montant, methodePaiement } = req.body;
+    const { montant } = req.body;
+    let { methodePaiement } = req.body; // will be normalized further down
     const userId = req.user.userId;
 
     // Vérifier utilisateur
@@ -552,15 +553,23 @@ async initierRecharge(req, res) {
       });
     }
 
-    // Validation méthode de paiement
+    // Validation méthode de paiement (on normalise pour tolérer
+    // différentes représentations envoyées par le frontend)
     const methodesValides = ['MOBILE_MONEY'];
-    if (!methodesValides.includes(methodePaiement)) {
+    const normal = (methodePaiement || '')
+      .toString()
+      .trim()
+      .toUpperCase()
+      .replace(/[-\s]+/g, '_');
+    if (!methodesValides.includes(normal)) {
       return res.status(400).json({
         success: false,
         message: 'Méthode de paiement non supportée',
         methodesAcceptees: methodesValides
       });
     }
+    // remplacer la valeur par sa forme normalisée pour stockage
+    methodePaiement = normal;
 
     // Vérifier limites quotidiennes
     const limiteQuotidienne = await this.verifierLimitesRecharge(userId, montant);

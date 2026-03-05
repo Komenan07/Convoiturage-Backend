@@ -8,7 +8,9 @@ class TwilioService {
     // Configuration
     this.accountSid = process.env.TWILIO_ACCOUNT_SID;
     this.authToken = process.env.TWILIO_AUTH_TOKEN;
-    this.phoneNumber = process.env.TWILIO_PHONE_NUMBER;
+    // ✅ FIX : deux variables distinctes pour SMS et WhatsApp
+    this.phoneNumber = process.env.TWILIO_SMS_NUMBER;          // Ex: +12025551234 (votre numéro SMS Twilio acheté)
+    this.whatsappFrom = process.env.TWILIO_WHATSAPP_FROM;      // Ex: whatsapp:+14155238886 (sandbox) ou votre numéro WhatsApp Business
     this.verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
     
     // Options
@@ -42,13 +44,23 @@ class TwilioService {
    * @private
    */
   _initialize() {
-    if (!this.accountSid || !this.authToken || !this.phoneNumber) {
+    // ✅ FIX : vérifier les deux numéros séparément
+    if (!this.accountSid || !this.authToken || (!this.phoneNumber && !this.whatsappFrom)) {
       logger.warn('⚠️ Configuration Twilio incomplète - Mode mock activé', {
         hasSid: !!this.accountSid,
         hasToken: !!this.authToken,
-        hasPhone: !!this.phoneNumber
+        hasSmsNumber: !!this.phoneNumber,
+        hasWhatsappFrom: !!this.whatsappFrom
       });
       this.mockMode = true;
+    }
+
+    // si WhatsApp est configuré, insister sur le préfixe
+    if (this.whatsappFrom && !this.whatsappFrom.startsWith('whatsapp:')) {
+      logger.warn('Le paramètre TWILIO_WHATSAPP_FROM semble incorrect (pas de "whatsapp:"), correction automatique');
+      // enlever un + éventuel et ajouter whatsapp:
+      const clean = this.whatsappFrom.replace(/^\+/, '');
+      this.whatsappFrom = `whatsapp:${clean}`;
     }
 
     if (!this.mockMode) {
@@ -57,7 +69,8 @@ class TwilioService {
           timeout: 30000 // 30 secondes
         });
         logger.info('✅ Twilio Service initialisé avec succès', {
-          phoneNumber: this.phoneNumber,
+          smsNumber: this.phoneNumber,       // ✅ numéro SMS
+          whatsappFrom: this.whatsappFrom,   // ✅ numéro WhatsApp
           hasVerifyService: !!this.verifyServiceSid,
           timeout: '30s'
         });
@@ -125,9 +138,10 @@ class TwilioService {
     data.count++;
     return true;
   }
+
   /**
- * Envoie un message avec fallback automatique WhatsApp → SMS
- */
+   * Envoie un message avec fallback automatique WhatsApp → SMS
+   */
   async envoyerMessageAvecFallback(telephone, message) {
     const results = {
       success: false,
@@ -137,7 +151,7 @@ class TwilioService {
     };
 
     // Mode MOCK
-    if (this.isMockMode) {
+    if (this.mockMode) {
       logger.info('📱 [MOCK] Code de vérification simulé', { 
         telephone, 
         code: message.match(/\d{6}/)?.[0] 
@@ -191,6 +205,7 @@ class TwilioService {
       }
     }
   }
+
   /**
    * ✅ Nettoyage périodique du rate limiter
    * @private
@@ -372,17 +387,33 @@ Ce code expire dans ${this.otpExpiration} minutes.
     try {
       logger.info('📤 Tentative envoi via WhatsApp', { telephone });
 
-      // ✅ CORRECTION CRITIQUE : Le "from" ne doit PAS avoir le préfixe whatsapp:
-      // Seul le "to" (destinataire) doit avoir le préfixe whatsapp:
+      // ✅ FIX : utiliser this.whatsappFrom (TWILIO_WHATSAPP_FROM)
+      // Le "from" WhatsApp doit avoir le préfixe whatsapp:
+      // Le "to" (destinataire) aussi
       const result = await this._retryWithBackoff(
         async () => await this.client.messages.create({
-          from: process.env.TWILIO_WHATSAPP_FROM, 
-          to: this._formatWhatsAppNumber(telephone),
+          from: this.whatsappFrom,                         // ✅ Ex: "whatsapp:+14155238886"
+          to: this._formatWhatsAppNumber(telephone),       // Ex: "whatsapp:+2250748903927"
           body: message
         }),
         3,
         'WhatsApp'
       );
+
+      // Twilio sometimes silently converts to SMS if the sender is not a valid
+      // WhatsApp-enabled number. the returned SID will start with "SM" in that
+      // case (instead of "WH").  Treat such responses as a failure so the
+      // fallback SMS step can run and the metrics remain accurate.
+      if (typeof result.sid === 'string' && result.sid.startsWith('SM')) {
+        logger.warn('⚠️ Envoi traité comme SMS par Twilio ; mauvais numéro WhatsApp ?', {
+          telephone,
+          sid: result.sid,
+          to: result.to,
+          from: result.from
+        });
+        // force an error to go to the catch/fallback path
+        throw new Error('message livré en tant que SMS');
+      }
 
       logger.info('✅ Code envoyé avec succès via WhatsApp', {
         messageId: result.sid,
@@ -421,10 +452,12 @@ Ce code expire dans ${this.otpExpiration} minutes.
     try {
       logger.info('📤 Tentative envoi via SMS', { telephone });
 
+      // ✅ FIX : utiliser this.phoneNumber (TWILIO_SMS_NUMBER)
+      // Ce numéro doit être un numéro SMS Twilio valide lié à votre compte
       const result = await this._retryWithBackoff(
         async () => await this.client.messages.create({
-          from: this.phoneNumber,
-          to: telephone,
+          from: this.phoneNumber,          // numéro SMS classique
+          to: telephone,                   // pas de préfixe whatsapp
           body: message
         }),
         3,
@@ -472,7 +505,7 @@ Ce code expire dans ${this.otpExpiration} minutes.
       // Validation
       this._validerNumeroTelephone(telephone);
 
-      const message = `🎉 Bienvenue ${prenom} sur WAYZ-ECO !
+      const message = `🎉 Bienvenue ${prenom} sur WayZ-Eco !
 
 Votre compte est maintenant actif. Vous pouvez commencer à utiliser la plateforme de covoiturage.
 
@@ -489,10 +522,11 @@ Bon voyage ! 🚗`;
 
       logger.info('📤 Envoi message de bienvenue', { telephone, prenom });
 
+      // ✅ FIX : utiliser this.phoneNumber (TWILIO_SMS_NUMBER), pas le numéro WhatsApp sandbox
       const result = await this._retryWithBackoff(
         async () => await this.client.messages.create({
-          from: this.phoneNumber,
-          to: telephone,
+          from: this.whatsappFrom,
+          to: this._formatWhatsAppNumber(telephone),
           body: message
         }),
         3,
@@ -566,8 +600,8 @@ Ce code expire dans ${this.otpExpiration} minutes.
 
       const result = await this._retryWithBackoff(
         async () => await this.client.messages.create({
-          from: this.phoneNumber,
-          to: telephone,
+          from: this.whatsappFrom,     // ✅ Votre vrai numéro SMS Twilio
+          to: this._formatWhatsAppNumber(telephone),
           body: message
         }),
         3,
@@ -632,8 +666,8 @@ Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
 
       const result = await this._retryWithBackoff(
         async () => await this.client.messages.create({
-          from: this.phoneNumber,
-          to: telephone,
+          from: this.whatsappFrom,   // ✅ Votre vrai numéro SMS Twilio
+          to: this._formatWhatsAppNumber(telephone),
           body: message
         }),
         3,
@@ -747,7 +781,8 @@ Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
       provider: 'twilio',
       mockMode: this.mockMode,
       configured: !this.mockMode,
-      phoneNumber: this.phoneNumber,
+      smsNumber: this.phoneNumber,
+      whatsappFrom: this.whatsappFrom,
       hasVerifyService: !!this.verifyServiceSid,
       showCodes: this.showCodes,
       otpExpiration: this.otpExpiration,

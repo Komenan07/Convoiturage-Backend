@@ -116,17 +116,33 @@ class TrajetAutomationService {
       
       for (const trajet of trajetsAExpirer) {
         try {
-          const [heures, minutes] = trajet.heureDepart.split(':').map(Number);
-          const dateDepartComplete = new Date(trajet.dateDepart);
-          dateDepartComplete.setUTCHours(heures, minutes, 0, 0);
-          
-          // ✅ CORRECTION CRITIQUE
-         // Dans la méthode expirerTrajetsNonActives()
+          // calculer la "date de référence" : arrivée prévue (si fournie) sinon départ
+          let referenceDate = null;
 
-          const dateDepartAvecDelai = new Date(dateDepartComplete.getTime() + 24 * 60 * 60 * 1000); // 24h
-          
-          // Expirer si maintenant > (départ + 30 min)
-          if (maintenant > dateDepartAvecDelai) {
+          if (trajet.heureArriveePrevue) {
+            const [hArr, mArr] = trajet.heureArriveePrevue.split(':').map(Number);
+            referenceDate = new Date(trajet.dateDepart);
+            referenceDate.setUTCHours(hArr, mArr, 0, 0);
+
+            if (trajet.heureDepart) {
+              const [hDep, mDep] = trajet.heureDepart.split(':').map(Number);
+              if (hArr < hDep || (hArr === hDep && mArr < mDep)) {
+                // arrivée le lendemain
+                referenceDate.setDate(referenceDate.getDate() + 1);
+              }
+            }
+          } else if (trajet.heureDepart) {
+            const [heures, minutes] = trajet.heureDepart.split(':').map(Number);
+            referenceDate = new Date(trajet.dateDepart);
+            referenceDate.setUTCHours(heures, minutes, 0, 0);
+          }
+
+          if (!referenceDate) continue;
+
+          // on ajoute un petit délai (30 min) avant d'expirer
+          const expirationThreshold = new Date(referenceDate.getTime() + 30 * 60 * 1000);
+
+          if (maintenant > expirationThreshold) {
             idsAExpirer.push(trajet._id);
           }
         } catch (error) {
@@ -467,6 +483,17 @@ class TrajetAutomationService {
     };
   }
 
+  _calculerDateArrivee(trajet) {
+  const [hArr, mArr] = trajet.heureArriveePrevue.split(':').map(Number);
+  const [hDep, mDep] = trajet.heureDepart.split(':').map(Number);
+  const dateArrivee = new Date(trajet.dateDepart);
+  dateArrivee.setUTCHours(hArr, mArr, 0, 0);
+  if (hArr < hDep || (hArr === hDep && mArr < mDep)) {
+    dateArrivee.setDate(dateArrivee.getDate() + 1);
+  }
+  return dateArrivee;
+  }
+
   /**
    * 🚗 Notification : Trajet activé
    */
@@ -732,10 +759,8 @@ async expirerEnCoursSansConfirmation() {
 
     for (const trajet of trajets) {
       try {
-        const [hArr, mArr] = trajet.heureArriveePrevue.split(':').map(Number);
-        const dateArrivee = new Date(trajet.dateDepart);
-        dateArrivee.setUTCHours(hArr, mArr, 0, 0);
-
+        const dateArrivee = this._calculerDateArrivee(trajet);
+        
         const apres30min = new Date(dateArrivee.getTime() + 30 * 60 * 1000);
 
         if (maintenant >= apres30min) {

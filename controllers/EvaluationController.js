@@ -1,6 +1,7 @@
 const AppError = require('../utils/AppError');
 const Evaluation = require('../models/Evaluation'); 
 const { logger } = require('../utils/logger');
+const evaluationService = require('../services/EvaluationService');
 
 class EvaluationController {
   constructor(evaluationService) {
@@ -791,5 +792,5 @@ class EvaluationController {
   }
 }
 
-const evaluationService = require('../services/EvaluationService');
+
 module.exports = new EvaluationController(evaluationService);

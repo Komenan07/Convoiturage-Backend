@@ -141,7 +141,7 @@ const FraisSupplementaireSchema = new Schema({
   }
 }, { _id: false });
 
-// 🆕 NOUVEAU - Schéma pour les critères d'évaluation
+// 🆕 Schéma pour les critères d'évaluation
 const CriteresEvaluationSchema = new Schema({
   ponctualite: { type: Number, min: 1, max: 5 },
   proprete: { type: Number, min: 1, max: 5 },
@@ -150,7 +150,7 @@ const CriteresEvaluationSchema = new Schema({
   communication: { type: Number, min: 1, max: 5 }
 }, { _id: false });
 
-// 🆕 NOUVEAU - Schéma pour les signalements
+// 🆕 Schéma pour les signalements
 const SignalementEvaluationSchema = new Schema({
   type: { 
     type: String,

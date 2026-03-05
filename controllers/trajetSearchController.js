@@ -4,19 +4,20 @@ const geoSearchService = require('../services/geoSearchService');
 const { logger } = require('../utils/logger');
 
 /**
- * Controller pour la recherche de trajets
+ * Controller pour la recherche de trajets — Logique Yango
  */
 class TrajetSearchController {
-  
-  /**
-   * Recherche géospatiale de trajets proches
-   * POST /api/trajets/search/nearby
-   */
+
+  // ============================================================
+  // RECHERCHE GÉOSPATIALE (GPS obligatoire)
+  // POST /api/trajets/search/nearby
+  // ============================================================
+
   async searchNearbyTrips(req, res) {
     try {
-      logger.info('📍 Requête recherche géospatiale', { 
+      logger.info('📍 Requête recherche géospatiale', {
         userId: req.user?.id,
-        body: req.body 
+        body: req.body
       });
 
       const {
@@ -24,21 +25,24 @@ class TrajetSearchController {
         departLng,
         arriveeLat,
         arriveeLng,
+        communeArrivee,
+         quartierArrivee, 
         rayonDepart,
         rayonArrivee,
+        rayonMontee,      
         dateDepart,
         toleranceDate,
-        nombrePassagers, 
-        prixMax,        
-        noteMin,        
-        musique,        
-        climatisation,  
-        bagages,        
-        nonFumeur,      
+        nombrePassagers,
+        prixMax,
+        noteMin,
+        musique,
+        climatisation,
+        bagages,
+        nonFumeur,
         limit
       } = req.body;
 
-      // Validation des paramètres obligatoires
+      // Validation
       if (!departLat || !departLng) {
         return res.status(400).json({
           success: false,
@@ -53,36 +57,38 @@ class TrajetSearchController {
         });
       }
 
-      // Appel au service
       const result = await geoSearchService.searchNearbyTrips({
-        departLat: parseFloat(departLat),
-        departLng: parseFloat(departLng),
-        arriveeLat: parseFloat(arriveeLat),
-        arriveeLng: parseFloat(arriveeLng),
-        rayonDepart: rayonDepart ? parseFloat(rayonDepart) : undefined,
+        departLat:    parseFloat(departLat),
+        departLng:    parseFloat(departLng),
+        arriveeLat:   parseFloat(arriveeLat),
+        arriveeLng:   parseFloat(arriveeLng),
+        communeArrivee, 
+        quartierArrivee,
+        rayonDepart:  rayonDepart  ? parseFloat(rayonDepart)  : undefined,
         rayonArrivee: rayonArrivee ? parseFloat(rayonArrivee) : undefined,
-        dateDepart: dateDepart ? new Date(dateDepart) : undefined,
-        toleranceDate: toleranceDate ? parseInt(toleranceDate) : undefined,
-        nombrePassagers: nombrePassagers ? parseInt(nombrePassagers) : undefined, 
-        prixMax: prixMax ? parseFloat(prixMax) : undefined,
-        noteMin: noteMin ? parseFloat(noteMin) : undefined,
-        musique: musique !== undefined ? musique === 'true' || musique === true : undefined,
-        climatisation: climatisation !== undefined ? climatisation === 'true' || climatisation === true : undefined,
-        bagages: bagages !== undefined ? bagages === 'true' || bagages === true : undefined,
-        nonFumeur: nonFumeur !== undefined ? nonFumeur === 'true' || nonFumeur === true : undefined,
-        limit: limit ? parseInt(limit) : undefined
+        rayonMontee:  rayonMontee  ? parseFloat(rayonMontee)  : undefined, // ✅
+        dateDepart:   dateDepart   ? new Date(dateDepart)     : undefined,
+        toleranceDate:    toleranceDate    ? parseInt(toleranceDate)    : undefined,
+        nombrePassagers:  nombrePassagers  ? parseInt(nombrePassagers)  : undefined,
+        prixMax:          prixMax          ? parseFloat(prixMax)        : undefined,
+        noteMin:          noteMin          ? parseFloat(noteMin)        : undefined,
+        musique:      musique      !== undefined ? musique      === 'true' || musique      === true : undefined,
+        climatisation:climatisation !== undefined ? climatisation === 'true' || climatisation === true : undefined,
+        bagages:      bagages      !== undefined ? bagages      === 'true' || bagages      === true : undefined,
+        nonFumeur:    nonFumeur    !== undefined ? nonFumeur    === 'true' || nonFumeur    === true : undefined,
+        limit:        limit        ? parseInt(limit) : undefined,
+        debugGeo:     req.body.debugGeo === true || req.body.debugGeo === 'true'
       });
 
-      logger.info('✅ Recherche géospatiale réussie', { 
+      logger.info('✅ Recherche géospatiale réussie', {
         count: result.count,
-        methode: result.methode 
+        methode: result.methode
       });
 
       return res.status(200).json(result);
 
     } catch (error) {
       logger.error('❌ Erreur recherche géospatiale:', error);
-      
       return res.status(500).json({
         success: false,
         message: 'Erreur lors de la recherche de trajets',
@@ -91,15 +97,16 @@ class TrajetSearchController {
     }
   }
 
-  /**
-   * Recherche par commune et quartier
-   * POST /api/trajets/search/commune
-   */
+  // ============================================================
+  // RECHERCHE PAR COMMUNE (sans GPS)
+  // POST /api/trajets/search/commune
+  // ============================================================
+
   async searchByCommune(req, res) {
     try {
-      logger.info('🏘️ Requête recherche par commune', { 
+      logger.info('🏘️ Requête recherche par commune', {
         userId: req.user?.id,
-        body: req.body 
+        body: req.body
       });
 
       const {
@@ -109,13 +116,13 @@ class TrajetSearchController {
         quartierArrivee,
         dateDepart,
         toleranceDate,
-        nombrePassagers, 
-        prixMax,        
-        noteMin,        
-        musique,        
-        climatisation,  
-        bagages,        
-        nonFumeur,      
+        nombrePassagers,
+        prixMax,
+        noteMin,
+        musique,
+        climatisation,
+        bagages,
+        nonFumeur,
         limit
       } = req.body;
 
@@ -127,33 +134,31 @@ class TrajetSearchController {
         });
       }
 
-      // Appel au service
       const result = await geoSearchService.searchByCommune({
         communeDepart,
         communeArrivee,
         quartierDepart,
         quartierArrivee,
-        dateDepart: dateDepart ? new Date(dateDepart) : undefined,
-        toleranceDate: toleranceDate ? parseInt(toleranceDate) : undefined,
-        nombrePassagers: nombrePassagers ? parseInt(nombrePassagers) : undefined,
-        prixMax: prixMax ? parseFloat(prixMax) : undefined,
-        noteMin: noteMin ? parseFloat(noteMin) : undefined,
-        musique: musique !== undefined ? musique === 'true' || musique === true : undefined,
-        climatisation: climatisation !== undefined ? climatisation === 'true' || climatisation === true : undefined,
-        bagages: bagages !== undefined ? bagages === 'true' || bagages === true : undefined,
-        nonFumeur: nonFumeur !== undefined ? nonFumeur === 'true' || nonFumeur === true : undefined,
-        limit: limit ? parseInt(limit) : undefined
+        dateDepart:   dateDepart ? new Date(dateDepart) : undefined,
+        toleranceDate:    toleranceDate    ? parseInt(toleranceDate)    : undefined,
+        nombrePassagers:  nombrePassagers  ? parseInt(nombrePassagers)  : undefined,
+        prixMax:          prixMax          ? parseFloat(prixMax)        : undefined,
+        noteMin:          noteMin          ? parseFloat(noteMin)        : undefined,
+        musique:      musique      !== undefined ? musique      === 'true' || musique      === true : undefined,
+        climatisation:climatisation !== undefined ? climatisation === 'true' || climatisation === true : undefined,
+        bagages:      bagages      !== undefined ? bagages      === 'true' || bagages      === true : undefined,
+        nonFumeur:    nonFumeur    !== undefined ? nonFumeur    === 'true' || nonFumeur    === true : undefined,
+        limit:        limit        ? parseInt(limit) : undefined
       });
 
-      logger.info('✅ Recherche par commune réussie', { 
-        count: result.count 
+      logger.info('✅ Recherche par commune réussie', {
+        count: result.count
       });
 
       return res.status(200).json(result);
 
     } catch (error) {
       logger.error('❌ Erreur recherche par commune:', error);
-      
       return res.status(500).json({
         success: false,
         message: 'Erreur lors de la recherche de trajets',
@@ -162,15 +167,22 @@ class TrajetSearchController {
     }
   }
 
-  /**
-   * Recherche intelligente (GPS + fallback commune)
-   * POST /api/trajets/search/smart
-   */
+  // ============================================================
+  // RECHERCHE INTELLIGENTE — point d'entrée principal
+  // POST /api/trajets/search/smart
+  //
+  // Accepte:
+  //   - GPS seul           → searchNearbyTrips (Yango pur)
+  //   - Commune seule      → geocoding → searchNearbyTrips
+  //   - GPS + commune      → searchNearbyTrips avec fallback commune si 0 résultat
+  //   - 0 résultat geo     → fallback searchByCommune automatique
+  // ============================================================
+
   async smartSearch(req, res) {
     try {
-      logger.info('🧠 Requête recherche intelligente', { 
+      logger.info('🧠 Requête recherche intelligente', {
         userId: req.user?.id,
-        body: req.body 
+        body: req.body
       });
 
       const {
@@ -184,54 +196,58 @@ class TrajetSearchController {
         quartierArrivee,
         rayonDepart,
         rayonArrivee,
+        rayonMontee,      
         dateDepart,
         toleranceDate,
         nombrePassagers,
         prixMax,
         noteMin,
-        musique, 
+        musique,
         climatisation,
-        bagages, 
-        nonFumeur, 
+        bagages,
+        nonFumeur,
         limit
       } = req.body;
 
-      // Validation: au moins coordonnées OU communes
-      if ((!departLat || !departLng || !arriveeLat || !arriveeLng) && 
-          (!communeDepart || !communeArrivee)) {
+      // Validation: au moins coordonnées GPS OU communes
+      if (
+        (!departLat || !departLng || !arriveeLat || !arriveeLng) &&
+        (!communeDepart || !communeArrivee)
+      ) {
         return res.status(400).json({
           success: false,
           message: 'Veuillez fournir soit les coordonnées GPS (departLat, departLng, arriveeLat, arriveeLng), soit les communes (communeDepart, communeArrivee)'
         });
       }
 
-      // Appel au service
       const result = await geoSearchService.smartSearch({
-        departLat: departLat ? parseFloat(departLat) : undefined,
-        departLng: departLng ? parseFloat(departLng) : undefined,
-        arriveeLat: arriveeLat ? parseFloat(arriveeLat) : undefined,
-        arriveeLng: arriveeLng ? parseFloat(arriveeLng) : undefined,
+        departLat:    departLat    ? parseFloat(departLat)    : undefined,
+        departLng:    departLng    ? parseFloat(departLng)    : undefined,
+        arriveeLat:   arriveeLat   ? parseFloat(arriveeLat)   : undefined,
+        arriveeLng:   arriveeLng   ? parseFloat(arriveeLng)   : undefined,
         communeDepart,
         communeArrivee,
         quartierDepart,
         quartierArrivee,
-        rayonDepart: rayonDepart ? parseFloat(rayonDepart) : undefined,
+        rayonDepart:  rayonDepart  ? parseFloat(rayonDepart)  : undefined,
         rayonArrivee: rayonArrivee ? parseFloat(rayonArrivee) : undefined,
-        dateDepart: dateDepart ? new Date(dateDepart) : undefined,
-        toleranceDate: toleranceDate ? parseInt(toleranceDate) : undefined,
-        nombrePassagers: nombrePassagers ? parseInt(nombrePassagers) : undefined,
-        prixMax: prixMax ? parseFloat(prixMax) : undefined,                                                          
-        noteMin: noteMin ? parseFloat(noteMin) : undefined,                                                          
-        musique: musique !== undefined ? musique === 'true' || musique === true : undefined,                         
-        climatisation: climatisation !== undefined ? climatisation === 'true' || climatisation === true : undefined, 
-        bagages: bagages !== undefined ? bagages === 'true' || bagages === true : undefined,                         
-        nonFumeur: nonFumeur !== undefined ? nonFumeur === 'true' || nonFumeur === true : undefined,                 
-        limit: limit ? parseInt(limit) : undefined
+        rayonMontee:  rayonMontee  ? parseFloat(rayonMontee)  : undefined, // ✅
+        dateDepart:   dateDepart   ? new Date(dateDepart)     : undefined,
+        toleranceDate:    toleranceDate    ? parseInt(toleranceDate)    : undefined,
+        nombrePassagers:  nombrePassagers  ? parseInt(nombrePassagers)  : undefined,
+        prixMax:          prixMax          ? parseFloat(prixMax)        : undefined,
+        noteMin:          noteMin          ? parseFloat(noteMin)        : undefined,
+        musique:      musique      !== undefined ? musique      === 'true' || musique      === true : undefined,
+        climatisation:climatisation !== undefined ? climatisation === 'true' || climatisation === true : undefined,
+        bagages:      bagages      !== undefined ? bagages      === 'true' || bagages      === true : undefined,
+        nonFumeur:    nonFumeur    !== undefined ? nonFumeur    === 'true' || nonFumeur    === true : undefined,
+        limit:        limit        ? parseInt(limit) : undefined,
+        debugGeo:     req.body.debugGeo === true || req.body.debugGeo === 'true'
       });
 
-      logger.info('✅ Recherche intelligente réussie', { 
-        count: result.count,
-        methode: result.methode,
+      logger.info('✅ Recherche intelligente réussie', {
+        count:    result.count,
+        methode:  result.methode,
         fallback: result.fallback || false
       });
 
@@ -239,7 +255,6 @@ class TrajetSearchController {
 
     } catch (error) {
       logger.error('❌ Erreur recherche intelligente:', error);
-      
       return res.status(500).json({
         success: false,
         message: 'Erreur lors de la recherche de trajets',
@@ -248,22 +263,20 @@ class TrajetSearchController {
     }
   }
 
-  /**
-   * Obtenir la configuration du service de recherche
-   * GET /api/trajets/search/config
-   */
+  // ============================================================
+  // CONFIGURATION DU SERVICE
+  // GET /api/trajets/search/config
+  // ============================================================
+
   async getConfig(req, res) {
     try {
       const config = geoSearchService.getConfig();
-      
       return res.status(200).json({
         success: true,
         config
       });
-
     } catch (error) {
       logger.error('❌ Erreur récupération config:', error);
-      
       return res.status(500).json({
         success: false,
         message: 'Erreur lors de la récupération de la configuration',
@@ -273,12 +286,12 @@ class TrajetSearchController {
   }
 }
 
-// Créer une instance et exporter avec binding
+// Export avec binding
 const trajetSearchController = new TrajetSearchController();
 
 module.exports = {
   searchNearbyTrips: trajetSearchController.searchNearbyTrips.bind(trajetSearchController),
-  searchByCommune: trajetSearchController.searchByCommune.bind(trajetSearchController),
-  smartSearch: trajetSearchController.smartSearch.bind(trajetSearchController),
-  getConfig: trajetSearchController.getConfig.bind(trajetSearchController)
+  searchByCommune:   trajetSearchController.searchByCommune.bind(trajetSearchController),
+  smartSearch:       trajetSearchController.smartSearch.bind(trajetSearchController),
+  getConfig:         trajetSearchController.getConfig.bind(trajetSearchController)
 };
