@@ -6,6 +6,7 @@ const Utilisateur = require('../models/Utilisateur');
 const AppError = require('../utils/AppError');
 const notificationService = require('../services/notificationService');
 const firebaseService = require('../services/firebaseService');
+const Paiement = require('../models/Paiement');
 
 // Fonctions utilitaires
 const validerDonnees = (req) => {
@@ -374,68 +375,211 @@ class ReservationController {
   /**
    * Confirmer une réservation (par le conducteur)
    */
-  static async confirmerReservation(req, res, next) {
-    try {
-      const { id } = req.params;
-      const currentUserId = req.user._id || req.user.id || req.user.userId;
-
-      const reservation = await Reservation.findById(id)
-        .populate('trajetId')
-        .populate('passagerId', 'nom prenom email');
-
-      if (!reservation) {
-        return res.status(404).json({
-          success: false,
-          message: 'Réservation introuvable',
-          code: 'RESERVATION_NOT_FOUND'
-        });
-      }
-
-      // Vérifier que c'est le conducteur qui confirme
-      if (reservation.trajetId.conducteurId.toString() !== currentUserId.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Seul le conducteur peut confirmer cette réservation',
-          code: 'UNAUTHORIZED'
-        });
-      }
-
-      if (reservation.statutReservation !== 'EN_ATTENTE') {
-        return res.status(400).json({
-          success: false,
-          message: 'Cette réservation ne peut plus être confirmée',
-          code: 'INVALID_STATUS'
-        });
-      }
-
-      reservation.statutReservation = 'CONFIRMEE';
-      reservation.dateConfirmation = new Date();
-      await reservation.save();
-
-      // Programmer les notifications automatiques
-      await reservation.programmerNotifications();
-
-      // Notifier le passager
+    static async confirmerReservation(req, res, next) {
       try {
-        await _notifierConfirmationReservation(reservation);
-      } catch (notifError) {
-        console.error('Erreur notification:', notifError);
-      }
+        const { id } = req.params;
+        const currentUserId = req.user._id || req.user.id || req.user.userId;
 
-      res.json({
-        success: true,
-        message: 'Réservation confirmée avec succès',
-        data: {
-          reservation
+        const reservation = await Reservation.findById(id)
+          .populate('trajetId')
+          .populate('passagerId', 'nom prenom email');
+
+        if (!reservation) {
+          return res.status(404).json({
+            success: false,
+            message: 'Réservation introuvable',
+            code: 'RESERVATION_NOT_FOUND'
+          });
         }
-      });
 
-    } catch (error) {
-      console.error('Erreur confirmation réservation:', error);
-      return next(AppError.serverError('Erreur serveur lors de la confirmation', { originalError: error.message }));
+        if (reservation.trajetId.conducteurId.toString() !== currentUserId.toString()) {
+          return res.status(403).json({
+            success: false,
+            message: 'Seul le conducteur peut confirmer cette réservation',
+            code: 'UNAUTHORIZED'
+          });
+        }
+
+        if (reservation.statutReservation !== 'EN_ATTENTE') {
+          return res.status(400).json({
+            success: false,
+            message: 'Cette réservation ne peut plus être confirmée',
+            code: 'INVALID_STATUS'
+          });
+        }
+
+        // ══════════════════════════════════════════════════════
+        // 🆕 LOGIQUE PAIEMENT ESPÈCES — DÉBIT À L'ACCEPTATION
+        // ══════════════════════════════════════════════════════
+        let paiementEspeces = null;
+
+        paiementEspeces = await Paiement.findOne({
+          reservationId: id,
+          methodePaiement: 'ESPECES',
+          statutPaiement: 'EN_ATTENTE'
+        });
+
+        if (paiementEspeces) {
+          // Recharger le conducteur avec son solde à jour depuis la DB
+          const conducteur = await Utilisateur.findById(currentUserId)
+            .select('compteCovoiturage nom prenom email');
+
+          const soldeConducteur = conducteur.compteCovoiturage?.solde || 0;
+          const commissionRequise = paiementEspeces.commission.montant;
+
+          // ── CAS 2 : Solde insuffisant → Refus ──────────────
+          if (soldeConducteur < commissionRequise) {
+
+            // Notifier le passager de changer de méthode
+            try {
+              await firebaseService.notifyNewReservation(
+                reservation.passagerId._id,
+                {
+                  reservationId: id.toString(),
+                  type: 'PAIEMENT_ESPECES_REFUSE',
+                  message: 'Le conducteur ne peut pas accepter le paiement en espèces. Veuillez choisir Mobile Money.',
+                  methodesAlternatives: ['MOBILE_MONEY'],
+                  action: 'CHANGER_METHODE_PAIEMENT'
+                },
+                Utilisateur
+              );
+            } catch (notifError) {
+              console.error('⚠️ Erreur notification passager (solde insuffisant):', notifError.message);
+            }
+
+            console.warn(`⚠️ Refus - solde insuffisant: ${soldeConducteur} FCFA < ${commissionRequise} FCFA`);
+
+            return res.status(403).json({
+              success: false,
+              error: 'SOLDE_INSUFFISANT_POUR_ACCEPTER',
+              message: 'Solde insuffisant pour accepter ce paiement en espèces.',
+              data: {
+                soldeConducteur,
+                commissionRequise,
+                manque: commissionRequise - soldeConducteur
+              },
+              actions: {
+                pourConducteur: {
+                  message: `Rechargez votre compte d'au moins ${(commissionRequise - soldeConducteur).toLocaleString()} FCFA`,
+                  route: '/api/paiements/recharges/initier'
+                },
+                pourPassager: {
+                  message: 'Le passager a été notifié de choisir un autre moyen de paiement',
+                  methodesAlternatives: ['MOBILE_MONEY']
+                }
+              }
+            });
+          }
+
+          // ── CAS 1 : Solde suffisant → Débit immédiat ───────
+          const ancienSolde = soldeConducteur;
+
+          conducteur.compteCovoiturage.solde -= commissionRequise;
+          conducteur.compteCovoiturage.totalCommissionsPayees =
+            (conducteur.compteCovoiturage.totalCommissionsPayees || 0) + commissionRequise;
+
+          if (!conducteur.compteCovoiturage.historiqueCommissions) {
+            conducteur.compteCovoiturage.historiqueCommissions = [];
+          }
+          conducteur.compteCovoiturage.historiqueCommissions.push({
+            montant: commissionRequise,
+            type: 'commission_especes',
+            referenceTransaction: paiementEspeces.referenceTransaction,
+            statut: 'preleve',
+            datePrelevement: new Date()
+          });
+
+          await conducteur.save({ validateBeforeSave: false });
+
+          // Mettre à jour le paiement → TRAITE
+          paiementEspeces.commission.statutPrelevement = 'preleve';
+          paiementEspeces.commission.datePrelevement = new Date();
+          paiementEspeces.reglesPaiement.soldeConducteurAvant = ancienSolde;
+          paiementEspeces.reglesPaiement.soldeConducteurApres = conducteur.compteCovoiturage.solde;
+          paiementEspeces.statutPaiement = 'TRAITE';
+
+          paiementEspeces.ajouterLog('COMMISSION_PRELEVEE_A_LACCEPTATION', {
+            conducteurId: currentUserId,
+            ancienSolde,
+            commissionPrelevee: commissionRequise,
+            nouveauSolde: conducteur.compteCovoiturage.solde,
+            datePrelevement: new Date()
+          });
+
+          await paiementEspeces.save();
+
+          console.log(`✅ Commission espèces prélevée: ${commissionRequise} FCFA | Solde restant: ${conducteur.compteCovoiturage.solde} FCFA`);
+
+          // Notifier le conducteur — débit effectué
+          try {
+            await firebaseService.notifyNewReservation(
+              currentUserId,
+              {
+                type: 'COMMISSION_PRELEVEE',
+                reservationId: id.toString(),
+                message: `${commissionRequise.toLocaleString()} FCFA prélevés. Solde restant : ${conducteur.compteCovoiturage.solde.toLocaleString()} FCFA`,
+              },
+              Utilisateur
+            );
+          } catch (notifError) {
+            console.error('⚠️ Erreur notification conducteur (débit):', notifError.message);
+          }
+
+          // Notifier le passager — réservation acceptée, payer en espèces
+          try {
+            await firebaseService.notifyNewReservation(
+              reservation.passagerId._id,
+              {
+                type: 'RESERVATION_ACCEPTEE_ESPECES',
+                reservationId: id.toString(),
+                message: `Votre réservation est confirmée. Préparez ${paiementEspeces.montantTotal.toLocaleString()} FCFA en espèces.`,
+              },
+              Utilisateur
+            );
+          } catch (notifError) {
+            console.error('⚠️ Erreur notification passager (acceptation):', notifError.message);
+          }
+        }
+
+        // ══════════════════════════════════════════════════════
+        // CONFIRMATION NORMALE (code existant préservé)
+        // ══════════════════════════════════════════════════════
+        reservation.statutReservation = 'CONFIRMEE';
+        reservation.dateConfirmation = new Date();
+        await reservation.save();
+
+        await reservation.programmerNotifications();
+
+        try {
+          await _notifierConfirmationReservation(reservation);
+        } catch (notifError) {
+          console.error('Erreur notification:', notifError);
+        }
+
+        return res.json({
+          success: true,
+          message: 'Réservation confirmée avec succès',
+          data: {
+            reservation,
+            // Infos paiement espèces si applicable
+            ...(paiementEspeces && {
+              paiementEspeces: {
+                referenceTransaction: paiementEspeces.referenceTransaction,
+                commissionPrelevee: paiementEspeces.commission.montant,
+                nouveauSoldeConducteur: paiementEspeces.reglesPaiement.soldeConducteurApres,
+                montantARecevoirDuPassager: paiementEspeces.montantTotal,
+                statutPaiement: paiementEspeces.statutPaiement,
+                message: `✅ Commission de ${paiementEspeces.commission.montant.toLocaleString()} FCFA prélevée.`
+              }
+            })
+          }
+        });
+
+      } catch (error) {
+        console.error('Erreur confirmation réservation:', error);
+        return next(AppError.serverError('Erreur serveur lors de la confirmation', { originalError: error.message }));
+      }
     }
-  }
-
   /**
    * Refuser une réservation (par le conducteur)
    */

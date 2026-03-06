@@ -366,26 +366,27 @@ class PaiementController {
   }
 
   // 🆕 Confirmer un paiement en espèces (après le trajet)
+  
   async confirmerPaiementEspeces(req, res) {
     try {
       const { referenceTransaction } = req.params;
-      const { codeConfirmation } = req.body;
       const userId = req.user._id;
 
+      // ✅ Chercher statut TRAITE (débit déjà fait à l'acceptation)
+      // au lieu de EN_ATTENTE comme avant
       const paiement = await Paiement.findOne({
         referenceTransaction,
         methodePaiement: 'ESPECES',
-        statutPaiement: 'EN_ATTENTE'
+        statutPaiement: 'TRAITE'
       }).populate('beneficiaireId', 'compteCovoiturage nom prenom email');
 
       if (!paiement) {
         return res.status(404).json({
           success: false,
-          message: 'Paiement en espèces non trouvé ou déjà traité'
+          message: 'Paiement non trouvé ou commission non encore prélevée'
         });
       }
 
-      // Vérifier que c'est le conducteur ou le passager qui confirme
       const estConducteur = paiement.beneficiaireId._id.toString() === userId.toString();
       const estPassager = paiement.payeurId.toString() === userId.toString();
 
@@ -396,41 +397,24 @@ class PaiementController {
         });
       }
 
-      // Vérifier à nouveau le solde du conducteur
-      const conducteur = paiement.beneficiaireId;
-      const soldeConducteur = conducteur.compteCovoiturage?.solde || 0;
-
-      if (soldeConducteur < paiement.commission.montant) {
-        return res.status(400).json({
-          success: false,
-          error: 'SOLDE_INSUFFISANT',
-          message: `Le solde du conducteur est insuffisant pour prélever la commission (${soldeConducteur} FCFA < ${paiement.commission.montant} FCFA)`
-        });
-      }
-
-      // Confirmer le paiement
+      // ✅ Plus de débit ici — juste marquer COMPLETE
+      // Le débit a déjà été fait dans accepterReservation()
       paiement.statutPaiement = 'COMPLETE';
       paiement.dateCompletion = new Date();
-      paiement.reglesPaiement.soldeConducteurAvant = soldeConducteur;
 
-      paiement.ajouterLog('PAIEMENT_ESPECES_CONFIRME', {
+      paiement.ajouterLog('PAIEMENT_ESPECES_CONFIRME_APRES_TRAJET', {
         confirmePar: estConducteur ? 'conducteur' : 'passager',
         userId,
-        codeConfirmation,
-        dateConfirmation: new Date()
+        dateConfirmation: new Date(),
+        note: 'Commission déjà prélevée lors de l\'acceptation de la réservation'
       });
-
-      // Traiter la commission
-      await paiement.traiterCommissionApresPayement();
 
       await paiement.save();
 
-      // Envoyer notification
-      await this.envoyerEmailConfirmationPaiement(conducteur, paiement);
-
       // Notification Firebase au conducteur
       try {
-        if (conducteur.notificationsActivees('paiements')) {
+        const conducteur = paiement.beneficiaireId;
+        if (conducteur.notificationsActivees?.('paiements')) {
           await firebaseService.notifyPaymentSuccess(
             conducteur._id,
             {
@@ -440,20 +424,15 @@ class PaiementController {
             },
             Utilisateur
           );
-          
-          logger.info('📱 Notification Firebase envoyée au conducteur', {
-            conducteurId: conducteur._id,
-            montant: paiement.montantTotal
-          });
         }
       } catch (notifError) {
         logger.error('❌ Erreur notification Firebase conducteur:', notifError);
       }
-      
+
       // Notification Firebase au passager
       try {
         const passager = await Utilisateur.findById(paiement.payeurId);
-        if (passager && passager.notificationsActivees('paiements')) {
+        if (passager?.notificationsActivees?.('paiements')) {
           await firebaseService.notifyPaymentSuccess(
             passager._id,
             {
@@ -463,25 +442,20 @@ class PaiementController {
             },
             Utilisateur
           );
-          
-          logger.info('📱 Notification Firebase envoyée au passager', {
-            passagerId: passager._id,
-            montant: paiement.montantTotal
-          });
         }
       } catch (notifError) {
         logger.error('❌ Erreur notification Firebase passager:', notifError);
       }
 
-      logger.info('Paiement espèces confirmé', {
+      logger.info('✅ Paiement espèces finalisé après trajet', {
         paiementId: paiement._id,
         referenceTransaction,
         confirmePar: estConducteur ? 'conducteur' : 'passager'
       });
 
-      res.json({
+      return res.json({
         success: true,
-        message: 'Paiement en espèces confirmé avec succès',
+        message: '✅ Paiement en espèces confirmé avec succès',
         data: {
           paiementId: paiement._id,
           referenceTransaction: paiement.referenceTransaction,
@@ -491,7 +465,7 @@ class PaiementController {
             montant: paiement.commission.montant,
             statutPrelevement: paiement.commission.statutPrelevement
           },
-          nouveauSoldeConducteur: paiement.reglesPaiement.soldeConducteurApres,
+          soldeConducteurApres: paiement.reglesPaiement.soldeConducteurApres,
           statutPaiement: paiement.statutPaiement,
           dateCompletion: paiement.dateCompletion
         }

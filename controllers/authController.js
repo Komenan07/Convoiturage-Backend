@@ -44,7 +44,7 @@ const normaliserTelephoneCI = (tel) => {
   if (!tel) return null;
   
   // Supprimer tous les caractères non numériques sauf le +
-  let telClean = tel.replace(/[\s\-().]/g, '');
+  let telClean = tel.replace(/[\s\-().{}]/g, '');
   
   // Cas 1: Numéro commence par +225 (déjà international)
   if (telClean.startsWith('+225')) {

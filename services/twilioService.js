@@ -55,6 +55,12 @@ class TwilioService {
       this.mockMode = true;
     }
 
+    // ✅ FIX : Si c'est le numéro sandbox WhatsApp, forcer le mode mock
+    if (this.whatsappFrom === 'whatsapp:+14155238886') {
+      logger.warn('⚠️ Numéro WhatsApp sandbox détecté - Mode mock activé pour éviter les erreurs');
+      this.mockMode = true;
+    }
+
     // si WhatsApp est configuré, insister sur le préfixe
     if (this.whatsappFrom && !this.whatsappFrom.startsWith('whatsapp:')) {
       logger.warn('Le paramètre TWILIO_WHATSAPP_FROM semble incorrect (pas de "whatsapp:"), correction automatique');
@@ -84,25 +90,35 @@ class TwilioService {
   }
 
   /**
-   * ✅ Validation du format du numéro de téléphone
+   * ✅ Validation et normalisation du format du numéro de téléphone
    * @private
    */
   _validerNumeroTelephone(telephone) {
-    // Format international requis : +225XXXXXXXXXX (Côte d'Ivoire)
-    const regex = /^\+225\d{10}$/;
-    
     if (!telephone) {
       throw new Error('Numéro de téléphone requis');
     }
 
-    if (!regex.test(telephone)) {
+    // Nettoyer le numéro (supprimer espaces, tirets, parenthèses)
+    let cleaned = telephone.replace(/[\s\-()?]/g, '');
+
+    // Formats acceptés pour la Côte d'Ivoire :
+    // 1. Format international : +225XXXXXXXXXX (13 caractères)
+    // 2. Format national : 0XXXXXXXXX (10 caractères, commençant par 0)
+    const internationalRegex = /^\+225\d{10}$/;
+    const nationalRegex = /^0\d{9}$/;
+
+    if (internationalRegex.test(cleaned)) {
+      // Déjà au bon format
+      return cleaned;
+    } else if (nationalRegex.test(cleaned)) {
+      // Convertir en format international
+      return '+225' + cleaned.substring(1);
+    } else {
       throw new Error(
-        `Format de numéro invalide: ${telephone}. ` +
-        `Format attendu: +225XXXXXXXXXX (10 chiffres après +225)`
+        `Le numéro de téléphone n'est pas valide pour la Côte d'Ivoire. ` +
+        `Formats acceptés: 0707070708, +2250707070708`
       );
     }
-
-    return true;
   }
 
   /**
@@ -292,24 +308,25 @@ Ce code expire dans ${this.otpExpiration} minutes.
    * @returns {Promise<Object>} Résultat de l'envoi
    */
   async envoyerCodeVerification(telephone, code, nomComplet = '') {
+    let normalizedPhone = telephone;
     try {
-      // Validation du numéro
-      this._validerNumeroTelephone(telephone);
+      // Validation et normalisation du numéro
+      normalizedPhone = this._validerNumeroTelephone(telephone);
       
       // Vérification du rate limit
-      this._checkRateLimit(telephone);
+      this._checkRateLimit(normalizedPhone);
 
       const message = this._genererMessageVerification(code, nomComplet);
 
       // Affichage du code en dev si configuré
       if (this.showCodes) {
-        console.log(`\n🔑 CODE OTP: ${code} pour ${telephone}\n`);
+        console.log(`\n🔑 CODE OTP: ${code} pour ${normalizedPhone}\n`);
       }
 
       // Mode mock
       if (this.mockMode) {
         logger.info('📱 [MOCK] Code de vérification simulé', { 
-          telephone, 
+          telephone: normalizedPhone, 
           code: this.showCodes ? code : '***' 
         });
         this.metrics.sent.mock++;
@@ -322,12 +339,12 @@ Ce code expire dans ${this.otpExpiration} minutes.
       }
 
       logger.info('🚀 Démarrage envoi code de vérification', { 
-        telephone,
+        telephone: normalizedPhone,
         strategy: 'WhatsApp → SMS' 
       });
 
       // 🔵 Tentative 1 : WhatsApp
-      const whatsappResult = await this._tryWhatsApp(telephone, message);
+      const whatsappResult = await this._tryWhatsApp(normalizedPhone, message);
       if (whatsappResult.success) {
         this.metrics.sent.whatsapp++;
         return whatsappResult;
@@ -335,7 +352,7 @@ Ce code expire dans ${this.otpExpiration} minutes.
       this.metrics.failed.whatsapp++;
 
       // 🟢 Tentative 2 : SMS (fallback)
-      const smsResult = await this._trySMS(telephone, message);
+      const smsResult = await this._trySMS(normalizedPhone, message);
       if (smsResult.success) {
         this.metrics.sent.sms++;
         return smsResult;
@@ -343,10 +360,10 @@ Ce code expire dans ${this.otpExpiration} minutes.
       this.metrics.failed.sms++;
 
       // ❌ Échec total
-      logger.error('❌ Échec envoi code après tous les canaux', { telephone });
+      logger.error('❌ Échec envoi code après tous les canaux', { telephone: normalizedPhone });
       this.metrics.errors.push({
         timestamp: new Date(),
-        telephone,
+        telephone: normalizedPhone,
         error: 'All channels failed'
       });
 
@@ -359,14 +376,14 @@ Ce code expire dans ${this.otpExpiration} minutes.
 
     } catch (error) {
       logger.error('❌ Erreur critique lors de l\'envoi du code', {
-        telephone,
+        telephone: normalizedPhone,
         error: error.message,
         stack: error.stack
       });
 
       this.metrics.errors.push({
         timestamp: new Date(),
-        telephone,
+        telephone: normalizedPhone,
         error: error.message
       });
 
@@ -502,8 +519,8 @@ Ce code expire dans ${this.otpExpiration} minutes.
    */
   async envoyerMessageBienvenue(telephone, prenom) {
     try {
-      // Validation
-      this._validerNumeroTelephone(telephone);
+      // Validation et normalisation
+      const normalizedPhone = this._validerNumeroTelephone(telephone);
 
       const message = `🎉 Bienvenue ${prenom} sur WayZ-Eco !
 
@@ -512,7 +529,7 @@ Votre compte est maintenant actif. Vous pouvez commencer à utiliser la platefor
 Bon voyage ! 🚗`;
 
       if (this.mockMode) {
-        logger.info('📱 [MOCK] Message de bienvenue simulé', { telephone, prenom });
+        logger.info('📱 [MOCK] Message de bienvenue simulé', { telephone: normalizedPhone, prenom });
         return {
           success: true,
           messageId: `mock_welcome_${Date.now()}`,
@@ -520,13 +537,13 @@ Bon voyage ! 🚗`;
         };
       }
 
-      logger.info('📤 Envoi message de bienvenue', { telephone, prenom });
+      logger.info('📤 Envoi message de bienvenue', { telephone: normalizedPhone, prenom });
 
       // ✅ FIX : utiliser this.phoneNumber (TWILIO_SMS_NUMBER), pas le numéro WhatsApp sandbox
       const result = await this._retryWithBackoff(
         async () => await this.client.messages.create({
           from: this.whatsappFrom,
-          to: this._formatWhatsAppNumber(telephone),
+          to: this._formatWhatsAppNumber(normalizedPhone),
           body: message
         }),
         3,
@@ -535,7 +552,7 @@ Bon voyage ! 🚗`;
 
       logger.info('✅ Message de bienvenue envoyé', {
         messageId: result.sid,
-        telephone
+        telephone: normalizedPhone
       });
 
       return {
@@ -568,9 +585,10 @@ Bon voyage ! 🚗`;
    */
   async envoyerCodeResetMotDePasse(telephone, code, nomComplet = '') {
     try {
+      // Validation et normalisation
+      const normalizedPhone = this._validerNumeroTelephone(telephone);
       // Validation et rate limiting
-      this._validerNumeroTelephone(telephone);
-      this._checkRateLimit(telephone);
+      this._checkRateLimit(normalizedPhone);
 
       const message = `[WAYZ-ECO] Bonjour ${nomComplet},
 
@@ -581,12 +599,12 @@ Ce code expire dans ${this.otpExpiration} minutes.
 ⚠️ Si vous n'avez pas demandé cette réinitialisation, ignorez ce message et contactez-nous immédiatement.`;
 
       if (this.showCodes) {
-        console.log(`\n🔐 CODE RESET: ${code} pour ${telephone}\n`);
+        console.log(`\n🔐 CODE RESET: ${code} pour ${normalizedPhone}\n`);
       }
 
       if (this.mockMode) {
         logger.info('📱 [MOCK] Code reset simulé', { 
-          telephone, 
+          telephone: normalizedPhone, 
           code: this.showCodes ? code : '***' 
         });
         return {
@@ -596,12 +614,12 @@ Ce code expire dans ${this.otpExpiration} minutes.
         };
       }
 
-      logger.info('📤 Envoi code de réinitialisation', { telephone });
+      logger.info('📤 Envoi code de réinitialisation', { telephone: normalizedPhone });
 
       const result = await this._retryWithBackoff(
         async () => await this.client.messages.create({
           from: this.whatsappFrom,     // ✅ Votre vrai numéro SMS Twilio
-          to: this._formatWhatsAppNumber(telephone),
+          to: this._formatWhatsAppNumber(normalizedPhone),
           body: message
         }),
         3,
@@ -642,8 +660,8 @@ Ce code expire dans ${this.otpExpiration} minutes.
    */
   async envoyerConfirmationResetMotDePasse(telephone, prenom) {
     try {
-      // Validation
-      this._validerNumeroTelephone(telephone);
+      // Validation et normalisation
+      const normalizedPhone = this._validerNumeroTelephone(telephone);
 
       const message = `✅ [WAYZ-ECO] Bonjour ${prenom},
 
@@ -654,7 +672,7 @@ Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
 ⚠️ Si ce n'était pas vous, contactez-nous immédiatement au support.`;
 
       if (this.mockMode) {
-        logger.info('📱 [MOCK] Confirmation reset simulée', { telephone, prenom });
+        logger.info('📱 [MOCK] Confirmation reset simulée', { telephone: normalizedPhone, prenom });
         return {
           success: true,
           messageId: `mock_confirm_${Date.now()}`,
@@ -662,12 +680,12 @@ Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
         };
       }
 
-      logger.info('📤 Envoi confirmation reset mot de passe', { telephone, prenom });
+      logger.info('📤 Envoi confirmation reset mot de passe', { telephone: normalizedPhone, prenom });
 
       const result = await this._retryWithBackoff(
         async () => await this.client.messages.create({
           from: this.whatsappFrom,   // ✅ Votre vrai numéro SMS Twilio
-          to: this._formatWhatsAppNumber(telephone),
+          to: this._formatWhatsAppNumber(normalizedPhone),
           body: message
         }),
         3,
@@ -676,7 +694,7 @@ Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
 
       logger.info('✅ Confirmation reset envoyée', {
         messageId: result.sid,
-        telephone
+        telephone: normalizedPhone
       });
 
       return {
