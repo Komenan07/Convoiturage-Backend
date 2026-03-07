@@ -368,17 +368,17 @@ class PaiementController {
   // 🆕 Confirmer un paiement en espèces (après le trajet)
   
   async confirmerPaiementEspeces(req, res) {
-    try {
-      const { referenceTransaction } = req.params;
-      const userId = req.user._id;
+  try {
+    const { referenceTransaction, reservationId } = req.params;
+    const userId = req.user._id;
 
-      // ✅ Chercher statut TRAITE (débit déjà fait à l'acceptation)
-      // au lieu de EN_ATTENTE comme avant
-      const paiement = await Paiement.findOne({
-        referenceTransaction,
-        methodePaiement: 'ESPECES',
-        statutPaiement: 'TRAITE'
-      }).populate('beneficiaireId', 'compteCovoiturage nom prenom email');
+    const paiement = await Paiement.findOne({
+      ...(referenceTransaction 
+        ? { referenceTransaction } 
+        : { reservationId }),
+      methodePaiement: 'ESPECES',
+      statutPaiement: 'TRAITE'
+    }).populate('beneficiaireId', 'compteCovoiturage nom prenom email');
 
       if (!paiement) {
         return res.status(404).json({
