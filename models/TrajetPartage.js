@@ -36,7 +36,6 @@ const TrajetPartageSchema = new mongoose.Schema({
     telephone: {
       type: String,
       trim: true
-      // ex: "+2250700000000"
     },
     email: {
       type: String,
