@@ -606,8 +606,17 @@ const completerDocuments = async (req, res, next) => {
       });
       
       // Traiter les fichiers de documents
+      // Traiter les fichiers de documents
+      const CHAMPS_DOCUMENTS = [
+        'documentCarteGrise', 'documentAssurance',
+        'documentVisite', 'photoVignette', 'documentCarteTransport'
+      ];
+
       req.files.forEach(file => {
-        const relativePath = `/uploads/vehicules/${file.filename}`;
+        const estDocument = CHAMPS_DOCUMENTS.includes(file.fieldname);
+        const relativePath = estDocument
+          ? `/uploads/documents/${file.filename}`
+          : `/uploads/vehicules/${file.filename}`;
         
         switch (file.fieldname) {
           case 'documentCarteGrise':

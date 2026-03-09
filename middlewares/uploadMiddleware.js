@@ -397,6 +397,29 @@ const vehiculeStorage = multer.diskStorage({
   }
 });
 
+// 🔥 Storage intelligent pour véhicules : photos → vehicules/, documents → documents/
+const vehiculeDocumentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const champsDocuments = [
+      'documentCarteGrise',
+      'documentAssurance',
+      'documentVisite',
+      'photoVignette',
+      'documentCarteTransport'
+    ];
+    const destination = champsDocuments.includes(file.fieldname)
+      ? UPLOAD_PATHS.documents
+      : UPLOAD_PATHS.vehicules;
+
+    logger.info(`📂 Destination upload "${file.fieldname}" → ${destination}`);
+    cb(null, destination);
+  },
+  filename: (req, file, cb) => {
+    const filename = generateUniqueFilename(file.originalname);
+    cb(null, filename);
+  }
+});
+
 // Configuration de stockage pour les documents d'identité
 const documentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -577,17 +600,16 @@ const uploadVehiculePhoto = multer({
   }
 });
 
-// 🔥 NOUVEAU: Middleware spécifique pour accepter N'IMPORTE QUEL fichier photo/document de véhicule
 const uploadVehiculeMultiple = multer({
-  storage: vehiculeStorage,
-  fileFilter: createFileFilter('images'),
+  storage: vehiculeDocumentStorage, // ← changé
+  fileFilter: createFileFilter('documents'), // ← changé (accepte PDF + images)
   limits: {
-    fileSize: FILE_TYPES.images.maxSize,
-    files: 15, // 🔥 Accepte jusqu'à 15 fichiers (photos + documents)
+    fileSize: FILE_TYPES.documents.maxSize, // ← changé (10MB)
+    files: 15,
     fields: 30,
     parts: 60
   }
-}).any(); // 🔥 .any() accepte tous les champs de fichiers
+}).any();
 
 // Upload pour documents d'identité
 const uploadDocument = multer({
@@ -775,7 +797,8 @@ module.exports = {
 
   // Configurations multer principales
   uploadVehiculePhoto,
-  uploadVehiculeMultiple, // 🔥 NOUVEAU: Upload flexible pour véhicules
+  uploadVehiculeMultiple, 
+  vehiculeDocumentStorage,
   uploadDocument,
   uploadProfilPhoto,
   uploadTemp,

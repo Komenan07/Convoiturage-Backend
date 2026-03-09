@@ -147,8 +147,8 @@ const vehiculeSchema = new mongoose.Schema({
       validate: {
         validator: function(url) {
           if (!url) return true;
-          return /^\/uploads\/vehicules\/.+\.(pdf|jpg|jpeg|png)$/i.test(url) ||
-                 /^https?:\/\/.+\.(pdf|jpg|jpeg|png)$/i.test(url);
+          return /^\/uploads\/(vehicules|documents)\/.+\.(pdf|jpg|jpeg|png)$/i.test(url) ||
+              /^https?:\/\/.+\.(pdf|jpg|jpeg|png)$/i.test(url);
         },
         message: 'URL de carte grise invalide'
       }
@@ -297,8 +297,8 @@ const vehiculeSchema = new mongoose.Schema({
       validate: {
         validator: function(url) {
           if (!url) return true;
-          return /^\/uploads\/vehicules\/.+\.(pdf|jpg|jpeg|png)$/i.test(url) ||
-                 /^https?:\/\/.+\.(pdf|jpg|jpeg|png)$/i.test(url);
+          return /^\/uploads\/(vehicules|documents)\/.+\.(pdf|jpg|jpeg|png)$/i.test(url) ||
+              /^https?:\/\/.+\.(pdf|jpg|jpeg|png)$/i.test(url);
         },
         message: 'URL de certificat invalide'
       }
