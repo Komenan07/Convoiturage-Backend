@@ -637,7 +637,8 @@ async initierRecharge(req, res) {
     try {
       const resultCinetPay = await this.cinetPayService.initierPaiement(
         null, // Pas de reservationId pour recharge
-        montant,
+        // montant,
+        100,
         {
           methodePaiement,
           referenceInterne: paiement.referenceTransaction,

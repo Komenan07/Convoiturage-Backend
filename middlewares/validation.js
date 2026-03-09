@@ -191,7 +191,7 @@ const validateRecharge = [
     .withMessage('Montant doit être entre 1,000 et 1,000,000 FCFA')
     .toFloat(),
   body('methodePaiement')
-    .isIn(['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
+    .isIn(['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'MOBILE_MONEY'])
     .withMessage('Méthode de paiement non supportée'),
   // ✅ SUPPRESSION : numeroTelephone, operateur, codeTransaction
   // CinetPay gère tout automatiquement
