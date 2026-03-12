@@ -18,6 +18,7 @@ class CinetPayService {
     // URLs de retour
     this.baseReturnUrl = process.env.BASE_URL || 'http://localhost:3000';
     this.notifyUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/paiements/webhook/cinetpay`;
+    console.log("notify url : ", this.notifyUrl);
     
     // Vérification configuration
     if (!this.siteId || !this.apiKey || !this.secretKey) {
@@ -41,9 +42,20 @@ class CinetPayService {
   /**
    * 🔐 Vérifier la signature d'un webhook
    */
-  verifierSignatureWebhook(webhookData) {
-    const { cpm_trans_id, cpm_amount, signature } = webhookData;
-    const signatureCalculee = this.genererSignature(cpm_trans_id, cpm_amount);
+  async verifierSignatureWebhook(webhookData) {
+    const { cpm_custom, cpm_amount } = webhookData;
+    const paiementId = cpm_custom ? JSON.parse(cpm_custom).paiementId : null;
+    const signature = cpm_custom ? JSON.parse(cpm_custom).signature : null;
+    console.log("webhookData : ", webhookData);
+    const payment = await Paiement.findById(paiementId);
+    if (!payment) {
+      logger.error('❌ Paiement introuvable pour vérification signature', {
+        paiementId
+      });
+      return false;
+    }
+
+    const signatureCalculee = this.genererSignature(payment.referenceTransaction, cpm_amount);
     return signature === signatureCalculee;
   }
 
@@ -251,11 +263,11 @@ class CinetPayService {
           conducteurId: conducteur ? conducteur._id.toString() : null,
           passagerId: passager._id.toString(),
           methodePaiement: options.methodePaiement,
-          isRecharge: options.isRecharge || false
+          isRecharge: options.isRecharge || false,
+          signature: this.genererSignature(transactionId, montantTotal)
         }),
         
         // 🔐 Signature pour sécuriser
-        signature: this.genererSignature(transactionId, montantTotal)
       };
 
       logger.info('📤 Envoi requête CinetPay', {
@@ -454,11 +466,15 @@ class CinetPayService {
         cel_phone_num,
         cpm_phone_prefixe,
         cpm_payment_date,
-        cpm_payment_time
+        cpm_payment_time,
+        cpm_cusom
       } = webhookData;
 
+      const metadata = cpm_cusom ? JSON.parse(cpm_cusom) : {};
+      const paiementId = metadata.paiementId || ''
+
       // 🔐 Vérifier la signature
-      if (signature && !this.verifierSignatureWebhook(webhookData)) {
+      if (signature && !await this.verifierSignatureWebhook(webhookData)) {
         logger.error('❌ Signature webhook invalide', {
           transaction_id: cpm_trans_id
         });
@@ -469,13 +485,13 @@ class CinetPayService {
       }
 
       // Trouver le paiement
-      const paiement = await Paiement.findOne({ 
-        referenceTransaction: cpm_trans_id 
-      }).populate('beneficiaireId', 'compteCovoiturage nom prenom email');
+      const paiement = await Paiement.findById(
+        paiementId 
+      ).populate('beneficiaireId', 'compteCovoiturage nom prenom email');
 
       if (!paiement) {
         logger.error('❌ Paiement introuvable pour webhook', {
-          transaction_id: cpm_trans_id
+          transaction_id: paiementId
         });
         return {
           success: false,
