@@ -198,7 +198,7 @@ const paiementSchema = new mongoose.Schema({
     type: String, 
     unique: true,
     default: function() {
-      return `PAY_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+      return `PAY-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
     },
     index: true
   },
@@ -524,69 +524,159 @@ paiementSchema.methods.obtenirModesAutorisesSelonSolde = function(soldeConducteu
 };
 
 // 🆕 Traiter commission avec gestion solde
+// ✅ REMPLACER toute la méthode traiterCommissionApresPayement
 paiementSchema.methods.traiterCommissionApresPayement = async function() {
   try {
-    if (this.commission.statutPrelevement === 'preleve') return;
+    // ── Guard : déjà traité
+    if (this.commission.statutPrelevement === 'preleve') {
+      console.log('⚠️ Commission déjà prélevée — skip', { paiementId: this._id });
+      return;
+    }
+
+    console.log('🔄 Début traiterCommissionApresPayement', {
+      paiementId:        this._id,
+      statutActuel:      this.statutPaiement,
+      modePrelevement:   this.commission.modePrelevement,
+      montantCommission: this.commission.montant,
+      montantConducteur: this.montantConducteur,
+      beneficiaireId:    this.beneficiaireId
+    });
 
     const Utilisateur = mongoose.model('Utilisateur');
     const conducteur = await Utilisateur.findById(this.beneficiaireId);
 
+    // ── Vérifier que le conducteur existe
+    if (!conducteur) {
+      console.error('❌ Conducteur introuvable', { beneficiaireId: this.beneficiaireId });
+      this.commission.statutPrelevement = 'echec';
+      this.ajouterErreur('CONDUCTEUR_INTROUVABLE', `Conducteur ${this.beneficiaireId} introuvable`);
+      await this.save();
+      return;
+    }
+
+    console.log('👤 Conducteur trouvé', {
+      conducteurId: conducteur._id,
+      solde:        conducteur.compteCovoiturage?.solde,
+      modePrelevement: this.commission.modePrelevement
+    });
+
+    // ── Vérifier que les méthodes existent sur Utilisateur
+    if (typeof conducteur.preleverCommission !== 'function') {
+      console.error('❌ Méthode preleverCommission inexistante sur Utilisateur');
+      this.commission.statutPrelevement = 'echec';
+      this.ajouterErreur('METHODE_MANQUANTE', 'preleverCommission non définie sur Utilisateur');
+      await this.save();
+      return;
+    }
+
+    if (typeof conducteur.crediterGains !== 'function') {
+      console.error('❌ Méthode crediterGains inexistante sur Utilisateur');
+      this.commission.statutPrelevement = 'echec';
+      this.ajouterErreur('METHODE_MANQUANTE', 'crediterGains non définie sur Utilisateur');
+      await this.save();
+      return;
+    }
+
+    // ── Traitement selon le mode de prélèvement
     if (this.commission.modePrelevement === 'compte_recharge') {
-      // Vérifier à nouveau le solde (sécurité)
+
+      // Vérifier solde suffisant
       if (conducteur.compteCovoiturage.solde < this.commission.montant) {
+        console.error('❌ Solde insuffisant pour commission', {
+          solde:            conducteur.compteCovoiturage.solde,
+          commissionRequise: this.commission.montant
+        });
         this.commission.statutPrelevement = 'insuffisant';
-        this.ajouterErreur('SOLDE_INSUFFISANT', 
-          `Solde insuffisant pour prélever commission : ${conducteur.compteCovoiturage.solde} FCFA < ${this.commission.montant} FCFA`
+        this.ajouterErreur('SOLDE_INSUFFISANT',
+          `Solde insuffisant : ${conducteur.compteCovoiturage.solde} FCFA < ${this.commission.montant} FCFA`
         );
         await this.save();
         return;
       }
-      
+
       // Enregistrer solde avant
       this.reglesPaiement.soldeConducteurAvant = conducteur.compteCovoiturage.solde;
-      
-      // Prélever commission du compte rechargé
+
+      // Prélever commission
       await conducteur.preleverCommission(
         this.commission.montant,
         this.reservationId,
         this._id
       );
-      
+      console.log('✅ Commission prélevée du compte rechargé', {
+        montant: this.commission.montant
+      });
+
       // Enregistrer solde après
       const conducteurMisAJour = await Utilisateur.findById(this.beneficiaireId);
       this.reglesPaiement.soldeConducteurApres = conducteurMisAJour.compteCovoiturage.solde;
-      
+
       this.ajouterLog('COMMISSION_PRELEVEE_COMPTE', {
-        montant: this.commission.montant,
-        conducteurId: this.beneficiaireId,
+        montant:    this.commission.montant,
         soldeAvant: this.reglesPaiement.soldeConducteurAvant,
         soldeApres: this.reglesPaiement.soldeConducteurApres
       });
-      
+
     } else if (this.commission.modePrelevement === 'paiement_mobile') {
-      // Commission déjà prélevée lors du paiement mobile money
+
+      // ✅ Pour paiement mobile : commission déjà incluse dans le paiement CinetPay
+      // On logue simplement — pas de prélèvement supplémentaire
+      console.log('✅ Mode paiement_mobile — commission incluse dans le paiement CinetPay');
       this.ajouterLog('COMMISSION_PRELEVEE_MOBILE', {
-        montant: this.commission.montant,
-        operateur: this.mobileMoney.operateur
+        montant:   this.commission.montant,
+        operateur: this.mobileMoney?.operateur || 'CinetPay'
       });
+
+    } else {
+      console.error('❌ Mode de prélèvement inconnu', {
+        modePrelevement: this.commission.modePrelevement
+      });
+      this.commission.statutPrelevement = 'echec';
+      this.ajouterErreur('MODE_PRELEVEMENT_INCONNU',
+        `Mode inconnu : ${this.commission.modePrelevement}`
+      );
+      await this.save();
+      return;
     }
 
-    // Créditer les gains au conducteur (montant après commission)
+    // ── Créditer les gains au conducteur
     await conducteur.crediterGains(
       this.montantConducteur,
       this.reservationId,
       this._id
     );
+    console.log('✅ Gains crédités au conducteur', {
+      montant: this.montantConducteur
+    });
 
+    // ── Marquer comme traité
     this.commission.statutPrelevement = 'preleve';
-    this.commission.datePrelevement = new Date();
-    
+    this.commission.datePrelevement   = new Date();
+    this.statutPaiement               = 'COMPLETE';   // ✅ MANQUAIT
+    this.dateCompletion               = new Date();   // ✅ MANQUAIT
+
+    this.ajouterLog('TRAITEMENT_COMMISSION_TERMINE', {
+      statutFinal:       this.statutPaiement,
+      montantCommission: this.commission.montant,
+      montantConducteur: this.montantConducteur,
+      dateCompletion:    this.dateCompletion
+    });
+
     await this.save();
+    console.log('✅ Paiement sauvegardé en base', {
+      statutFinal:           this.statutPaiement,
+      commissionStatut:      this.commission.statutPrelevement,
+      dateCompletion:        this.dateCompletion
+    });
 
   } catch (error) {
+    console.error('❌ Erreur traitement commission:', error);
     this.commission.statutPrelevement = 'echec';
-    this.ajouterErreur('TRAITEMENT_COMMISSION_ERREUR', error.message);
-    console.error('Erreur traitement commission:', error);
+    this.ajouterErreur('TRAITEMENT_COMMISSION_ERREUR', error.message, error.stack);
+    // ✅ Sauvegarder même en cas d'erreur
+    try { await this.save(); } catch (saveError) {
+      console.error('❌ Erreur sauvegarde après échec:', saveError.message);
+    }
   }
 };
 
@@ -804,7 +894,7 @@ paiementSchema.statics.obtenirCommissionsEnEchec = function() {
 };
 
 // 🆕 Obtenir paiements bloqués
-paiementSchema.statics.obtenirPaiementsBloqués = function() {
+paiementSchema.statics.obtenirPaiementsBloques = function() {
   return this.find({
     statutPaiement: 'BLOQUE',
     'reglesPaiement.blocageActif': true

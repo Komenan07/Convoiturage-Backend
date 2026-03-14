@@ -1,5 +1,5 @@
 // controllers/paiementController.js
-const CinetPayService = require('../services/CinetPayService');
+const CinetPayService = require('../services/cinetPayService');
 const Paiement = require('../models/Paiement');
 const Utilisateur = require('../models/Utilisateur');
 const firebaseService = require('../services/firebaseService');
@@ -47,11 +47,11 @@ class PaiementController {
       }
 
       // Validation du montant
-      if (montant < 100 || montant > 1000000) {
+      if (montant < 300 || montant > 1000000) {
         return res.status(400).json({
           success: false,
           error: 'MONTANT_INVALIDE',
-          message: 'Montant doit être entre 100 et 1,000,000 FCFA'
+          message: 'Montant doit être entre 300 et 1,000,000 FCFA'
         });
       }
 
@@ -229,8 +229,7 @@ class PaiementController {
         // Paiement mobile - utiliser CinetPay
         const result = await this.cinetPayService.initierPaiement(
           reservationId, 
-          // montant,
-          100, // Pour tests
+          montant, 
 
           {
             methodePaiement,
@@ -516,12 +515,12 @@ async initierRecharge(req, res) {
     }
 
     // Validation montant
-    if (montant < 1000 || montant > 1000000) {
+    if (montant < 300 || montant > 1000000) {
       return res.status(400).json({
         success: false,
-        message: 'Montant invalide (1000 à 1 000 000 FCFA)',
+        message: 'Montant invalide (300 à 1 000 000 FCFA)',
         limites: {
-          minimum: 1000,
+          minimum: 300,
           maximum: 1000000
         }
       });
@@ -749,23 +748,17 @@ async initierRecharge(req, res) {
  * 
  * la méthode confirmerRecharge existante par celle-ci
  */
-async confirmerRecharge(req, res) {
-  try {
-    const {
-      referenceTransaction,
-      statutPaiement = 'COMPLETE',
-      // Champs webhook CinetPay
-      cpm_trans_id,
-      cpm_trans_status,
-      cpm_amount,
-      cpm_custom
-    } = req.body;
+  async confirmerRecharge(req, res) {
+    try {
+      const {
+    referenceTransaction,
+    statutPaiement = 'COMPLETE',
+    merchant_transaction_id,
+    transaction_id,
+    notify_token
+  } = req.body;
 
-    // Détecter si c'est un webhook CinetPay
-    const estWebhook = req.headers['x-webhook-signature'] || 
-                       req.body.webhook === true ||
-                       cpm_trans_id; // Si contient ID transaction CinetPay
-
+const estWebhook = notify_token || merchant_transaction_id;
     if (!referenceTransaction) {
       return res.status(400).json({
         success: false,
@@ -868,24 +861,22 @@ async confirmerRecharge(req, res) {
     } else {
       logger.info('📨 Webhook CinetPay reçu pour recharge', {
         referenceTransaction,
-        cpm_trans_id,
-        cpm_trans_status,
-        cpm_amount,      
-        cpm_custom 
+        transaction_id,
+        notify_token
       });
     }
 
     // ✅ TRAITER SELON LE STATUT
-    if (statutPaiement === 'COMPLETE' || cpm_trans_status === 'COMPLETED') {
+    if (statutPaiement === 'COMPLETE' || notify_token) {
       // RECHARGE RÉUSSIE
       paiement.statutPaiement = 'COMPLETE';
       paiement.dateCompletion = new Date();
       
       // Enregistrer données CinetPay si webhook
-      if (cpm_trans_id) {
-        paiement.mobileMoney.transactionId = cpm_trans_id;
+      if (transaction_id) {
+       paiement.mobileMoney.transactionId = transaction_id;
         paiement.mobileMoney.statutMobileMoney = 'SUCCESS';
-        paiement.referencePaiementMobile = cpm_trans_id;
+        paiement.referencePaiementMobile = transaction_id;
         paiement.mobileMoney.dateTransaction = new Date();
       }
 
@@ -928,7 +919,7 @@ async confirmerRecharge(req, res) {
         bonusRecharge: paiement.bonus.bonusRecharge,
         nouveauSolde: user.compteCovoiturage.solde,
         modeConfirmation: estWebhook ? 'webhook_auto' : 'manuel_admin',
-        cpm_trans_id: cpm_trans_id || null
+        transaction_id: transaction_id || null
       });
 
       logger.info('✅ Recharge confirmée avec succès', {
@@ -955,16 +946,16 @@ async confirmerRecharge(req, res) {
           statutPaiement: paiement.statutPaiement,
           dateCompletion: paiement.dateCompletion,
           modeConfirmation: estWebhook ? 'automatique' : 'manuel',
-          transactionCinetPay: cpm_trans_id || null
+          transactionCinetPay: transaction_id || null
         }
       });
 
-    } else if (statutPaiement === 'ECHEC' || cpm_trans_status === 'FAILED') {
+    } else if (statutPaiement === 'ECHEC') {
       // RECHARGE ÉCHOUÉE
       paiement.statutPaiement = 'ECHEC';
       
-      if (cpm_trans_id) {
-        paiement.mobileMoney.transactionId = cpm_trans_id;
+      if (transaction_id) {
+         paiement.mobileMoney.transactionId = transaction_id;
         paiement.mobileMoney.statutMobileMoney = 'FAILED';
       }
 
@@ -1002,7 +993,7 @@ async confirmerRecharge(req, res) {
         paiementId: paiement._id,
         userId: user._id,
         referenceTransaction,
-        cpm_trans_id: cpm_trans_id || null
+        transaction_id: transaction_id || null
       });
 
       res.json({
@@ -1013,7 +1004,7 @@ async confirmerRecharge(req, res) {
           referenceTransaction: paiement.referenceTransaction,
           statutPaiement: paiement.statutPaiement,
           raisonEchec: 'Paiement échoué sur CinetPay',
-          transactionCinetPay: cpm_trans_id || null
+          transactionCinetPay: transaction_id || null
         }
       });
     }
@@ -1416,14 +1407,15 @@ async confirmerRecharge(req, res) {
       const result = await this.cinetPayService.traiterWebhook(webhookData);
 
       // Envoyer notification Firebase selon le résultat
-      if (result.success && result.paiement) {
-        const paiement = result.paiement;
+      if (result.success && result.paiementId) {
+        const paiement = await Paiement.findById(result.paiementId)
+          .populate('payeurId');
         
         try {
           // Notification selon le statut du paiement
-          if (paiement.statutPaiement === 'COMPLETE') {
+         if (paiement && paiement.statutPaiement === 'COMPLETE') {
             // Paiement réussi
-            const utilisateur = await Utilisateur.findById(paiement.payeurId);
+             const utilisateur = paiement.payeurId;
             
             if (utilisateur && utilisateur.notificationsActivees('paiements')) {
               await firebaseService.notifyPaymentSuccess(

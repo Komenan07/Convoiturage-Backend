@@ -160,9 +160,8 @@ const validatePaiement = [
     .toFloat(),
   body('methodePaiement')
     .optional()
-    .isIn(['MOBILE_MONEY', 'ESPECES'])
-    .withMessage('Méthode de paiement non supportée')
-    .default('MOBILE_MONEY'),
+    .isIn(['MOBILE_MONEY', 'ESPECES', 'COMPTE_RECHARGE'])
+    .withMessage('Méthode de paiement non supportée'),
   handleValidationErrors
 ];
 
@@ -187,15 +186,13 @@ const validateConfirmerPaiementEspeces = [
 
 const validateRecharge = [
   body('montant')
-    .isFloat({ min: 1000, max: 1000000 })
-    .withMessage('Montant doit être entre 1,000 et 1,000,000 FCFA')
+    .isFloat({ min: 300, max: 1000000 })
+    .withMessage('Montant doit être entre 300 et 1,000,000 FCFA')
     .toFloat(),
   body('methodePaiement')
-    .isIn(['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY', 'MOBILE_MONEY'])
+    .isIn(['MOBILE_MONEY', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
     .withMessage('Méthode de paiement non supportée'),
-  // ✅ SUPPRESSION : numeroTelephone, operateur, codeTransaction
-  // CinetPay gère tout automatiquement
-  handleValidationErrors
+   handleValidationErrors
 ];
 
 const validateConfirmerRecharge = [
