@@ -1,5 +1,5 @@
 // controllers/paiementController.js
-const CinetPayService = require('../services/cinetPayService');
+const CinetPayService = require('../services/CinetPayService');
 const Paiement = require('../models/Paiement');
 const Utilisateur = require('../models/Utilisateur');
 const firebaseService = require('../services/firebaseService');

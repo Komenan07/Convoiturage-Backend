@@ -263,6 +263,31 @@ router.get('/rapport',
 );
 
 /**
+ * ✅ NOUVELLE ROUTE - Obtenir mes alertes (AVANT /:id pour éviter conflit)
+ * @route   GET /api/alertes-urgence/mes-alertes
+ * @desc    Obtenir les alertes de l'utilisateur connecté
+ * @access  Privé
+ * @query   page, limit, statut
+ */
+router.get('/mes-alertes',
+  middlewareAuth,
+  middlewareLimiterTaux('lecture'),
+  alerteUrgenceController.obtenirMesAlertes || creerControleurParDefaut('obtenirMesAlertes')
+);
+
+/**
+ * ✅ NOUVELLE ROUTE - Mes statistiques (AVANT /:id pour éviter conflit)
+ * @route   GET /api/alertes-urgence/mes-statistiques
+ * @desc    Obtenir les statistiques personnelles de l'utilisateur
+ * @access  Privé
+ */
+router.get('/mes-statistiques',
+  middlewareAuth,
+  middlewareLimiterTaux('lecture'),
+  alerteUrgenceController.obtenirMesStatistiques || creerControleurParDefaut('obtenirMesStatistiques')
+);
+
+/**
  * @route   GET /api/alertes-urgence/:id
  * @desc    Obtenir une alerte spécifique par ID
  * @access  Public
@@ -293,31 +318,6 @@ router.post('/',
     middlewareValidation(validerAlerteUrgence, 'alerte')
   ]),
   alerteUrgenceController.declencherAlerte || creerControleurParDefaut('declencherAlerte')
-);
-
-/**
- * ✅ NOUVELLE ROUTE - Obtenir mes alertes
- * @route   GET /api/alertes-urgence/mes-alertes
- * @desc    Obtenir les alertes de l'utilisateur connecté
- * @access  Privé
- * @query   page, limit, statut
- */
-router.get('/mes-alertes',
-  middlewareAuth,
-  middlewareLimiterTaux('lecture'),
-  alerteUrgenceController.obtenirMesAlertes || creerControleurParDefaut('obtenirMesAlertes')
-);
-
-/**
- * ✅ NOUVELLE ROUTE - Mes statistiques
- * @route   GET /api/alertes-urgence/mes-statistiques
- * @desc    Obtenir les statistiques personnelles de l'utilisateur
- * @access  Privé
- */
-router.get('/mes-statistiques',
-  middlewareAuth,
-  middlewareLimiterTaux('lecture'),
-  alerteUrgenceController.obtenirMesStatistiques || creerControleurParDefaut('obtenirMesStatistiques')
 );
 
 /**
