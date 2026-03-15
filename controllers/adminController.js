@@ -629,21 +629,185 @@ const desactiverAdmin = async (req, res, next) => {
  */
 const obtenirDashboard = async (req, res, next) => {
   try {
-    // Statistiques des administrateurs
-    const statsAdmins = await Administrateur.obtenirStatistiques();
+    // Statistiques générales de la plateforme
+    const totalUtilisateurs = await User.countDocuments({ statut: { $ne: 'supprime' } });
+    const utilisateursActifs = await User.countDocuments({ 
+      statut: 'actif',
+      derniereConnexion: { 
+        $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) 
+      }
+    });
+    const nouveauxUtilisateurs = await User.countDocuments({
+      createdAt: { 
+        $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) 
+      }
+    });
 
-    // Activité récente (dernières connexions)
-    const activiteRecente = await Administrateur.find({
-      derniereConnexion: { $exists: true, $ne: null }
-    })
-    .sort({ derniereConnexion: -1 })
-    .limit(10)
-    .select('nom prenom email role derniereConnexion');
+    // Statistiques des trajets
+    const trajetsActifs = await Trajet.countDocuments({ 
+      statut: 'actif',
+      dateHeureDepart: { $gte: new Date() }
+    });
+    const totalTrajets = await Trajet.countDocuments();
+    const trajetsTermines = await Trajet.countDocuments({ statut: 'termine' });
+    const trajetsAnnules = await Trajet.countDocuments({ statut: 'annule' });
+
+    // Statistiques des réservations
+    const totalReservations = await Reservation.countDocuments();
+    const reservationsConfirmees = await Reservation.countDocuments({ statut: 'confirmee' });
+    const reservationsEnAttente = await Reservation.countDocuments({ statut: 'en_attente' });
+    const reservationsAnnulees = await Reservation.countDocuments({ statut: 'annulee' });
+
+    // Statistiques financières
+    const paiementsReussis = await Paiement.find({ statut: 'reussi' });
+    const revenusTotal = paiementsReussis.reduce((sum, p) => sum + (p.montant || 0), 0);
+    const revenusCommissions = paiementsReussis.reduce((sum, p) => sum + (p.commission || 0), 0);
+    const revenusAujourdhui = await Paiement.aggregate([
+      {
+        $match: {
+          statut: 'reussi',
+          createdAt: {
+            $gte: new Date(new Date().setHours(0, 0, 0, 0))
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$montant' }
+        }
+      }
+    ]);
+
+    // Taux de conversion
+    const tauxReservation = totalTrajets > 0 ? ((totalReservations / totalTrajets) * 100).toFixed(2) : 0;
+    const tauxCompletion = totalReservations > 0 ? ((reservationsConfirmees / totalReservations) * 100).toFixed(2) : 0;
+
+    // Évolution des utilisateurs (7 derniers jours)
+    const evolutionUtilisateurs = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 }
+      }
+    ]);
+
+    // Évolution des trajets (7 derniers jours)
+    const evolutionTrajets = await Trajet.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 }
+      }
+    ]);
+
+    // Évolution des revenus (7 derniers jours)
+    const evolutionRevenus = await Paiement.aggregate([
+      {
+        $match: {
+          statut: 'reussi',
+          createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' }
+          },
+          total: { $sum: '$montant' }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 }
+      }
+    ]);
+
+    // Répartition des statuts de trajets
+    const statutsTrajets = await Trajet.aggregate([
+      {
+        $group: {
+          _id: '$statut',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Activité récente (derniers trajets, réservations, paiements)
+    const derniersTrajetsCrees = await Trajet.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('conducteur', 'prenom nom')
+      .select('lieuDepart lieuArrivee dateHeureDepart statut prix createdAt');
+
+    const dernieresReservations = await Reservation.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('passager', 'prenom nom')
+      .populate('trajet', 'lieuDepart lieuArrivee')
+      .select('statut nombrePlaces createdAt');
+
+    const derniersPaiements = await Paiement.find({ statut: 'reussi' })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('montant methode createdAt');
+
+    // Top 5 conducteurs (par nombre de trajets)
+    const topConducteurs = await Trajet.aggregate([
+      {
+        $match: { statut: 'termine' }
+      },
+      {
+        $group: {
+          _id: '$conducteur',
+          nombreTrajets: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { nombreTrajets: -1 }
+      },
+      {
+        $limit: 5
+      }
+    ]);
+
+    // Peupler les infos des conducteurs
+    const topConducteursAvecInfos = await User.populate(topConducteurs, {
+      path: '_id',
+      select: 'prenom nom photo noteGlobale nombreEvaluations'
+    });
 
     // Admins créés récemment
     const nouveauxAdmins = await Administrateur.find({
       createdAt: { 
-        $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // 30 derniers jours
+        $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       }
     })
     .sort({ createdAt: -1 })
@@ -653,8 +817,48 @@ const obtenirDashboard = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: {
-        statistiques: statsAdmins,
-        activiteRecente,
+        statistiques: {
+          // Utilisateurs
+          totalUtilisateurs,
+          utilisateursActifs,
+          nouveauxUtilisateurs,
+          
+          // Trajets
+          trajetsActifs,
+          totalTrajets,
+          trajetsTermines,
+          trajetsAnnules,
+          
+          // Réservations
+          totalReservations,
+          reservationsConfirmees,
+          reservationsEnAttente,
+          reservationsAnnulees,
+          
+          // Finances
+          revenusTotal: Math.round(revenusTotal),
+          revenusCommissions: Math.round(revenusCommissions),
+          revenusAujourdhui: revenusAujourdhui[0]?.total || 0,
+          
+          // Taux
+          tauxReservation: parseFloat(tauxReservation),
+          tauxCompletion: parseFloat(tauxCompletion)
+        },
+        
+        graphiques: {
+          evolutionUtilisateurs,
+          evolutionTrajets,
+          evolutionRevenus,
+          statutsTrajets
+        },
+        
+        activiteRecente: {
+          trajets: derniersTrajetsCrees,
+          reservations: dernieresReservations,
+          paiements: derniersPaiements
+        },
+        
+        topConducteurs: topConducteursAvecInfos,
         nouveauxAdmins
       }
     });
