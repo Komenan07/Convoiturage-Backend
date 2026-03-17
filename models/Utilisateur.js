@@ -632,6 +632,19 @@ const utilisateurSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // 🔐 OTP Email (inscription par code)
+  otpCode: {
+    type: String,
+    select: false  // caché par défaut
+  },
+  otpExpiration: {
+    type: Date,
+    select: false
+  },
+  emailVerifie: {
+    type: Boolean,
+    default: false
+  },
 
   // Reset password
   tokenResetMotDePasse: {

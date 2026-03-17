@@ -381,16 +381,17 @@ const handleValidationErrors = (req, res, next) => {
  * @access  Public
  */
 router.post('/register', register);
-/**
- * @desc    Vérifier le code WhatsApp
- * @route   POST /api/auth/verify-code
- * @access  Public
- */
-router.post('/register/choose-channel', chooseChannel);
+
+router.post('/inscription/choose-channel', chooseChannel);
 /**
  * @desc    Choisir le canal de vérification (email ou téléphone)
  *          Appelé uniquement si requiresChoice: true à l'inscription
  * @route   POST /api/auth/register/choose-channel
+ * @access  Public
+ */
+/**
+ * @desc    Vérifier le code WhatsApp
+ * @route   POST /api/auth/verify-code
  * @access  Public
  */
 router.post('/verify-code', verifyCode);

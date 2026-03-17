@@ -443,10 +443,10 @@ const _buildNextStep = (canal) => {
 
 /**
  * @desc    Inscription d'un nouvel utilisateur avec vérification WhatsApp
- * @route   POST /api/auth/register
+ * @route   POST /api/auth/inscription
  * @access  Public
  */
-const register = async (req, res, next) => {
+const inscription = async (req, res, next) => {
   try {
     const {
       nom,
@@ -799,37 +799,26 @@ const chooseChannel = async (req, res, next) => {
  */
 const verifyCode = async (req, res, next) => {
   try {
-    const { telephone, code } = req.body;
+    const { email, code } = req.body;
 
-    if (!telephone || !code) {
+    if (!email || !code) {
       return res.status(400).json({
         success: false,
-        message: 'Veuillez fournir le numéro de téléphone et le code'
+        message: 'Veuillez fournir l\'email et le code de vérification'
       });
     }
 
-    // 🔥 NORMALISER LE TÉLÉPHONE AVANT LA RECHERCHE
-    const phoneProcessed = normaliserTelephoneCI(telephone);
-    
-    if (!phoneProcessed) {
-      return res.status(400).json({
-        success: false,
-        message: 'Le numéro de téléphone n\'est pas valide',
-        errorType: 'INVALID_PHONE_FORMAT'
-      });
-    }
-
-    const utilisateur = await User.findOne({ telephone: phoneProcessed })
-      .select('+codeVerificationWhatsApp +codeVerificationWhatsAppExpire +refreshTokens');
+    const utilisateur = await User.findOne({ email })
+      .select('+otpCode +otpExpiration +refreshTokens');
 
     if (!utilisateur) {
       return res.status(404).json({
         success: false,
-        message: 'Aucun compte trouvé avec ce numéro de téléphone'
+        message: 'Aucun compte trouvé avec cet email'
       });
     }
 
-    if (utilisateur.whatsappVerifie) {
+    if (utilisateur.statutCompte === 'ACTIF') {
       return res.status(400).json({
         success: false,
         message: 'Ce compte est déjà vérifié',
@@ -837,33 +826,33 @@ const verifyCode = async (req, res, next) => {
       });
     }
 
-    const resultatVerification = utilisateur.verifierCodeWhatsApp(code);
-
-    if (!resultatVerification.valide) {
-      await utilisateur.save({ validateBeforeSave: false });
-
+    if (!utilisateur.otpExpiration || Date.now() > utilisateur.otpExpiration) {
       return res.status(400).json({
         success: false,
-        message: resultatVerification.raison
+        message: 'Le code OTP a expiré. Veuillez en demander un nouveau.',
+        errorType: 'OTP_EXPIRED'
       });
     }
 
-    // Code valide : activer le compte
-    utilisateur.whatsappVerifie = true;
+    const hashedOtp = crypto.createHash('sha256').update(code).digest('hex');
+
+    if (hashedOtp !== utilisateur.otpCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code incorrect. Veuillez réessayer.',
+        errorType: 'OTP_INVALID'
+      });
+    }
+
+    // ✅ Code valide — activer le compte
     utilisateur.statutCompte = 'ACTIF';
     utilisateur.estVerifie = true;
-    utilisateur.codeVerificationWhatsApp = undefined;
-    utilisateur.codeVerificationWhatsAppExpire = undefined;
-
+    utilisateur.emailVerifie = true;
+    utilisateur.otpCode = undefined;
+    utilisateur.otpExpiration = undefined;
     await utilisateur.save({ validateBeforeSave: false });
 
-    // Envoyer message de bienvenue
-    await twilioService.envoyerMessageBienvenue(
-      phoneProcessed,
-      utilisateur.prenom
-    );
-
-    // ✨ Récupérer les informations de l'appareil
+    // ✨ Informations de l'appareil
     const deviceInfo = {
       userAgent: req.headers['user-agent'] || 'Unknown',
       ip: req.ip || req.connection.remoteAddress,
@@ -872,20 +861,19 @@ const verifyCode = async (req, res, next) => {
       browser: detectBrowser(req.headers['user-agent'])
     };
 
-    // Générer Access Token ET Refresh Token
     const accessToken = utilisateur.getSignedJwtToken();
     const refreshToken = await utilisateur.generateRefreshToken(deviceInfo);
 
-    logger.info('Vérification WhatsApp réussie', { userId: utilisateur._id });
+    logger.info('Vérification email OTP réussie', { userId: utilisateur._id });
 
     res.status(200).json({
       success: true,
       message: '✅ Compte vérifié avec succès !',
       data: {
-        accessToken,       
-        refreshToken, 
+        accessToken,
+        refreshToken,
         expiresIn: process.env.JWT_EXPIRE || '15m',
-        refreshTokenExpiresIn: `${process.env.REFRESH_TOKEN_DAYS || 30} jours`,    
+        refreshTokenExpiresIn: `${process.env.REFRESH_TOKEN_DAYS || 30} jours`,
         utilisateur: {
           id: utilisateur._id,
           nom: utilisateur.nom,
@@ -900,7 +888,7 @@ const verifyCode = async (req, res, next) => {
     });
 
   } catch (error) {
-    logger.error('Erreur vérification code WhatsApp:', error);
+    logger.error('Erreur vérification code email:', error);
     return next(AppError.serverError('Erreur lors de la vérification du code', { 
       originalError: error.message 
     }));
@@ -914,81 +902,66 @@ const verifyCode = async (req, res, next) => {
  */
 const resendCode = async (req, res, next) => {
   try {
-    const { telephone } = req.body;
+    const { email } = req.body;
 
-    if (!telephone) {
-      return res.status(400).json({
-        success: false,
-        message: 'Veuillez fournir le numéro de téléphone'
-      });
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Veuillez fournir l\'email' });
     }
 
-    // 🔥 NORMALISER LE TÉLÉPHONE
-    const phoneProcessed = normaliserTelephoneCI(telephone);
-    
-    if (!phoneProcessed) {
-      return res.status(400).json({
-        success: false,
-        message: 'Le numéro de téléphone n\'est pas valide',
-        errorType: 'INVALID_PHONE_FORMAT'
-      });
-    }
-
-    const utilisateur = await User.findOne({ telephone: phoneProcessed })
-      .select('+codeVerificationWhatsApp +codeVerificationWhatsAppExpire');
+    const utilisateur = await User.findOne({ email });
 
     if (!utilisateur) {
-      return res.status(404).json({
-        success: false,
-        message: 'Aucun compte trouvé avec ce numéro de téléphone'
-      });
+      return res.status(404).json({ success: false, message: 'Aucun compte trouvé avec cet email' });
     }
 
-    if (utilisateur.whatsappVerifie) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ce compte est déjà vérifié'
-      });
+    if (utilisateur.statutCompte === 'ACTIF') {
+      return res.status(400).json({ success: false, message: 'Ce compte est déjà vérifié' });
     }
 
-    const code = utilisateur.genererCodeWhatsApp();
-    await utilisateur.save({ validateBeforeSave: false });
+    // ✅ Générer un nouvel OTP
+    const otpCode = crypto.randomInt(100000, 999999).toString();
+    const hashedOtp = crypto.createHash('sha256').update(otpCode).digest('hex');
 
-    const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-    const resultatEnvoi = await twilioService.envoyerCodeVerification(
-      phoneProcessed,
-      code,
-      nomComplet
+    // ✅ Mise à jour directe en base sans passer par le middleware pre-save
+    await User.findOneAndUpdate(
+      { email },
+      { $set: { otpCode: hashedOtp, otpExpiration: new Date(Date.now() + 10 * 60 * 1000) } }
     );
 
-    if (!resultatEnvoi.success) {
-      return res.status(500).json({
-        success: false,
-        message: 'Erreur lors de l\'envoi du code',
-        details: 'Impossible d\'envoyer le message WhatsApp'
+    // 📧 Envoyer le nouvel OTP par email
+    try {
+      const emailHtml = chargerTemplate('otp-email-template.html', {
+        'user.prenom': utilisateur.prenom,
+        'otpCode': otpCode,
+        'otpExpiration': '10 minutes'
       });
+
+      await sendEmail({
+        to: email,
+        subject: `${otpCode} - Votre nouveau code de vérification WAYZ-ECO`,
+        html: emailHtml
+      });
+
+      logger.info('Nouveau OTP email envoyé', { userId: utilisateur._id });
+
+    } catch (emailError) {
+      logger.error('Erreur envoi OTP email:', emailError);
+      return res.status(500).json({ success: false, message: 'Erreur lors de l\'envoi du code. Veuillez réessayer.' });
     }
 
-    logger.info('Nouveau code WhatsApp envoyé', { userId: utilisateur._id });
-    
     if (process.env.NODE_ENV === 'development') {
-      console.log(`📱 Nouveau code envoyé à ${phoneProcessed}: ${code}`);
+      console.log(`📧 Nouveau code envoyé à ${email}: ${otpCode}`);
     }
 
     res.status(200).json({
       success: true,
-      message: 'Un nouveau code a été envoyé sur WhatsApp',
-      data: {
-        telephone: utilisateur.telephone,
-        expiration: utilisateur.codeVerificationWhatsAppExpire
-      }
+      message: 'Un nouveau code a été envoyé sur votre email',
+      data: { email: utilisateur.email, expiration: new Date(Date.now() + 10 * 60 * 1000) }
     });
 
   } catch (error) {
-    logger.error('Erreur renvoi code WhatsApp:', error);
-    return next(AppError.serverError('Erreur lors du renvoi du code', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur renvoi code email:', error);
+    return next(AppError.serverError('Erreur lors du renvoi du code', { originalError: error.message }));
   }
 };
 
@@ -999,7 +972,167 @@ const resendCode = async (req, res, next) => {
 /**
  * Inscription avec vérification EMAIL (système actuel)
  */
-const inscription = async (req, res, next) => {
+// const inscription = async (req, res, next) => {
+//   try {
+//     logger.info('Tentative d\'inscription', { email: req.body.email });
+
+//     const { 
+//       nom, 
+//       prenom, 
+//       email, 
+//       motDePasse, 
+//       telephone,
+//       dateNaissance,
+//       sexe,
+//       role = 'passager',
+//       adresse
+//     } = req.body;
+
+//     // Validation des champs requis
+//     if (!nom || !prenom || !email || !motDePasse || !telephone) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Tous les champs obligatoires doivent être renseignés',
+//         champsRequis: ['nom', 'prenom', 'email', 'motDePasse', 'telephone']
+//       });
+//     }
+
+//     // 🔥 NORMALISER LE TÉLÉPHONE
+//     const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+//     if (!phoneProcessed) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Le numéro de téléphone n\'est pas valide',
+//         errorType: 'INVALID_PHONE_FORMAT',
+//         field: 'telephone'
+//       });
+//     }
+
+//     // Vérifier si l'utilisateur existe déjà
+//     const existingUser = await User.findOne({ 
+//       $or: [{ email }, { telephone: phoneProcessed }] 
+//     }).maxTimeMS(30000);
+    
+//     if (existingUser) {
+//       logger.warn('Inscription échouée - Email ou téléphone déjà utilisé', { email, telephone: phoneProcessed });
+//       return res.status(409).json({
+//         success: false,
+//         message: 'Un compte avec cet email ou ce numéro existe déjà'
+//       });
+//     }
+
+//     // Générer un token de confirmation d'email
+//     const confirmationToken = crypto.randomBytes(32).toString('hex');
+//     const hashedToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
+
+//     // Créer un nouvel utilisateur
+//     const userData = {
+//       nom,
+//       prenom,
+//       email,
+//       motDePasse, // Sera hashé par le middleware pre-save
+//       telephone: phoneProcessed,
+//       role: (role && ['conducteur', 'passager', 'les_deux'].includes(role)) ? role : 'passager',
+//       statutCompte: 'EN_ATTENTE_VERIFICATION',
+//       tentativesConnexionEchouees: 0,
+//       tokenConfirmationEmail: hashedToken,
+//       expirationTokenConfirmation: Date.now() + 24 * 60 * 60 * 1000, // 24 heures
+//       // Initialiser le compte covoiturage
+//       compteCovoiturage: {
+//         solde: 0,
+//         estRecharge: false,
+//         seuilMinimum: 0,
+//         historiqueRecharges: [],
+//         totalCommissionsPayees: 0,
+//         totalGagnes: 0,
+//         modeAutoRecharge: {
+//           active: false
+//         },
+//         historiqueCommissions: [],
+//         parametresRetrait: {},
+//         limites: {
+//           retraitJournalier: 1000000,
+//           retraitMensuel: 5000000,
+//           montantRetireAujourdhui: 0,
+//           montantRetireCeMois: 0
+//         }
+//       }
+//     };
+
+//     // Ajouter les champs optionnels s'ils sont fournis
+//     if (dateNaissance) userData.dateNaissance = dateNaissance;
+//     if (sexe) userData.sexe = sexe;
+//     if (adresse) userData.adresse = adresse;
+
+//     const newUser = new User(userData);
+//     await newUser.save({ maxTimeMS: 30000 });
+
+//     // Envoyer l'email de confirmation
+//     const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
+    
+//     try {
+//       const emailHtml = chargerTemplate('envoiEmail-template.html', {
+//         'newUser.prenom': newUser.prenom,
+//         'confirmationUrl': confirmationUrl
+//       });
+
+//       await sendEmail({
+//         to: newUser.email,
+//         subject: 'Confirmez votre adresse email - WAYZ-ECO',
+//         html: emailHtml
+//       });
+
+//       logger.info('Email de confirmation envoyé', { userId: newUser._id, email: newUser.email });
+      
+//     } catch (emailError) {
+//       logger.error('Erreur envoi email confirmation:', emailError);
+//     }
+
+//     logger.info('Inscription réussie', { userId: newUser._id });
+//     res.status(201).json({
+//       success: true,
+//       message: 'Compte créé avec succès. Veuillez vérifier votre email pour confirmer votre compte.',
+//       user: {
+//         id: newUser._id,
+//         nom: newUser.nom,
+//         prenom: newUser.prenom,
+//         email: newUser.email,
+//         telephone: newUser.telephone,
+//         role: newUser.role,
+//         statutCompte: newUser.statutCompte,
+//         compteCovoiturage: {
+//           solde: newUser.compteCovoiturage.solde,
+//           estRecharge: newUser.compteCovoiturage.estRecharge
+//         }
+//       }
+//     });
+
+//   } catch (error) {
+//     logger.error('Erreur inscription:', error);
+
+//     if (error.name === 'ValidationError') {
+//       const messages = Object.values(error.errors).map(err => err.message);
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Erreur de validation',
+//         details: messages
+//       });
+//     }
+
+//     if (error.code === 11000) {
+//       return res.status(409).json({
+//         success: false,
+//         message: 'Un compte avec cet email ou ce numéro existe déjà'
+//       });
+//     }
+
+//     return next(AppError.serverError('Erreur serveur lors de l\'inscription', { 
+//       originalError: error.message
+//     }));
+//   }
+// };
+const register = async (req, res, next) => {
   try {
     logger.info('Tentative d\'inscription', { email: req.body.email });
 
@@ -1049,9 +1182,9 @@ const inscription = async (req, res, next) => {
       });
     }
 
-    // Générer un token de confirmation d'email
-    const confirmationToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
+    // 🔥 Générer le code OTP 6 chiffres (remplace l'ancien token email)
+    const otpCode = crypto.randomInt(100000, 999999).toString();
+    const hashedOtp = crypto.createHash('sha256').update(otpCode).digest('hex');
 
     // Créer un nouvel utilisateur
     const userData = {
@@ -1063,8 +1196,11 @@ const inscription = async (req, res, next) => {
       role: (role && ['conducteur', 'passager', 'les_deux'].includes(role)) ? role : 'passager',
       statutCompte: 'EN_ATTENTE_VERIFICATION',
       tentativesConnexionEchouees: 0,
-      tokenConfirmationEmail: hashedToken,
-      expirationTokenConfirmation: Date.now() + 24 * 60 * 60 * 1000, // 24 heures
+
+      // 🔐 OTP à la place de l'ancien tokenConfirmationEmail
+      otpCode: hashedOtp,
+      otpExpiration: Date.now() + 10 * 60 * 1000, // 10 minutes
+
       // Initialiser le compte covoiturage
       compteCovoiturage: {
         solde: 0,
@@ -1095,31 +1231,36 @@ const inscription = async (req, res, next) => {
     const newUser = new User(userData);
     await newUser.save({ maxTimeMS: 30000 });
 
-    // Envoyer l'email de confirmation
-    const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
-    
+    // 📧 Envoyer l'OTP par email
     try {
-      const emailHtml = chargerTemplate('envoiEmail-template.html', {
-        'newUser.prenom': newUser.prenom,
-        'confirmationUrl': confirmationUrl
+      const emailHtml = chargerTemplate('otp-email-template.html', {
+        'user.prenom': prenom,
+        'otpCode': otpCode,
+        'otpExpiration': '10 minutes'
       });
 
       await sendEmail({
-        to: newUser.email,
-        subject: 'Confirmez votre adresse email - WAYZ-ECO',
+        to: email,
+        subject: `${otpCode} - Votre code de vérification WAYZ-ECO`,
         html: emailHtml
       });
 
-      logger.info('Email de confirmation envoyé', { userId: newUser._id, email: newUser.email });
-      
+      logger.info('OTP email envoyé', { userId: newUser._id, email });
+
     } catch (emailError) {
-      logger.error('Erreur envoi email confirmation:', emailError);
+      logger.error('Erreur envoi OTP email:', emailError);
+      // ⚠️ Supprimer l'utilisateur si l'email échoue
+      await User.findByIdAndDelete(newUser._id);
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'envoi du code de vérification. Veuillez réessayer.'
+      });
     }
 
-    logger.info('Inscription réussie', { userId: newUser._id });
+    logger.info('Inscription réussie - OTP envoyé', { userId: newUser._id });
     res.status(201).json({
       success: true,
-      message: 'Compte créé avec succès. Veuillez vérifier votre email pour confirmer votre compte.',
+      message: 'Compte créé. Un code de vérification a été envoyé sur votre email.',
       user: {
         id: newUser._id,
         nom: newUser.nom,
@@ -4183,10 +4324,10 @@ const demandeReinitialisationMotDePasse = motDePasseOublie;
 
 module.exports = {
   // Inscription
-  inscription,
+  register,
   inscriptionSMS,
   passerConducteur,
-  register,
+  inscription,
   chooseChannel,
   verifyCode,
   resendCode,
