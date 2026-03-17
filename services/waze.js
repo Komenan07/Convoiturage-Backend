@@ -10,7 +10,7 @@ class WazeService {
     this.wazeWebURL = 'https://waze.com/ul';
     this.timeout = 10000; // 10 secondes
   }
-
+  
   /**
    * Générer une URL Waze pour la navigation web
    * @param {Object} destination - { coordinates: [lng, lat], address: string }

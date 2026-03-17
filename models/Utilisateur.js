@@ -27,10 +27,12 @@ const utilisateurSchema = new mongoose.Schema({
   
   telephone: {
     type: String,
-    required: [true, 'Le numéro de téléphone est requis'],
+    required: false,
     unique: true,
+    sparse: true,
     validate: {
       validator: function(v) {
+        if (!v) return true;
         // Validation pour numéros ivoiriens (+225 ou 07/05/01)
         return /^(\+225)?[0-9]{8,10}$/.test(v);
       },
@@ -570,7 +572,7 @@ const utilisateurSchema = new mongoose.Schema({
   statutCompte: {
     type: String,
     enum: {
-      values: ['ACTIF', 'SUSPENDU', 'BLOQUE', 'EN_ATTENTE_VERIFICATION', 'CONDUCTEUR_EN_ATTENTE_VERIFICATION'],
+      values: ['ACTIF', 'SUSPENDU', 'BLOQUE', 'EN_ATTENTE_VERIFICATION','EN_ATTENTE_CHOIX_CANAL','CONDUCTEUR_EN_ATTENTE_VERIFICATION'],
       message: 'Statut de compte invalide'
     },
     default: 'EN_ATTENTE_VERIFICATION'
@@ -715,6 +717,10 @@ fcmTokens: [{
 // ⚙️ Préférences de notifications
 preferencesNotifications: {
   activees: {
+    type: Boolean,
+    default: true
+  },
+  compte: {          
     type: Boolean,
     default: true
   },

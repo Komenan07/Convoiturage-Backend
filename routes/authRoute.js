@@ -25,6 +25,7 @@ const fallbackName = (explicitName, payload, email) => {
 const {
   // Inscription / vérification
   register,
+  chooseChannel,
   verifyCode,
   resendCode,
   inscription,
@@ -383,6 +384,13 @@ router.post('/register', register);
 /**
  * @desc    Vérifier le code WhatsApp
  * @route   POST /api/auth/verify-code
+ * @access  Public
+ */
+router.post('/register/choose-channel', chooseChannel);
+/**
+ * @desc    Choisir le canal de vérification (email ou téléphone)
+ *          Appelé uniquement si requiresChoice: true à l'inscription
+ * @route   POST /api/auth/register/choose-channel
  * @access  Public
  */
 router.post('/verify-code', verifyCode);
