@@ -11,7 +11,7 @@ const { body, param, query, validationResult } = require('express-validator');
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({
+    return res.status(403).json({
       success: false,
       error: 'DONNEES_INVALIDES',
       message: 'Données de validation invalides',

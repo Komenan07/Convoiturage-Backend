@@ -4,30 +4,31 @@ const { body, query, param, validationResult } = require('express-validator');
 const TrajetController = require('../controllers/trajetController');
 const { authMiddleware } = require('../middlewares/authMiddleware');
 const { transformerCoordonneesEnGeoJSON } = require('../middlewares/geoJsonMiddleware');
+const { handleValidationErrors } = require('../middlewares/validation');
 const router = express.Router();
 
 // ===============================================
 // MIDDLEWARE DE VALIDATION DES ERREURS
 // ===============================================
 
-/**
- * Middleware centralisé pour gérer les erreurs de validation
- */
-const handleValidationErrors = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      message: 'Erreurs de validation',
-      errors: errors.array().map(error => ({
-        champ: error.path || error.param,
-        message: error.msg,
-        valeur: error.value
-      }))
-    });
-  }
-  next();
-};
+// /**
+//  * Middleware centralisé pour gérer les erreurs de validation
+//  */
+// const handleValidationErrors = (req, res, next) => {
+//   const errors = validationResult(req);
+//   if (!errors.isEmpty()) {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'Erreurs de validation',
+//       errors: errors.array().map(error => ({
+//         champ: error.path || error.param,
+//         message: error.msg,
+//         valeur: error.value
+//       }))
+//     });
+//   }
+//   next();
+// };
 
 // ===============================================
 // VALIDATIONS RÉUTILISABLES

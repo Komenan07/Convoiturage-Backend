@@ -564,7 +564,7 @@ async demarrerTrajet(req, res, next) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(403).json({ 
         success: false, 
         message: 'Erreurs de validation', 
         errors: errors.array() 
