@@ -1,5 +1,4 @@
 const Trajet = require('../models/Trajet');
-const { validationResult } = require('express-validator');
 const AppError = require('../utils/AppError');
 const distanceService = require('../services/distanceService'); 
 const Reservation = require('../models/Reservation');
@@ -562,14 +561,6 @@ async demarrerTrajet(req, res, next) {
    */
   async creerTrajetPonctuel(req, res, next) {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Erreurs de validation', 
-        errors: errors.array() 
-      });
-    }
 
     if (!req.user || !req.user.id) {
       return res.status(401).json({
@@ -688,14 +679,6 @@ async demarrerTrajet(req, res, next) {
           success: false,
           message: 'Limite de 3 trajets récurrents atteinte',
           details: `Vous avez déjà ${nombreRecurrents} trajet(s) récurrent(s) actif(s)`
-        });
-      }
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Erreurs de validation', 
-          errors: errors.array() 
         });
       }
 
@@ -1538,16 +1521,7 @@ async rechercherTrajetsDisponibles(req, res, next) {
   async modifierTrajet(req, res, next) {
     try {
       const { id } = req.params;
-      const errors = validationResult(req);
-      
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Erreurs de validation', 
-          errors: errors.array() 
-        });
-      }
-
+  
       const trajet = await Trajet.findById(id);
       if (!trajet) {
         return res.status(404).json({

@@ -1,6 +1,6 @@
 // routes/trajetRoutes.js
 const express = require('express');
-const { body, query, param, validationResult } = require('express-validator');
+const { body, query, param } = require('express-validator');
 const TrajetController = require('../controllers/trajetController');
 const { authMiddleware } = require('../middlewares/authMiddleware');
 const { transformerCoordonneesEnGeoJSON } = require('../middlewares/geoJsonMiddleware');
