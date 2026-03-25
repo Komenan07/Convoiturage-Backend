@@ -119,7 +119,7 @@ const verificationStorage = multer.diskStorage({
  * Filtre de validation pour les images de vérification
  */
 const verificationFileFilter = (req, file, cb) => {
-  const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
   const allowedFields = ['documentImage', 'selfieWithDocumentImage'];
   
   // Vérifier que le champ est autorisé
@@ -140,7 +140,7 @@ const verificationFileFilter = (req, file, cb) => {
   
   // Vérifier l'extension
   const fileExtension = path.extname(file.originalname).toLowerCase();
-  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
   
   if (!allowedExtensions.includes(fileExtension)) {
     const error = new Error(`Extension non autorisée: ${fileExtension}. Extensions acceptées: .jpg, .png, .webp`);

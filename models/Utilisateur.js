@@ -186,7 +186,7 @@ const utilisateurSchema = new mongoose.Schema({
           if (!numero || !this.documentIdentite?.type) return true;
           
           if (this.documentIdentite.type === 'CNI') {
-            return /^[A-Z]{2}[0-9]{8}$/.test(numero);
+             return /^[A-Z]{2}[0-9]{6,12}$/.test(numero); 
           } else if (this.documentIdentite.type === 'PASSEPORT') {
             return /^[A-Z0-9]{6,9}$/.test(numero);
           }
