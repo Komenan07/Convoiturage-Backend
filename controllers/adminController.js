@@ -645,27 +645,27 @@ const obtenirDashboard = async (req, res, next) => {
 
     // Statistiques des trajets
     const trajetsActifs = await Trajet.countDocuments({ 
-      statut: 'actif',
-      dateHeureDepart: { $gte: new Date() }
+      statutTrajet: { $nin: ['TERMINE', 'ANNULE', 'EXPIRE'] },
+      dateDepart: { $gte: new Date() }
     });
     const totalTrajets = await Trajet.countDocuments();
-    const trajetsTermines = await Trajet.countDocuments({ statut: 'termine' });
-    const trajetsAnnules = await Trajet.countDocuments({ statut: 'annule' });
+    const trajetsTermines = await Trajet.countDocuments({ statutTrajet: 'TERMINE' });
+    const trajetsAnnules = await Trajet.countDocuments({ statutTrajet: 'ANNULE' });
 
     // Statistiques des réservations
     const totalReservations = await Reservation.countDocuments();
-    const reservationsConfirmees = await Reservation.countDocuments({ statut: 'confirmee' });
-    const reservationsEnAttente = await Reservation.countDocuments({ statut: 'en_attente' });
-    const reservationsAnnulees = await Reservation.countDocuments({ statut: 'annulee' });
+    const reservationsConfirmees = await Reservation.countDocuments({ statutReservation: 'CONFIRMEE' });
+    const reservationsEnAttente = await Reservation.countDocuments({ statutReservation: 'EN_ATTENTE' });
+    const reservationsAnnulees = await Reservation.countDocuments({ statutReservation: 'ANNULEE' });
 
     // Statistiques financières
-    const paiementsReussis = await Paiement.find({ statut: 'reussi' });
-    const revenusTotal = paiementsReussis.reduce((sum, p) => sum + (p.montant || 0), 0);
-    const revenusCommissions = paiementsReussis.reduce((sum, p) => sum + (p.commission || 0), 0);
+    const paiementsReussis = await Paiement.find({ statutPaiement: 'COMPLETE' });
+    const revenusTotal = paiementsReussis.reduce((sum, p) => sum + (p.montantTotal || 0), 0);
+    const revenusCommissions = paiementsReussis.reduce((sum, p) => sum + (p.commission?.montant || 0), 0);
     const revenusAujourdhui = await Paiement.aggregate([
       {
         $match: {
-          statut: 'reussi',
+          statutPaiement: 'COMPLETE',
           createdAt: {
             $gte: new Date(new Date().setHours(0, 0, 0, 0))
           }
@@ -674,7 +674,7 @@ const obtenirDashboard = async (req, res, next) => {
       {
         $group: {
           _id: null,
-          total: { $sum: '$montant' }
+          total: { $sum: '$montantTotal' }  // ← vérifie aussi le nom du champ montant
         }
       }
     ]);
@@ -731,7 +731,7 @@ const obtenirDashboard = async (req, res, next) => {
     const evolutionRevenus = await Paiement.aggregate([
       {
         $match: {
-          statut: 'reussi',
+          statutPaiement: 'COMPLETE',
           createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
         }
       },
@@ -742,7 +742,7 @@ const obtenirDashboard = async (req, res, next) => {
             month: { $month: '$createdAt' },
             day: { $dayOfMonth: '$createdAt' }
           },
-          total: { $sum: '$montant' }
+          total: { $sum: '$montantTotal' }
         }
       },
       {
@@ -754,7 +754,7 @@ const obtenirDashboard = async (req, res, next) => {
     const statutsTrajets = await Trajet.aggregate([
       {
         $group: {
-          _id: '$statut',
+          _id: '$statutTrajet',
           count: { $sum: 1 }
         }
       }
@@ -764,29 +764,29 @@ const obtenirDashboard = async (req, res, next) => {
     const derniersTrajetsCrees = await Trajet.find()
       .sort({ createdAt: -1 })
       .limit(5)
-      .populate('conducteur', 'prenom nom')
-      .select('lieuDepart lieuArrivee dateHeureDepart statut prix createdAt');
+      .populate('conducteurId', 'prenom nom')
+      .select('conducteurId pointDepart pointArrivee dateDepart statutTrajet prix createdAt');
 
     const dernieresReservations = await Reservation.find()
       .sort({ createdAt: -1 })
       .limit(5)
-      .populate('passager', 'prenom nom')
-      .populate('trajet', 'lieuDepart lieuArrivee')
-      .select('statut nombrePlaces createdAt');
+      .populate('passagerId', 'prenom nom')
+      .populate('trajetId', 'pointDepart pointArrivee dateDepart statutTrajet prix createdAt')
+      .select('passagerId trajetId statutReservation nombrePlacesReservees createdAt');
 
-    const derniersPaiements = await Paiement.find({ statut: 'reussi' })
+    const derniersPaiements = await Paiement.find({ statutPaiement: 'COMPLETE' })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('montant methode createdAt');
+      .select('montantTotal methodePaiement createdAt');
 
     // Top 5 conducteurs (par nombre de trajets)
     const topConducteurs = await Trajet.aggregate([
       {
-        $match: { statut: 'termine' }
+        $match: { statutTrajet: 'TERMINE' }
       },
       {
         $group: {
-          _id: '$conducteur',
+          _id: '$conducteurId',
           nombreTrajets: { $sum: 1 }
         }
       },
@@ -864,6 +864,7 @@ const obtenirDashboard = async (req, res, next) => {
     });
 
   } catch (erreur) {
+    logger.error('❌ Erreur obtenirDashboard:', erreur);
     return next(AppError.serverError('Erreur serveur lors de la récupération du dashboard', { originalError: erreur.message }));
   }
 };

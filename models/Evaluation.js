@@ -472,7 +472,13 @@ evaluationSchema.methods.calculerDelaiRestant = function(delaiMaxJours = 7) {
   const dateCreation = this.dateEvaluation || this.createdAt || new Date();
   if (!dateCreation) {
     logger.warn('⚠️ calculerDelaiRestant: dateCreation undefined', { evaluationId: this._id });
-    return { joursRestants: delaiMaxJours, heuresRestantes: delaiMaxJours * 24, expire: false, dateExpiration: new Date() };
+    return {
+      joursRestants: delaiMaxJours,
+      heuresRestantes: delaiMaxJours * 24,
+      delaiRestant: delaiMaxJours * 24 * 60 * 60 * 1000,
+      expire: false,
+      dateExpiration: new Date()
+    };
   }
   const dateExpiration = new Date(dateCreation);
   dateExpiration.setDate(dateExpiration.getDate() + delaiMaxJours);
@@ -483,6 +489,7 @@ evaluationSchema.methods.calculerDelaiRestant = function(delaiMaxJours = 7) {
   return {
     joursRestants: Math.max(0, joursRestants),
     heuresRestantes: Math.max(0, Math.ceil(millisecondesRestantes / (1000 * 60 * 60))),
+    delaiRestant: millisecondesRestantes,
     expire: joursRestants <= 0,
     dateExpiration
   };
@@ -515,15 +522,12 @@ evaluationSchema.methods.getResumeNotes = function() {
 };
 
 evaluationSchema.methods.getLibelleNote = function(note) {
-  if (!note || note === 0) return 'NON_NOTE';
-  if (note >= 4.5) return 'EXCELLENT';
-  if (note >= 4.0) return 'TRÈS BIEN';
-  if (note >= 3.5) return 'BIEN';
-  if (note >= 3.0) return 'ASSEZ BIEN';
-  if (note >= 2.5) return 'MOYEN';
-  if (note >= 2.0) return 'PASSABLE';
-  if (note >= 1.5) return 'INSUFFISANT';
-  return 'TRÈS INSUFFISANT';
+  if (!note || note === 0) return 'Non noté';
+  if (note >= 4.5) return 'Très satisfait';
+  if (note >= 4.0) return 'Satisfait';
+  if (note >= 3.0) return 'Moyen';
+  if (note >= 2.0) return 'Insatisfait';
+  return 'Très insatisfait';
 };
 
 evaluationSchema.methods.estPositive = function() {
