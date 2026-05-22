@@ -107,7 +107,54 @@ function buildRoomNames(conversationId, userId, trajetId) {
     trajetRoom: trajetId ? `trip_${trajetId}` : null
   };
 }
-
+/**
+ * Calcule la progression du trajet (0-100%)
+ * @param {Object} trajet - Document trajet
+ * @param {Object} currentPosition - Position actuelle {lat, lng}
+ * @returns {number} Progression en pourcentage
+ */
+async function calculerProgression(trajet, currentPosition) {
+  try {
+    // Vérifier qu'on a les coordonnées nécessaires
+    if (!trajet.pointArrivee?.coordinates?.lat || !trajet.pointDepart?.coordinates?.lat) {
+      return 0;
+    }
+    
+    // Fonction Haversine pour calculer la distance entre deux points GPS (en km)
+    const calculerDistance = (lat1, lon1, lat2, lon2) => {
+      const R = 6371; // Rayon de la Terre en km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    };
+    
+    const distanceTotale = trajet.distance || calculerDistance(
+      trajet.pointDepart.coordinates.lat,
+      trajet.pointDepart.coordinates.lng,
+      trajet.pointArrivee.coordinates.lat,
+      trajet.pointArrivee.coordinates.lng
+    );
+    
+    const distanceParcourue = calculerDistance(
+      trajet.pointDepart.coordinates.lat,
+      trajet.pointDepart.coordinates.lng,
+      currentPosition.lat,
+      currentPosition.lng
+    );
+    
+    let progression = (distanceParcourue / distanceTotale) * 100;
+    progression = Math.min(100, Math.max(0, progression));
+    
+    return Math.round(progression);
+  } catch (error) {
+    console.error('Erreur calcul progression:', error);
+    return 0;
+  }
+}
 /**
  * Initialise Socket.IO sur le serveur HTTP
  * @param {Object} httpServer - Serveur HTTP
@@ -211,18 +258,27 @@ function initSocket(httpServer, app) {
           if (!token || token.length < 10) return ack({ success: false, error: 'TOKEN_INVALIDE' });
 
           const partage = await TrajetPartage.findOne({ token, actif: true })
-            .populate({ path: 'trajetId', populate: { path: 'conducteurId', select: 'nom prenom photoProfil' } });
+            .populate({ path: 'trajetId', populate: { path: 'conducteurId', select: 'nom prenom photoProfil telephone' } });
 
           if (!partage || !partage.estValide()) return ack({ success: false, error: 'LIEN_EXPIRE_OU_INVALIDE' });
 
           const trajet = partage.trajetId;
-          socket.join(`suivi:${token}`);
+          const roomName = `suivi:${token}`;
+          
+          // Rejoindre la room
+          socket.join(roomName);
+          
+          // Stocker les infos pour le nettoyage
           socket.suiviToken = token;
           socket.suiviTrajetId = trajet._id.toString();
+          socket.suiviRoom = roomName;  // ← NOUVEAU : stocker le nom de la room
+          
           await partage.enregistrerVue();
 
+          // Récupérer la position actuelle depuis Redis
           const positionActuelle = await redisUtils.getUserPosition(trajet.conducteurId._id);
 
+          // Envoyer la confirmation avec les infos WebSocket
           ack({
             success: true,
             trajet: {
@@ -235,26 +291,57 @@ function initSocket(httpServer, app) {
               heureArriveePrevue: trajet.heureArriveePrevue,
               distance: trajet.distance,
               conducteur: {
+                _id: trajet.conducteurId?._id,      // ← NOUVEAU
                 nom: trajet.conducteurId?.nom,
                 prenom: trajet.conducteurId?.prenom,
-                photoProfil: trajet.conducteurId?.photoProfil
+                photoProfil: trajet.conducteurId?.photoProfil,
+                telephone: trajet.conducteurId?.telephone  // ← NOUVEAU
               }
             },
             positionActuelle,
-            expiresAt: partage.expiresAt
+            expiresAt: partage.expiresAt,
+            // ↓↓↓ NOUVEAU : Informations WebSocket pour le client ↓↓↓
+            websocket: {
+              room: roomName,
+              actif: true,
+              message: "Vous recevrez les mises à jour en temps réel"
+            }
           });
 
-          console.log(`👁️ Proche anonyme connecté au suivi du trajet ${trajet._id}`);
+          // ↓↓↓ NOUVEAU : Message de bienvenue si le trajet est déjà en cours ↓↓↓
+          if (trajet.statutTrajet === 'EN_COURS') {
+            socket.emit('trajet:status', {
+              status: 'EN_COURS',
+              message: 'Le trajet est déjà en cours, vous allez recevoir la position en direct !'
+            });
+          }
+
+          console.log(`👁️ Proche connecté au suivi - Trajet: ${trajet._id}, Room: ${roomName}`);
         } catch (error) {
-          console.error('Erreur joinPublicTracking anonyme:', error);
+          console.error('Erreur joinPublicTracking:', error);
           ack({ success: false, error: 'ERREUR_SERVEUR' });
         }
       });
-
+      // Quitter le suivi public (nettoyage)
       socket.on('leavePublicTracking', async (data, ack = () => {}) => {
-        const { token } = data || {};
-        if (token) socket.leave(`suivi:${token}`);
-        ack({ success: true });
+        try {
+          // const { token } = data || {};
+          
+          if (socket.suiviRoom) {
+            socket.leave(socket.suiviRoom);
+            console.log(`👋 Proche déconnecté - Room: ${socket.suiviRoom}`);
+            
+            // Nettoyer les infos stockées
+            delete socket.suiviToken;
+            delete socket.suiviTrajetId;
+            delete socket.suiviRoom;
+          }
+          
+          if (ack) ack({ success: true });
+        } catch (error) {
+          console.error('Erreur leavePublicTracking:', error);
+          if (ack) ack({ success: false, error: error.message });
+        }
       });
 
     }
@@ -826,6 +913,70 @@ function initSocket(httpServer, app) {
       }
     });
 
+    // ==================== SUIVI TEMPS RÉEL DES TRAJETS PARTAGÉS ====================
+    requireAuth('trajet:position-update', async (data, ack = () => {}) => {
+      try {
+        const { trajetId, position } = data;
+        const userId = socket.user.id;
+        
+        console.log(`📍 Mise à jour position - Trajet: ${trajetId}, User: ${userId}`);
+        
+        // Vérifier que l'utilisateur est le conducteur du trajet
+        const trajet = await Trajet.findById(trajetId);
+        if (!trajet) {
+          return ack({ success: false, error: 'TRAJET_NOT_FOUND' });
+        }
+        
+        if (trajet.conducteurId.toString() !== userId) {
+          return ack({ success: false, error: 'NON_AUTORISE' });
+        }
+        
+        // Stocker la position dans Redis
+        await redisUtils.setUserPosition(userId, {
+          lat: position.lat,
+          lng: position.lng,
+          vitesse: position.vitesse || 0,
+          timestamp: new Date()
+        });
+        
+        // Trouver tous les partages actifs pour ce trajet
+        const partages = await TrajetPartage.findActifsByTrajet(trajetId);
+        
+        if (partages.length === 0) {
+          console.log(`📭 Aucun partage actif pour le trajet ${trajetId}`);
+          return ack({ success: true });
+        }
+        
+        // Calculer la progression (optionnel)
+        let progression = 0;
+        if (trajet.pointArrivee?.coordinates) {
+          progression = await calculerProgression(trajet, position);
+        }
+        
+        // Envoyer la position à tous les proches qui suivent ce trajet
+        const positionData = {
+          trajetId,
+          position: {
+            lat: position.lat,
+            lng: position.lng,
+            vitesse: position.vitesse || 0,
+            progression
+          },
+          timestamp: new Date()
+        };
+        
+        for (const partage of partages) {
+          const roomName = `suivi:${partage.token}`;
+          io.to(roomName).emit('trajet:position', positionData);
+          console.log(`📡 Position envoyée à la room: ${roomName}`);
+        }
+        
+        ack({ success: true });
+      } catch (error) {
+        console.error('❌ Erreur trajet:position-update:', error);
+        ack({ success: false, error: error.message });
+      }
+    });
     // ==================== ÉVÉNEMENTS SYSTÈME ====================
     // Ping pour garder la connexion active
     socket.on('ping', () => {

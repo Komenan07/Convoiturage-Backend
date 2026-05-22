@@ -69,7 +69,8 @@ class ShareTrajetController {
           lienWhatsApp: result.lienWhatsApp,
           expiresAt:   result.expiresAt,
           statutEnvoi: result.partage.statutEnvoi,
-          partageId:   result.partage._id
+          partageId:   result.partage._id,
+          websocket:   result.websocket
         }
       });
 

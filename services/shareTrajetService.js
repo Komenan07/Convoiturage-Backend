@@ -158,15 +158,31 @@ const shareTrajetService = {
       console.log(`✅ Lien WhatsApp généré`);
     }
 
+    console.log('📦 partage à sauvegarder:', JSON.stringify({
+      trajetId:      partage.trajetId,
+      partagePar:    partage.partagePar,
+      rolePartageur: partage.rolePartageur,
+      proche:        partage.proche,
+      canaux:        partage.canaux,
+      expiresAt:     partage.expiresAt,
+      token:         partage.token?.slice(0, 6) + '...'
+    }, null, 2));
+
     await partage.save();
+    const wsUrl = process.env.WS_URL || `wss://${process.env.DOMAIN || 'localhost'}`;
 
     return {
       partage,
       lienSuivi,
-      lienWhatsApp: partage.lienWhatsApp, // virtual du modèle
-      expiresAt
-    };
-  },
+      lienWhatsApp: partage.lienWhatsApp,
+      expiresAt,
+      websocket: {
+        enabled: true,
+        url: wsUrl,
+        instructions: "Utilisez joinPublicTracking avec le token pour recevoir les positions en temps réel"
+      }
+      };
+      },
 
   // ─────────────────────────────────────────────────────────────
   // 6. INFOS PUBLIQUES (route sans auth — accessible par le proche)
@@ -199,6 +215,16 @@ const shareTrajetService = {
     await partage.enregistrerVue(); // incrémente nombreVues + derniereVueAt
 
     const trajet = partage.trajetId;
+    // Récupérer la dernière position depuis Redis
+    let positionActuelle = null;
+    try {
+      const { redisUtils } = require('../config/redis');
+      if (trajet.conducteurId?._id) {
+        positionActuelle = await redisUtils.getUserPosition(trajet.conducteurId._id);
+      }
+    } catch (e) {
+      console.log('Redis non disponible pour la position');
+    }
 
     return {
       statut:             trajet.statutTrajet,
@@ -214,7 +240,12 @@ const shareTrajetService = {
         photoProfil: trajet.conducteurId?.photoProfil,
         note:        trajet.conducteurId?.noteGenerale
       },
-      expiresAt: partage.expiresAt
+      expiresAt: partage.expiresAt,
+      positionActuelle,
+      websocket: {
+      enabled: true,
+      roomToken: token
+    }
     };
   },
 
