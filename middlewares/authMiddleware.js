@@ -118,6 +118,42 @@ const authMiddleware = async (req, res, next) => {
     return next(AppError.serverError("Erreur serveur lors de l'authentification", { originalError: error.message }));
   }
 };
+const _tryDecodeUser = async (req) => {
+  let token = null;
+
+  const authHeader = req.header('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  }
+
+  if (!token) token = req.header('x-auth-token');
+  if (!token && req.cookies?.token) token = req.cookies.token;
+
+  if (!token) return null;
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId).select('-password -refreshToken');
+    if (!user) return null;
+
+    const statut = user.peutSeConnecter();
+    if (!statut.autorise) return null;
+
+    return {
+      userObj: {
+        id: user._id,
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+        nom: user.nom,
+        prenom: user.prenom
+      },
+      userProfile: user
+    };
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Middleware optionnel - n'échoue pas si pas de token
@@ -125,64 +161,17 @@ const authMiddleware = async (req, res, next) => {
  */
 const optionalAuthMiddleware = async (req, res, next) => {
   try {
-    // Récupération du token
-    let token = null;
-    const authHeader = req.header('Authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7);
-    }
-    
-    if (!token) {
-      token = req.header('x-auth-token');
-    }
-
-    // Si pas de token, continuer sans authentification
-    if (!token) {
-      req.user = null;
-      req.userProfile = null;
-      return next();
-    }
-
-    // Si token présent, essayer de l'authentifier
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.userId).select('-password -refreshToken');
-      
-      // CORRECTION : Utiliser statutCompte et la méthode peutSeConnecter()
-      if (user) {
-        const statutAutorise = user.peutSeConnecter();
-        if (statutAutorise.autorise) {
-          req.user = {
-            id: user._id,
-            userId: user._id,
-            email: user.email,
-            role: user.role,
-            nom: user.nom,
-            prenom: user.prenom
-          };
-          req.userProfile = user;
-        } else {
-          req.user = null;
-          req.userProfile = null;
-        }
-      } else {
-        req.user = null;
-        req.userProfile = null;
-      }
-    } catch (jwtError) {
-      // Si erreur JWT, continuer sans authentification
-      req.user = null;
-      req.userProfile = null;
-    }
-
+    const result = await _tryDecodeUser(req);
+    req.user = result?.userObj || null;
+    req.userProfile = result?.userProfile || null;
+    req.isAuthenticated = !!result;
     next();
-
   } catch (error) {
     console.error('Erreur dans optionalAuthMiddleware:', error);
-    // En cas d'erreur, continuer sans authentification
     req.user = null;
     req.userProfile = null;
-    return next();
+    req.isAuthenticated = false;
+    next();
   }
 };
 
@@ -494,20 +483,27 @@ const adminMiddleware = async (req, res, next) => {
 };
 
 const roleMiddleware = (rolesAutorises) => {
-  return async (req, res, next) => {
+  return (req, res, next) => {
     try {
-      // D'abord, vérifier l'authentification
-      await authMiddleware(req, res, () => {
-        // Vérifier si le rôle utilisateur est dans la liste autorisée
-        if (!rolesAutorises.includes(req.user.role)) {
-          return res.status(403).json({
-            success: false,
-            message: `Accès refusé. Rôles autorisés: ${rolesAutorises.join(', ')}`,
-            code: 'ROLE_NOT_AUTHORIZED'
-          });
-        }
-        next();
-      });
+      // Vérifier que authMiddleware a déjà été exécuté en amont
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentification requise',
+          code: 'AUTH_REQUIRED'
+        });
+      }
+
+      // Vérifier si le rôle utilisateur est dans la liste autorisée
+      if (!rolesAutorises.includes(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: `Accès refusé. Rôles autorisés: ${rolesAutorises.join(', ')}`,
+          code: 'ROLE_NOT_AUTHORIZED'
+        });
+      }
+
+      next();
     } catch (error) {
       console.error('Erreur dans roleMiddleware:', error);
       return next(AppError.serverError('Erreur serveur lors de la vérification des rôles', { originalError: error.message }));
@@ -517,17 +513,40 @@ const roleMiddleware = (rolesAutorises) => {
 
 const ownershipMiddleware = async (req, res, next) => {
   try {
+    // Vérifier que authMiddleware a déjà été exécuté
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentification requise',
+        code: 'AUTH_REQUIRED'
+      });
+    }
+
     const targetUserId = req.params.userId || req.params.id;
-    
-    // Vérifier que l'utilisateur accède à ses propres données ou est admin
-    if (req.user.userId.toString() !== targetUserId && req.user.role !== 'admin') {
+
+    // Vérifier que l'ID cible est présent
+    if (!targetUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID cible manquant',
+        code: 'MISSING_TARGET_ID'
+      });
+    }
+
+    // Admin peut accéder à tout
+    if (req.user.role === 'admin') {
+      return next();
+    }
+
+    // Vérifier que l'utilisateur accède à ses propres données
+    if (req.user.userId.toString() !== targetUserId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Accès refusé. Vous ne pouvez accéder qu\'à vos propres données.',
         code: 'OWNERSHIP_REQUIRED'
       });
     }
-    
+
     next();
   } catch (error) {
     console.error('Erreur dans ownershipMiddleware:', error);
@@ -544,6 +563,112 @@ const logAuthMiddleware = (req, res, next) => {
   next();
 };
 
+/**
+ * ⭐ Middleware pour les routes publiques
+ * Utile pour les endpoints qui peuvent être accessibles avec ou sans auth
+ * (comme les recherches de lieux basiques)
+ */
+const publicOrAuthMiddleware = async (req, res, next) => {
+  try {
+    const result = await _tryDecodeUser(req);
+    req.user = result?.userObj || null;
+    req.userProfile = result?.userProfile || null;
+    req.isAuthenticated = !!result;
+    next();
+  } catch (error) {
+    console.error('Erreur dans publicOrAuthMiddleware:', error);
+    req.user = null;
+    req.userProfile = null;
+    req.isAuthenticated = false;
+    next();
+  }
+};
+// Ajouter cette fonction après publicOrAuthMiddleware
+
+/**
+ * ⭐ Middleware spécifique pour les endpoints de lieux
+ * L'authentification est optionnelle mais si présente, elle est validée
+ * Idéal pour les recherches de lieux où on veut des données enrichies
+ */
+const placesAuthMiddleware = async (req, res, next) => {
+  try {
+    const result = await _tryDecodeUser(req);
+    req.user = result?.userObj || null;
+    req.userProfile = result?.userProfile || null;
+    req.isAuthenticated = !!result;
+    next();
+  } catch (error) {
+    console.error('Erreur dans placesAuthMiddleware:', error);
+    req.user = null;
+    req.userProfile = null;
+    req.isAuthenticated = false;
+    next();
+  }
+};
+// Ajouter cette fonction
+
+/**
+ * ⭐ Middleware pour les endpoints sensibles
+ * Authentification requise ET compte vérifié
+ */
+const sensitiveAuthMiddleware = async (req, res, next) => {
+  try {
+    if (!req.userProfile) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentification requise pour accéder à cette ressource',
+        code: 'AUTH_REQUIRED'
+      });
+    }
+
+    if (!req.userProfile.emailVerifie && !req.userProfile.telephoneVerifie) {
+      return res.status(403).json({
+        success: false,
+        message: 'Veuillez vérifier votre compte (email ou téléphone)',
+        code: 'ACCOUNT_NOT_VERIFIED'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Erreur dans sensitiveAuthMiddleware:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur lors de l\'authentification',
+      code: 'SERVER_ERROR'
+    });
+  }
+};
+
+/**
+ * ⭐ Middleware de développement
+ * Désactive l'auth en développement
+ */
+const devAuthMiddleware = (req, res, next) => {
+  if (process.env.NODE_ENV === 'development' && process.env.DISABLE_AUTH === 'true') {
+    // Créer un utilisateur fictif pour le développement
+    req.user = {
+      id: 'dev_user_id',
+      userId: 'dev_user_id',
+      email: 'dev@example.com',
+      role: 'admin',
+      nom: 'Dev',
+      prenom: 'User'
+    };
+    req.userProfile = {
+      _id: 'dev_user_id',
+      email: 'dev@example.com',
+      role: 'admin',
+      statutCompte: 'ACTIF',
+      peutSeConnecter: () => ({ autorise: true })
+    };
+    req.isAuthenticated = true;
+    return next();
+  }
+  
+  // En production, utiliser le middleware normal
+  return authMiddleware(req, res, next);
+};
 module.exports = {
   authMiddleware,
   adminMiddleware,
@@ -551,6 +676,11 @@ module.exports = {
   optionalAuthMiddleware,
   ownershipMiddleware,
   logAuthMiddleware,
+
+  publicOrAuthMiddleware,
+  placesAuthMiddleware,
+  sensitiveAuthMiddleware,
+  devAuthMiddleware,
 
   refreshTokenMiddleware,
   roleCovoiturageMiddleware,
@@ -564,5 +694,11 @@ module.exports = {
   protect: authMiddleware,
   requireAuth: authMiddleware,
   isAdmin: adminMiddleware,
-  checkRole: roleMiddleware
+  checkRole: roleMiddleware,
+
+  optionalAuth: optionalAuthMiddleware,
+  publicOrAuth: publicOrAuthMiddleware,
+  placesAuth: placesAuthMiddleware,
+  sensitiveAuth: sensitiveAuthMiddleware,
+  devAuth: devAuthMiddleware
 };

@@ -6,41 +6,6 @@
     "auditLog": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-audit.json",
     "files": [
         {
-            "date": 1763978606148,
-            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2025-11-24.log",
-            "hash": "079a35fa3cdc20d12866731f5896b8f9178966e5905b037262aeb31e1f2c189a"
-        },
-        {
-            "date": 1764077899284,
-            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2025-11-25.log",
-            "hash": "6de8b952338163554f8ff28de05aeeb641012160ecae890de7bcd494ba47e3f8"
-        },
-        {
-            "date": 1764149806497,
-            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2025-11-26.log",
-            "hash": "e332fafb88419d455b87ede75b8a78be46fc63b58543de812ca5ecde19a4b88e"
-        },
-        {
-            "date": 1764230966685,
-            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2025-11-27.log",
-            "hash": "6e4fe0abf83d2ba74eb2cd02017221cd3ae9fe69bedf662297297921a52a3f00"
-        },
-        {
-            "date": 1764322281325,
-            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2025-11-28.log",
-            "hash": "222152f46aab9bd898d60fc1faf45872c00c44aca4c6451ed2e5222017b509a0"
-        },
-        {
-            "date": 1764374531253,
-            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2025-11-29.log",
-            "hash": "a3664d271b464d80e29b6bb3f77565b386075654b181ce6ad1d464f6376689b5"
-        },
-        {
-            "date": 1764577383876,
-            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2025-12-01.log",
-            "hash": "d8fd796010e40bf32bae22bc227f78b38687a982df3de86c8e767c1291156e6b"
-        },
-        {
             "date": 1768115671677,
             "name": "C:\\ProjetFlutter\\Convoiturage-Backend\\logs\\paiement-2026-01-11.log",
             "hash": "ceb51925009eb74d6be423a3b56f53b3b8dfba85fada2f04550114fcebaf9ff3"
@@ -319,6 +284,31 @@
             "date": 1779447523650,
             "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2026-05-22.log",
             "hash": "3009ca532548b18688478f11443415437b142a57d37efa040b8268944e88b734"
+        },
+        {
+            "date": 1780327035321,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2026-06-01.log",
+            "hash": "639f92be70b9e2d7760f2af030ade19f37b70487e8da6118ea720388736afdc9"
+        },
+        {
+            "date": 1780405603593,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2026-06-02.log",
+            "hash": "58840bb218b7a3ccb2a59c23627b0fcf2c83a588992749da278346d9da2e5270"
+        },
+        {
+            "date": 1781103056748,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2026-06-10.log",
+            "hash": "726c81e2cda43cfc5e73836a17d5e8f5a37591741791fd03be6bb1b2dc0fe989"
+        },
+        {
+            "date": 1781702192597,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2026-06-17.log",
+            "hash": "0a00a4c6226dd6bd0b2ac8d6dbac7b8855d543973c9e890222829c50ec023e0a"
+        },
+        {
+            "date": 1781775147213,
+            "name": "C:\\Projet perso\\Convoiturage-Backend\\logs\\paiement-2026-06-18.log",
+            "hash": "db163cc599ff41a8fd44f1ba580b42bf45c2934c8f5bbe999e64eba7f794370f"
         }
     ],
     "hashType": "sha256"

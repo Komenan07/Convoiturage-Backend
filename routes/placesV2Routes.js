@@ -5,23 +5,27 @@ const placesV2Controller = require('../controllers/placesV2Controller');
 const authMiddleware = require('../middlewares/authMiddleware');
 const rateLimit = require('express-rate-limit');
 
-// ✅ Utiliser le nom correct du middleware
-const authenticateToken = authMiddleware.protect || 
-                         authMiddleware.authMiddleware || 
-                         authMiddleware.requireAuth;
+// -------------------------------------------------------
+// Extraction des middlewares depuis authMiddleware.js
+// -------------------------------------------------------
+const {
+  protect: authenticateToken,  // authMiddleware principal (alias protect)
+  placesAuth,                  // auth optionnelle pour les lieux
+} = authMiddleware;
 
-if (!authenticateToken) {
-  throw new Error('❌ Middleware d\'authentification introuvable dans authMiddleware.js');
-}  
+if (typeof authenticateToken !== 'function') {
+  throw new Error('❌ Middleware protect/authenticateToken introuvable dans authMiddleware.js');
+}
 
-// Debug
-//console.log('🔍 Vérification des dépendances placesV2Routes...');
-//console.log('   authMiddleware keys:', Object.keys(authMiddleware));
-console.log('   authenticateToken:', typeof authenticateToken);
-
+// -------------------------------------------------------
+// Vérification des méthodes du controller au démarrage
+// -------------------------------------------------------
 const requiredMethods = [
   'searchText', 'searchNearby', 'autocomplete', 'getPlaceDetails',
-  'searchCommunes', 'searchGaresRoutieres', 'searchPOI', 'getPlaceTypes'
+  'getBatchPlaceDetails', 'searchCommunes', 'searchGaresRoutieres',
+  'searchStationsProches', 'searchPolices', 'searchStations',
+  'searchPOI', 'getAllTotalEnergies', 'getNearbyTotalEnergies',
+  'getPlaceTypes', 'searchWithFilters', 'getPopularPlaces', 'searchNearbyByCategory', 'healthCheck'
 ];
 
 const missingMethods = requiredMethods.filter(
@@ -29,41 +33,76 @@ const missingMethods = requiredMethods.filter(
 );
 
 if (missingMethods.length > 0) {
-  console.error('❌ ERREUR: Méthodes manquantes:', missingMethods);
+  console.error('❌ Méthodes manquantes dans placesV2Controller:', missingMethods);
   throw new Error(`Méthodes manquantes: ${missingMethods.join(', ')}`);
-}
-
-if (typeof authenticateToken !== 'function') {
-  console.error('❌ ERREUR: authenticateToken n\'est pas une fonction');
-  console.error('   Middlewares disponibles:', Object.keys(authMiddleware));
-  console.error('   Utilisez l\'un de ces noms dans votre code');
-  throw new Error('authenticateToken invalide');
 }
 
 console.log('✅ Toutes les dépendances placesV2Routes sont OK');
 
-// Rate limiter
+// -------------------------------------------------------
+// Rate limiters
+// -------------------------------------------------------
 const searchLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 30,
-  message: 'Trop de recherches, veuillez patienter',
+  message: { success: false, message: 'Trop de recherches, veuillez patienter' },
 });
 
-// Routes (reste identique)
-router.post('/search', authenticateToken, searchLimiter, placesV2Controller.searchText);
-router.post('/nearby', authenticateToken, searchLimiter, placesV2Controller.searchNearby);
-router.post('/autocomplete', authenticateToken, searchLimiter, placesV2Controller.autocomplete);
-router.post('/communes', authenticateToken, searchLimiter, placesV2Controller.searchCommunes);
-router.post('/gares', authenticateToken, placesV2Controller.searchGaresRoutieres);
-router.post('/poi', authenticateToken, placesV2Controller.searchPOI);
+const autocompleteLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 60, // autocomplete est appelée à chaque frappe, limite plus haute
+  message: { success: false, message: 'Trop de requêtes d\'autocomplétion' },
+});
+
+// -------------------------------------------------------
+// Routes STATIQUES en premier (avant /:placeId)
+// -------------------------------------------------------
+
+// --- Health check (public) ---
+router.get('/health', placesV2Controller.healthCheck);
+
+// --- Recherche texte ---
+router.post('/search', placesAuth, searchLimiter, placesV2Controller.searchText);
+router.post('/search/filtered', authenticateToken, searchLimiter, placesV2Controller.searchWithFilters);
+
+// --- Recherche à proximité ---
+router.post('/nearby', placesAuth, searchLimiter, placesV2Controller.searchNearby);
+router.post('/nearby/category', authenticateToken, searchLimiter, placesV2Controller.searchNearbyByCategory);
+
+// --- Autocomplétion ---
+router.post('/autocomplete', placesAuth, autocompleteLimiter, placesV2Controller.autocomplete);
+
+// --- Communes ---
+router.post('/communes', placesAuth, searchLimiter, placesV2Controller.searchCommunes);
+
+// --- Gares & stations ---
+router.post('/gares', authenticateToken, searchLimiter, placesV2Controller.searchGaresRoutieres);
+router.post('/stations-proches', authenticateToken, searchLimiter, placesV2Controller.searchStationsProches);
+router.post('/stations', authenticateToken, searchLimiter, placesV2Controller.searchStations);
+
+// --- Police ---
+router.post('/polices', authenticateToken, searchLimiter, placesV2Controller.searchPolices);
+
+// --- POI ---
+router.post('/poi', authenticateToken, searchLimiter, placesV2Controller.searchPOI);
+
+// --- Lieux populaires ---
+router.get('/popular', placesAuth, searchLimiter, placesV2Controller.getPopularPlaces);
+
+// --- TotalEnergies (statiques avant /:placeId) ---
+router.get('/totalenergies/all', authenticateToken, searchLimiter, placesV2Controller.getAllTotalEnergies);
+router.post('/totalenergies/nearby', authenticateToken, searchLimiter, placesV2Controller.getNearbyTotalEnergies);
+
+// --- Types de lieux (public, pas besoin d'auth) ---
 router.get('/types/list', placesV2Controller.getPlaceTypes);
+
+// --- Batch ---
+router.post('/batch', authenticateToken, placesV2Controller.getBatchPlaceDetails);
+
+// -------------------------------------------------------
+// Route DYNAMIQUE en dernier (capte tout /:placeId)
+// -------------------------------------------------------
 router.get('/:placeId', authenticateToken, placesV2Controller.getPlaceDetails);
-router.post('/batch',authenticateToken, placesV2Controller.getBatchPlaceDetails);
-router.post('/stations-proches', placesV2Controller.searchStationsProches);
-router.post('/polices', placesV2Controller.searchPolices);
-router.post('/stations', placesV2Controller.searchStations);
-router.get('/totalenergies/all', placesV2Controller.getAllTotalEnergies);
-router.post('/totalenergies/nearby', placesV2Controller.getNearbyTotalEnergies);
 
 console.log(`✅ ${router.stack.length} routes places enregistrées`);
 

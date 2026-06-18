@@ -307,7 +307,7 @@ Ce code expire dans ${this.otpExpiration} minutes.
    * @param {string} nomComplet - Nom du destinataire
    * @returns {Promise<Object>} Résultat de l'envoi
    */
-  async envoyerCodeVerification(telephone, code, nomComplet = '') {
+  async envoyerCodeVerification(telephone, code, nomComplet = '', options = {}) {
     let normalizedPhone = telephone;
     try {
       // Validation et normalisation du numéro
@@ -343,6 +343,27 @@ Ce code expire dans ${this.otpExpiration} minutes.
         strategy: 'WhatsApp → SMS' 
       });
 
+      const prefer = (options && options.prefer) ? options.prefer.toLowerCase() : 'auto';
+
+      // If caller explicitly prefers SMS, send SMS directly and do not attempt WhatsApp.
+      if (prefer === 'sms') {
+        const smsResult = await this._trySMS(normalizedPhone, message);
+        if (smsResult.success) {
+          this.metrics.sent.sms++;
+          return smsResult;
+        }
+        this.metrics.failed.sms++;
+
+        // Respect explicit SMS preference: return failure without trying WhatsApp
+        return {
+          success: false,
+          error: 'Impossible d\'envoyer le code par SMS',
+          provider: 'twilio',
+          channel: 'sms_failed'
+        };
+      }
+
+      // Default and 'whatsapp' preference: WhatsApp first, SMS fallback
       // 🔵 Tentative 1 : WhatsApp
       const whatsappResult = await this._tryWhatsApp(normalizedPhone, message);
       if (whatsappResult.success) {

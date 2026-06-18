@@ -1,5 +1,5 @@
 // =====================================================
-// CONTRÔLEUR ADMINISTRATEUR - Version corrigée
+// CONTRÔLEUR ADMINISTRATEUR 
 // =====================================================
 
 const Administrateur = require('../models/Administrateur');
