@@ -420,6 +420,7 @@ class PresenceService extends EventEmitter {
       this.stopCleanupTimer();
       this.clear();
       this.removeAllListeners();
+      process.kill(process.pid, 'SIGTERM'); // Terminer le processus proprement
       console.log('Service de présence fermé');
     } catch (error) {
       console.error('Erreur lors de la fermeture du service:', error);
