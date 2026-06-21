@@ -371,12 +371,25 @@ const _envoyerConfirmationEmail = async (utilisateur) => {
   return { expiration: utilisateur.expirationTokenConfirmation };
 };
 
-const _envoyerOTPWhatsApp = async (utilisateur) => {
-  const code = utilisateur.genererCodeWhatsApp();
+const _genererCodeOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+const _enregistrerOTPTelephone = async (utilisateur, code) => {
+  const expiration = Date.now() + OTP_TTL_MS;
+  utilisateur.codeSMS = code;
+  utilisateur.expirationCodeSMS = expiration;
+  utilisateur.codeVerificationWhatsApp = code;
+  utilisateur.codeVerificationWhatsAppExpire = expiration;
+  utilisateur.otpCode = crypto.createHash('sha256').update(code).digest('hex');
+  utilisateur.otpExpiration = expiration;
   utilisateur.statutCompte = STATUT_ATTENTE;
   await utilisateur.save({ validateBeforeSave: false });
+};
+
+const _envoyerOTPWhatsApp = async (utilisateur) => {
+  const code = _genererCodeOTP();
+  await _enregistrerOTPTelephone(utilisateur, code);
   const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-  const resultat = await twilioService.envoyerCodeVerification(utilisateur.telephone, code, nomComplet);
+  const resultat = await twilioService.envoyerCodeVerification(utilisateur.telephone, code, nomComplet, { prefer: 'whatsapp' });
   if (!resultat.success) {
     const err = new Error(resultat.error || 'Échec envoi WhatsApp');
     err.errorType = 'WHATSAPP_SEND_FAILED';
@@ -390,20 +403,17 @@ const _envoyerOTPWhatsApp = async (utilisateur) => {
 };
 
 const _envoyerOTPSMS = async (utilisateur) => {
-  const codeSMS = Math.floor(100000 + Math.random() * 900000).toString();
-  utilisateur.codeSMS = codeSMS;
-  utilisateur.expirationCodeSMS = Date.now() + OTP_TTL_MS;
-  utilisateur.statutCompte = STATUT_ATTENTE;
-  await utilisateur.save({ validateBeforeSave: false });
+  const code = _genererCodeOTP();
+  await _enregistrerOTPTelephone(utilisateur, code);
   const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-  const resultat = await twilioService.envoyerCodeVerification(utilisateur.telephone, codeSMS, nomComplet);
+  const resultat = await twilioService.envoyerCodeVerification(utilisateur.telephone, code, nomComplet, { prefer: 'sms' });
   if (!resultat.success) {
     const err = new Error(resultat.error || 'Échec envoi SMS');
     err.errorType = 'SMS_SEND_FAILED';
     throw err;
   }
   if (process.env.NODE_ENV === 'development') {
-    console.log(`📩 [SMS] Code pour ${utilisateur.telephone} : ${codeSMS}`);
+    console.log(`📩 [SMS] Code pour ${utilisateur.telephone} : ${code}`);
   }
   logger.info('OTP SMS envoyé', { userId: utilisateur._id });
   return { expiration: utilisateur.expirationCodeSMS };
@@ -2108,13 +2118,11 @@ const renvoyerCodeSMS = async (req, res, next) => {
       });
     }
 
-    // Générer un nouveau code
+    // Générer un nouveau code unique pour tous les canaux
     const nouveauCode = Math.floor(100000 + Math.random() * 900000).toString();
-    user.codeSMS = nouveauCode;
-    user.expirationCodeSMS = Date.now() + 10 * 60 * 1000;
-    await user.save({ validateBeforeSave: false });
+    await _enregistrerOTPTelephone(user, nouveauCode);
 
-    // ✅ Envoyer le SMS via Twilio
+    // ✅ Envoyer le code via Twilio (WhatsApp d'abord, fallback SMS)
     try {
       logger.info('Tentative renvoi SMS via Twilio', {
         telephone: phoneProcessed,

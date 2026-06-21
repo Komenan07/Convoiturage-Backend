@@ -123,7 +123,51 @@ const TrajetPartageSchema = new mongoose.Schema({
   derniereVueAt: {
     type: Date,
     default: null
+  },
+  // ─── NOUVEAU : Support WebSocket temps réel ────────────────────
+websocket: {
+  roomId: {
+    type: String,
+    unique: true,
+    sparse: true  // Permet de ne pas avoir de roomId pour les anciens partages
+  },
+  dernierEvenement: {
+    type: String,
+    enum: ['CONNECTE', 'POSITION_RECUE', 'DECONNECTE'],
+    default: undefined 
+  },
+  derniereConnexionAt: {
+    type: Date,
+    default: null
   }
+},
+
+// ─── NOUVEAU : Métadonnées de suivi temps réel ─────────────────
+suiviTempsReel: {
+  actif: {
+    type: Boolean,
+    default: false
+  },
+  lastUpdateAt: {
+    type: Date,
+    default: null
+  },
+  dernierePosition: {
+    lat: Number,
+    lng: Number,
+    vitesse: Number,
+    timestamp: Date
+  },
+  historiquePositions: {
+    type: [{
+      lat: { type: Number, required: true },
+      lng: { type: Number, required: true },
+      vitesse: { type: Number, default: 0 },
+      timestamp: { type: Date, default: Date.now }
+    }],
+    default: []
+  }
+}
 
 }, {
   timestamps: true  // createdAt, updatedAt automatiques
@@ -138,6 +182,10 @@ TrajetPartageSchema.index({ trajetId: 1, actif: 1 });
 
 // Recherche de tous les partages d'un utilisateur pour un trajet
 TrajetPartageSchema.index({ trajetId: 1, partagePar: 1 });
+
+// Index pour trouver rapidement les rooms actives
+TrajetPartageSchema.index({ 'websocket.roomId': 1 });
+TrajetPartageSchema.index({ 'suiviTempsReel.actif': 1, trajetId: 1 });
 
 // Note: pas besoin d'index séparé sur token — unique: true le crée déjà
 
@@ -208,6 +256,27 @@ TrajetPartageSchema.statics.desactiverTousParTrajet = async function(trajetId) {
   return result;
 };
 
+/**
+ * Génère un roomId unique pour un trajet
+ * @param {string|ObjectId} trajetId
+ * @returns {string}
+ */
+TrajetPartageSchema.statics.genererRoomId = function(trajetId) {
+  return `trajet_${trajetId}_realtime_${Date.now()}`;
+};
+
+/**
+ * Récupère tous les partages actifs avec suivi temps réel pour un trajet
+ */
+TrajetPartageSchema.statics.findActifsAvecSuiviTempsReel = function(trajetId) {
+  return this.find({
+    trajetId,
+    actif: true,
+    'suiviTempsReel.actif': true,
+    expiresAt: { $gt: new Date() }
+  });
+};
+
 // ===============================================================
 // MÉTHODES D'INSTANCE
 // ===============================================================
@@ -227,6 +296,73 @@ TrajetPartageSchema.methods.enregistrerVue = async function() {
  */
 TrajetPartageSchema.methods.estValide = function() {
   return this.actif && new Date() < this.expiresAt;
+};
+
+/**
+ * Active le suivi temps réel pour ce partage
+ */
+TrajetPartageSchema.methods.activerSuiviTempsReel = async function(options = {}) {
+  this.suiviTempsReel.actif = true;
+  this.websocket.roomId = this.constructor.genererRoomId(this.trajetId);
+  this.websocket.dernierEvenement = 'CONNECTE';
+  this.websocket.derniereConnexionAt = new Date();
+  
+  await this.save();
+  
+  return {
+    roomId: this.websocket.roomId,
+    actif: true
+  };
+};
+
+/**
+ * Met à jour la dernière position reçue via WebSocket
+ */
+TrajetPartageSchema.methods.mettreAJourPosition = async function(position) {
+  // Garder un historique limité (200 positions max)
+  if (this.suiviTempsReel.historiquePositions.length >= 200) {
+    this.suiviTempsReel.historiquePositions.shift();
+  }
+  
+  this.suiviTempsReel.historiquePositions.push({
+    lat: position.lat,
+    lng: position.lng,
+    vitesse: position.vitesse || 0,
+    timestamp: position.timestamp || new Date()
+  });
+  
+  this.suiviTempsReel.dernierePosition = {
+    lat: position.lat,
+    lng: position.lng,
+    vitesse: position.vitesse || 0,
+    timestamp: position.timestamp || new Date()
+  };
+  
+  this.suiviTempsReel.lastUpdateAt = new Date();
+  this.websocket.dernierEvenement = 'POSITION_RECUE';
+  this.markModified('suiviTempsReel.historiquePositions');
+  
+  await this.save();
+};
+
+/**
+ * Désactive le suivi temps réel
+ */
+TrajetPartageSchema.methods.desactiverSuiviTempsReel = async function() {
+  this.suiviTempsReel.actif = false;
+  this.websocket.dernierEvenement = 'DECONNECTE';
+  await this.save();
+};
+
+/**
+ * Récupère l'historique des positions des dernières minutes
+ */
+TrajetPartageSchema.methods.getHistoriquePositions = function(minutes = 5) {
+  const seuil = new Date(Date.now() - minutes * 60 * 1000);
+  
+  return this.suiviTempsReel.historiquePositions.filter(
+    pos => new Date(pos.timestamp) > seuil
+  );
 };
 
 // ===============================================================

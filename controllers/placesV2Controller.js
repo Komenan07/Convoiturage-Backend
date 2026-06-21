@@ -2,6 +2,21 @@
 const placesV2Service = require('../services/placesV2Service');
 
 /**
+ * Vérifie que latitude/longitude sont des nombres valides
+ * (corrige le bug où une coordonnée = 0 était rejetée par !latitude)
+ */
+const hasValidCoords = (latitude, longitude) => {
+  return (
+    latitude !== undefined &&
+    latitude !== null &&
+    longitude !== undefined &&
+    longitude !== null &&
+    !Number.isNaN(Number(latitude)) &&
+    !Number.isNaN(Number(longitude))
+  );
+};
+
+/**
  * RECHERCHE DE TEXTE
  * POST /api/places/search
  */
@@ -17,8 +32,8 @@ const searchText = async (req, res) => {
     }
 
     const options = {};
-    
-    if (location && location.latitude && location.longitude) {
+
+    if (location && hasValidCoords(location.latitude, location.longitude)) {
       options.location = location;
       options.radius = radius || 50000;
     }
@@ -42,6 +57,11 @@ const searchText = async (req, res) => {
         success: true,
         count: result.data.length,
         data: result.data,
+        metadata: {
+          ...result.metadata,
+          query,
+          location: location || null
+        }
       });
     }
 
@@ -63,7 +83,7 @@ const searchNearby = async (req, res) => {
   try {
     const { latitude, longitude, radius, includedTypes, excludedTypes, minRating, rankPreference, maxResults } = req.body;
 
-    if (!latitude || !longitude) {
+    if (!hasValidCoords(latitude, longitude)) {
       return res.status(400).json({
         success: false,
         error: 'Les coordonnées sont requises',
@@ -128,7 +148,8 @@ const autocomplete = async (req, res) => {
 
     const options = {};
 
-    if (location && location.latitude && location.longitude) {
+    // ✅ Passer location pour avoir la distance
+    if (location && hasValidCoords(location.latitude, location.longitude)) {
       options.location = location;
       options.radius = radius || 50000;
     }
@@ -148,6 +169,11 @@ const autocomplete = async (req, res) => {
         success: true,
         count: result.data.length,
         data: result.data,
+        metadata: {
+          ...result.metadata,
+          input,
+          location: location || null
+        }
       });
     }
 
@@ -157,6 +183,27 @@ const autocomplete = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Erreur serveur lors de l\'autocomplétion',
+    });
+  }
+};
+
+/**
+ * HEALTH CHECK
+ * GET /api/places/health
+ */
+const healthCheck = async (req, res) => {
+  try {
+    const result = await placesV2Service.healthCheck();
+    const statusCode = result.status === 'operational' ? 200 : 503;
+    return res.status(statusCode).json({
+      success: result.status === 'operational',
+      ...result
+    });
+  } catch (error) {
+    console.error('Erreur healthCheck:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors du health check'
     });
   }
 };
@@ -245,8 +292,8 @@ const getBatchPlaceDetails = async (req, res) => {
       } else {
         failedResults.push({
           placeId: placeIds[index],
-          error: result.status === 'fulfilled' 
-            ? result.value.error 
+          error: result.status === 'fulfilled'
+            ? result.value.error
             : result.reason.message,
         });
       }
@@ -315,7 +362,7 @@ const searchGaresRoutieres = async (req, res) => {
   try {
     const { latitude, longitude, radius } = req.body;
 
-    if (!latitude || !longitude) {
+    if (!hasValidCoords(latitude, longitude)) {
       return res.status(400).json({
         success: false,
         error: 'Les coordonnées sont requises',
@@ -345,6 +392,7 @@ const searchGaresRoutieres = async (req, res) => {
     });
   }
 };
+
 /**
  * RECHERCHE DE STATIONS PROCHES (bus, train, etc.)
  * POST /api/places/stations-proches
@@ -353,7 +401,7 @@ const searchStationsProches = async (req, res) => {
   try {
     const { latitude, longitude, radius } = req.body;
 
-    if (!latitude || !longitude) {
+    if (!hasValidCoords(latitude, longitude)) {
       return res.status(400).json({
         success: false,
         error: 'Les coordonnées sont requises',
@@ -392,7 +440,7 @@ const searchPolices = async (req, res) => {
   try {
     const { latitude, longitude, radius } = req.body;
 
-    if (!latitude || !longitude) {
+    if (!hasValidCoords(latitude, longitude)) {
       return res.status(400).json({
         success: false,
         error: 'Les coordonnées sont requises',
@@ -431,7 +479,7 @@ const searchStations = async (req, res) => {
   try {
     const { latitude, longitude, radius, type } = req.body;
 
-    if (!latitude || !longitude) {
+    if (!hasValidCoords(latitude, longitude)) {
       return res.status(400).json({
         success: false,
         error: 'Les coordonnées sont requises',
@@ -472,6 +520,7 @@ const searchStations = async (req, res) => {
     });
   }
 };
+
 /**
  * RECHERCHE DE POINTS D'INTÉRÊT
  * POST /api/places/poi
@@ -480,7 +529,7 @@ const searchPOI = async (req, res) => {
   try {
     const { latitude, longitude, type, radius } = req.body;
 
-    if (!latitude || !longitude) {
+    if (!hasValidCoords(latitude, longitude)) {
       return res.status(400).json({
         success: false,
         error: 'Les coordonnées sont requises',
@@ -495,7 +544,7 @@ const searchPOI = async (req, res) => {
     }
 
     const validTypes = ['mall', 'market', 'hospital', 'school', 'airport', 'hotel', 'restaurant', 'station'];
-    
+
     if (!validTypes.includes(type)) {
       return res.status(400).json({
         success: false,
@@ -555,6 +604,242 @@ const getAllTotalEnergies = async (req, res) => {
 };
 
 /**
+ * RECHERCHE AVEC FILTRES AVANCÉS
+ * POST /api/places/search/filtered
+ */
+const searchWithFilters = async (req, res) => {
+  try {
+    const {
+      query,
+      latitude,
+      longitude,
+      radius,
+      minRating,
+      maxPrice,
+      categories,
+      openNow,
+      maxResults
+    } = req.body;
+
+    if (!query || query.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'La requête doit contenir au moins 2 caractères'
+      });
+    }
+
+    // ✅ Mapping catégories → types Google Places valides
+    const categoryMapping = {
+      'restaurants': ['restaurant', 'cafe', 'bar'],
+      'shopping': ['shopping_mall', 'supermarket', 'store'],
+      'health': ['hospital', 'pharmacy', 'doctor'],
+      'education': ['school', 'university'],
+      'transport': ['bus_station', 'train_station', 'taxi_stand'],
+      'hotels': ['hotel', 'lodging'],
+      'services': ['bank', 'atm', 'police', 'gas_station'],
+      'entertainment': ['movie_theater', 'night_club', 'stadium', 'park']
+    };
+
+    const options = {
+      maxResults: maxResults || 20,
+    };
+
+    if (hasValidCoords(latitude, longitude)) {
+      options.location = { latitude, longitude };
+      options.rankPreference = 'DISTANCE';
+    } else {
+      options.rankPreference = 'RELEVANCE';
+    }
+
+    if (radius) options.radius = radius;
+    if (minRating) options.minRating = minRating;
+
+    // ✅ Convertir les catégories en types Google valides
+    if (categories && Array.isArray(categories) && categories.length > 0) {
+      const googleTypes = categories.flatMap(cat => categoryMapping[cat] || [cat]);
+      if (googleTypes.length > 0) {
+        options.includedTypes = googleTypes;
+      }
+    }
+
+    const result = await placesV2Service.searchText(query, options);
+
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+
+    let filteredData = result.data;
+
+    if (openNow) {
+      filteredData = filteredData.filter(place => place.isOpen === true);
+    }
+
+    if (maxPrice !== undefined) {
+      filteredData = filteredData.filter(place =>
+        place.priceLevel !== null && place.priceLevel <= maxPrice
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      count: filteredData.length,
+      data: filteredData,
+      filters: { minRating, maxPrice, categories, openNow, radius },
+      metadata: result.metadata
+    });
+
+  } catch (error) {
+    console.error('Erreur searchWithFilters:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la recherche filtrée'
+    });
+  }
+};
+
+/**
+ * RECHERCHE DE LIEUX POPULAIRES
+ * GET /api/places/popular?latitude=x&longitude=y&radius=z
+ */
+const getPopularPlaces = async (req, res) => {
+  try {
+    const { latitude, longitude, radius, limit } = req.query;
+
+    if (!hasValidCoords(latitude, longitude)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Les coordonnées sont requises'
+      });
+    }
+
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    const searchRadius = radius ? parseInt(radius, 10) : 5000;
+    const totalLimit = limit ? parseInt(limit, 10) : 20;
+
+    const popularTypes = [
+      'restaurant',
+      'cafe',
+      'shopping_mall',
+      'supermarket',
+      'pharmacy',
+      'hotel',
+      'park'
+    ];
+
+    const perTypeLimit = Math.max(1, Math.floor(totalLimit / popularTypes.length));
+
+    const results = await Promise.all(
+      popularTypes.map(type =>
+        placesV2Service.searchNearby(
+          lat,
+          lng,
+          {
+            includedTypes: [type],
+            radius: searchRadius,
+            maxResults: Math.min(perTypeLimit, 5),
+            rankPreference: 'DISTANCE'
+          }
+        )
+      )
+    );
+
+    // Fusionner et trier par note
+    const allPlaces = results
+      .filter(r => r.success)
+      .flatMap(r => r.data)
+      .filter(place => place.rating && place.rating >= 3.5)
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .slice(0, totalLimit);
+
+    return res.status(200).json({
+      success: true,
+      count: allPlaces.length,
+      data: allPlaces,
+      metadata: {
+        searchCenter: { latitude: lat, longitude: lng },
+        radius: searchRadius
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur getPopularPlaces:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la récupération des lieux populaires'
+    });
+  }
+};
+
+/**
+ * RECHERCHE DE LIEUX À PROXIMITÉ PAR CATÉGORIE
+ * POST /api/places/nearby/category
+ */
+const searchNearbyByCategory = async (req, res) => {
+  try {
+    const { latitude, longitude, category, radius, maxResults } = req.body;
+
+    if (!hasValidCoords(latitude, longitude)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Les coordonnées sont requises'
+      });
+    }
+
+    if (!category) {
+      return res.status(400).json({
+        success: false,
+        error: 'La catégorie est requise'
+      });
+    }
+
+    // Mapping des catégories vers les types Google Places
+    const categoryMapping = {
+      'restaurants': ['restaurant', 'cafe', 'bar'],
+      'shopping': ['shopping_mall', 'supermarket', 'store'],
+      'health': ['hospital', 'pharmacy', 'doctor'],
+      'education': ['school', 'university'],
+      'transport': ['bus_station', 'train_station', 'taxi_stand'],
+      'hotels': ['hotel', 'lodging'],
+      'services': ['bank', 'atm', 'police', 'gas_station'],
+      'entertainment': ['movie_theater', 'night_club', 'stadium', 'park']
+    };
+
+    const types = categoryMapping[category] || [category];
+
+    const result = await placesV2Service.searchNearby(
+      latitude,
+      longitude,
+      {
+        includedTypes: types,
+        radius: radius || 5000,
+        maxResults: maxResults || 20,
+        rankPreference: 'DISTANCE'
+      }
+    );
+
+    return res.status(200).json({
+      success: result.success,
+      count: result.success ? result.data.length : 0,
+      data: result.success ? result.data : [],
+      category,
+      metadata: {
+        searchCenter: { latitude, longitude },
+        radius: radius || 5000,
+        typesSearched: types
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur searchNearbyByCategory:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la recherche par catégorie'
+    });
+  }
+};
+
+/**
  * RECHERCHE DE STATIONS TOTALENERGIES À PROXIMITÉ
  * POST /api/places/totalenergies/nearby
  */
@@ -562,7 +847,7 @@ const getNearbyTotalEnergies = async (req, res) => {
   try {
     const { latitude, longitude, radius } = req.body;
 
-    if (!latitude || !longitude) {
+    if (!hasValidCoords(latitude, longitude)) {
       return res.status(400).json({
         success: false,
         error: 'Les coordonnées (latitude, longitude) sont requises',
@@ -630,6 +915,7 @@ module.exports = {
   searchText,
   searchNearby,
   autocomplete,
+  healthCheck,
   getPlaceDetails,
   getBatchPlaceDetails,
   searchCommunes,
@@ -638,7 +924,10 @@ module.exports = {
   searchPolices,
   searchStations,
   searchPOI,
-  getAllTotalEnergies,      
+  getAllTotalEnergies,
   getNearbyTotalEnergies,
   getPlaceTypes,
+  searchWithFilters,
+  getPopularPlaces,
+  searchNearbyByCategory,
 };

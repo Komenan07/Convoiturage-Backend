@@ -2,6 +2,8 @@ const crypto            = require('crypto');
 const TrajetPartage     = require('../models/TrajetPartage');
 const Trajet            = require('../models/Trajet');
 const notificationService = require('./notificationService');
+const Reservation = require('../models/Reservation');
+
 
 /**
  * =========================================================
@@ -65,13 +67,29 @@ const shareTrajetService = {
    * @param {string} userId
    * @returns {'CONDUCTEUR'|'PASSAGER'}
    */
-  _determinerRole(trajet, userId) {
-    return trajet.conducteurId._id?.toString() === userId.toString() ||
-           trajet.conducteurId.toString()       === userId.toString()
-      ? 'CONDUCTEUR'
-      : 'PASSAGER';
-  },
+  // ✅ Version robuste
+  async _determinerRole(trajet, userId) {
+    // Fonctionne que conducteurId soit populé ou non
+    const conducteurId = trajet.conducteurId?._id || trajet.conducteurId;
 
+    const estConducteur = conducteurId.toString() === userId.toString();
+
+    if (estConducteur) return 'CONDUCTEUR';
+
+    const reservation = await Reservation.findOne({
+      trajetId:          trajet._id,
+      passagerId:        userId,
+      statutReservation: 'CONFIRMEE'
+    });
+
+    if (!reservation) {
+      throw new Error(
+        'Impossible de partager : vous devez être conducteur ou passager confirmé de ce trajet'
+      );
+    }
+
+    return 'PASSAGER';
+  },
   // ─────────────────────────────────────────────────────────────
   // 5. CRÉER UN PARTAGE  ← point d'entrée principal
   // ─────────────────────────────────────────────────────────────
@@ -112,8 +130,8 @@ const shareTrajetService = {
     const lienSuivi = this._construireLien(token);
     const expiresAt = this._calculerExpiration(trajet);
 
-    // ✅ BUG 3 CORRIGÉ : rolePartageur est maintenant required dans le modèle
-    const rolePartageur = this._determinerRole(trajet, userId);
+    // ✅ rolePartageur est maintenant required dans le modèle
+    const rolePartageur = await this._determinerRole(trajet, userId);
 
     // ── Créer le document ─────────────────────────────────────
     const partage = new TrajetPartage({
@@ -143,7 +161,7 @@ const shareTrajetService = {
     // ── Envoi Email ────────────────────────────────────────────
     if (canaux.includes('EMAIL') && proche.email) {
       try {
-        await this._envoyerEmail(proche.email, trajet, lienSuivi, proche.nom);
+        await this._envoyerEmail(proche.email, trajet, lienSuivi, proche.nom, rolePartageur);
         partage.statutEnvoi.email = 'ENVOYE';
         console.log(`✅ Email envoyé à ${proche.email}`);
       } catch (err) {
@@ -158,15 +176,31 @@ const shareTrajetService = {
       console.log(`✅ Lien WhatsApp généré`);
     }
 
+    console.log('📦 partage à sauvegarder:', JSON.stringify({
+      trajetId:      partage.trajetId,
+      partagePar:    partage.partagePar,
+      rolePartageur: partage.rolePartageur,
+      proche:        partage.proche,
+      canaux:        partage.canaux,
+      expiresAt:     partage.expiresAt,
+      token:         partage.token?.slice(0, 6) + '...'
+    }, null, 2));
+
     await partage.save();
+    const wsUrl = process.env.WS_URL || `wss://${process.env.DOMAIN || 'localhost'}`;
 
     return {
       partage,
       lienSuivi,
-      lienWhatsApp: partage.lienWhatsApp, // virtual du modèle
-      expiresAt
-    };
-  },
+      lienWhatsApp: partage.lienWhatsApp,
+      expiresAt,
+      websocket: {
+        enabled: true,
+        url: wsUrl,
+        instructions: "Utilisez joinPublicTracking avec le token pour recevoir les positions en temps réel"
+      }
+      };
+      },
 
   // ─────────────────────────────────────────────────────────────
   // 6. INFOS PUBLIQUES (route sans auth — accessible par le proche)
@@ -199,6 +233,16 @@ const shareTrajetService = {
     await partage.enregistrerVue(); // incrémente nombreVues + derniereVueAt
 
     const trajet = partage.trajetId;
+    // Récupérer la dernière position depuis Redis
+    let positionActuelle = null;
+    try {
+      const { redisUtils } = require('../config/redis');
+      if (trajet.conducteurId?._id) {
+        positionActuelle = await redisUtils.getUserPosition(trajet.conducteurId._id);
+      }
+    } catch (e) {
+      console.log('Redis non disponible pour la position');
+    }
 
     return {
       statut:             trajet.statutTrajet,
@@ -214,7 +258,12 @@ const shareTrajetService = {
         photoProfil: trajet.conducteurId?.photoProfil,
         note:        trajet.conducteurId?.noteGenerale
       },
-      expiresAt: partage.expiresAt
+      expiresAt: partage.expiresAt,
+      positionActuelle,
+      websocket: {
+      enabled: true,
+      roomToken: token
+    }
     };
   },
 
@@ -369,31 +418,38 @@ const shareTrajetService = {
   /**
    * Envoie un email de partage via notificationService existant
    */
-  async _envoyerEmail(email, trajet, lienSuivi, nomProche) {
-    const conducteur = trajet.conducteurId;
-    const sujet = `🚗 ${conducteur?.prenom || 'Votre proche'} partage son trajet avec vous`;
+  async _envoyerEmail(email, trajet, lienSuivi, nomProche, rolePartageur = 'CONDUCTEUR') {
+  const conducteur = trajet.conducteurId;
 
-    const corps = [
-      `Bonjour ${nomProche || ''},`,
-      '',
-      `${conducteur?.prenom || 'Votre proche'} vous partage son trajet :`,
-      '',
-      `📍 Départ      : ${trajet.pointDepart?.adresse  || 'N/A'}`,
-      `🏁 Arrivée     : ${trajet.pointArrivee?.adresse || 'N/A'}`,
-      `📅 Date        : ${new Date(trajet.dateDepart).toLocaleDateString('fr-FR')}`,
-      `🕐 Heure       : ${trajet.heureDepart || 'N/A'}`,
-      `👤 Conducteur  : ${conducteur?.prenom || ''} ${conducteur?.nom || ''}`,
-      '',
-      `🔗 Suivez le trajet en direct :`,
-      lienSuivi,
-      '',
-      `Ce lien est valide 24h après le départ.`,
-      '',
-      `— Envoyé via MonApp Covoiturage`
-    ].join('\n');
+  const sujet = rolePartageur === 'PASSAGER'
+    ? `🚗 Votre proche est en route — suivi en direct`
+    : `🚗 ${conducteur?.prenom || 'Votre proche'} partage son trajet avec vous`;
 
-    await notificationService.sendEmail(email, sujet, corps);
-  },
+  const intro = rolePartageur === 'PASSAGER'
+    ? `Votre proche est passager de ce trajet et vous partage le suivi en direct :`
+    : `${conducteur?.prenom || 'Votre proche'} vous partage son trajet :`;
+
+  const corps = [
+    `Bonjour ${nomProche || ''},`,
+    '',
+    intro,
+    '',
+    `📍 Départ      : ${trajet.pointDepart?.adresse  || 'N/A'}`,
+    `🏁 Arrivée     : ${trajet.pointArrivee?.adresse || 'N/A'}`,
+    `📅 Date        : ${new Date(trajet.dateDepart).toLocaleDateString('fr-FR')}`,
+    `🕐 Heure       : ${trajet.heureDepart || 'N/A'}`,
+    `👤 Conducteur  : ${conducteur?.prenom || ''} ${conducteur?.nom || ''}`,
+    '',
+    `🔗 Suivez le trajet en direct :`,
+    lienSuivi,
+    '',
+    `Ce lien est valide 24h après le départ.`,
+    '',
+    `— Envoyé via MonApp Covoiturage`
+  ].join('\n');
+
+  await notificationService.sendEmail(email, sujet, corps);
+},
 
   /**
    * Formate un SMS court (<160 caractères)

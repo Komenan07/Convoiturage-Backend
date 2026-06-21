@@ -183,7 +183,7 @@ router.delete('/trajets/partages/:partageId',
  * @desc    Vérifier l'état de santé du service de partage
  * @access  Public
  */
-router.get('/health', (req, res) => {
+router.get('/partage/health', (req, res) => {
   res.json({
     success:   true,
     message:   'Service de partage de trajet opérationnel',
@@ -196,6 +196,7 @@ router.get('/health', (req, res) => {
       prive: [
         'POST /trajets/:id/partager  - Partager un trajet à un proche',
         'GET  /trajets/:id/partages  - Lister les partages d\'un trajet',
+        'GET  /trajets/partages/:partageId - Détails d\'un partage',
         'DELETE /trajets/partages/:partageId - Révoquer un lien de suivi'
       ]
     }
@@ -256,18 +257,3 @@ router.use((error, req, res, next) => {
 });
 
 module.exports = router;
-
-// ===============================================
-// 🔌 INTÉGRATION DANS app.js / server.js
-// ===============================================
-//
-//   const shareTrajetRoutes = require('./routes/shareTrajet.routes');
-//   app.use('/api', shareTrajetRoutes);
-//
-// ⚠️ Si tu as un authMiddleware global sur /api,
-// monte ce router AVANT lui pour que /suivi/:token
-// reste accessible publiquement :
-//
-//   app.use('/api', shareTrajetRoutes);   // ← AVANT
-//   app.use('/api', authMiddlewareGlobal);
-//   app.use('/api', autresRoutes);
