@@ -41,7 +41,7 @@ const FILE_TYPES = {
       'image/gif'
     ],
     extensions: ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
-    maxSize: 5 * 1024 * 1024 // 5MB
+    maxSize: 10 * 1024 * 1024 // 5MB
   },
   documents: {
     mimeTypes: [
@@ -119,7 +119,7 @@ const verificationStorage = multer.diskStorage({
  * Filtre de validation pour les images de vérification
  */
 const verificationFileFilter = (req, file, cb) => {
-  const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
   const allowedFields = ['documentImage', 'selfieWithDocumentImage'];
   
   // Vérifier que le champ est autorisé
@@ -140,7 +140,7 @@ const verificationFileFilter = (req, file, cb) => {
   
   // Vérifier l'extension
   const fileExtension = path.extname(file.originalname).toLowerCase();
-  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
   
   if (!allowedExtensions.includes(fileExtension)) {
     const error = new Error(`Extension non autorisée: ${fileExtension}. Extensions acceptées: .jpg, .png, .webp`);
@@ -397,6 +397,29 @@ const vehiculeStorage = multer.diskStorage({
   }
 });
 
+// 🔥 Storage intelligent pour véhicules : photos → vehicules/, documents → documents/
+const vehiculeDocumentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const champsDocuments = [
+      'documentCarteGrise',
+      'documentAssurance',
+      'documentVisite',
+      'photoVignette',
+      'documentCarteTransport'
+    ];
+    const destination = champsDocuments.includes(file.fieldname)
+      ? UPLOAD_PATHS.documents
+      : UPLOAD_PATHS.vehicules;
+
+    logger.info(`📂 Destination upload "${file.fieldname}" → ${destination}`);
+    cb(null, destination);
+  },
+  filename: (req, file, cb) => {
+    const filename = generateUniqueFilename(file.originalname);
+    cb(null, filename);
+  }
+});
+
 // Configuration de stockage pour les documents d'identité
 const documentStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -473,12 +496,13 @@ const createFileFilter = (allowedTypes = 'images') => {
 };
 
 // Configuration des limites
-const createLimits = (allowedTypes = 'images') => {
+const createLimits = (allowedTypes = 'images', maxFiles = 1) => {
   const config = FILE_TYPES[allowedTypes] || FILE_TYPES.images;
   return {
     fileSize: config.maxSize,
-    files: 1,
-    fields: 10
+    files: maxFiles,
+    fields: 30, // 🔥 Augmenté de 10 à 30 pour supporter plus de champs texte
+    parts: 50  // 🔥 Ajouté: limite totale de parties dans multipart/form-data
   };
 };
 
@@ -564,12 +588,28 @@ const cleanupTempFiles = (req, res, next) => {
 
 // =============== CONFIGURATIONS MULTER ===============
 
-// Upload pour photos de véhicules
+// Upload pour photos de véhicules (supporte plusieurs fichiers)
 const uploadVehiculePhoto = multer({
   storage: vehiculeStorage,
   fileFilter: createFileFilter('images'),
-  limits: createLimits('images')
+  limits: {
+    fileSize: FILE_TYPES.images.maxSize,
+    files: 10, // 🔥 Support jusqu'à 10 photos de véhicule
+    fields: 30, // 🔥 Support de nombreux champs texte
+    parts: 50 // 🔥 Nombre total de parties multipart
+  }
 });
+
+const uploadVehiculeMultiple = multer({
+  storage: vehiculeDocumentStorage, // ← changé
+  fileFilter: createFileFilter('documents'), // ← changé (accepte PDF + images)
+  limits: {
+    fileSize: FILE_TYPES.documents.maxSize, // ← changé (10MB)
+    files: 15,
+    fields: 30,
+    parts: 60
+  }
+}).any();
 
 // Upload pour documents d'identité
 const uploadDocument = multer({
@@ -757,6 +797,8 @@ module.exports = {
 
   // Configurations multer principales
   uploadVehiculePhoto,
+  uploadVehiculeMultiple, 
+  vehiculeDocumentStorage,
   uploadDocument,
   uploadProfilPhoto,
   uploadTemp,

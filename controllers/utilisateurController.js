@@ -1226,6 +1226,21 @@ const verifierDocumentUtilisateur = async (req, res, next) => {
     user.scoreConfiance = Math.min(100, user.scoreConfiance + 15);
 
     await user.save();
+    try {
+      const firebaseService = require('../services/firebaseService');
+      await firebaseService.sendToUser(user._id.toString(), {
+        title: '✅ Identité vérifiée',
+        message: 'Votre document d\'identité a été validé avec succès.',
+        type: 'compte',
+        channelId: 'compte',
+        data: {
+          type: 'IDENTITY_VERIFIED',
+          screen: 'Profile'
+        }
+      }, User);
+    } catch (firebaseError) {
+      logger.error('Firebase identité vérifiée:', firebaseError.message);
+    }
 
     logger.info('Document utilisateur vérifié', { 
       userId: id, 
@@ -1296,6 +1311,25 @@ const rejeterDocumentUtilisateur = async (req, res, next) => {
     user.estDocumentVerifie = false;
 
     await user.save();
+    
+    try {
+      const firebaseService = require('../services/firebaseService');
+      await firebaseService.sendToUser(user._id.toString(), {
+        title: '❌ Document rejeté',
+        message: raison || 'Votre document d\'identité a été rejeté. Soumettez-en un nouveau.',
+        type: 'compte',
+        channelId: 'compte',
+        data: {
+          type: 'IDENTITY_REJECTED',
+          raison: raison || '',
+          typeProbleme: typeProbleme || '',
+          screen: 'UploadDocument'
+        }
+      }, User);
+    } catch (firebaseError) {
+      logger.error('Firebase identité rejetée:', firebaseError.message);
+    }
+
 
     logger.warn('Document utilisateur rejeté', { 
       userId: id, 

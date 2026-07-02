@@ -8,7 +8,7 @@ const validateEmail = [
     .trim()
     .isEmail()
     .withMessage('Email invalide')
-    .normalizeEmail()
+    .normalizeEmail({ gmail_remove_dots: false })
 ];
 
 // Validation téléphone ivoirien
@@ -100,7 +100,7 @@ const registerSMSValidation = [
     .trim()
     .isEmail()
     .withMessage('Email invalide')
-    .normalizeEmail(),
+    .normalizeEmail({ gmail_remove_dots: false }),
   
   body('dateNaissance')
     .optional()
@@ -154,7 +154,7 @@ const loginFlexibleValidation = [
     .trim()
     .isEmail()
     .withMessage('Email invalide')
-    .normalizeEmail(),
+    .normalizeEmail({ gmail_remove_dots: false }),
   
   // Valider le téléphone seulement s'il est fourni
   body('telephone')
@@ -279,7 +279,7 @@ const validateConducteurInscription = [
     .withMessage('L\'email est requis pour la vérification par email')
     .isEmail()
     .withMessage('Email invalide')
-    .normalizeEmail(),
+    .normalizeEmail({ gmail_remove_dots: false }),
   
   // Email optionnel si méthode WhatsApp (mais doit être valide si fourni)
   body('email')
@@ -287,7 +287,7 @@ const validateConducteurInscription = [
     .optional({ checkFalsy: true })
     .isEmail()
     .withMessage('Email invalide si fourni')
-    .normalizeEmail(),
+    .normalizeEmail({ gmail_remove_dots: false }),
   
   // Données optionnelles
   body('dateNaissance')
@@ -562,7 +562,7 @@ const fullRegisterValidation = [
     .trim()
     .isEmail()
     .withMessage('Email invalide')
-    .normalizeEmail(),
+    .normalizeEmail({ gmail_remove_dots: false }),
   
   body('telephone')
     .trim()

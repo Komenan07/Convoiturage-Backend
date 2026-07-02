@@ -2,6 +2,7 @@
 const CinetPayService = require('../services/CinetPayService');
 const Paiement = require('../models/Paiement');
 const Utilisateur = require('../models/Utilisateur');
+const firebaseService = require('../services/firebaseService');
 const Trajet = require('../models/Trajet');
 const Reservation = require('../models/Reservation');
 const { logger } = require('../utils/logger');
@@ -12,6 +13,13 @@ const crypto = require('crypto');
 class PaiementController {
   constructor() {
     this.cinetPayService = new CinetPayService();
+    
+    const proto = Object.getPrototypeOf(this);
+    Object.getOwnPropertyNames(proto)
+      .filter(name => typeof this[name] === 'function' && name !== 'constructor')
+      .forEach(name => {
+        this[name] = this[name].bind(this);
+      });
   }
 
   // =========================
@@ -23,11 +31,11 @@ class PaiementController {
       const { 
         reservationId, 
         montant, 
-        methodePaiement = 'WAVE',
+        methodePaiement = 'MOBILE_MONEY',
         numeroTelephone,
         operateur 
       } = req.body;
-      const userId = req.user._id;
+      const userId = req.user._id || req.user.id;
 
       // Validation des données
       if (!reservationId || !montant) {
@@ -39,11 +47,11 @@ class PaiementController {
       }
 
       // Validation du montant
-      if (montant < 100 || montant > 1000000) {
+      if (montant < 300 || montant > 1000000) {
         return res.status(400).json({
           success: false,
           error: 'MONTANT_INVALIDE',
-          message: 'Montant doit être entre 100 et 1,000,000 FCFA'
+          message: 'Montant doit être entre 300 et 1,000,000 FCFA'
         });
       }
 
@@ -55,7 +63,7 @@ class PaiementController {
         path: 'trajetId',
         populate: {
           path: 'conducteurId',
-          select: 'nom prenom compteCovoiturage noteMoyenne statistiques'
+          select: 'nom prenom compteCovoiturage noteGenerale statistiques'
         }
       });
 
@@ -92,7 +100,7 @@ class PaiementController {
             success: false,
             error: 'PAIEMENT_ESPECES_NON_AUTORISE',
             message: 'Le conducteur n\'accepte pas les paiements en espèces. Veuillez choisir un paiement numérique.',
-            methodesDisponibles: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY']
+            methodesDisponibles: ['MOBILE_MONEY']
           });
         }
 
@@ -105,7 +113,7 @@ class PaiementController {
             success: false,
             error: 'SOLDE_INSUFFISANT_CONDUCTEUR',
             message: `Le conducteur doit avoir un solde minimum de ${soldeMinimum} FCFA pour accepter les paiements en espèces`,
-            methodesDisponibles: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY']
+            methodesDisponibles: ['MOBILE_MONEY']
           });
         }
       }
@@ -152,7 +160,7 @@ class PaiementController {
 
       // 🆕 Calculer commission dynamique selon distance et note
       const distanceKm = trajet.distanceKm || 0;
-      const noteConducteur = conducteur.noteMoyenne || 0;
+      const noteConducteur = conducteur.noteGenerale || 0;
       await paiement.calculerCommissionDynamique(distanceKm, noteConducteur);
 
       // 🆕 Appliquer bonus si applicable
@@ -179,7 +187,7 @@ class PaiementController {
       if (methodePaiement !== 'ESPECES') {
         paiement.initierPaiementMobile(
           numeroTelephone, 
-          operateur || methodePaiement.replace('_MONEY', '')
+          operateur || null
         );
       }
 
@@ -221,7 +229,8 @@ class PaiementController {
         // Paiement mobile - utiliser CinetPay
         const result = await this.cinetPayService.initierPaiement(
           reservationId, 
-          montant,
+          montant, 
+
           {
             methodePaiement,
             numeroTelephone,
@@ -229,7 +238,27 @@ class PaiementController {
             referenceInterne: paiement.referenceTransaction
           }
         );
-
+        
+        // Si CinetPay renvoie une erreur (ex: solde marchand insuffisant)
+        if (!result || result.success === false) {
+          logger.warn('CinetPay initiation failed', { 
+            reservationId, 
+            reference: paiement.referenceTransaction, 
+            err: result?.message 
+          });
+          
+          // Marquer le paiement comme échoué
+          paiement.statutPaiement = 'ECHEC';
+          paiement.ajouterErreur('CINETPAY_INITIATION_ECHEC', result?.message || 'Erreur CinetPay');
+          await paiement.save();
+          
+          return res.status(402).json({
+            success: false,
+            error: 'CINETPAY_ERREUR',
+            message: result?.message || 'Erreur lors de l\'initiation du paiement CinetPay. Solde ou configuration peut être insuffisante.'
+          });
+        }
+        
         return res.status(201).json({
           success: true,
           message: 'Paiement mobile initié',
@@ -261,7 +290,7 @@ class PaiementController {
       const { trajetId } = req.params;
 
       const trajet = await Trajet.findById(trajetId)
-        .populate('conducteurId', 'nom prenom compteCovoiturage noteMoyenne');
+        .populate('conducteurId', 'nom prenom compteCovoiturage noteGenerale');
 
       if (!trajet) {
         return res.status(404).json({
@@ -276,42 +305,15 @@ class PaiementController {
       const compteRecharge = conducteur.compteCovoiturage?.estRecharge && soldeConducteur >= soldeMinimum;
 
       // Méthodes numériques toujours disponibles
-      const methodesNumeriques = [
+     const methodesNumeriques = [
         {
-          id: 'WAVE',
-          nom: 'Wave',
+          id: 'MOBILE_MONEY',
+          nom: 'Mobile Money',
           type: 'mobile_money',
-          frais: '0%',
+          frais: 'Selon opérateur',
           actif: true,
           commission: '10%',
-          description: 'Commission prélevée automatiquement'
-        },
-        {
-          id: 'ORANGE_MONEY',
-          nom: 'Orange Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true,
-          commission: '10%',
-          description: 'Commission prélevée automatiquement'
-        },
-        {
-          id: 'MTN_MONEY',
-          nom: 'MTN Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true,
-          commission: '10%',
-          description: 'Commission prélevée automatiquement'
-        },
-        {
-          id: 'MOOV_MONEY',
-          nom: 'Moov Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true,
-          commission: '10%',
-          description: 'Commission prélevée automatiquement'
+          description: 'Wave, Orange Money, MTN, Moov — sélection sur CinetPay'
         }
       ];
 
@@ -339,7 +341,7 @@ class PaiementController {
             nom: `${conducteur.prenom} ${conducteur.nom}`,
             compteRecharge,
             solde: compteRecharge ? soldeConducteur : 0,
-            noteMoyenne: conducteur.noteMoyenne || 0
+            noteGenerale: conducteur.noteGenerale || 0 
           },
           informations: {
             commissionPlateforme: 'Commission de base 10% (peut être réduite selon la note du conducteur)',
@@ -363,26 +365,27 @@ class PaiementController {
   }
 
   // 🆕 Confirmer un paiement en espèces (après le trajet)
+  
   async confirmerPaiementEspeces(req, res) {
-    try {
-      const { referenceTransaction } = req.params;
-      const { codeConfirmation } = req.body;
-      const userId = req.user._id;
+  try {
+    const { referenceTransaction, reservationId } = req.params;
+    const userId = req.user._id;
 
-      const paiement = await Paiement.findOne({
-        referenceTransaction,
-        methodePaiement: 'ESPECES',
-        statutPaiement: 'EN_ATTENTE'
-      }).populate('beneficiaireId', 'compteCovoiturage nom prenom email');
+    const paiement = await Paiement.findOne({
+      ...(referenceTransaction 
+        ? { referenceTransaction } 
+        : { reservationId }),
+      methodePaiement: 'ESPECES',
+      statutPaiement: 'TRAITE'
+    }).populate('beneficiaireId', 'compteCovoiturage nom prenom email');
 
       if (!paiement) {
         return res.status(404).json({
           success: false,
-          message: 'Paiement en espèces non trouvé ou déjà traité'
+          message: 'Paiement non trouvé ou commission non encore prélevée'
         });
       }
 
-      // Vérifier que c'est le conducteur ou le passager qui confirme
       const estConducteur = paiement.beneficiaireId._id.toString() === userId.toString();
       const estPassager = paiement.payeurId.toString() === userId.toString();
 
@@ -393,47 +396,65 @@ class PaiementController {
         });
       }
 
-      // Vérifier à nouveau le solde du conducteur
-      const conducteur = paiement.beneficiaireId;
-      const soldeConducteur = conducteur.compteCovoiturage?.solde || 0;
-
-      if (soldeConducteur < paiement.commission.montant) {
-        return res.status(400).json({
-          success: false,
-          error: 'SOLDE_INSUFFISANT',
-          message: `Le solde du conducteur est insuffisant pour prélever la commission (${soldeConducteur} FCFA < ${paiement.commission.montant} FCFA)`
-        });
-      }
-
-      // Confirmer le paiement
+      // ✅ Plus de débit ici — juste marquer COMPLETE
+      // Le débit a déjà été fait dans accepterReservation()
       paiement.statutPaiement = 'COMPLETE';
       paiement.dateCompletion = new Date();
-      paiement.reglesPaiement.soldeConducteurAvant = soldeConducteur;
 
-      paiement.ajouterLog('PAIEMENT_ESPECES_CONFIRME', {
+      paiement.ajouterLog('PAIEMENT_ESPECES_CONFIRME_APRES_TRAJET', {
         confirmePar: estConducteur ? 'conducteur' : 'passager',
         userId,
-        codeConfirmation,
-        dateConfirmation: new Date()
+        dateConfirmation: new Date(),
+        note: 'Commission déjà prélevée lors de l\'acceptation de la réservation'
       });
-
-      // Traiter la commission
-      await paiement.traiterCommissionApresPayement();
 
       await paiement.save();
 
-      // Envoyer notification
-      await this.envoyerEmailConfirmationPaiement(conducteur, paiement);
+      // Notification Firebase au conducteur
+      try {
+        const conducteur = paiement.beneficiaireId;
+        if (conducteur.notificationsActivees?.('paiements')) {
+          await firebaseService.notifyPaymentSuccess(
+            conducteur._id,
+            {
+              montant: paiement.montantTotal,
+              transactionId: paiement.referenceTransaction,
+              methode: 'especes'
+            },
+            Utilisateur
+          );
+        }
+      } catch (notifError) {
+        logger.error('❌ Erreur notification Firebase conducteur:', notifError);
+      }
 
-      logger.info('Paiement espèces confirmé', {
+      // Notification Firebase au passager
+      try {
+        const passager = await Utilisateur.findById(paiement.payeurId);
+        if (passager?.notificationsActivees?.('paiements')) {
+          await firebaseService.notifyPaymentSuccess(
+            passager._id,
+            {
+              montant: paiement.montantTotal,
+              transactionId: paiement.referenceTransaction,
+              methode: 'especes'
+            },
+            Utilisateur
+          );
+        }
+      } catch (notifError) {
+        logger.error('❌ Erreur notification Firebase passager:', notifError);
+      }
+
+      logger.info('✅ Paiement espèces finalisé après trajet', {
         paiementId: paiement._id,
         referenceTransaction,
         confirmePar: estConducteur ? 'conducteur' : 'passager'
       });
 
-      res.json({
+      return res.json({
         success: true,
-        message: 'Paiement en espèces confirmé avec succès',
+        message: '✅ Paiement en espèces confirmé avec succès',
         data: {
           paiementId: paiement._id,
           referenceTransaction: paiement.referenceTransaction,
@@ -443,7 +464,7 @@ class PaiementController {
             montant: paiement.commission.montant,
             statutPrelevement: paiement.commission.statutPrelevement
           },
-          nouveauSoldeConducteur: paiement.reglesPaiement.soldeConducteurApres,
+          soldeConducteurApres: paiement.reglesPaiement.soldeConducteurApres,
           statutPaiement: paiement.statutPaiement,
           dateCompletion: paiement.dateCompletion
         }
@@ -462,318 +483,541 @@ class PaiementController {
   // =========================
   // GESTION DES RECHARGES
   // =========================
+  /**
+ * ✅ MÉTHODE 1/2 : INITIER RECHARGE (SIMPLIFIÉE - 100% CINETPAY)
+ * 
+ * Remplacez la méthode initierRecharge existante par celle-ci
+ */
+async initierRecharge(req, res) {
+  try {
+    const { montant } = req.body;
+    let { methodePaiement } = req.body; // will be normalized further down
+    const userId = req.user.userId;
 
-  async initierRecharge(req, res) {
-    try {
-      const {
-        montant,
-        methodePaiement,
-        numeroTelephone,
-        operateur,
-        codeTransaction
-      } = req.body;
-      const userId = req.user.userId;
+    // Vérifier utilisateur
+    const user = await Utilisateur.findById(userId)
+      .select('role compteCovoiturage nom prenom email telephone');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé'
+      });
+    }
 
-      // Vérifier l'utilisateur
-      const user = await Utilisateur.findById(userId).select('role compteCovoiturage nom prenom email telephone noteMoyenne');
+    // Vérifier rôle conducteur
+    if (!['conducteur'].includes(user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Seuls les conducteurs peuvent recharger leur compte',
+        code: 'ROLE_INSUFFICIENT'
+      });
+    }
+
+    // Validation montant
+    if (montant < 300 || montant > 1000000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Montant invalide (300 à 1 000 000 FCFA)',
+        limites: {
+          minimum: 300,
+          maximum: 1000000
+        }
+      });
+    }
+
+    // Validation méthode de paiement (on normalise pour tolérer
+    // différentes représentations envoyées par le frontend)
+    const methodesValides = ['MOBILE_MONEY'];
+    const normal = (methodePaiement || '')
+      .toString()
+      .trim()
+      .toUpperCase()
+      .replace(/[-\s]+/g, '_');
+    if (!methodesValides.includes(normal)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Méthode de paiement non supportée',
+        methodesAcceptees: methodesValides
+      });
+    }
+    // remplacer la valeur par sa forme normalisée pour stockage
+    methodePaiement = normal;
+
+    // Vérifier limites quotidiennes
+    const limiteQuotidienne = await this.verifierLimitesRecharge(userId, montant);
+    if (!limiteQuotidienne.autorise) {
+      return res.status(429).json({
+        success: false,
+        message: limiteQuotidienne.message,
+        limites: limiteQuotidienne.details
+      });
+    }
+
+    // Calculer frais de transaction (2% minimum 50 FCFA)
+    const fraisTransaction = Math.max(Math.round(montant * 0.02), 50);
+    const montantNet = montant - fraisTransaction;
+
+    // Créer l'enregistrement de paiement
+    const paiement = new Paiement({
+      payeurId: userId,
+      beneficiaireId: userId,
+      montantTotal: montant,
+      montantConducteur: montantNet,
+      commissionPlateforme: 0,
+      fraisTransaction,
       
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'Utilisateur non trouvé'
-        });
+      commission: {
+        taux: 0,
+        tauxOriginal: 0,
+        montant: 0,
+        modePrelevement: 'paiement_mobile',
+        statutPrelevement: 'preleve'
+      },
+
+      methodePaiement: methodePaiement,
+      
+      reglesPaiement: {
+        conducteurCompteRecharge: user.compteCovoiturage?.estRecharge || false,
+        modesAutorises: ['MOBILE_MONEY'],
+        raisonValidation: 'Recharge de compte via CinetPay',
+        verificationsPassees: true,
+        soldeSuffisant: true
+      },
+
+      securite: {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        deviceId: req.get('X-Device-ID')
       }
+    });
 
-      // Vérifier que l'utilisateur peut recharger (conducteur)
-      if (!['conducteur', 'les_deux'].includes(user.role)) {
-        return res.status(403).json({
-          success: false,
-          message: 'Seuls les conducteurs peuvent recharger leur compte',
-          code: 'ROLE_INSUFFICIENT'
-        });
-      }
+    // Appliquer bonus de recharge si éligible (≥10 000 FCFA)
+    paiement.appliquerBonusRecharge(montant);
 
-      // Validation du montant
-      if (montant < 1000 || montant > 1000000) {
-        return res.status(400).json({
-          success: false,
-          message: 'Montant invalide (1000 à 1 000 000 FCFA)',
-          limites: {
-            minimum: 1000,
-            maximum: 1000000
-          }
-        });
-      }
+    await paiement.save();
 
-      // Validation de la méthode de paiement
-      const methodesValides = ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'];
-      if (!methodesValides.includes(methodePaiement)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Méthode de paiement non supportée',
-          methodesAcceptees: methodesValides
-        });
-      }
+    // Ajouter à l'historique utilisateur (statut EN_ATTENTE)
+    if (!user.compteCovoiturage.historiqueRecharges) {
+      user.compteCovoiturage.historiqueRecharges = [];
+    }
+    
+    user.compteCovoiturage.historiqueRecharges.push({
+      montant,
+      methodePaiement,
+      referenceTransaction: paiement.referenceTransaction,
+      fraisTransaction,
+      statut: 'en_attente',
+      dateRecharge: new Date()
+    });
+    
+    await user.save();
 
-      // Validation du numéro selon l'opérateur
-      const validationNumero = this.validerNumeroOperateur(numeroTelephone, operateur || methodePaiement);
-      if (!validationNumero.valide) {
-        return res.status(400).json({
-          success: false,
-          message: validationNumero.message
-        });
-      }
+    paiement.ajouterLog('RECHARGE_INITIEE_CINETPAY', {
+      userId,
+      montant,
+      montantNet,
+      fraisTransaction,
+      bonusRecharge: paiement.bonus.bonusRecharge,
+      methodePaiement,
+      note: 'Recharge 100% CinetPay - Pas de formulaire manuel'
+    });
 
-      // Vérifier les limites quotidiennes
-      const limiteQuotidienne = await this.verifierLimitesRecharge(userId, montant);
-      if (!limiteQuotidienne.autorise) {
-        return res.status(429).json({
-          success: false,
-          message: limiteQuotidienne.message,
-          limites: limiteQuotidienne.details
-        });
-      }
+    logger.info('🚀 Recharge CinetPay initiée', {
+      userId,
+      paiementId: paiement._id,
+      montant,
+      bonusRecharge: paiement.bonus.bonusRecharge,
+      methodePaiement,
+      referenceTransaction: paiement.referenceTransaction
+    });
 
-      // Calculer les frais de transaction (2% avec minimum 50 FCFA)
-      const fraisTransaction = Math.max(Math.round(montant * 0.02), 50);
-      const montantNet = montant - fraisTransaction;
-
-      // Créer l'enregistrement de paiement pour la recharge
-      const paiement = new Paiement({
-        payeurId: userId,
-        beneficiaireId: userId,
-        montantTotal: montant,
-        montantConducteur: montantNet,
-        commissionPlateforme: 0,
-        fraisTransaction,
-        
-        commission: {
-          taux: 0,
-          tauxOriginal: 0,
-          montant: 0,
-          modePrelevement: 'paiement_mobile',
-          statutPrelevement: 'preleve'
-        },
-
-        methodePaiement: methodePaiement,
-        
-        reglesPaiement: {
-          conducteurCompteRecharge: user.compteCovoiturage?.estRecharge || false,
-          modesAutorises: ['wave', 'orange_money', 'mtn_money', 'moov_money'],
-          raisonValidation: 'Recharge de compte conducteur',
-          verificationsPassees: true,
-          soldeSuffisant: true
-        },
-
-        mobileMoney: {
-          operateur: operateur || methodePaiement.replace('_MONEY', ''),
-          numeroTelephone: numeroTelephone,
-          codeTransaction: codeTransaction,
-          statutMobileMoney: 'PENDING'
-        },
-
-        securite: {
+    // ✅ APPEL CINETPAY POUR GÉNÉRER URL DE PAIEMENT
+    try {
+      const resultCinetPay = await this.cinetPayService.initierPaiement(
+        null, // Pas de reservationId pour recharge
+        // montant,
+        100,
+        {
+          methodePaiement,
+          referenceInterne: paiement.referenceTransaction,
+          isRecharge: true,
+          userId,
+          userEmail: user.email,
+          userNom: `${user.prenom} ${user.nom}`,
+          userTelephone: user.telephone,
           ipAddress: req.ip,
           userAgent: req.get('User-Agent'),
           deviceId: req.get('X-Device-ID')
         }
-      });
-
-      // 🆕 Appliquer bonus de recharge si éligible
-      paiement.appliquerBonusRecharge(montant);
-
-      await paiement.save();
-
-      // Ajouter à l'historique des recharges de l'utilisateur
-      await user.rechargerCompte(
-        montant, 
-        methodePaiement.toLowerCase(),
-        paiement.referenceTransaction,
-        fraisTransaction
       );
 
-      paiement.ajouterLog('RECHARGE_INITIEE', {
-        userId,
-        montant,
-        montantNet,
-        fraisTransaction,
-        bonusRecharge: paiement.bonus.bonusRecharge,
-        methodePaiement,
-        operateur: operateur || methodePaiement.replace('_MONEY', '')
-      });
+      // Vérifier si CinetPay a réussi
+      if (!resultCinetPay || resultCinetPay.success === false) {
+        logger.error('❌ CinetPay initiation recharge échouée', {
+          userId,
+          reference: paiement.referenceTransaction,
+          error: resultCinetPay?.message
+        });
 
-      logger.info('Recharge initiée', {
+        // Marquer comme échoué
+        paiement.statutPaiement = 'ECHEC';
+        paiement.ajouterErreur('CINETPAY_INIT_FAILED', 
+          resultCinetPay?.message || 'Erreur initialisation CinetPay');
+        await paiement.save();
+
+        return res.status(502).json({
+          success: false,
+          error: 'CINETPAY_ERREUR',
+          message: resultCinetPay?.message || 'Erreur lors de l\'initialisation du paiement CinetPay',
+          details: 'Impossible de générer le lien de paiement. Veuillez réessayer.'
+        });
+      }
+
+      // ✅ SUCCÈS - Retourner l'URL de paiement CinetPay
+      logger.info('✅ URL paiement CinetPay générée', {
         userId,
         paiementId: paiement._id,
-        montant,
-        bonusRecharge: paiement.bonus.bonusRecharge,
-        methodePaiement,
-        referenceTransaction: paiement.referenceTransaction
+        reference: paiement.referenceTransaction,
+        urlPaiement: resultCinetPay.urlPaiement
       });
 
       res.status(201).json({
         success: true,
-        message: 'Recharge initiée avec succès',
+        message: 'Recharge initiée avec succès - Redirection vers CinetPay',
         data: {
           paiementId: paiement._id,
           referenceTransaction: paiement.referenceTransaction,
           montant,
           montantNet,
           fraisTransaction,
-          bonusRecharge: paiement.bonus.bonusRecharge,
+          bonusRecharge: paiement.bonus.bonusRecharge || 0,
           montantTotalACrediter: montantNet + (paiement.bonus.bonusRecharge || 0),
           methodePaiement,
           statutPaiement: paiement.statutPaiement,
           dateInitiation: paiement.dateInitiation,
-          instructions: this.genererInstructionsRecharge(methodePaiement, numeroTelephone, montant)
+          
+          // 🎯 URL DE PAIEMENT CINETPAY (à ouvrir dans le navigateur)
+          paymentUrl: resultCinetPay.urlPaiement,
+          paymentToken: resultCinetPay.token,
+          
+          instructions: [
+            '1️⃣ Cliquez sur le lien de paiement ci-dessous',
+            '2️⃣ Complétez votre paiement sur la page CinetPay',
+            '3️⃣ Votre solde sera crédité automatiquement après confirmation',
+            `💰 Vous recevrez ${(montantNet + (paiement.bonus.bonusRecharge || 0)).toLocaleString()} FCFA`,
+            paiement.bonus.bonusRecharge > 0 ? `🎁 Bonus de ${paiement.bonus.bonusRecharge.toLocaleString()} FCFA inclus !` : ''
+          ].filter(Boolean),
+          
+          important: {
+            delaiConfirmation: '15 minutes maximum',
+            support: 'En cas de problème, contactez le support avec votre référence',
+            annulationPossible: 'Vous pouvez annuler dans les 30 minutes si non payé'
+          }
         }
       });
 
-    } catch (error) {
-      logger.error('Erreur initiation recharge:', error);
+    } catch (cinetpayError) {
+      logger.error('❌ Exception CinetPay recharge:', cinetpayError);
+      
+      // Marquer comme échoué
+      paiement.statutPaiement = 'ECHEC';
+      paiement.ajouterErreur('CINETPAY_EXCEPTION', cinetpayError.message);
+      await paiement.save();
+
       return res.status(500).json({
         success: false,
-        error: 'ERREUR_RECHARGE',
-        message: error.message
+        error: 'ERREUR_CINETPAY',
+        message: 'Une erreur s\'est produite lors de la communication avec CinetPay',
+        details: cinetpayError.message
       });
     }
-  }
 
+  } catch (error) {
+    logger.error('❌ Erreur initiation recharge:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'ERREUR_RECHARGE',
+      message: error.message
+    });
+  }
+}
+
+/**
+ * ✅ MÉTHODE 2/2 : CONFIRMER RECHARGE (WEBHOOK AUTO + MANUEL ADMIN)
+ * 
+ * la méthode confirmerRecharge existante par celle-ci
+ */
   async confirmerRecharge(req, res) {
     try {
       const {
-        referenceTransaction,
-        codeVerification,
-        statutPaiement = 'COMPLETE',
-        donneesCallback = {}
-      } = req.body;
+    referenceTransaction,
+    statutPaiement = 'COMPLETE',
+    merchant_transaction_id,
+    transaction_id,
+    notify_token
+  } = req.body;
 
-      if (!referenceTransaction) {
-        return res.status(400).json({
-          success: false,
-          message: 'Référence de transaction requise'
+const estWebhook = notify_token || merchant_transaction_id;
+    if (!referenceTransaction) {
+      return res.status(400).json({
+        success: false,
+        message: 'Référence de transaction requise'
+      });
+    }
+
+    // Trouver le paiement de recharge
+    const paiement = await Paiement.findOne({
+      referenceTransaction,
+      methodePaiement: 'MOBILE_MONEY'
+    }).populate('payeurId', 'compteCovoiturage nom prenom email');
+
+    if (!paiement) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction de recharge non trouvée'
+      });
+    }
+
+    if (paiement.statutPaiement !== 'EN_ATTENTE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cette recharge a déjà été traitée',
+        statutActuel: paiement.statutPaiement
+      });
+    }
+
+    // 🔒 SÉCURITÉ : Si confirmation manuelle (admin), vérifier avec CinetPay
+    if (!estWebhook) {
+      const userId = req.user?.userId;
+      const userRole = req.user?.role;
+      
+      if (userRole !== 'admin') {
+        logger.warn('⚠️ Tentative confirmation manuelle non autorisée', {
+          userId,
+          userRole,
+          referenceTransaction
         });
-      }
-
-      // Trouver le paiement de recharge
-      const paiement = await Paiement.findOne({
-        referenceTransaction,
-        methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
-      }).populate('payeurId', 'compteCovoiturage nom prenom email');
-
-      if (!paiement) {
-        return res.status(404).json({
-          success: false,
-          message: 'Transaction de recharge non trouvée'
-        });
-      }
-
-      if (paiement.statutPaiement !== 'EN_ATTENTE') {
-        return res.status(400).json({
-          success: false,
-          message: 'Cette recharge a déjà été traitée',
-          statutActuel: paiement.statutPaiement
-        });
-      }
-
-      // Traiter selon le nouveau statut
-      if (statutPaiement === 'COMPLETE') {
-        // Recharge réussie
-        paiement.statutPaiement = 'COMPLETE';
-        paiement.dateCompletion = new Date();
         
-        // Traiter le callback mobile money si fourni
-        if (donneesCallback.transactionId) {
-          paiement.traiterCallbackMobile({
-            transactionId: donneesCallback.transactionId,
-            statut: 'SUCCESS',
-            codeTransaction: codeVerification || donneesCallback.codeTransaction,
-            ...donneesCallback
+        return res.status(403).json({
+          success: false,
+          error: 'AUTORISATION_REQUISE',
+          message: 'Seuls les administrateurs peuvent confirmer manuellement',
+          note: 'Les confirmations automatiques se font via webhook CinetPay'
+        });
+      }
+
+      // Vérifier le statut réel auprès de CinetPay
+      logger.info('🔍 Vérification CinetPay avant confirmation manuelle', {
+        referenceTransaction,
+        adminId: userId
+      });
+
+      try {
+        const verificationCinetPay = await this.cinetPayService.verifierStatutTransaction(
+          referenceTransaction
+        );
+
+        if (verificationCinetPay.statutPaiement !== statutPaiement) {
+          logger.warn('⚠️ Discordance statut CinetPay vs demande admin', {
+            referenceTransaction,
+            statutDemande: statutPaiement,
+            statutCinetPay: verificationCinetPay.statutPaiement,
+            adminId: userId
+          });
+
+          return res.status(400).json({
+            success: false,
+            error: 'STATUT_DISCORDANT',
+            message: 'Le statut demandé ne correspond pas au statut CinetPay',
+            statutCinetPay: verificationCinetPay.statutPaiement,
+            statutDemande: statutPaiement,
+            recommandation: 'Vérifiez le statut réel sur le dashboard CinetPay'
           });
         }
 
-        // Confirmer la recharge dans le compte utilisateur
-        const user = paiement.payeurId;
-        const montantACrediter = paiement.montantConducteur + (paiement.bonus.bonusRecharge || 0);
+        logger.info('✅ Vérification CinetPay réussie', {
+          referenceTransaction,
+          statutConfirme: verificationCinetPay.statutPaiement
+        });
+
+      } catch (cinetpayError) {
+        logger.error('❌ Erreur vérification CinetPay:', cinetpayError);
         
-        await user.confirmerRecharge(referenceTransaction, 'reussi', montantACrediter);
+        return res.status(503).json({
+          success: false,
+          error: 'CINETPAY_INDISPONIBLE',
+          message: 'Impossible de vérifier le statut auprès de CinetPay',
+          details: cinetpayError.message,
+          recommandation: 'Réessayez dans quelques instants'
+        });
+      }
 
-        // Envoyer email de confirmation
-        await this.envoyerEmailConfirmationRecharge(user, paiement);
+      paiement.ajouterLog('CONFIRMATION_MANUELLE_ADMIN', {
+        adminId: userId,
+        dateConfirmation: new Date(),
+        verificationCinetPay: 'effectuee'
+      });
+    } else {
+      logger.info('📨 Webhook CinetPay reçu pour recharge', {
+        referenceTransaction,
+        transaction_id,
+        notify_token
+      });
+    }
 
-        paiement.ajouterLog('RECHARGE_CONFIRMEE', {
+    // ✅ TRAITER SELON LE STATUT
+    if (statutPaiement === 'COMPLETE' || notify_token) {
+      // RECHARGE RÉUSSIE
+      paiement.statutPaiement = 'COMPLETE';
+      paiement.dateCompletion = new Date();
+      
+      // Enregistrer données CinetPay si webhook
+      if (transaction_id) {
+       paiement.mobileMoney.transactionId = transaction_id;
+        paiement.mobileMoney.statutMobileMoney = 'SUCCESS';
+        paiement.referencePaiementMobile = transaction_id;
+        paiement.mobileMoney.dateTransaction = new Date();
+      }
+
+      // Créditer le compte utilisateur
+      const user = paiement.payeurId;
+      const montantACrediter = paiement.montantConducteur + 
+                               (paiement.bonus.bonusRecharge || 0);
+      
+      await user.confirmerRecharge(referenceTransaction, 'reussi', montantACrediter);
+
+      // Envoyer email de confirmation
+      await this.envoyerEmailConfirmationRecharge(user, paiement);
+      
+      // Notification Firebase
+      try {
+        if (user.notificationsActivees('paiements')) {
+          await firebaseService.notifyPaymentSuccess(
+            user._id,
+            {
+              montant: montantACrediter,
+              transactionId: referenceTransaction,
+              methode: paiement.methodePaiement.toLowerCase()
+            },
+            Utilisateur
+          );
+          
+          logger.info('📱 Notification Firebase recharge réussie envoyée', {
+            userId: user._id,
+            montant: montantACrediter,
+            nouveauSolde: user.compteCovoiturage.solde
+          });
+        }
+      } catch (notifError) {
+        logger.error('❌ Erreur notification Firebase recharge:', notifError);
+      }
+
+      paiement.ajouterLog('RECHARGE_CONFIRMEE_CINETPAY', {
+        montantCredite: montantACrediter,
+        montantBase: paiement.montantConducteur,
+        bonusRecharge: paiement.bonus.bonusRecharge,
+        nouveauSolde: user.compteCovoiturage.solde,
+        modeConfirmation: estWebhook ? 'webhook_auto' : 'manuel_admin',
+        transaction_id: transaction_id || null
+      });
+
+      logger.info('✅ Recharge confirmée avec succès', {
+        paiementId: paiement._id,
+        userId: user._id,
+        montant: paiement.montantTotal,
+        montantCredite: montantACrediter,
+        nouveauSolde: user.compteCovoiturage.solde,
+        modeConfirmation: estWebhook ? 'webhook' : 'manuel_admin'
+      });
+
+      await paiement.save();
+
+      res.json({
+        success: true,
+        message: 'Recharge confirmée avec succès',
+        data: {
+          paiementId: paiement._id,
+          referenceTransaction: paiement.referenceTransaction,
           montantCredite: montantACrediter,
           montantBase: paiement.montantConducteur,
-          bonusRecharge: paiement.bonus.bonusRecharge,
+          bonusRecharge: paiement.bonus.bonusRecharge || 0,
           nouveauSolde: user.compteCovoiturage.solde,
-          codeVerification
-        });
+          statutPaiement: paiement.statutPaiement,
+          dateCompletion: paiement.dateCompletion,
+          modeConfirmation: estWebhook ? 'automatique' : 'manuel',
+          transactionCinetPay: transaction_id || null
+        }
+      });
 
-        logger.info('Recharge confirmée', {
-          paiementId: paiement._id,
-          userId: user._id,
-          montant: paiement.montantTotal,
-          montantCredite: montantACrediter,
-          nouveauSolde: user.compteCovoiturage.solde
-        });
+    } else if (statutPaiement === 'ECHEC') {
+      // RECHARGE ÉCHOUÉE
+      paiement.statutPaiement = 'ECHEC';
+      
+      if (transaction_id) {
+         paiement.mobileMoney.transactionId = transaction_id;
+        paiement.mobileMoney.statutMobileMoney = 'FAILED';
+      }
 
-        res.json({
-          success: true,
-          message: 'Recharge confirmée avec succès',
-          data: {
-            paiementId: paiement._id,
-            referenceTransaction: paiement.referenceTransaction,
-            montantCredite: montantACrediter,
-            montantBase: paiement.montantConducteur,
-            bonusRecharge: paiement.bonus.bonusRecharge,
-            nouveauSolde: user.compteCovoiturage.solde,
-            statutPaiement: paiement.statutPaiement,
-            dateCompletion: paiement.dateCompletion
-          }
-        });
+      // Marquer comme échoué dans l'historique utilisateur
+      const user = paiement.payeurId;
+      await user.confirmerRecharge(referenceTransaction, 'echec');
 
-      } else if (statutPaiement === 'ECHEC') {
-        // Recharge échouée
-        paiement.statutPaiement = 'ECHEC';
-        
-        if (donneesCallback.transactionId) {
-          paiement.traiterCallbackMobile({
-            transactionId: donneesCallback.transactionId,
-            statut: 'FAILED',
-            ...donneesCallback
+      paiement.ajouterErreur('RECHARGE_ECHEC_CINETPAY', 
+        'Échec du paiement confirmé par CinetPay');
+
+      // Notification Firebase - Échec
+      try {
+        if (user.notificationsActivees('paiements')) {
+          await firebaseService.notifyPaymentFailed(
+            user._id,
+            {
+              montant: paiement.montantTotal,
+              transactionId: referenceTransaction,
+              reason: 'Paiement échoué sur CinetPay'
+            },
+            Utilisateur
+          );
+          
+          logger.info('📱 Notification Firebase recharge échouée envoyée', {
+            userId: user._id
           });
         }
-
-        // Marquer comme échoué dans l'historique utilisateur
-        const user = paiement.payeurId;
-        await user.confirmerRecharge(referenceTransaction, 'echec');
-
-        paiement.ajouterErreur('RECHARGE_ECHEC', 
-          donneesCallback.messageErreur || 'Échec du paiement mobile money');
-
-        res.json({
-          success: true,
-          message: 'Statut de recharge mis à jour (échec)',
-          data: {
-            paiementId: paiement._id,
-            referenceTransaction: paiement.referenceTransaction,
-            statutPaiement: paiement.statutPaiement,
-            raisonEchec: donneesCallback.messageErreur || 'Paiement non confirmé'
-          }
-        });
+      } catch (notifError) {
+        logger.error('❌ Erreur notification Firebase échec:', notifError);
       }
 
       await paiement.save();
 
-    } catch (error) {
-      logger.error('Erreur confirmation recharge:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_CONFIRMATION',
-        message: error.message
+      logger.warn('⚠️ Recharge échouée', {
+        paiementId: paiement._id,
+        userId: user._id,
+        referenceTransaction,
+        transaction_id: transaction_id || null
+      });
+
+      res.json({
+        success: true,
+        message: 'Statut de recharge mis à jour (échec)',
+        data: {
+          paiementId: paiement._id,
+          referenceTransaction: paiement.referenceTransaction,
+          statutPaiement: paiement.statutPaiement,
+          raisonEchec: 'Paiement échoué sur CinetPay',
+          transactionCinetPay: transaction_id || null
+        }
       });
     }
+
+  } catch (error) {
+    logger.error('❌ Erreur confirmation recharge:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'ERREUR_CONFIRMATION',
+      message: error.message
+    });
   }
+}
 
   async obtenirHistoriqueRecharges(req, res) {
     try {
@@ -799,7 +1043,7 @@ class PaiementController {
       const filtres = {
         payeurId: userId,
         beneficiaireId: userId,
-        methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
+        methodePaiement: 'MOBILE_MONEY'
       };
 
       if (statut) {
@@ -1162,6 +1406,61 @@ class PaiementController {
 
       const result = await this.cinetPayService.traiterWebhook(webhookData);
 
+      // Envoyer notification Firebase selon le résultat
+      if (result.success && result.paiementId) {
+        const paiement = await Paiement.findById(result.paiementId)
+          .populate('payeurId');
+        
+        try {
+          // Notification selon le statut du paiement
+         if (paiement && paiement.statutPaiement === 'COMPLETE') {
+            // Paiement réussi
+             const utilisateur = paiement.payeurId;
+            
+            if (utilisateur && utilisateur.notificationsActivees('paiements')) {
+              await firebaseService.notifyPaymentSuccess(
+                utilisateur._id,
+                {
+                  montant: paiement.montantTotal,
+                  transactionId: paiement.referenceTransaction,
+                  methode: paiement.methodePaiement.toLowerCase()
+                },
+                Utilisateur
+              );
+              
+              logger.info('📱 Notification Firebase webhook (succès) envoyée', {
+                userId: utilisateur._id,
+                paiementId: paiement._id
+              });
+            }
+            
+          } else if (paiement.statutPaiement === 'ECHEC') {
+            // Paiement échoué
+            const utilisateur = await Utilisateur.findById(paiement.payeurId);
+            
+            if (utilisateur && utilisateur.notificationsActivees('paiements')) {
+              await firebaseService.notifyPaymentFailed(
+                utilisateur._id,
+                {
+                  montant: paiement.montantTotal,
+                  transactionId: paiement.referenceTransaction,
+                  reason: 'Échec du paiement'
+                },
+                Utilisateur
+              );
+              
+              logger.info('📱 Notification Firebase webhook (échec) envoyée', {
+                userId: utilisateur._id,
+                paiementId: paiement._id
+              });
+            }
+          }
+        } catch (notifError) {
+          // Ne pas bloquer le webhook si notification échoue
+          logger.error('❌ Erreur notification Firebase dans webhook:', notifError);
+        }
+      }
+
       return res.status(200).json(result);
 
     } catch (error) {
@@ -1222,7 +1521,7 @@ class PaiementController {
       } else if (type === 'recharges') {
         filtres.payeurId = userId;
         filtres.beneficiaireId = userId;
-        filtres.methodePaiement = { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] };
+        filtres.methodePaiement = 'MOBILE_MONEY';
       }
       
       if (statut) {
@@ -1300,97 +1599,27 @@ class PaiementController {
       });
     }
   }
-
-  async rembourserPaiement(req, res) {
-    try {
-      const { paiementId, raison } = req.body;
-      const adminId = req.user._id;
-
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Seuls les administrateurs peuvent effectuer des remboursements'
-        });
-      }
-
-      const paiement = await Paiement.findById(paiementId);
-      
-      if (!paiement || paiement.statutPaiement !== 'COMPLETE') {
-        return res.status(400).json({
-          success: false,
-          error: 'PAIEMENT_NON_ELIGIBLE',
-          message: 'Paiement non éligible au remboursement'
-        });
-      }
-
-      // Marquer comme remboursé
-      paiement.statutPaiement = 'REMBOURSE';
-      paiement.ajouterLog('REMBOURSEMENT_ADMIN', {
-        adminId,
-        raison,
-        montantRembourse: paiement.montantTotal,
-        dateRemboursement: new Date()
-      });
-
-      await paiement.save();
-
-      logger.info('Paiement remboursé', {
-        paiementId,
-        adminId,
-        montant: paiement.montantTotal,
-        raison
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: 'Paiement remboursé avec succès',
-        paiement: paiement.obtenirResume()
-      });
-
-    } catch (error) {
-      logger.error('Erreur remboursement:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_REMBOURSEMENT',
-        message: error.message
-      });
-    }
-  }
-
+  
   async obtenirMethodesDisponibles(req, res) {
     try {
       const methodes = [
         {
-          id: 'WAVE',
-          nom: 'Wave',
+          id: 'MOBILE_MONEY',
+          nom: 'Mobile Money',
           type: 'mobile_money',
+          frais: 'Selon opérateur',
+          actif: true,
+          description: 'Wave, Orange Money, MTN, Moov — sélection sur CinetPay'
+        },
+        {
+          id: 'ESPECES',
+          nom: 'Espèces',
+          type: 'cash',
           frais: '0%',
-          actif: true
-        },
-        {
-          id: 'ORANGE_MONEY',
-          nom: 'Orange Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true
-        },
-        {
-          id: 'MTN_MONEY',
-          nom: 'MTN Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true
-        },
-        {
-          id: 'MOOV_MONEY',
-          nom: 'Moov Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true
+          actif: true,
+          description: 'Paiement direct au conducteur (sous conditions)'
         }
       ];
-
       return res.status(200).json({
         success: true,
         methodes
@@ -1401,798 +1630,6 @@ class PaiementController {
       return res.status(500).json({
         success: false,
         error: 'ERREUR_METHODES',
-        message: error.message
-      });
-    }
-  }
-
-  // =========================
-  // GESTION DES COMMISSIONS (ADMIN)
-  // =========================
-
-  async obtenirStatistiquesCommissions(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const { 
-        dateDebut, 
-        dateFin, 
-        periode = '30' 
-      } = req.query;
-
-      const finPeriode = dateFin ? new Date(dateFin) : new Date();
-      const debutPeriode = dateDebut ? new Date(dateDebut) : 
-        new Date(finPeriode.getTime() - parseInt(periode) * 24 * 60 * 60 * 1000);
-
-      const stats = await Paiement.obtenirStatistiquesCommissions(debutPeriode, finPeriode);
-      const commissionsEchec = await Paiement.obtenirCommissionsEnEchec();
-      const statsModePaiement = await Paiement.statistiquesParModePaiement();
-      const analyseRevenus = await Paiement.analyseRevenus(parseInt(periode));
-
-      const [statsActuelles] = stats.length > 0 ? stats : [{}];
-      const tauxCommissionMoyen = statsActuelles.montantTotalTraite > 0 ? 
-        (statsActuelles.totalCommissions / statsActuelles.montantTotalTraite * 100) : 0;
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          periode: {
-            debut: debutPeriode,
-            fin: finPeriode,
-            jours: Math.ceil((finPeriode - debutPeriode) / (1000 * 60 * 60 * 24))
-          },
-          statistiques: {
-            totalCommissions: statsActuelles.totalCommissions || 0,
-            nombreTransactions: statsActuelles.nombreTransactions || 0,
-            montantTotalTraite: statsActuelles.montantTotalTraite || 0,
-            montantMoyenTransaction: statsActuelles.montantMoyenTransaction || 0,
-            tauxCommissionMoyen: Math.round(tauxCommissionMoyen * 100) / 100,
-            totalBonus: statsActuelles.totalBonus || 0
-          },
-          repartitionParMode: statsModePaiement,
-          evolutionQuotidienne: analyseRevenus,
-          alertes: {
-            commissionsEnEchec: commissionsEchec.length,
-            commissionsEnEchecDetails: commissionsEchec.slice(0, 10)
-          }
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur statistiques commissions:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_STATISTIQUES',
-        message: error.message
-      });
-    }
-  }
-
-  async traiterCommissionsEnEchec(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const adminId = req.user._id;
-      const { paiementIds, action = 'retry' } = req.body;
-
-      if (!paiementIds || !Array.isArray(paiementIds)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Liste des IDs de paiement requise'
-        });
-      }
-
-      const paiements = await Paiement.find({
-        _id: { $in: paiementIds },
-        'commission.statutPrelevement': { $in: ['echec', 'insuffisant'] },
-        statutPaiement: 'COMPLETE'
-      }).populate('beneficiaireId', 'nom prenom email compteCovoiturage');
-
-      let traites = 0;
-      let echecs = 0;
-      const resultats = [];
-
-      for (const paiement of paiements) {
-        try {
-          let resultat = {
-            paiementId: paiement._id,
-            referenceTransaction: paiement.referenceTransaction,
-            montantCommission: paiement.commission.montant
-          };
-
-          switch (action) {
-            case 'retry':
-              await paiement.traiterCommissionApresPayement();
-              resultat.action = 'Reprélèvement tenté';
-              resultat.succes = true;
-              traites++;
-              break;
-
-            case 'waive':
-              paiement.commission.statutPrelevement = 'preleve';
-              paiement.commission.datePrelevement = new Date();
-              paiement.ajouterLog('COMMISSION_ANNULEE_ADMIN', {
-                adminId,
-                raison: 'Geste commercial - commission annulée',
-                montantAnnule: paiement.commission.montant
-              });
-              await paiement.save();
-              resultat.action = 'Commission annulée';
-              resultat.succes = true;
-              traites++;
-              break;
-
-            case 'manual':
-              paiement.commission.statutPrelevement = 'preleve';
-              paiement.commission.datePrelevement = new Date();
-              paiement.ajouterLog('COMMISSION_MANUELLE_ADMIN', {
-                adminId,
-                raison: 'Traitement manuel par administrateur'
-              });
-              await paiement.save();
-              resultat.action = 'Marqué comme traité';
-              resultat.succes = true;
-              traites++;
-              break;
-
-            default:
-              resultat.action = 'Action inconnue';
-              resultat.succes = false;
-              echecs++;
-              break;
-          }
-
-          resultats.push(resultat);
-
-        } catch (error) {
-          echecs++;
-          resultats.push({
-            paiementId: paiement._id,
-            action: 'Erreur de traitement',
-            succes: false,
-            erreur: error.message
-          });
-          
-          logger.error(`Erreur traitement commission ${paiement._id}:`, error);
-        }
-      }
-
-      logger.info('Traitement manuel commissions échec', {
-        adminId,
-        action,
-        paiementsTraites: traites,
-        paiementsEchecs: echecs
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: `Traitement terminé: ${traites} succès, ${echecs} échecs`,
-        data: {
-          statistiques: { traites, echecs, total: paiements.length },
-          resultats
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur traitement commissions échec:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_TRAITEMENT_COMMISSIONS',
-        message: error.message
-      });
-    }
-  }
-
-  async obtenirDetailCommission(req, res) {
-    try {
-      const { paiementId } = req.params;
-      const userId = req.user._id;
-
-      const paiement = await Paiement.findById(paiementId)
-        .populate('payeurId', 'nom prenom email telephone')
-        .populate('beneficiaireId', 'nom prenom email compteCovoiturage')
-        .populate({
-          path: 'reservationId',
-          populate: {
-            path: 'trajetId',
-            select: 'pointDepart pointArrivee dateDepart prixParPassager distanceKm'
-          }
-        });
-
-      if (!paiement) {
-        return res.status(404).json({
-          success: false,
-          message: 'Paiement non trouvé'
-        });
-      }
-
-      // Vérifier que l'utilisateur peut voir ce paiement
-      const estProprietaire = paiement.payeurId._id.toString() === userId.toString() || 
-                              paiement.beneficiaireId._id.toString() === userId.toString();
-      const estAdmin = req.user.role === 'admin';
-
-      if (!estProprietaire && !estAdmin) {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès non autorisé'
-        });
-      }
-
-      const tentativesPrelevement = paiement.logsTransaction.filter(
-        log => log.action.includes('COMMISSION')
-      );
-
-      const delaiTraitement = paiement.dateCompletion && paiement.dateInitiation ?
-        Math.round((paiement.dateCompletion - paiement.dateInitiation) / (1000 * 60)) : null;
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          paiement: paiement.obtenirResume(),
-          detailsCommission: {
-            taux: paiement.commission.taux,
-            tauxOriginal: paiement.commission.tauxOriginal,
-            montant: paiement.commission.montant,
-            reductionAppliquee: paiement.commission.reductionAppliquee,
-            raisonReduction: paiement.commission.raisonReduction,
-            typeTarification: paiement.commission.typeTarification,
-            modePrelevement: paiement.commission.modePrelevement,
-            statutPrelevement: paiement.commission.statutPrelevement,
-            datePrelevement: paiement.commission.datePrelevement,
-            referencePrelevement: paiement.commission.referencePrelevement,
-            tentativesPrelevement: tentativesPrelevement.length
-          },
-          bonus: paiement.bonus,
-          participants: {
-            payeur: {
-              id: paiement.payeurId._id,
-              nom: `${paiement.payeurId.prenom} ${paiement.payeurId.nom}`,
-              email: paiement.payeurId.email
-            },
-            conducteur: {
-              id: paiement.beneficiaireId._id,
-              nom: `${paiement.beneficiaireId.prenom} ${paiement.beneficiaireId.nom}`,
-              email: paiement.beneficiaireId.email,
-              compteRecharge: paiement.beneficiaireId.compteCovoiturage?.estRecharge || false
-            }
-          },
-          metriques: {
-            delaiTraitement: delaiTraitement ? `${delaiTraitement} minutes` : null,
-            nombreTentatives: tentativesPrelevement.length,
-            nombreErreurs: paiement.erreurs.length
-          },
-          historique: {
-            logs: tentativesPrelevement.slice(-5),
-            erreurs: paiement.erreurs.slice(-3)
-          }
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur détail commission:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_DETAIL_COMMISSION',
-        message: error.message
-      });
-    }
-  }
-
-  async genererRapportCommissions(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const { 
-        format = 'json', 
-        dateDebut, 
-        dateFin, 
-        groupePar = 'jour'
-      } = req.query;
-
-      const debut = dateDebut ? new Date(dateDebut) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const fin = dateFin ? new Date(dateFin) : new Date();
-
-      if (debut >= fin) {
-        return res.status(400).json({
-          success: false,
-          message: 'Date de début doit être antérieure à date de fin'
-        });
-      }
-
-      let formatDate;
-      switch (groupePar) {
-        case 'heure':
-          formatDate = '%Y-%m-%d %H:00';
-          break;
-        case 'jour':
-          formatDate = '%Y-%m-%d';
-          break;
-        case 'semaine':
-          formatDate = '%Y-%U';
-          break;
-        case 'mois':
-          formatDate = '%Y-%m';
-          break;
-        default:
-          formatDate = '%Y-%m-%d';
-          break;
-      }
-
-      const donnees = await Paiement.aggregate([
-        {
-          $match: {
-            statutPaiement: 'COMPLETE',
-            dateCompletion: { $gte: debut, $lte: fin }
-          }
-        },
-        {
-          $group: {
-            _id: { $dateToString: { format: formatDate, date: '$dateCompletion' } },
-            nombreTransactions: { $sum: 1 },
-            montantTotalTraite: { $sum: '$montantTotal' },
-            totalCommissions: { $sum: '$commission.montant' },
-            totalBonus: { 
-              $sum: { 
-                $add: ['$bonus.bonusRecharge', '$bonus.primePerformance'] 
-              } 
-            },
-            commissionsPrelevees: {
-              $sum: {
-                $cond: [
-                  { $eq: ['$commission.statutPrelevement', 'preleve'] },
-                  '$commission.montant',
-                  0
-                ]
-              }
-            }
-          }
-        },
-        {
-          $project: {
-            periode: '$_id',
-            nombreTransactions: 1,
-            montantTotalTraite: 1,
-            totalCommissions: 1,
-            totalBonus: 1,
-            commissionsPrelevees: 1,
-            tauxPrelevement: {
-              $multiply: [
-                { $divide: ['$commissionsPrelevees', '$totalCommissions'] },
-                100
-              ]
-            }
-          }
-        },
-        { $sort: { periode: 1 } }
-      ]);
-
-      const rapport = {
-        success: true,
-        data: {
-          parametres: { dateDebut: debut, dateFin: fin, groupePar },
-          resumeExecutif: {
-            totalCommissions: donnees.reduce((sum, d) => sum + d.totalCommissions, 0),
-            totalBonus: donnees.reduce((sum, d) => sum + d.totalBonus, 0),
-            totalTransactions: donnees.reduce((sum, d) => sum + d.nombreTransactions, 0),
-            montantTotalTraite: donnees.reduce((sum, d) => sum + d.montantTotalTraite, 0)
-          },
-          donneesDetaillees: donnees
-        }
-      };
-
-      switch (format.toLowerCase()) {
-        case 'pdf': {
-          const pdfBuffer = await this.genererRapportPDF(rapport);
-          res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Content-Disposition', 'attachment; filename=rapport-commissions.pdf');
-          return res.send(pdfBuffer);
-        }
-
-        case 'csv': {
-          const csvData = this.convertirEnCSV(donnees);
-          res.setHeader('Content-Type', 'text/csv');
-          res.setHeader('Content-Disposition', 'attachment; filename=rapport-commissions.csv');
-          return res.send(csvData);
-        }
-
-        default:
-          return res.json(rapport);
-      }
-
-    } catch (error) {
-      logger.error('Erreur génération rapport:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_RAPPORT',
-        message: error.message
-      });
-    }
-  }
-
-  async surveillerCommissions(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const maintenant = new Date();
-      const il24h = new Date(maintenant.getTime() - 24 * 60 * 60 * 1000);
-      const il1h = new Date(maintenant.getTime() - 60 * 60 * 1000);
-
-      const commissionsEchecRecentes = await Paiement.find({
-        'commission.statutPrelevement': { $in: ['echec', 'insuffisant'] },
-        'commission.datePrelevement': { $gte: il24h }
-      }).countDocuments();
-
-      const paiementsBloques = await Paiement.find({
-        statutPaiement: { $in: ['EN_ATTENTE', 'BLOQUE'] },
-        dateInitiation: { $lt: il1h }
-      }).countDocuments();
-
-      const alertes = [];
-      
-      if (commissionsEchecRecentes > 10) {
-        alertes.push({
-          niveau: 'warning',
-          type: 'COMMISSIONS_ECHEC_ELEVEES',
-          message: `${commissionsEchecRecentes} commissions en échec dans les 24h`,
-          valeur: commissionsEchecRecentes
-        });
-      }
-
-      if (paiementsBloques > 5) {
-        alertes.push({
-          niveau: 'error',
-          type: 'PAIEMENTS_BLOQUES',
-          message: `${paiementsBloques} paiements bloqués depuis plus d'1h`,
-          valeur: paiementsBloques
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          surveillance: {
-            timestamp: maintenant,
-            statut: alertes.length === 0 ? 'OK' : 
-                     alertes.some(a => a.niveau === 'error') ? 'CRITIQUE' : 'ATTENTION'
-          },
-          metriques: {
-            commissionsEchecRecentes,
-            paiementsBloques
-          },
-          alertes
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur surveillance commissions:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_SURVEILLANCE',
-        message: error.message
-      });
-    }
-  }
-
-  // =========================
-  // STATISTIQUES RECHARGES (ADMIN)
-  // =========================
-
-  async obtenirStatistiquesRecharges(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const { 
-        dateDebut, 
-        dateFin, 
-        groupePar = 'jour' 
-      } = req.query;
-
-      const fin = dateFin ? new Date(dateFin) : new Date();
-      const debut = dateDebut ? new Date(dateDebut) : 
-        new Date(fin.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-      let formatDate;
-      switch (groupePar) {
-        case 'heure':
-          formatDate = '%Y-%m-%d %H:00';
-          break;
-        case 'jour':
-          formatDate = '%Y-%m-%d';
-          break;
-        case 'semaine':
-          formatDate = '%Y-%U';
-          break;
-        case 'mois':
-          formatDate = '%Y-%m';
-          break;
-        default:
-          formatDate = '%Y-%m-%d';
-          break;
-      }
-
-      // Statistiques globales
-      const statsGlobales = await Paiement.aggregate([
-        {
-          $match: {
-            payeurId: { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } },
-            methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
-            dateInitiation: { $gte: debut, $lte: fin }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            totalRecharges: { $sum: 1 },
-            montantTotalRecharge: { $sum: '$montantTotal' },
-            montantNetCredite: { $sum: '$montantConducteur' },
-            fraisTotaux: { $sum: '$fraisTransaction' },
-            bonusTotaux: { $sum: '$bonus.bonusRecharge' },
-            rechargesReussies: {
-              $sum: { $cond: [{ $eq: ['$statutPaiement', 'COMPLETE'] }, 1, 0] }
-            },
-            rechargesEnCours: {
-              $sum: { $cond: [{ $eq: ['$statutPaiement', 'EN_ATTENTE'] }, 1, 0] }
-            },
-            rechargesEchouees: {
-              $sum: { $cond: [{ $eq: ['$statutPaiement', 'ECHEC'] }, 1, 0] }
-            },
-            montantMoyenRecharge: { $avg: '$montantTotal' }
-          }
-        }
-      ]);
-
-      // Évolution temporelle
-      const evolutionTemporelle = await Paiement.aggregate([
-        {
-          $match: {
-            payeurId: { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } },
-            methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
-            dateInitiation: { $gte: debut, $lte: fin }
-          }
-        },
-        {
-          $group: {
-            _id: {
-              $dateToString: { format: formatDate, date: '$dateInitiation' }
-            },
-            nombreRecharges: { $sum: 1 },
-            montantTotal: { $sum: '$montantTotal' },
-            montantNetCredite: { $sum: '$montantConducteur' },
-            bonusTotaux: { $sum: '$bonus.bonusRecharge' },
-            rechargesReussies: {
-              $sum: { $cond: [{ $eq: ['$statutPaiement', 'COMPLETE'] }, 1, 0] }
-            }
-          }
-        },
-        {
-          $sort: { '_id': 1 }
-        }
-      ]);
-
-      // Répartition par opérateur
-      const repartitionOperateurs = await Paiement.aggregate([
-        {
-          $match: {
-            payeurId: { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } },
-            methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] },
-            dateInitiation: { $gte: debut, $lte: fin },
-            statutPaiement: 'COMPLETE'
-          }
-        },
-        {
-          $group: {
-            _id: '$methodePaiement',
-            nombreRecharges: { $sum: 1 },
-            montantTotal: { $sum: '$montantTotal' },
-            fraisMoyens: { $avg: '$fraisTransaction' },
-            bonusMoyens: { $avg: '$bonus.bonusRecharge' }
-          }
-        },
-        {
-          $sort: { nombreRecharges: -1 }
-        }
-      ]);
-
-      const [stats] = statsGlobales.length > 0 ? statsGlobales : [{}];
-      const tauxReussite = stats.totalRecharges > 0 ? 
-        (stats.rechargesReussies / stats.totalRecharges * 100) : 0;
-
-      res.json({
-        success: true,
-        data: {
-          periode: { debut, fin, groupePar },
-          resumeGlobal: {
-            totalRecharges: stats.totalRecharges || 0,
-            montantTotalRecharge: stats.montantTotalRecharge || 0,
-            montantNetCredite: stats.montantNetCredite || 0,
-            bonusTotaux: stats.bonusTotaux || 0,
-            fraisTotaux: stats.fraisTotaux || 0,
-            montantMoyenRecharge: Math.round(stats.montantMoyenRecharge || 0),
-            tauxReussite: Math.round(tauxReussite * 100) / 100
-          },
-          repartitionStatuts: {
-            reussies: stats.rechargesReussies || 0,
-            enCours: stats.rechargesEnCours || 0,
-            echouees: stats.rechargesEchouees || 0
-          },
-          evolutionTemporelle,
-          repartitionOperateurs,
-          metriques: {
-            tauxConversionMoyen: stats.fraisTotaux > 0 ? 
-              Math.round((stats.fraisTotaux / stats.montantTotalRecharge) * 100 * 100) / 100 : 0,
-            volumeQuotidienMoyen: Math.round(stats.montantTotalRecharge / 
-              Math.max(1, Math.ceil((fin - debut) / (1000 * 60 * 60 * 24))))
-          }
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur statistiques recharges:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_STATISTIQUES_RECHARGES',
-        message: error.message
-      });
-    }
-  }
-
-  async traiterRechargesEnAttente(req, res) {
-    try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCES_REFUSE',
-          message: 'Accès réservé aux administrateurs'
-        });
-      }
-
-      const { forcerExpiration = false } = req.body;
-
-      const delaiExpiration = 2 * 60 * 60 * 1000;
-      const maintenant = new Date();
-      const limiteExpiration = new Date(maintenant.getTime() - delaiExpiration);
-
-      let criteres = {
-        statutPaiement: 'EN_ATTENTE',
-        methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
-      };
-
-      if (forcerExpiration) {
-        criteres.payeurId = { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } };
-      } else {
-        criteres.dateInitiation = { $lte: limiteExpiration };
-        criteres.payeurId = { $expr: { $eq: ['$payeurId', '$beneficiaireId'] } };
-      }
-
-      const rechargesEnAttente = await Paiement.find(criteres)
-        .populate('payeurId', 'nom prenom email compteCovoiturage');
-
-      let traitees = 0;
-      let expirees = 0;
-      const resultats = [];
-
-      for (const recharge of rechargesEnAttente) {
-        try {
-          const statutExterne = await this.verifierStatutMobileMoney(recharge);
-          
-          let resultat = {
-            paiementId: recharge._id,
-            referenceTransaction: recharge.referenceTransaction,
-            conducteur: `${recharge.payeurId.prenom} ${recharge.payeurId.nom}`
-          };
-
-          if (statutExterne.confirme) {
-            // Recharge confirmée
-            recharge.statutPaiement = 'COMPLETE';
-            recharge.dateCompletion = new Date();
-            
-            const montantACrediter = recharge.montantConducteur + (recharge.bonus.bonusRecharge || 0);
-            
-            await recharge.payeurId.confirmerRecharge(
-              recharge.referenceTransaction, 
-              'reussi',
-              montantACrediter
-            );
-
-            recharge.ajouterLog('RECHARGE_AUTO_CONFIRMEE', {
-              statutExterne,
-              dateTraitement: new Date()
-            });
-
-            await this.envoyerEmailConfirmationRecharge(recharge.payeurId, recharge);
-
-            resultat.action = 'Confirmée automatiquement';
-            resultat.nouveauSolde = recharge.payeurId.compteCovoiturage.solde;
-            traitees++;
-
-          } else if (forcerExpiration || (maintenant - recharge.dateInitiation) > delaiExpiration) {
-            // Expirer la recharge
-            recharge.statutPaiement = 'ECHEC';
-            recharge.ajouterErreur('RECHARGE_EXPIREE', 'Délai de confirmation dépassé');
-            
-            await recharge.payeurId.confirmerRecharge(
-              recharge.referenceTransaction, 
-              'echec'
-            );
-
-            resultat.action = 'Expirée';
-            resultat.raison = 'Délai de confirmation dépassé';
-            expirees++;
-          } else {
-            resultat.action = 'En attente';
-            resultat.tempRestant = Math.round((limiteExpiration - recharge.dateInitiation) / (1000 * 60)) + ' minutes';
-          }
-
-          await recharge.save();
-          resultats.push(resultat);
-
-        } catch (erreurTraitement) {
-          logger.error(`Erreur traitement recharge ${recharge._id}:`, erreurTraitement);
-          resultats.push({
-            paiementId: recharge._id,
-            referenceTransaction: recharge.referenceTransaction,
-            action: 'Erreur de traitement',
-            erreur: erreurTraitement.message
-          });
-        }
-      }
-
-      logger.info('Traitement recharges en attente terminé', {
-        rechargesTraitees: traitees,
-        rechargesExpirees: expirees,
-        total: rechargesEnAttente.length
-      });
-
-      res.json({
-        success: true,
-        message: `Traitement terminé: ${traitees} confirmées, ${expirees} expirées`,
-        data: {
-          statistiques: {
-            total: rechargesEnAttente.length,
-            traitees,
-            expirees,
-            enAttente: rechargesEnAttente.length - traitees - expirees
-          },
-          resultats
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur traitement recharges en attente:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'ERREUR_TRAITEMENT_RECHARGES',
         message: error.message
       });
     }
@@ -2260,13 +1697,10 @@ class PaiementController {
     }
 
     const regexOperateurs = {
-      'ORANGE': /^(\+225)?07[0-9]{8}$/,
-      'ORANGE_MONEY': /^(\+225)?07[0-9]{8}$/,
-      'MTN': /^(\+225)?05[0-9]{8}$/,
-      'MTN_MONEY': /^(\+225)?05[0-9]{8}$/,
-      'MOOV': /^(\+225)?01[0-9]{8}$/,
-      'MOOV_MONEY': /^(\+225)?01[0-9]{8}$/,
-      'WAVE': /^(\+225)?[0-9]{8,10}$/
+    'MOBILE_MONEY': /^(\+225)?[0-9]{8,10}$/,
+    'ORANGE': /^(\+225)?07[0-9]{8}$/,
+    'MTN': /^(\+225)?05[0-9]{8}$/,
+    'MOOV': /^(\+225)?01[0-9]{8}$/
     };
 
     const regex = regexOperateurs[operateur.toUpperCase()];
@@ -2292,7 +1726,7 @@ class PaiementController {
       payeurId: userId,
       dateInitiation: { $gte: debutJour },
       statutPaiement: { $in: ['COMPLETE', 'EN_ATTENTE'] },
-      methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
+      methodePaiement: 'MOBILE_MONEY'
     });
 
     const montantRechargeAujourdhui = rechargesAujourdhui.reduce((sum, r) => sum + r.montantTotal, 0);
@@ -2329,30 +1763,11 @@ class PaiementController {
 
   genererInstructionsRecharge(methodePaiement, numeroTelephone, montant) {
     const instructions = {
-      'ORANGE_MONEY': [
-        'Composez #144# sur votre téléphone Orange Money',
-        'Sélectionnez "Transfert d\'argent"',
-        'Sélectionnez "Vers un marchand"',
+      'MOBILE_MONEY': [
+        'Cliquez sur le lien de paiement CinetPay',
+        'Choisissez votre opérateur (Wave, Orange, MTN, Moov)',
         `Entrez le montant: ${montant} FCFA`,
-        'Confirmez la transaction'
-      ],
-      'MTN_MONEY': [
-        'Composez *133# sur votre téléphone MTN Money',
-        'Sélectionnez "Paiement marchand"',
-        `Entrez le montant: ${montant} FCFA`,
-        'Suivez les instructions pour finaliser'
-      ],
-      'MOOV_MONEY': [
-        'Composez *555# sur votre téléphone Moov Money',
-        'Sélectionnez "Paiement"',
-        `Entrez le montant: ${montant} FCFA`,
-        'Confirmez votre paiement'
-      ],
-      'WAVE': [
-        'Ouvrez votre application Wave',
-        'Sélectionnez "Envoyer de l\'argent"',
-        `Envoyez ${montant} FCFA au marchand WAYZ-ECO`,
-        'Notez le code de transaction reçu'
+        'Confirmez la transaction sur votre téléphone'
       ]
     };
 
@@ -2487,6 +1902,7 @@ class PaiementController {
 
     return { confirme: false, raison: 'Transaction non confirmée par l\'opérateur' };
   }
+
 }
 
 module.exports = new PaiementController();

@@ -75,6 +75,11 @@ const normaliserTelephoneCI = (telephone) => {
     }
     return null; // Format invalide
   }
+
+  // Si le numéro commence par + mais pas +225, refuser immédiatement
+  if (telClean.startsWith('+')) {
+    return null;
+  }
   
   // Cas 2: Numéro commence par 00225
   if (telClean.startsWith('00225')) {

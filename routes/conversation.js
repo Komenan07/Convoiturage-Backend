@@ -45,6 +45,7 @@ const router = express.Router();
 // Validateur pour la création de conversation
 const validateCreateConversation = [
   body('trajetId')
+    .optional()
     .isMongoId()
     .withMessage('ID de trajet invalide'),
   body('participants')

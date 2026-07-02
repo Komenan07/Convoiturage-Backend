@@ -20,20 +20,21 @@ const creerVehicule = async (req, res, next) => {
   try {
     logger.info('🚗 Tentative de création de véhicule', { 
       userId: req.user.userId,
-      role: req.user.role 
+      role: req.user.role ,
+      req: req.body
     });
 
     // ===== VÉRIFICATIONS =====
     
     // 1. Vérifier que l'utilisateur est conducteur
-    if (req.user.role !== 'conducteur') {
-      return res.status(403).json({
-        success: false,
-        message: 'Seuls les conducteurs peuvent ajouter des véhicules',
-        code: 'NOT_DRIVER',
-        action: 'Devenez conducteur via POST /api/auth/passer-conducteur'
-      });
-    }
+    // if (req.user.role !== 'conducteur') {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: 'Seuls les conducteurs peuvent ajouter des véhicules',
+    //     code: 'NOT_DRIVER',
+    //     action: 'Devenez conducteur via POST /api/auth/passer-conducteur'
+    //   });
+    // }
 
     // 2. Récupérer l'utilisateur complet
     const utilisateur = await User.findById(req.user.userId);
@@ -63,6 +64,32 @@ const creerVehicule = async (req, res, next) => {
       proprietaireId: req.user.userId
     };
 
+    // ===== PARSER LES CHAMPS JSON (envoyés en multipart/form-data) =====
+    
+    const champsJSON = ['equipements', 'commodites', 'preferences', 'assurance', 'visiteTechnique'];
+    champsJSON.forEach(champ => {
+      if (vehiculeData[champ] && typeof vehiculeData[champ] === 'string') {
+        try {
+          vehiculeData[champ] = JSON.parse(vehiculeData[champ]);
+          logger.info(`✅ ${champ} parsé avec succès`);
+        } catch (error) {
+          logger.error(`❌ Erreur parsing ${champ}:`, error.message);
+        }
+      }
+    });
+
+    // Corriger le format de l'immatriculation si nécessaire (AB-123-111 → AB-123-AB)
+    if (vehiculeData.immatriculation) {
+      const immat = vehiculeData.immatriculation.toUpperCase();
+      // Si format AB-123-111 (avec 3 chiffres à la fin au lieu de 2 lettres)
+      const match = immat.match(/^([A-Z]{2})-(\d{3})-(\d+)$/);
+      if (match) {
+        // Convertir en format valide: AB-123-AB
+        vehiculeData.immatriculation = `${match[1]}-${match[2]}-${match[1]}`;
+        logger.info(`🔧 Immatriculation corrigée: ${immat} → ${vehiculeData.immatriculation}`);
+      }
+    }
+
     // Si c'est le premier véhicule, le définir comme principal
     const vehiculesExistants = await Vehicule.countDocuments({ 
       proprietaireId: req.user.userId 
@@ -70,12 +97,13 @@ const creerVehicule = async (req, res, next) => {
     
     if (vehiculesExistants === 0) {
       vehiculeData.estPrincipal = true;
-      logger.info('✅ Premier véhicule → défini comme principal');
+      logger.info('✅ Premier véhicule → défini comme principal :');
     }
 
     // ===== GESTION DES PHOTOS MULTIPLES =====
+
     
-    if (req.files) {
+    if (req.files && req.files.length > 0) {
       if (!vehiculeData.photos) vehiculeData.photos = {};
       
       const typesPhotos = [
@@ -83,32 +111,52 @@ const creerVehicule = async (req, res, next) => {
         'lateral_droit', 'interieur', 'tableau_bord'
       ];
       
-      typesPhotos.forEach(type => {
-        if (req.files[type]) {
-          vehiculeData.photos[type] = `/uploads/vehicules/${req.files[type][0].filename}`;
-          logger.info(`📸 Photo ${type} ajoutée`);
+      // 🔥 FIX: uploadVehiculeMultiple.any() retourne un tableau, pas un objet
+      req.files.forEach(file => {
+        const fieldName = file.fieldname;
+        
+        if (typesPhotos.includes(fieldName)) {
+          vehiculeData.photos[fieldName] = `/uploads/vehicules/${file.filename}`;
+          logger.info(`📸 Photo ${fieldName} ajoutée: ${file.filename}`);
+        } else {
+          logger.warn(`⚠️ Champ photo non reconnu: ${fieldName}`);
         }
       });
+      
+      logger.info(`✅ ${Object.keys(vehiculeData.photos).length}/${req.files.length} photos traitées`);
     }
 
-    // Initialiser équipements obligatoires si non fournis
+    // ===== VALEURS PAR DÉFAUT POUR ÉQUIPEMENTS OBLIGATOIRES =====
+    
     if (!vehiculeData.equipements) {
-      vehiculeData.equipements = {
-        ceintures: 'AVANT_UNIQUEMENT',
-        trousseSecours: false,
-        extincteur: false,
-        triangleSignalisation: false,
-        giletSecurite: false,
-        roueDeSecours: false,
-        cricCle: false
-      };
+      vehiculeData.equipements = {};
     }
+    
+    // Assurer les champs obligatoires avec valeurs par défaut
+    vehiculeData.equipements = {
+      ceintures: 'TOUTES_PLACES',
+      airbags: false,
+      nombreAirbags: 0,
+      abs: false,
+      esp: false,
+      trousseSecours: false,
+      extincteur: false,
+      triangleSignalisation: true,
+      giletSecurite: true,
+      roueDeSecours: true,
+      cricCle: true,
+      climatisation: false,
+      vitresElectriques: false,
+      verrouillagesCentralises: false,
+      regulateurVitesse: false,
+      ...vehiculeData.equipements // Écraser avec les valeurs fournies
+    };
 
     // ===== CRÉATION DU VÉHICULE =====
     
     const nouveauVehicule = new Vehicule(vehiculeData);
     await nouveauVehicule.save();
-    await nouveauVehicule.populate('proprietaireId', 'nom prenom email telephone photo');
+    await nouveauVehicule.populate('proprietaireId', 'nom prenom email telephone photoProfil');
 
     logger.info('✅ Véhicule créé avec succès', { 
       vehiculeId: nouveauVehicule._id, 
@@ -244,7 +292,7 @@ const obtenirMesVehicules = async (req, res, next) => {
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit))
-      .populate('proprietaireId', 'nom prenom email telephone photo');
+      .populate('proprietaireId', 'nom prenom email telephone photoProfil');
 
     const total = await Vehicule.countDocuments(criteres);
 
@@ -306,7 +354,7 @@ const obtenirVehicule = async (req, res, next) => {
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
-    }).populate('proprietaireId', 'nom prenom email telephone photo noteMoyenne estCertifie');
+    }).populate('proprietaireId', 'nom prenom email telephone photoProfil noteGenerale estCertifie');
 
     if (!vehicule) {
       return res.status(404).json({
@@ -366,6 +414,20 @@ const modifierVehicule = async (req, res, next) => {
       });
     }
 
+    // ===== PARSER LES CHAMPS JSON (envoyés en multipart/form-data) =====
+    
+    const champsJSON = ['equipements', 'commodites', 'preferences', 'assurance', 'visiteTechnique'];
+    champsJSON.forEach(champ => {
+      if (req.body[champ] && typeof req.body[champ] === 'string') {
+        try {
+          req.body[champ] = JSON.parse(req.body[champ]);
+          logger.info(`✅ ${champ} parsé avec succès`);
+        } catch (error) {
+          logger.error(`❌ Erreur parsing ${champ}:`, error.message);
+        }
+      }
+    });
+
     // Champs protégés
     const champsProteges = [
       'proprietaireId', '_id', 'createdAt', 'updatedAt', 
@@ -384,23 +446,27 @@ const modifierVehicule = async (req, res, next) => {
     });
 
     // Gestion des nouvelles photos
-    if (req.files) {
+    if (req.files && req.files.length > 0) {
       if (!vehicule.photos) vehicule.photos = {};
       
       const typesPhotos = ['avant', 'arriere', 'lateral_gauche', 'lateral_droit', 'interieur', 'tableau_bord'];
       
-      for (const type of typesPhotos) {
-        if (req.files[type]) {
+      // 🔥 FIX: uploadVehiculeMultiple.any() retourne un tableau
+      for (const file of req.files) {
+        const fieldName = file.fieldname;
+        
+        if (typesPhotos.includes(fieldName)) {
           // Supprimer l'ancienne photo
-          if (vehicule.photos[type] && vehicule.photos[type].startsWith('/uploads/')) {
+          if (vehicule.photos[fieldName] && vehicule.photos[fieldName].startsWith('/uploads/')) {
             try {
-              const oldPath = path.join(process.cwd(), 'public', vehicule.photos[type]);
+              const oldPath = path.join(process.cwd(), 'public', vehicule.photos[fieldName]);
               await fs.unlink(oldPath);
             } catch (err) {
-              logger.warn(`Erreur suppression ancienne photo ${type}:`, err);
+              logger.warn(`Erreur suppression ancienne photo ${fieldName}:`, err);
             }
           }
-          vehicule.photos[type] = `/uploads/vehicules/${req.files[type][0].filename}`;
+          vehicule.photos[fieldName] = `/uploads/vehicules/${file.filename}`;
+          logger.info(`📸 Photo ${fieldName} mise à jour`);
         }
       }
     }
@@ -530,12 +596,82 @@ const supprimerVehicule = async (req, res, next) => {
 const completerDocuments = async (req, res, next) => {
   try {
     const { vehiculeId } = req.params;
-    const documents = req.body;
+    const documents = { ...req.body };
+
+    // Logger les fichiers reçus
+    if (req.files && req.files.length > 0) {
+      logger.info('📎 Fichiers de documents reçus:', {
+        count: req.files.length,
+        files: req.files.map(f => ({ fieldname: f.fieldname, filename: f.filename }))
+      });
+      
+      // Traiter les fichiers de documents
+      // Traiter les fichiers de documents
+      const CHAMPS_DOCUMENTS = [
+        'documentCarteGrise', 'documentAssurance',
+        'documentVisite', 'photoVignette', 'documentCarteTransport'
+      ];
+
+      req.files.forEach(file => {
+        const estDocument = CHAMPS_DOCUMENTS.includes(file.fieldname);
+        const relativePath = estDocument
+          ? `/uploads/documents/${file.filename}`
+          : `/uploads/vehicules/${file.filename}`;
+        
+        switch (file.fieldname) {
+          case 'documentCarteGrise':
+            if (!documents.carteGrise) documents.carteGrise = {};
+            documents.carteGrise.documentUrl = relativePath;
+            logger.info(`  ✅ Document carte grise: ${relativePath}`);
+            break;
+            
+          case 'documentAssurance':
+            if (!documents.assurance) documents.assurance = {};
+            documents.assurance.attestationUrl = relativePath;
+            logger.info(`  ✅ Attestation assurance: ${relativePath}`);
+            break;
+            
+          case 'documentVisite':
+            if (!documents.visiteTechnique) documents.visiteTechnique = {};
+            documents.visiteTechnique.certificatUrl = relativePath;
+            logger.info(`  ✅ Certificat visite technique: ${relativePath}`);
+            break;
+            
+          case 'photoVignette':
+            if (!documents.vignette) documents.vignette = {};
+            documents.vignette.photoVignette = relativePath;
+            logger.info(`  ✅ Photo vignette: ${relativePath}`);
+            break;
+            
+          case 'documentCarteTransport':
+            if (!documents.carteTransport) documents.carteTransport = {};
+            documents.carteTransport.documentUrl = relativePath;
+            logger.info(`  ✅ Document carte transport: ${relativePath}`);
+            break;
+            
+          default:
+            logger.warn(`  ⚠️ Champ de fichier non reconnu: ${file.fieldname}`);
+        }
+      });
+    }
+
+    // Parser les champs JSON envoyés en multipart/form-data
+    const champsJSON = ['carteGrise', 'assurance', 'visiteTechnique', 'vignette', 'carteTransport'];
+    champsJSON.forEach(champ => {
+      if (documents[champ] && typeof documents[champ] === 'string') {
+        try {
+          documents[champ] = JSON.parse(documents[champ]);
+          logger.info(`  📝 ${champ} parsé depuis JSON`);
+        } catch (e) {
+          logger.warn(`  ⚠️ Impossible de parser ${champ}:`, e.message);
+        }
+      }
+    });
 
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
-    });
+    }).populate('proprietaireId', 'nom prenom email telephone');
 
     if (!vehicule) {
       return res.status(404).json({
@@ -944,15 +1080,103 @@ const mettreAJourPosition = async (req, res, next) => {
 // =============== GESTION ADMINISTRATIVE ===============
 
 /**
+ * @desc Notifier le propriétaire des documents manquants (Admin) - Sans bloquer validation future
+ * @route POST /api/vehicules/:vehiculeId/notifier-documents-manquants
+ * @access Privé (Admin)
+ */
+const notifierProprietaireDocumentsManquants = async (req, res, next) => {
+  try {
+    const { vehiculeId } = req.params;
+    const { messagePersonnalise } = req.body;
+
+    const vehicule = await Vehicule.findById(vehiculeId)
+      .populate('proprietaireId', 'nom prenom email telephone');
+
+    if (!vehicule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Véhicule non trouvé'
+      });
+    }
+
+    // ===== VÉRIFIER LES DOCUMENTS MANQUANTS =====
+    const documentsManquants = vehicule.documentsManquants();
+    
+    if (!documentsManquants || documentsManquants.manquants.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucun document manquant. Le véhicule est complet à 100%.',
+        code: 'DOCUMENTS_COMPLETS',
+        pourcentageCompletion: documentsManquants.pourcentageCompletion
+      });
+    }
+
+    // ===== ENVOYER LA NOTIFICATION =====
+    await notifierDocumentsManquants(vehicule, documentsManquants.manquants, messagePersonnalise);
+
+    // ===== ENREGISTRER L'ACTION DANS L'AUDIT =====
+    if (!vehicule.audit) vehicule.audit = { derniereModification: {}, tentativesAcces: [] };
+    vehicule.audit.tentativesAcces.push({
+      date: new Date(),
+      adminId: req.user.userId,
+      action: 'NOTIFICATION_DOCUMENTS_MANQUANTS',
+      details: {
+        documentsManquants: documentsManquants.manquants,
+        messagePersonnalise: messagePersonnalise || null
+      }
+    });
+    await vehicule.save();
+
+    logger.info('✅ Notification documents manquants envoyée par admin', {
+      vehiculeId,
+      adminId: req.user.userId,
+      proprietaireId: vehicule.proprietaireId._id,
+      documentsManquants: documentsManquants.manquants.length
+    });
+
+    res.json({
+      success: true,
+      message: 'Notification envoyée au propriétaire avec succès',
+      data: {
+        vehicule: {
+          id: vehicule._id,
+          immatriculation: vehicule.immatriculation,
+          marque: vehicule.marque,
+          modele: vehicule.modele,
+          proprietaire: {
+            nom: `${vehicule.proprietaireId.prenom} ${vehicule.proprietaireId.nom}`,
+            email: vehicule.proprietaireId.email,
+            telephone: vehicule.proprietaireId.telephone
+          }
+        },
+        documentsManquants: {
+          liste: documentsManquants.manquants,
+          nombre: documentsManquants.nombreManquants,
+          pourcentageCompletion: documentsManquants.pourcentageCompletion
+        },
+        notificationEnvoyee: true,
+        canaux: {
+          email: !!vehicule.proprietaireId.email,
+          whatsapp: !!vehicule.proprietaireId.telephone
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('❌ Erreur notification documents manquants:', error);
+    return next(AppError.serverError('Erreur serveur lors de l\'envoi de la notification'));
+  }
+};
+/**
  * @desc Valider un véhicule (Admin)
  * @route POST /api/vehicules/:vehiculeId/valider
  * @access Privé (Admin)
  */
 const validerVehicule = async (req, res, next) => {
-   let vehicule = null;
+  let vehicule = null;
   try {
     const { vehiculeId } = req.params;
-    const { commentaire } = req.body;
+    const { commentaire, forcerValidation } = req.body; // ✨ NOUVEAU: forcerValidation
 
     vehicule = await Vehicule.findById(vehiculeId)
       .populate('proprietaireId', 'nom prenom email telephone');
@@ -964,27 +1188,76 @@ const validerVehicule = async (req, res, next) => {
       });
     }
 
+    // ===== VÉRIFICATION DES DOCUMENTS MANQUANTS =====
+    const documentsManquants = vehicule.documentsManquants();
+    
+    //  Si documents manquants ET validation non forcée → Bloquer
+    if (documentsManquants && documentsManquants.manquants && documentsManquants.manquants.length > 0) {
+      
+      // Si l'admin ne force PAS la validation, on bloque
+      if (!forcerValidation) {
+        logger.warn('Tentative de validation avec documents manquants (non forcée)', {
+          vehiculeId,
+          adminId: req.user.userId,
+          documentsManquants: documentsManquants.manquants
+        });
+
+        // Envoyer notification des documents manquants
+        await notifierDocumentsManquants(vehicule, documentsManquants.manquants);
+
+        return res.status(400).json({
+          success: false,
+          message: 'Impossible de valider le véhicule. Des documents sont manquants.',
+          code: 'DOCUMENTS_MANQUANTS',
+          documentsManquants: documentsManquants.manquants,
+          nombreManquants: documentsManquants.nombreManquants,
+          pourcentageCompletion: documentsManquants.pourcentageCompletion,
+          notificationEnvoyee: true,
+          suggestion: 'Utilisez forcerValidation: true pour valider malgré les documents manquants, ou utilisez POST /notifier-documents-manquants pour envoyer un message au propriétaire.'
+        });
+      } else {
+        // ✨ Validation forcée malgré documents manquants
+        logger.warn('⚠️ Validation FORCÉE avec documents manquants', {
+          vehiculeId,
+          adminId: req.user.userId,
+          documentsManquants: documentsManquants.manquants,
+          forcee: true
+        });
+      }
+    }
+
+    // ===== VALIDER LE VÉHICULE =====
     await vehicule.valider(req.user.userId, commentaire);
 
-    logger.info('Véhicule validé par admin', { 
+    logger.info('✅ Véhicule validé par admin', { 
       vehiculeId, 
       adminId: req.user.userId,
-      proprietaire: vehicule.proprietaireId._id
+      proprietaire: vehicule.proprietaireId._id,
+      forcee: !!forcerValidation,
+      documentsComplets: documentsManquants.complet
     });
 
-    // TODO: Envoyer notification au propriétaire
+    // Envoyer notification de validation au propriétaire
+    await notifierValidationVehicule(vehicule);
 
     res.json({
       success: true,
-      message: 'Véhicule validé avec succès',
+      message: forcerValidation 
+        ? '✅ Véhicule validé avec succès (validation forcée malgré documents manquants)'
+        : '✅ Véhicule validé avec succès',
       data: {
         vehicule,
-        validation: vehicule.validation
+        validation: vehicule.validation,
+        validationForcee: !!forcerValidation,
+        documentsManquants: documentsManquants.complet ? null : {
+          liste: documentsManquants.manquants,
+          nombre: documentsManquants.nombreManquants
+        }
       }
     });
 
   } catch (error) {
-    logger.error('Erreur validation véhicule:', error);
+    logger.error('❌ Erreur validation véhicule:', error);
     
     if (error.message.includes('documents incomplets')) {
       return res.status(400).json({
@@ -994,8 +1267,177 @@ const validerVehicule = async (req, res, next) => {
       });
     }
 
-    return next(AppError.serverError('Erreur serveur'));
+    return next(AppError.serverError('Erreur serveur lors de la validation'));
   }
+};
+
+/**
+ * Notifier le propriétaire des documents manquants
+ * @private
+ */
+const notifierDocumentsManquants = async (vehicule, documentsManquants, messagePersonnalise = null) => {
+  const EmailService = require('../services/emailService');
+  const WhatsAppService = require('../services/whatsappService');
+  
+  const proprietaire = vehicule.proprietaireId;
+  const nomComplet = `${proprietaire.prenom} ${proprietaire.nom}`;
+
+  // Formater les noms des documents
+  const documentsFormates = documentsManquants.map(doc => formatDocumentName(doc));
+
+  // ===== MESSAGE PERSONNALISÉ PAR L'ADMIN (OPTIONNEL) =====
+  const messageSupplement = messagePersonnalise 
+    ? `\n\n📝 Message de l'équipe :\n${messagePersonnalise}\n`
+    : '';
+
+  // Préparer le message WhatsApp (texte simple)
+  const messageWhatsApp = `Bonjour ${nomComplet},
+
+🚗 Votre véhicule *${vehicule.marque} ${vehicule.modele}* (${vehicule.immatriculation}) ne peut pas être validé car les documents suivants sont manquants :
+
+${documentsFormates.map((doc, index) => `${index + 1}. ${doc}`).join('\n')}${messageSupplement}
+
+📱 Veuillez télécharger ces documents depuis votre application WAYZ-ECO pour que nous puissions valider votre véhicule.
+
+Merci,
+L'équipe WAYZ-ECO 🇨🇮`;
+
+  try {
+    // ===== PRIORITÉ 1 : EMAIL SI DISPONIBLE =====
+    if (proprietaire.email) {
+      await EmailService.envoyerEmail({
+        to: proprietaire.email,
+        subject: '📄 Documents manquants pour votre véhicule - WAYZ-ECO',
+        template: 'documents-manquants',
+        data: {
+          nomComplet,
+          vehicule: `${vehicule.marque} ${vehicule.modele}`,
+          immatriculation: vehicule.immatriculation,
+          documentsManquants: documentsFormates,
+          listeDocuments: documentsFormates
+            .map((doc, index) => `${index + 1}. ${doc}`)
+            .join('\n'),
+          messagePersonnalise: messagePersonnalise || null
+        }
+      });
+
+      logger.info('✅ Email documents manquants envoyé', {
+        vehiculeId: vehicule._id,
+        proprietaireId: proprietaire._id,
+        email: proprietaire.email,
+        documentsManquants: documentsManquants.length
+      });
+    } 
+    // ===== PRIORITÉ 2 : WHATSAPP SI PAS D'EMAIL =====
+    else if (proprietaire.telephone) {
+      await WhatsAppService.envoyerMessage(
+        proprietaire.telephone,
+        messageWhatsApp
+      );
+
+      logger.info('✅ WhatsApp documents manquants envoyé', {
+        vehiculeId: vehicule._id,
+        proprietaireId: proprietaire._id,
+        telephone: proprietaire.telephone,
+        documentsManquants: documentsManquants.length
+      });
+    } else {
+      logger.warn('⚠️ Impossible d\'envoyer notification - ni email ni téléphone', {
+        vehiculeId: vehicule._id,
+        proprietaireId: proprietaire._id
+      });
+    }
+  } catch (error) {
+    logger.error('❌ Erreur envoi notification documents manquants:', {
+      vehiculeId: vehicule._id,
+      error: error.message,
+      stack: error.stack
+    });
+    // On ne bloque pas le processus si la notification échoue
+  }
+};
+/**
+ * Notifier le propriétaire de la validation du véhicule
+ * @private
+ */
+const notifierValidationVehicule = async (vehicule) => {
+  const EmailService = require('../services/emailService');
+  const WhatsAppService = require('../services/whatsappService');
+  
+  const proprietaire = vehicule.proprietaireId;
+  const nomComplet = `${proprietaire.prenom} ${proprietaire.nom}`;
+
+  // Message WhatsApp
+  const messageWhatsApp = `Félicitations ${nomComplet} ! 🎉
+
+✅ Votre véhicule *${vehicule.marque} ${vehicule.modele}* (${vehicule.immatriculation}) a été validé avec succès.
+
+Vous pouvez maintenant commencer à l'utiliser pour vos trajets sur WAYZ-ECO.
+
+🚗 Bonne route !
+L'équipe WAYZ-ECO 🇨🇮`;
+
+  try {
+    // ===== PRIORITÉ 1 : EMAIL =====
+    if (proprietaire.email) {
+      await EmailService.envoyerEmail({
+        to: proprietaire.email,
+        subject: '✅ Votre véhicule a été validé - WAYZ-ECO',
+        template: 'vehicule-valide',
+        data: {
+          nomComplet,
+          vehicule: `${vehicule.marque} ${vehicule.modele}`,
+          immatriculation: vehicule.immatriculation,
+          dateValidation: new Date().toLocaleDateString('fr-FR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          })
+        }
+      });
+
+      logger.info('✅ Email validation véhicule envoyé', {
+        vehiculeId: vehicule._id,
+        proprietaireId: proprietaire._id,
+        email: proprietaire.email
+      });
+    } 
+    // ===== PRIORITÉ 2 : WHATSAPP =====
+    else if (proprietaire.telephone) {
+      await WhatsAppService.envoyerMessage(
+        proprietaire.telephone,
+        messageWhatsApp
+      );
+
+      logger.info('✅ WhatsApp validation véhicule envoyé', {
+        vehiculeId: vehicule._id,
+        proprietaireId: proprietaire._id,
+        telephone: proprietaire.telephone
+      });
+    }
+  } catch (error) {
+    logger.error('❌ Erreur envoi notification validation:', {
+      vehiculeId: vehicule._id,
+      error: error.message
+    });
+    // On ne bloque pas le processus si la notification échoue
+  }
+};
+
+/**
+ * Formater le nom d'un document pour affichage
+ * @private
+ */
+const formatDocumentName = (docCode) => {
+  const documentNames = {
+    carteGrise: 'Carte grise (certificat d\'immatriculation)',
+    assurance: 'Attestation d\'assurance valide',
+    visiteTechnique: 'Certificat de visite technique',
+    permisConduire: 'Permis de conduire du propriétaire',
+    photo: 'Photo du véhicule'
+  };
+
+  return documentNames[docCode] || docCode;
 };
 
 /**
@@ -1033,7 +1475,8 @@ const rejeterVehicule = async (req, res, next) => {
       raison
     });
 
-    // TODO: Envoyer notification au propriétaire
+    // ✅ Envoyer notification au propriétaire
+    await notifierRejetVehicule(vehicule, raison);
 
     res.json({
       success: true,
@@ -1047,6 +1490,79 @@ const rejeterVehicule = async (req, res, next) => {
   } catch (error) {
     logger.error('Erreur rejet véhicule:', error);
     return next(AppError.serverError('Erreur serveur'));
+  }
+};
+
+/**
+ * Notifier le propriétaire du rejet du véhicule
+ * @private
+ */
+const notifierRejetVehicule = async (vehicule, raison) => {
+  const EmailService = require('../services/emailService');
+  const WhatsAppService = require('../services/whatsappService');
+  
+  const proprietaire = vehicule.proprietaireId;
+  const nomComplet = `${proprietaire.prenom} ${proprietaire.nom}`;
+
+  // Message WhatsApp
+  const messageWhatsApp = `Bonjour ${nomComplet},
+
+❌ Nous vous informons que votre véhicule *${vehicule.marque} ${vehicule.modele}* (${vehicule.immatriculation}) n'a pas pu être validé.
+
+*Raison du rejet :*
+${raison}
+
+📱 Veuillez corriger les problèmes mentionnés et soumettre à nouveau votre véhicule depuis l'application WAYZ-ECO.
+
+Notre équipe reste à votre disposition pour toute question.
+
+L'équipe WAYZ-ECO 🇨🇮`;
+
+  try {
+    // ===== PRIORITÉ 1 : EMAIL =====
+    if (proprietaire.email) {
+      await EmailService.envoyerEmail({
+        to: proprietaire.email,
+        subject: '❌ Véhicule non validé - WAYZ-ECO',
+        template: 'vehicule-rejete',
+        data: {
+          nomComplet,
+          vehicule: `${vehicule.marque} ${vehicule.modele}`,
+          immatriculation: vehicule.immatriculation,
+          raison,
+          dateRejet: new Date().toLocaleDateString('fr-FR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          })
+        }
+      });
+
+      logger.info('✅ Email rejet véhicule envoyé', {
+        vehiculeId: vehicule._id,
+        proprietaireId: proprietaire._id,
+        email: proprietaire.email
+      });
+    } 
+    // ===== PRIORITÉ 2 : WHATSAPP =====
+    else if (proprietaire.telephone) {
+      await WhatsAppService.envoyerMessage(
+        proprietaire.telephone,
+        messageWhatsApp
+      );
+
+      logger.info('✅ WhatsApp rejet véhicule envoyé', {
+        vehiculeId: vehicule._id,
+        proprietaireId: proprietaire._id,
+        telephone: proprietaire.telephone
+      });
+    }
+  } catch (error) {
+    logger.error('❌ Erreur envoi notification rejet:', {
+      vehiculeId: vehicule._id,
+      error: error.message
+    });
+    // On ne bloque pas le processus si la notification échoue
   }
 };
 
@@ -1363,7 +1879,7 @@ const obtenirVehiculePrincipal = async (req, res, next) => {
     const vehiculePrincipal = await Vehicule.findOne({
       proprietaireId: req.user.userId,
       estPrincipal: true
-    }).populate('proprietaireId', 'nom prenom email telephone photo');
+    }).populate('proprietaireId', 'nom prenom email telephone photoProfil');
 
     if (!vehiculePrincipal) {
       return res.status(404).json({
@@ -1421,20 +1937,26 @@ const mettreAJourPhotos = async (req, res, next) => {
     const typesPhotos = ['avant', 'arriere', 'lateral_gauche', 'lateral_droit', 'interieur', 'tableau_bord'];
     const photosAjoutees = [];
 
-    for (const type of typesPhotos) {
-      if (req.files[type]) {
-        // Supprimer ancienne photo
-        if (vehicule.photos[type] && vehicule.photos[type].startsWith('/uploads/')) {
-          try {
-            const oldPath = path.join(process.cwd(), 'public', vehicule.photos[type]);
-            await fs.unlink(oldPath);
-          } catch (err) {
-            logger.warn(`Erreur suppression photo ${type}:`, err);
-          }
-        }
+    // 🔥 FIX: uploadVehiculeMultiple.any() retourne un tableau
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fieldName = file.fieldname;
         
-        vehicule.photos[type] = `/uploads/vehicules/${req.files[type][0].filename}`;
-        photosAjoutees.push(type);
+        if (typesPhotos.includes(fieldName)) {
+          // Supprimer ancienne photo
+          if (vehicule.photos[fieldName] && vehicule.photos[fieldName].startsWith('/uploads/')) {
+            try {
+              const oldPath = path.join(process.cwd(), 'public', vehicule.photos[fieldName]);
+              await fs.unlink(oldPath);
+            } catch (err) {
+              logger.warn(`Erreur suppression photo ${fieldName}:`, err);
+            }
+          }
+          
+          vehicule.photos[fieldName] = `/uploads/vehicules/${file.filename}`;
+          photosAjoutees.push(fieldName);
+          logger.info(`📸 Photo ${fieldName} ajoutée`);
+        }
       }
     }
 
@@ -1771,6 +2293,7 @@ module.exports = {
   // Administration
   validerVehicule,
   rejeterVehicule,
+  notifierProprietaireDocumentsManquants,
   obtenirVehiculesEnAttenteValidation,
   signalerVehicule,
   obtenirVehiculesSignales,

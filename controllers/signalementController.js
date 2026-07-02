@@ -487,8 +487,8 @@ const obtenirQueueModeration = async (req, res, next) => {
 
     const [signalements, total] = await Promise.all([
       Signalement.find(filtres)
-        .populate('rapportePar', 'nom prenom email photo')
-        .populate('signaleId', 'nom prenom email photo')
+        .populate('rapportePar', 'nom prenom email photoProfil')
+        .populate('signaleId', 'nom prenom email photoProfil')
         .populate('moderateurAssigne', 'nom prenom email')
         .populate('trajetId', 'depart destination dateDepart')
         .sort(tri)
@@ -603,7 +603,7 @@ const obtenirSignalement = async (req, res, next) => {
     }
 
     const signalement = await Signalement.findById(req.params.id)
-      .populate('rapportePar', 'nom prenom email photo')
+      .populate('rapportePar', 'nom prenom email photoProfil')
       .populate('signaleId', 'nom prenom email photo compteurAvertissements suspendJusqu')
       .populate('moderateurAssigne', 'nom prenom email')
       .populate('trajetId', 'depart destination dateDepart prix')

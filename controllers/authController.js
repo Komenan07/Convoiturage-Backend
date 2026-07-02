@@ -6,7 +6,7 @@ const sendEmail = require('../utils/emailService');
 const { sendSMS } = require('../services/smsService');
 const { logger } = require('../utils/logger');
 const AppError = require('../utils/AppError');
-const greenApiService = require('../services/greenApiService');
+const twilioService = require('../services/twilioService');
 const fs = require('fs');
 const path = require('path');
 
@@ -44,7 +44,7 @@ const normaliserTelephoneCI = (tel) => {
   if (!tel) return null;
   
   // Supprimer tous les caractères non numériques sauf le +
-  let telClean = tel.replace(/[\s\-().]/g, '');
+  let telClean = tel.replace(/[\s\-().{}]/g, '');
   
   // Cas 1: Numéro commence par +225 (déjà international)
   if (telClean.startsWith('+225')) {
@@ -194,8 +194,8 @@ const detectBrowser = (userAgent) => {
     }
 
     // Vérifier vérification d'identité
-    if (!utilisateur.estVerifie || 
-        utilisateur.documentIdentite?.statutVerification !== 'VERIFIE') {
+    if (!utilisateur.estVerifie && 
+        (utilisateur.documentIdentite?.statutVerification !== 'VERIFIE' && utilisateur.documentIdentite?.statutVerification !== 'EN_ATTENTE')) {
       return res.status(403).json({
         success: false,
         message: 'Votre identité doit être vérifiée avant de devenir conducteur',
@@ -349,75 +349,202 @@ const detectBrowser = (userAgent) => {
 // INSCRIPTION AVEC WHATSAPP
 // ===================================
 
+const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const OTP_TTL_MS         = 10 * 60 * 1000;
+const STATUT_CHOIX_CANAL = 'EN_ATTENTE_CHOIX_CANAL';
+const STATUT_ATTENTE     = 'EN_ATTENTE_VERIFICATION';
+
+const _envoyerConfirmationEmail = async (utilisateur) => {
+  const confirmationToken = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
+  utilisateur.tokenConfirmationEmail = hashedToken;
+  utilisateur.expirationTokenConfirmation = Date.now() + EMAIL_TOKEN_TTL_MS;
+  utilisateur.statutCompte = STATUT_ATTENTE;
+  await utilisateur.save({ validateBeforeSave: false });
+  const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
+  const emailHtml = chargerTemplate('envoiEmail-template.html', {
+    'newUser.prenom': utilisateur.prenom,
+    confirmationUrl,
+  });
+  await sendEmail({ to: utilisateur.email, subject: 'Confirmez votre adresse email – WAYZ-ECO', html: emailHtml });
+  logger.info('Email de confirmation envoyé', { userId: utilisateur._id });
+  return { expiration: utilisateur.expirationTokenConfirmation };
+};
+
+const _genererCodeOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+const _enregistrerOTPTelephone = async (utilisateur, code) => {
+  const expiration = Date.now() + OTP_TTL_MS;
+  utilisateur.codeSMS = code;
+  utilisateur.expirationCodeSMS = expiration;
+  utilisateur.codeVerificationWhatsApp = code;
+  utilisateur.codeVerificationWhatsAppExpire = expiration;
+  utilisateur.otpCode = crypto.createHash('sha256').update(code).digest('hex');
+  utilisateur.otpExpiration = expiration;
+  utilisateur.statutCompte = STATUT_ATTENTE;
+  await utilisateur.save({ validateBeforeSave: false });
+};
+
+const _envoyerOTPWhatsApp = async (utilisateur) => {
+  const code = _genererCodeOTP();
+  await _enregistrerOTPTelephone(utilisateur, code);
+  const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
+  const resultat = await twilioService.envoyerCodeVerification(utilisateur.telephone, code, nomComplet, { prefer: 'whatsapp' });
+  if (!resultat.success) {
+    const err = new Error(resultat.error || 'Échec envoi WhatsApp');
+    err.errorType = 'WHATSAPP_SEND_FAILED';
+    throw err;
+  }
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📱 [WhatsApp] Code pour ${utilisateur.telephone} : ${code}`);
+  }
+  logger.info('OTP WhatsApp envoyé', { userId: utilisateur._id });
+  return { expiration: utilisateur.codeVerificationWhatsAppExpire };
+};
+
+const _envoyerOTPSMS = async (utilisateur) => {
+  const code = _genererCodeOTP();
+  await _enregistrerOTPTelephone(utilisateur, code);
+  const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
+  const resultat = await twilioService.envoyerCodeVerification(utilisateur.telephone, code, nomComplet, { prefer: 'sms' });
+  if (!resultat.success) {
+    const err = new Error(resultat.error || 'Échec envoi SMS');
+    err.errorType = 'SMS_SEND_FAILED';
+    throw err;
+  }
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📩 [SMS] Code pour ${utilisateur.telephone} : ${code}`);
+  }
+  logger.info('OTP SMS envoyé', { userId: utilisateur._id });
+  return { expiration: utilisateur.expirationCodeSMS };
+};
+
+const _envoyerVerification = async (utilisateur, canal) => {
+  switch (canal) {
+    case 'EMAIL':    return _envoyerConfirmationEmail(utilisateur);
+    case 'WHATSAPP': return _envoyerOTPWhatsApp(utilisateur);
+    case 'SMS':      return _envoyerOTPSMS(utilisateur);
+    default:
+      throw Object.assign(new Error(`Canal inconnu : ${canal}`), { errorType: 'INVALID_CANAL' });
+  }
+};
+
+const _buildSuccessMessage = (canal) => {
+  switch (canal) {
+    case 'EMAIL':    return 'Compte créé ! Un lien de confirmation a été envoyé à votre adresse email.';
+    case 'WHATSAPP': return 'Compte créé ! Un code de vérification a été envoyé sur WhatsApp.';
+    case 'SMS':      return 'Compte créé ! Un code de vérification a été envoyé par SMS.';
+    default:         return 'Compte créé.';
+  }
+};
+
+const _buildNextStep = (canal) => {
+  switch (canal) {
+    case 'EMAIL':
+      return { action: 'CONFIRMER_EMAIL', message: 'Cliquez sur le lien reçu par email pour activer votre compte.' };
+    case 'WHATSAPP':
+      return { action: 'VERIFIER_CODE_WHATSAPP', message: 'Saisissez le code reçu sur WhatsApp.', route: '/api/auth/verify-code' };
+    case 'SMS':
+      return { action: 'VERIFIER_CODE_SMS', message: 'Saisissez le code reçu par SMS.', route: '/api/auth/verify-sms' };
+    default:
+      return {};
+  }
+};
+
 /**
  * @desc    Inscription d'un nouvel utilisateur avec vérification WhatsApp
- * @route   POST /api/auth/register
+ * @route   POST /api/auth/inscription
  * @access  Public
  */
-const register = async (req, res, next) => {
+const inscription = async (req, res, next) => {
   try {
-    logger.info('Tentative d\'inscription WhatsApp', { telephone: req.body.telephone });
-
-    const { nom, prenom, telephone, email, motDePasse } = req.body;
-
-    // Validation des champs requis
-    if (!nom || !prenom || !telephone) {
-      return res.status(400).json({
-        success: false,
-        message: 'Veuillez fournir le nom, prénom et numéro de téléphone',
-        champsRequis: ['nom', 'prenom', 'telephone']
-      });
-    }
-
-    // 🔥 NORMALISER LE TÉLÉPHONE
-    const phoneProcessed = normaliserTelephoneCI(telephone);
-    
-    if (!phoneProcessed) {
-      return res.status(400).json({
-        success: false,
-        message: 'Le numéro de téléphone n\'est pas valide pour la Côte d\'Ivoire',
-        errorType: 'INVALID_PHONE_FORMAT',
-        field: 'telephone',
-        value: telephone,
-        suggestion: 'Formats acceptés: 0707070708, 07070708, +22507070708'
-      });
-    }
-
-    // Vérifier si l'utilisateur existe déjà
-    const utilisateurExiste = await User.findOne({
-      $or: [
-        { telephone: phoneProcessed },
-        ...(email ? [{ email: email }] : [])
-      ]
-    }).maxTimeMS(30000);
-
-    if (utilisateurExiste) {
-      if (utilisateurExiste.telephone === phoneProcessed) {
-        logger.warn('Inscription échouée - Téléphone déjà utilisé', { telephone: phoneProcessed });
-        return res.status(409).json({
-          success: false,
-          message: 'Ce numéro de téléphone est déjà utilisé',
-          champ: 'telephone'
-        });
-      }
-      if (email && utilisateurExiste.email === email) {
-        logger.warn('Inscription échouée - Email déjà utilisé', { email });
-        return res.status(409).json({
-          success: false,
-          message: 'Cet email est déjà utilisé',
-          champ: 'email'
-        });
-      }
-    }
-
-    // Créer l'utilisateur
-    const donneesUtilisateur = {
+    const {
       nom,
       prenom,
-      telephone: phoneProcessed,
+      email,
+      telephone,
+      motDePasse,
+      hasWhatsApp = true,
+    } = req.body;
+ 
+    logger.info('Tentative d\'inscription', {
+      email: email || null,
+      telephone: telephone || null,
+    });
+ 
+    // ── 1. CHAMPS OBLIGATOIRES ────────────────────────────────────────────────
+    if (!nom || !prenom) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le nom et le prénom sont obligatoires.',
+        champsRequis: ['nom', 'prenom'],
+      });
+    }
+ 
+    if (!email && !telephone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Veuillez fournir un email et/ou un numéro de téléphone.',
+        champsRequis: ['email ou telephone'],
+      });
+    }
+ 
+    // ── 2. NORMALISATION DU TÉLÉPHONE ─────────────────────────────────────────
+    let phoneProcessed = null;
+ 
+    if (telephone) {
+      phoneProcessed = normaliserTelephoneCI(telephone);
+ 
+      if (!phoneProcessed) {
+        return res.status(400).json({
+          success: false,
+          message: 'Numéro de téléphone invalide pour la Côte d\'Ivoire.',
+          errorType: 'INVALID_PHONE_FORMAT',
+          field: 'telephone',
+          value: telephone,
+          suggestion: 'Formats acceptés : 0707070708, +22507070708, 07070708',
+        });
+      }
+    }
+ 
+    // ── 3. UNICITÉ EMAIL + TÉLÉPHONE ──────────────────────────────────────────
+    const filtres = [];
+    if (phoneProcessed) filtres.push({ telephone: phoneProcessed });
+    if (email)          filtres.push({ email });
+ 
+    const doublon = await User.findOne({ $or: filtres }).maxTimeMS(30000);
+ 
+    if (doublon) {
+      if (phoneProcessed && doublon.telephone === phoneProcessed) {
+        return res.status(409).json({
+          success: false,
+          message: 'Ce numéro de téléphone est déjà associé à un compte.',
+          champ: 'telephone',
+        });
+      }
+      if (email && doublon.email === email) {
+        return res.status(409).json({
+          success: false,
+          message: 'Cet email est déjà associé à un compte.',
+          champ: 'email',
+        });
+      }
+    }
+ 
+    // ── 4. CRÉER LE COMPTE ────────────────────────────────────────────────────
+    //   Les deux canaux disponibles → statut intermédiaire CHOIX_CANAL
+    //   Un seul canal               → statut ATTENTE_VERIFICATION direct
+    const aDeuxCanaux   = !!email && !!phoneProcessed;
+    const statutInitial = aDeuxCanaux ? STATUT_CHOIX_CANAL : STATUT_ATTENTE;
+ 
+    const utilisateur = await User.create({
+      nom,
+      prenom,
+      telephone: phoneProcessed || undefined,
+      // Email obligatoire en base : on génère un temporaire si absent
       email: email || `${phoneProcessed}@temp.covoiturage.ci`,
       motDePasse: motDePasse || `Temp${Math.random().toString(36).slice(-8)}!1`,
-      statutCompte: 'EN_ATTENTE_VERIFICATION',
+      statutCompte: statutInitial,
       role: 'passager',
       compteCovoiturage: {
         solde: 0,
@@ -433,81 +560,248 @@ const register = async (req, res, next) => {
           retraitJournalier: 1000000,
           retraitMensuel: 5000000,
           montantRetireAujourdhui: 0,
-          montantRetireCeMois: 0
-        }
-      }
-    };
-
-    const utilisateur = await User.create(donneesUtilisateur);
-
-    // Générer le code de vérification WhatsApp
-    const code = utilisateur.genererCodeWhatsApp();
-    await utilisateur.save({ validateBeforeSave: false });
-
-    // Envoyer le code via WhatsApp
-    const nomComplet = `${prenom} ${nom}`;
-    const resultatEnvoi = await greenApiService.envoyerCodeVerification(
-      phoneProcessed,
-      code,
-      nomComplet
-    );
-
-    if (!resultatEnvoi.success) {
-      // Si l'envoi échoue, supprimer l'utilisateur créé
+          montantRetireCeMois: 0,
+        },
+      },
+    });
+ 
+    // ── 5A. DEUX CANAUX → DEMANDER LE CHOIX ──────────────────────────────────
+    if (aDeuxCanaux) {
+      logger.info('Inscription email + téléphone → choix de canal requis', {
+        userId: utilisateur._id,
+      });
+ 
+      return res.status(201).json({
+        success: true,
+        requiresChoice: true,
+        message: 'Compte créé. Veuillez choisir votre méthode de vérification.',
+        data: {
+          utilisateurId: utilisateur._id,
+          nomComplet: `${utilisateur.prenom} ${utilisateur.nom}`,
+          canauxDisponibles: [
+            {
+              canal: 'EMAIL',
+              label: 'Email',
+              description: `Recevoir un lien de confirmation sur ${email}`,
+              valeur: email,
+            },
+            {
+              canal: hasWhatsApp ? 'WHATSAPP' : 'SMS',
+              label: hasWhatsApp ? 'WhatsApp' : 'SMS',
+              description: `Recevoir un code OTP sur ${phoneProcessed}`,
+              valeur: phoneProcessed,
+            },
+          ],
+        },
+        nextStep: {
+          action: 'CHOISIR_CANAL',
+          message: 'Envoyez votre choix via POST /api/auth/register/choose-channel',
+          route: '/api/auth/register/choose-channel',
+          bodyAttendu: {
+            utilisateurId: utilisateur._id,
+            canal: '"EMAIL" | "WHATSAPP" | "SMS"',
+          },
+        },
+      });
+    }
+ 
+    // ── 5B. UN SEUL CANAL → ENVOYER DIRECTEMENT ──────────────────────────────
+    const canal = email ? 'EMAIL' : hasWhatsApp ? 'WHATSAPP' : 'SMS';
+    let envoi;
+ 
+    try {
+      envoi = await _envoyerVerification(utilisateur, canal);
+    } catch (sendError) {
+      // Rollback
       await User.findByIdAndDelete(utilisateur._id);
-      
-      logger.error('Échec envoi WhatsApp', { telephone: phoneProcessed, error: resultatEnvoi.error });
+      logger.error(`Échec envoi (${canal}) à la création :`, sendError);
+ 
       return res.status(500).json({
         success: false,
-        message: 'Erreur lors de l\'envoi du code de vérification',
-        details: 'Impossible d\'envoyer le message WhatsApp. Vérifiez votre numéro.',
-        erreurTechnique: resultatEnvoi.error
+        canal,
+        message: `Impossible d'envoyer la vérification (${canal}). Veuillez réessayer.`,
+        errorType: sendError.errorType || 'SEND_FAILED',
+        details: sendError.message,
+        ...(canal === 'WHATSAPP' && {
+          fallback: {
+            message: 'Relancez avec hasWhatsApp: false pour recevoir un SMS.',
+          },
+        }),
       });
     }
-
-    logger.info('Inscription WhatsApp réussie', { userId: utilisateur._id });
-    
-    // En développement, logger le code
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📱 Code envoyé à ${phoneProcessed}: ${code}`);
-    }
-
-    res.status(201).json({
+ 
+    return res.status(201).json({
       success: true,
-      message: 'Inscription réussie ! Un code de vérification a été envoyé sur WhatsApp.',
+      requiresChoice: false,
+      canal,
+      message: _buildSuccessMessage(canal),
       data: {
         utilisateurId: utilisateur._id,
-        telephone: utilisateur.telephone,
-        nomComplet: utilisateur.nomComplet,
-        expiration: utilisateur.codeVerificationWhatsAppExpire
-      }
+        email: email || null,
+        telephone: phoneProcessed || null,
+        nomComplet: `${utilisateur.prenom} ${utilisateur.nom}`,
+        expiration: envoi.expiration,
+      },
+      nextStep: _buildNextStep(canal),
     });
-
+ 
   } catch (error) {
-    logger.error('Erreur inscription WhatsApp:', error);
-
+    logger.error('Erreur inscription :', error);
+ 
     if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
         success: false,
-        message: 'Erreur de validation',
-        erreurs: messages
+        message: 'Erreur de validation des données.',
+        erreurs: Object.values(error.errors).map(e => e.message),
       });
     }
-
+ 
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: 'Un compte avec ces informations existe déjà'
+        message: 'Un compte avec ces informations existe déjà.',
       });
     }
-
-    return next(AppError.serverError('Erreur serveur lors de l\'inscription', { 
-      originalError: error.message
-    }));
+ 
+    return next(
+      AppError.serverError('Erreur serveur lors de l\'inscription', {
+        originalError: error.message,
+      })
+    );
   }
 };
-
+/**
+ * @desc    Envoyer la vérification sur le canal choisi par l'utilisateur.
+ *          Appelé uniquement quand email + téléphone ont été fournis à l'étape 1.
+ *
+ * @route   POST /api/auth/register/choose-channel
+ * @access  Public
+ *
+ * Body : { utilisateurId, canal: 'EMAIL' | 'WHATSAPP' | 'SMS' }
+ */
+const chooseChannel = async (req, res, next) => {
+  try {
+    const { utilisateurId, canal } = req.body;
+ 
+    // ── 1. VALIDATION ─────────────────────────────────────────────────────────
+    if (!utilisateurId || !canal) {
+      return res.status(400).json({
+        success: false,
+        message: 'utilisateurId et canal sont obligatoires.',
+        champsRequis: ['utilisateurId', 'canal'],
+      });
+    }
+ 
+    const canauxValides = ['EMAIL', 'WHATSAPP', 'SMS'];
+ 
+    if (!canauxValides.includes(canal)) {
+      return res.status(400).json({
+        success: false,
+        message: `Canal invalide. Valeurs acceptées : ${canauxValides.join(', ')}.`,
+        errorType: 'INVALID_CANAL',
+        canauxValides,
+      });
+    }
+ 
+    // ── 2. CHARGER L'UTILISATEUR ──────────────────────────────────────────────
+    const utilisateur = await User.findById(utilisateurId)
+      .select('+codeVerificationWhatsApp +codeVerificationWhatsAppExpire +codeSMS +expirationCodeSMS +tokenConfirmationEmail +expirationTokenConfirmation')
+      .maxTimeMS(30000);
+ 
+    if (!utilisateur) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur introuvable.',
+        errorType: 'USER_NOT_FOUND',
+      });
+    }
+ 
+    // ── 3. VÉRIFIER LE STATUT ─────────────────────────────────────────────────
+    if (utilisateur.statutCompte === 'ACTIF') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce compte est déjà actif.',
+        errorType: 'ALREADY_ACTIVE',
+      });
+    }
+ 
+    if (utilisateur.statutCompte !== STATUT_CHOIX_CANAL) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce compte n\'est pas en attente de choix de canal. ' +
+                 'Vérifiez que vous n\'avez pas déjà effectué cette étape.',
+        errorType: 'INVALID_STATUS',
+        statutActuel: utilisateur.statutCompte,
+      });
+    }
+ 
+    // ── 4. VÉRIFIER QUE LE CANAL EST DISPONIBLE POUR CE COMPTE ───────────────
+    if (canal === 'EMAIL' && (!utilisateur.email || utilisateur.email.includes('@temp.covoiturage.ci'))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucun email réel associé à ce compte.',
+        errorType: 'NO_EMAIL',
+      });
+    }
+ 
+    if ((canal === 'WHATSAPP' || canal === 'SMS') && !utilisateur.telephone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucun numéro de téléphone associé à ce compte.',
+        errorType: 'NO_PHONE',
+      });
+    }
+ 
+    // ── 5. ENVOYER LA VÉRIFICATION ────────────────────────────────────────────
+    let envoi;
+ 
+    try {
+      envoi = await _envoyerVerification(utilisateur, canal);
+    } catch (sendError) {
+      logger.error(`Échec envoi canal ${canal} (choose-channel) :`, sendError);
+ 
+      return res.status(500).json({
+        success: false,
+        canal,
+        message: `Impossible d'envoyer la vérification via ${canal}. ` +
+                 'Veuillez choisir un autre canal ou réessayer.',
+        errorType: sendError.errorType || 'SEND_FAILED',
+        details: sendError.message,
+        ...(canal === 'WHATSAPP' && {
+          fallback: {
+            message: 'Relancez avec canal: "SMS" pour recevoir un code par message texte.',
+          },
+        }),
+      });
+    }
+ 
+    logger.info(`Canal ${canal} sélectionné et vérification envoyée`, {
+      userId: utilisateur._id,
+    });
+ 
+    return res.status(200).json({
+      success: true,
+      canal,
+      message: _buildSuccessMessage(canal),
+      data: {
+        utilisateurId: utilisateur._id,
+        email: canal === 'EMAIL' ? utilisateur.email : null,
+        telephone: (canal === 'WHATSAPP' || canal === 'SMS') ? utilisateur.telephone : null,
+        expiration: envoi.expiration,
+      },
+      nextStep: _buildNextStep(canal),
+    });
+ 
+  } catch (error) {
+    logger.error('Erreur choix de canal :', error);
+    return next(
+      AppError.serverError('Erreur serveur lors du choix de canal', {
+        originalError: error.message,
+      })
+    );
+  }
+};
+ 
 /**
  * @desc    Vérifier le code WhatsApp
  * @route   POST /api/auth/verify-code
@@ -515,37 +809,26 @@ const register = async (req, res, next) => {
  */
 const verifyCode = async (req, res, next) => {
   try {
-    const { telephone, code } = req.body;
+    const { email, code } = req.body;
 
-    if (!telephone || !code) {
+    if (!email || !code) {
       return res.status(400).json({
         success: false,
-        message: 'Veuillez fournir le numéro de téléphone et le code'
+        message: 'Veuillez fournir l\'email et le code de vérification'
       });
     }
 
-    // 🔥 NORMALISER LE TÉLÉPHONE AVANT LA RECHERCHE
-    const phoneProcessed = normaliserTelephoneCI(telephone);
-    
-    if (!phoneProcessed) {
-      return res.status(400).json({
-        success: false,
-        message: 'Le numéro de téléphone n\'est pas valide',
-        errorType: 'INVALID_PHONE_FORMAT'
-      });
-    }
-
-    const utilisateur = await User.findOne({ telephone: phoneProcessed })
-      .select('+codeVerificationWhatsApp +codeVerificationWhatsAppExpire +refreshTokens');
+    const utilisateur = await User.findOne({ email })
+      .select('+otpCode +otpExpiration +refreshTokens');
 
     if (!utilisateur) {
       return res.status(404).json({
         success: false,
-        message: 'Aucun compte trouvé avec ce numéro de téléphone'
+        message: 'Aucun compte trouvé avec cet email'
       });
     }
 
-    if (utilisateur.whatsappVerifie) {
+    if (utilisateur.statutCompte === 'ACTIF') {
       return res.status(400).json({
         success: false,
         message: 'Ce compte est déjà vérifié',
@@ -553,33 +836,33 @@ const verifyCode = async (req, res, next) => {
       });
     }
 
-    const resultatVerification = utilisateur.verifierCodeWhatsApp(code);
-
-    if (!resultatVerification.valide) {
-      await utilisateur.save({ validateBeforeSave: false });
-
+    if (!utilisateur.otpExpiration || Date.now() > utilisateur.otpExpiration) {
       return res.status(400).json({
         success: false,
-        message: resultatVerification.raison
+        message: 'Le code OTP a expiré. Veuillez en demander un nouveau.',
+        errorType: 'OTP_EXPIRED'
       });
     }
 
-    // Code valide : activer le compte
-    utilisateur.whatsappVerifie = true;
+    const hashedOtp = crypto.createHash('sha256').update(code).digest('hex');
+
+    if (hashedOtp !== utilisateur.otpCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code incorrect. Veuillez réessayer.',
+        errorType: 'OTP_INVALID'
+      });
+    }
+
+    // ✅ Code valide — activer le compte
     utilisateur.statutCompte = 'ACTIF';
     utilisateur.estVerifie = true;
-    utilisateur.codeVerificationWhatsApp = undefined;
-    utilisateur.codeVerificationWhatsAppExpire = undefined;
-
+    utilisateur.emailVerifie = true;
+    utilisateur.otpCode = undefined;
+    utilisateur.otpExpiration = undefined;
     await utilisateur.save({ validateBeforeSave: false });
 
-    // Envoyer message de bienvenue
-    await greenApiService.envoyerMessageBienvenue(
-      phoneProcessed,
-      utilisateur.prenom
-    );
-
-    // ✨ Récupérer les informations de l'appareil
+    // ✨ Informations de l'appareil
     const deviceInfo = {
       userAgent: req.headers['user-agent'] || 'Unknown',
       ip: req.ip || req.connection.remoteAddress,
@@ -588,20 +871,19 @@ const verifyCode = async (req, res, next) => {
       browser: detectBrowser(req.headers['user-agent'])
     };
 
-    // Générer Access Token ET Refresh Token
     const accessToken = utilisateur.getSignedJwtToken();
     const refreshToken = await utilisateur.generateRefreshToken(deviceInfo);
 
-    logger.info('Vérification WhatsApp réussie', { userId: utilisateur._id });
+    logger.info('Vérification email OTP réussie', { userId: utilisateur._id });
 
     res.status(200).json({
       success: true,
       message: '✅ Compte vérifié avec succès !',
       data: {
-        accessToken,       
-        refreshToken, 
+        accessToken,
+        refreshToken,
         expiresIn: process.env.JWT_EXPIRE || '15m',
-        refreshTokenExpiresIn: `${process.env.REFRESH_TOKEN_DAYS || 30} jours`,    
+        refreshTokenExpiresIn: `${process.env.REFRESH_TOKEN_DAYS || 30} jours`,
         utilisateur: {
           id: utilisateur._id,
           nom: utilisateur.nom,
@@ -616,7 +898,7 @@ const verifyCode = async (req, res, next) => {
     });
 
   } catch (error) {
-    logger.error('Erreur vérification code WhatsApp:', error);
+    logger.error('Erreur vérification code email:', error);
     return next(AppError.serverError('Erreur lors de la vérification du code', { 
       originalError: error.message 
     }));
@@ -630,81 +912,66 @@ const verifyCode = async (req, res, next) => {
  */
 const resendCode = async (req, res, next) => {
   try {
-    const { telephone } = req.body;
+    const { email } = req.body;
 
-    if (!telephone) {
-      return res.status(400).json({
-        success: false,
-        message: 'Veuillez fournir le numéro de téléphone'
-      });
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Veuillez fournir l\'email' });
     }
 
-    // 🔥 NORMALISER LE TÉLÉPHONE
-    const phoneProcessed = normaliserTelephoneCI(telephone);
-    
-    if (!phoneProcessed) {
-      return res.status(400).json({
-        success: false,
-        message: 'Le numéro de téléphone n\'est pas valide',
-        errorType: 'INVALID_PHONE_FORMAT'
-      });
-    }
-
-    const utilisateur = await User.findOne({ telephone: phoneProcessed })
-      .select('+codeVerificationWhatsApp +codeVerificationWhatsAppExpire');
+    const utilisateur = await User.findOne({ email });
 
     if (!utilisateur) {
-      return res.status(404).json({
-        success: false,
-        message: 'Aucun compte trouvé avec ce numéro de téléphone'
-      });
+      return res.status(404).json({ success: false, message: 'Aucun compte trouvé avec cet email' });
     }
 
-    if (utilisateur.whatsappVerifie) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ce compte est déjà vérifié'
-      });
+    if (utilisateur.statutCompte === 'ACTIF') {
+      return res.status(400).json({ success: false, message: 'Ce compte est déjà vérifié' });
     }
 
-    const code = utilisateur.genererCodeWhatsApp();
-    await utilisateur.save({ validateBeforeSave: false });
+    // ✅ Générer un nouvel OTP
+    const otpCode = crypto.randomInt(100000, 999999).toString();
+    const hashedOtp = crypto.createHash('sha256').update(otpCode).digest('hex');
 
-    const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-    const resultatEnvoi = await greenApiService.envoyerCodeVerification(
-      phoneProcessed,
-      code,
-      nomComplet
+    // ✅ Mise à jour directe en base sans passer par le middleware pre-save
+    await User.findOneAndUpdate(
+      { email },
+      { $set: { otpCode: hashedOtp, otpExpiration: new Date(Date.now() + 10 * 60 * 1000) } }
     );
 
-    if (!resultatEnvoi.success) {
-      return res.status(500).json({
-        success: false,
-        message: 'Erreur lors de l\'envoi du code',
-        details: 'Impossible d\'envoyer le message WhatsApp'
+    // 📧 Envoyer le nouvel OTP par email
+    try {
+      const emailHtml = chargerTemplate('otp-email-template.html', {
+        'user.prenom': utilisateur.prenom,
+        'otpCode': otpCode,
+        'otpExpiration': '10 minutes'
       });
+
+      await sendEmail({
+        to: email,
+        subject: `${otpCode} - Votre nouveau code de vérification WAYZ-ECO`,
+        html: emailHtml
+      });
+
+      logger.info('Nouveau OTP email envoyé', { userId: utilisateur._id });
+
+    } catch (emailError) {
+      logger.error('Erreur envoi OTP email:', emailError);
+      return res.status(500).json({ success: false, message: 'Erreur lors de l\'envoi du code. Veuillez réessayer.' });
     }
 
-    logger.info('Nouveau code WhatsApp envoyé', { userId: utilisateur._id });
-    
     if (process.env.NODE_ENV === 'development') {
-      console.log(`📱 Nouveau code envoyé à ${phoneProcessed}: ${code}`);
+      console.log(`📧 Nouveau code envoyé à ${email}: ${otpCode}`);
     }
 
     res.status(200).json({
       success: true,
-      message: 'Un nouveau code a été envoyé sur WhatsApp',
-      data: {
-        telephone: utilisateur.telephone,
-        expiration: utilisateur.codeVerificationWhatsAppExpire
-      }
+      message: 'Un nouveau code a été envoyé sur votre email',
+      data: { email: utilisateur.email, expiration: new Date(Date.now() + 10 * 60 * 1000) }
     });
 
   } catch (error) {
-    logger.error('Erreur renvoi code WhatsApp:', error);
-    return next(AppError.serverError('Erreur lors du renvoi du code', { 
-      originalError: error.message 
-    }));
+    logger.error('Erreur renvoi code email:', error);
+    return next(AppError.serverError('Erreur lors du renvoi du code', { originalError: error.message }));
   }
 };
 
@@ -715,7 +982,167 @@ const resendCode = async (req, res, next) => {
 /**
  * Inscription avec vérification EMAIL (système actuel)
  */
-const inscription = async (req, res, next) => {
+// const inscription = async (req, res, next) => {
+//   try {
+//     logger.info('Tentative d\'inscription', { email: req.body.email });
+
+//     const { 
+//       nom, 
+//       prenom, 
+//       email, 
+//       motDePasse, 
+//       telephone,
+//       dateNaissance,
+//       sexe,
+//       role = 'passager',
+//       adresse
+//     } = req.body;
+
+//     // Validation des champs requis
+//     if (!nom || !prenom || !email || !motDePasse || !telephone) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Tous les champs obligatoires doivent être renseignés',
+//         champsRequis: ['nom', 'prenom', 'email', 'motDePasse', 'telephone']
+//       });
+//     }
+
+//     // 🔥 NORMALISER LE TÉLÉPHONE
+//     const phoneProcessed = normaliserTelephoneCI(telephone);
+    
+//     if (!phoneProcessed) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Le numéro de téléphone n\'est pas valide',
+//         errorType: 'INVALID_PHONE_FORMAT',
+//         field: 'telephone'
+//       });
+//     }
+
+//     // Vérifier si l'utilisateur existe déjà
+//     const existingUser = await User.findOne({ 
+//       $or: [{ email }, { telephone: phoneProcessed }] 
+//     }).maxTimeMS(30000);
+    
+//     if (existingUser) {
+//       logger.warn('Inscription échouée - Email ou téléphone déjà utilisé', { email, telephone: phoneProcessed });
+//       return res.status(409).json({
+//         success: false,
+//         message: 'Un compte avec cet email ou ce numéro existe déjà'
+//       });
+//     }
+
+//     // Générer un token de confirmation d'email
+//     const confirmationToken = crypto.randomBytes(32).toString('hex');
+//     const hashedToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
+
+//     // Créer un nouvel utilisateur
+//     const userData = {
+//       nom,
+//       prenom,
+//       email,
+//       motDePasse, // Sera hashé par le middleware pre-save
+//       telephone: phoneProcessed,
+//       role: (role && ['conducteur', 'passager', 'les_deux'].includes(role)) ? role : 'passager',
+//       statutCompte: 'EN_ATTENTE_VERIFICATION',
+//       tentativesConnexionEchouees: 0,
+//       tokenConfirmationEmail: hashedToken,
+//       expirationTokenConfirmation: Date.now() + 24 * 60 * 60 * 1000, // 24 heures
+//       // Initialiser le compte covoiturage
+//       compteCovoiturage: {
+//         solde: 0,
+//         estRecharge: false,
+//         seuilMinimum: 0,
+//         historiqueRecharges: [],
+//         totalCommissionsPayees: 0,
+//         totalGagnes: 0,
+//         modeAutoRecharge: {
+//           active: false
+//         },
+//         historiqueCommissions: [],
+//         parametresRetrait: {},
+//         limites: {
+//           retraitJournalier: 1000000,
+//           retraitMensuel: 5000000,
+//           montantRetireAujourdhui: 0,
+//           montantRetireCeMois: 0
+//         }
+//       }
+//     };
+
+//     // Ajouter les champs optionnels s'ils sont fournis
+//     if (dateNaissance) userData.dateNaissance = dateNaissance;
+//     if (sexe) userData.sexe = sexe;
+//     if (adresse) userData.adresse = adresse;
+
+//     const newUser = new User(userData);
+//     await newUser.save({ maxTimeMS: 30000 });
+
+//     // Envoyer l'email de confirmation
+//     const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
+    
+//     try {
+//       const emailHtml = chargerTemplate('envoiEmail-template.html', {
+//         'newUser.prenom': newUser.prenom,
+//         'confirmationUrl': confirmationUrl
+//       });
+
+//       await sendEmail({
+//         to: newUser.email,
+//         subject: 'Confirmez votre adresse email - WAYZ-ECO',
+//         html: emailHtml
+//       });
+
+//       logger.info('Email de confirmation envoyé', { userId: newUser._id, email: newUser.email });
+      
+//     } catch (emailError) {
+//       logger.error('Erreur envoi email confirmation:', emailError);
+//     }
+
+//     logger.info('Inscription réussie', { userId: newUser._id });
+//     res.status(201).json({
+//       success: true,
+//       message: 'Compte créé avec succès. Veuillez vérifier votre email pour confirmer votre compte.',
+//       user: {
+//         id: newUser._id,
+//         nom: newUser.nom,
+//         prenom: newUser.prenom,
+//         email: newUser.email,
+//         telephone: newUser.telephone,
+//         role: newUser.role,
+//         statutCompte: newUser.statutCompte,
+//         compteCovoiturage: {
+//           solde: newUser.compteCovoiturage.solde,
+//           estRecharge: newUser.compteCovoiturage.estRecharge
+//         }
+//       }
+//     });
+
+//   } catch (error) {
+//     logger.error('Erreur inscription:', error);
+
+//     if (error.name === 'ValidationError') {
+//       const messages = Object.values(error.errors).map(err => err.message);
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Erreur de validation',
+//         details: messages
+//       });
+//     }
+
+//     if (error.code === 11000) {
+//       return res.status(409).json({
+//         success: false,
+//         message: 'Un compte avec cet email ou ce numéro existe déjà'
+//       });
+//     }
+
+//     return next(AppError.serverError('Erreur serveur lors de l\'inscription', { 
+//       originalError: error.message
+//     }));
+//   }
+// };
+const register = async (req, res, next) => {
   try {
     logger.info('Tentative d\'inscription', { email: req.body.email });
 
@@ -765,9 +1192,9 @@ const inscription = async (req, res, next) => {
       });
     }
 
-    // Générer un token de confirmation d'email
-    const confirmationToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
+    // 🔥 Générer le code OTP 6 chiffres (remplace l'ancien token email)
+    const otpCode = crypto.randomInt(100000, 999999).toString();
+    const hashedOtp = crypto.createHash('sha256').update(otpCode).digest('hex');
 
     // Créer un nouvel utilisateur
     const userData = {
@@ -779,8 +1206,11 @@ const inscription = async (req, res, next) => {
       role: (role && ['conducteur', 'passager', 'les_deux'].includes(role)) ? role : 'passager',
       statutCompte: 'EN_ATTENTE_VERIFICATION',
       tentativesConnexionEchouees: 0,
-      tokenConfirmationEmail: hashedToken,
-      expirationTokenConfirmation: Date.now() + 24 * 60 * 60 * 1000, // 24 heures
+
+      // 🔐 OTP à la place de l'ancien tokenConfirmationEmail
+      otpCode: hashedOtp,
+      otpExpiration: Date.now() + 10 * 60 * 1000, // 10 minutes
+
       // Initialiser le compte covoiturage
       compteCovoiturage: {
         solde: 0,
@@ -811,31 +1241,36 @@ const inscription = async (req, res, next) => {
     const newUser = new User(userData);
     await newUser.save({ maxTimeMS: 30000 });
 
-    // Envoyer l'email de confirmation
-    const confirmationUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/confirm-email/${confirmationToken}`;
-    
+    // 📧 Envoyer l'OTP par email
     try {
-      const emailHtml = chargerTemplate('envoiEmail-template.html', {
-        'newUser.prenom': newUser.prenom,
-        'confirmationUrl': confirmationUrl
+      const emailHtml = chargerTemplate('otp-email-template.html', {
+        'user.prenom': prenom,
+        'otpCode': otpCode,
+        'otpExpiration': '10 minutes'
       });
 
       await sendEmail({
-        to: newUser.email,
-        subject: 'Confirmez votre adresse email - WAYZ-ECO',
+        to: email,
+        subject: `${otpCode} - Votre code de vérification WAYZ-ECO`,
         html: emailHtml
       });
 
-      logger.info('Email de confirmation envoyé', { userId: newUser._id, email: newUser.email });
-      
+      logger.info('OTP email envoyé', { userId: newUser._id, email });
+
     } catch (emailError) {
-      logger.error('Erreur envoi email confirmation:', emailError);
+      logger.error('Erreur envoi OTP email:', emailError);
+      // ⚠️ Supprimer l'utilisateur si l'email échoue
+      await User.findByIdAndDelete(newUser._id);
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'envoi du code de vérification. Veuillez réessayer.'
+      });
     }
 
-    logger.info('Inscription réussie', { userId: newUser._id });
+    logger.info('Inscription réussie - OTP envoyé', { userId: newUser._id });
     res.status(201).json({
       success: true,
-      message: 'Compte créé avec succès. Veuillez vérifier votre email pour confirmer votre compte.',
+      message: 'Compte créé. Un code de vérification a été envoyé sur votre email.',
       user: {
         id: newUser._id,
         nom: newUser.nom,
@@ -879,7 +1314,7 @@ const inscription = async (req, res, next) => {
 /**
  * Inscription avec vérification SMS
  */
-const inscriptionSMS = async (req, res, next) => {
+  const inscriptionSMS = async (req, res, next) => {
   let telephone, email;
   
   try {
@@ -1047,32 +1482,65 @@ const inscriptionSMS = async (req, res, next) => {
     const newUser = new User(userData);
     await newUser.save({ maxTimeMS: 30000 });
 
-    // Envoyer le SMS de vérification
+    // ✅ Envoyer le SMS de vérification via Twilio
     try {
-      logger.info('Tentative envoi SMS', {
+      logger.info('Tentative envoi SMS via Twilio', {
         originalPhone: req.body.telephone,
         processedPhone: newUser.telephone,
         userId: newUser._id,
         phoneLength: newUser.telephone.length
       });
 
-      await sendSMS({
-        to: newUser.telephone,
-        message: `Votre code de vérification WAYZ-ECO est: ${codeSMS}. Ce code expire dans 10 minutes.`
-      });
+      const nomComplet = `${prenom} ${nom}`;
+      const resultatEnvoi = await twilioService.envoyerCodeVerification(
+        newUser.telephone,
+        codeSMS,
+        nomComplet
+      );
 
-      logger.info('SMS de vérification envoyé avec succès', { 
+      if (!resultatEnvoi.success) {
+        // Supprimer l'utilisateur en cas d'échec
+        await User.findByIdAndDelete(newUser._id);
+        
+        logger.error('Échec envoi SMS Twilio', {
+          error: resultatEnvoi.error,
+          originalPhone: req.body.telephone,
+          processedPhone: newUser.telephone,
+          userId: newUser._id,
+          phoneLength: newUser.telephone.length
+        });
+        
+        return res.status(500).json({
+          success: false,
+          message: 'Impossible d\'envoyer le SMS de vérification. Vérifiez votre numéro de téléphone.',
+          errorType: 'SMS_SEND_FAILED',
+          field: 'telephone',
+          originalValue: req.body.telephone,
+          processedValue: newUser.telephone,
+          suggestion: 'Vérifiez que votre numéro est correct. Format: 0707070708 ou +22507070708',
+          debug: process.env.NODE_ENV === 'development' ? {
+            originalPhone: req.body.telephone,
+            processedPhone: newUser.telephone,
+            phoneLength: newUser.telephone.length,
+            twilioError: resultatEnvoi.error,
+            provider: resultatEnvoi.provider
+          } : undefined
+        });
+      }
+
+      logger.info('✅ SMS de vérification envoyé avec succès via Twilio', { 
         userId: newUser._id, 
-        telephone: newUser.telephone 
+        telephone: newUser.telephone,
+        messageId: resultatEnvoi.messageId,
+        provider: resultatEnvoi.provider
       });
       
     } catch (smsError) {
-      logger.error('Échec envoi SMS', {
+      logger.error('❌ Erreur lors de l\'envoi SMS Twilio', {
         error: smsError.message,
         originalPhone: req.body.telephone,
         processedPhone: newUser.telephone,
         userId: newUser._id,
-        phoneLength: newUser.telephone.length,
         stackTrace: smsError.stack
       });
       
@@ -1081,18 +1549,14 @@ const inscriptionSMS = async (req, res, next) => {
       
       return res.status(500).json({
         success: false,
-        message: 'Impossible d\'envoyer le SMS de vérification. Vérifiez votre numéro de téléphone.',
-        errorType: 'SMS_SEND_FAILED',
+        message: 'Erreur technique lors de l\'envoi du SMS. Veuillez réessayer.',
+        errorType: 'SMS_SEND_ERROR',
         field: 'telephone',
         originalValue: req.body.telephone,
         processedValue: newUser.telephone,
-        suggestion: 'Vérifiez que votre numéro est correct. Format: 0707070708 ou +22507070708',
         debug: process.env.NODE_ENV === 'development' ? {
-          originalPhone: req.body.telephone,
-          processedPhone: newUser.telephone,
-          phoneLength: newUser.telephone.length,
-          twilioError: smsError.message,
-          fullError: smsError.stack
+          error: smsError.message,
+          stack: smsError.stack
         } : undefined
       });
     }
@@ -1228,7 +1692,19 @@ const confirmerEmail = async (req, res, next) => {
         message: 'Votre compte est déjà confirmé'
       });
     }
-
+    // 🔒 Bloquer les statuts incompatibles avec la confirmation email
+    const statutsValides = ['EN_ATTENTE_VERIFICATION', 'EN_ATTENTE_CHOIX_CANAL'];
+    if (!statutsValides.includes(user.statutCompte)) {
+      logger.warn('Confirmation email - Statut incompatible', {
+        userId: user._id,
+        statutCompte: user.statutCompte
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Ce compte ne peut pas être confirmé par email dans son état actuel',
+        statutActuel: user.statutCompte
+      });
+    }
     // Confirmer le compte
     user.statutCompte = 'ACTIF';
     user.tokenConfirmationEmail = undefined;
@@ -1321,7 +1797,7 @@ const verifierCodeSMS = async (req, res, next) => {
     }
 
     const user = await User.findOne({ telephone: phoneProcessed })
-      .select('+codeSMS +expirationCodeSMS')
+      .select('+codeSMS +expirationCodeSMS +refreshTokens')
       .maxTimeMS(30000);
 
     if (!user) {
@@ -1339,40 +1815,123 @@ const verifierCodeSMS = async (req, res, next) => {
       });
     }
 
-    // Vérifier le code SMS
-    if (!user.codeSMS || user.codeSMS !== codeSMS) {
-      logger.warn('Vérification SMS échouée - Code incorrect', { userId: user._id, telephone: phoneProcessed });
-      return res.status(400).json({
-        success: false,
-        message: 'Code SMS incorrect'
+    // 🔥 LOGS DE DEBUG EN MODE DÉVELOPPEMENT
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 DEBUG - Vérification code SMS:', {
+        userId: user._id,
+        telephone: user.telephone,
+        codeSMSExists: !!user.codeSMS,
+        codeStocke: user.codeSMS,
+        codeSaisi: codeSMS,
+        codeStockeType: typeof user.codeSMS,
+        codeSaisiType: typeof codeSMS,
+        expiration: user.expirationCodeSMS,
+        expirationDate: user.expirationCodeSMS ? new Date(user.expirationCodeSMS) : null,
+        maintenant: Date.now(),
+        maintenantDate: new Date(),
+        estExpire: user.expirationCodeSMS ? (user.expirationCodeSMS < Date.now()) : null
       });
     }
 
-    // Vérifier l'expiration
+    // ✅ VÉRIFIER SI LE CODE SMS EXISTE
+    if (!user.codeSMS) {
+      logger.warn('Vérification SMS échouée - Aucun code SMS enregistré', { 
+        userId: user._id, 
+        telephone: phoneProcessed 
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Aucun code de vérification actif. Veuillez en demander un nouveau.',
+        errorType: 'NO_CODE_FOUND',
+        suggestion: 'Utilisez /api/auth/renvoyer-code-sms pour obtenir un nouveau code'
+      });
+    }
+
+    // ✅ VÉRIFIER L'EXPIRATION AVANT LA COMPARAISON
     if (!user.expirationCodeSMS || user.expirationCodeSMS < Date.now()) {
-      logger.warn('Vérification SMS échouée - Code expiré', { userId: user._id, telephone: phoneProcessed });
+      logger.warn('Vérification SMS échouée - Code expiré', { 
+        userId: user._id, 
+        telephone: phoneProcessed,
+        expiration: user.expirationCodeSMS,
+        maintenant: Date.now()
+      });
+      
+      // Nettoyer le code expiré
+      user.codeSMS = undefined;
+      user.expirationCodeSMS = undefined;
+      await user.save({ validateBeforeSave: false });
+      
       return res.status(400).json({
         success: false,
-        message: 'Code SMS expiré'
+        message: 'Code SMS expiré. Veuillez en demander un nouveau.',
+        errorType: 'CODE_EXPIRED',
+        suggestion: 'Utilisez /api/auth/renvoyer-code-sms pour obtenir un nouveau code'
       });
     }
 
-    // Code valide - confirmer le téléphone
+    // ✅ COMPARAISON ROBUSTE DES CODES (conversion en String + trim)
+    const codeStocke = String(user.codeSMS).trim();
+    const codeSaisi = String(codeSMS).trim();
+
+    if (codeStocke !== codeSaisi) {
+      logger.warn('Vérification SMS échouée - Code incorrect', { 
+        userId: user._id, 
+        telephone: phoneProcessed,
+        codeStocke: codeStocke,
+        codeSaisi: codeSaisi,
+        longueurStocke: codeStocke.length,
+        longueurSaisi: codeSaisi.length
+      });
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Code SMS incorrect',
+        errorType: 'INVALID_CODE',
+        debug: process.env.NODE_ENV === 'development' ? {
+          codeStocke: codeStocke,
+          codeSaisi: codeSaisi,
+          match: codeStocke === codeSaisi
+        } : undefined
+      });
+    }
+
+    // ✅ CODE VALIDE - ACTIVER LE COMPTE
     user.statutCompte = 'ACTIF';
     user.codeSMS = undefined;
     user.expirationCodeSMS = undefined;
     user.estVerifie = true;
-    await user.save();
+    user.telephoneVerifie = true;
+    
+    await user.save({ validateBeforeSave: false });
 
-    // Générer le token JWT
-    const token = user.getSignedJwtToken();
+    // ✨ Récupérer les informations de l'appareil
+    const deviceInfo = {
+      userAgent: req.headers['user-agent'] || 'Unknown',
+      ip: req.ip || req.connection.remoteAddress,
+      deviceType: detectDeviceType(req.headers['user-agent']),
+      os: detectOS(req.headers['user-agent']),
+      browser: detectBrowser(req.headers['user-agent'])
+    };
 
-    logger.info('Vérification SMS réussie', { userId: user._id, telephone: phoneProcessed });
+    // Générer Access Token ET Refresh Token
+    const accessToken = user.getSignedJwtToken();
+    const refreshToken = await user.generateRefreshToken(deviceInfo);
+
+    logger.info('✅ Vérification SMS réussie - Compte activé', { 
+      userId: user._id, 
+      telephone: phoneProcessed 
+    });
 
     res.status(200).json({
       success: true,
-      message: 'Téléphone vérifié avec succès. Votre compte est maintenant actif.',
-      token,
+      message: '✅ Téléphone vérifié avec succès. Votre compte est maintenant actif !',
+      data: {
+        accessToken,
+        refreshToken,
+        expiresIn: process.env.JWT_EXPIRE || '15m',
+        refreshTokenExpiresIn: `${process.env.REFRESH_TOKEN_DAYS || 30} jours`,
+        tokenType: 'Bearer'
+      },
       user: {
         id: user._id,
         nom: user.nom,
@@ -1381,6 +1940,7 @@ const verifierCodeSMS = async (req, res, next) => {
         email: user.email || null,
         role: user.role,
         statutCompte: user.statutCompte,
+        telephoneVerifie: user.telephoneVerifie,
         compteCovoiturage: {
           solde: user.compteCovoiturage.solde,
           estRecharge: user.compteCovoiturage.estRecharge,
@@ -1390,7 +1950,7 @@ const verifierCodeSMS = async (req, res, next) => {
     });
 
   } catch (error) {
-    logger.error('Erreur vérification SMS:', error);
+    logger.error('❌ Erreur vérification SMS:', error);
     return next(AppError.serverError('Erreur serveur lors de la vérification SMS', { 
       originalError: error.message
     }));
@@ -1426,7 +1986,32 @@ const renvoyerConfirmationEmail = async (req, res, next) => {
         message: 'Votre compte est déjà confirmé'
       });
     }
-    
+    const statutsValides = ['EN_ATTENTE_VERIFICATION', 'EN_ATTENTE_CHOIX_CANAL'];
+    if (!statutsValides.includes(user.statutCompte)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ce compte n\'est pas en attente de confirmation par email.',
+        statutActuel: user.statutCompte
+      });
+    }
+    if (user.email.includes('@temp.covoiturage.ci')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucun email réel associé à ce compte. Utilisez la vérification par téléphone.',
+        errorType: 'NO_REAL_EMAIL'
+      });
+    }
+    if (user.expirationTokenConfirmation) {
+      const tempsDepuisDernierEnvoi = (24 * 60 * 60 * 1000) - (user.expirationTokenConfirmation - Date.now());
+      if (tempsDepuisDernierEnvoi < 2 * 60 * 1000) {
+        const secondesRestantes = Math.ceil((2 * 60 * 1000 - tempsDepuisDernierEnvoi) / 1000);
+        return res.status(429).json({
+          success: false,
+          message: `Veuillez attendre ${secondesRestantes} secondes avant de renvoyer un email.`,
+          secondesRestantes
+        });
+      }
+    }
     // Générer un nouveau token
     const confirmationToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = crypto.createHash('sha256').update(confirmationToken).digest('hex');
@@ -1472,6 +2057,9 @@ const renvoyerConfirmationEmail = async (req, res, next) => {
   }
 };
 
+/**
+ * Renvoyer un code SMS
+ */
 /**
  * Renvoyer un code SMS
  */
@@ -1530,31 +2118,74 @@ const renvoyerCodeSMS = async (req, res, next) => {
       });
     }
 
-    // Générer un nouveau code
+    // Générer un nouveau code unique pour tous les canaux
     const nouveauCode = Math.floor(100000 + Math.random() * 900000).toString();
-    user.codeSMS = nouveauCode;
-    user.expirationCodeSMS = Date.now() + 10 * 60 * 1000;
-    await user.save();
+    await _enregistrerOTPTelephone(user, nouveauCode);
 
-    // Envoyer le SMS
+    // ✅ Envoyer le code via Twilio (WhatsApp d'abord, fallback SMS)
     try {
-      await sendSMS({
-        to: user.telephone,
-        message: `Votre nouveau code de vérification WAYZ-ECO est: ${nouveauCode}. Ce code expire dans 10 minutes.`
+      logger.info('Tentative renvoi SMS via Twilio', {
+        telephone: phoneProcessed,
+        userId: user._id
       });
 
-      logger.info('Nouveau SMS envoyé', { userId: user._id, telephone: phoneProcessed });
+      const nomComplet = `${user.prenom} ${user.nom}`;
+      const resultatEnvoi = await twilioService.envoyerCodeVerification(
+        phoneProcessed,
+        nouveauCode,
+        nomComplet
+      );
+
+      if (!resultatEnvoi.success) {
+        logger.error('Échec renvoi SMS Twilio', {
+          error: resultatEnvoi.error,
+          telephone: phoneProcessed,
+          userId: user._id
+        });
+        
+        return res.status(500).json({
+          success: false,
+          message: 'Impossible de renvoyer le SMS. Veuillez réessayer plus tard.',
+          errorType: 'SMS_SEND_FAILED',
+          debug: process.env.NODE_ENV === 'development' ? {
+            twilioError: resultatEnvoi.error,
+            provider: resultatEnvoi.provider
+          } : undefined
+        });
+      }
+
+      logger.info('✅ Nouveau SMS envoyé via Twilio', { 
+        userId: user._id, 
+        telephone: phoneProcessed,
+        messageId: resultatEnvoi.messageId,
+        provider: resultatEnvoi.provider
+      });
       
       res.status(200).json({
         success: true,
-        message: 'Un nouveau code de vérification a été envoyé par SMS'
+        message: 'Un nouveau code de vérification a été envoyé par SMS',
+        data: {
+          telephone: user.telephone,
+          expiration: user.expirationCodeSMS
+        }
       });
 
     } catch (smsError) {
-      logger.error('Erreur envoi SMS:', smsError);
+      logger.error('❌ Erreur renvoi SMS Twilio:', {
+        error: smsError.message,
+        telephone: phoneProcessed,
+        userId: user._id,
+        stack: smsError.stack
+      });
+      
       return res.status(500).json({
         success: false,
-        message: 'Impossible d\'envoyer le SMS. Veuillez réessayer plus tard.'
+        message: 'Erreur technique lors de l\'envoi du SMS. Veuillez réessayer.',
+        errorType: 'SMS_SEND_ERROR',
+        debug: process.env.NODE_ENV === 'development' ? {
+          error: smsError.message,
+          stack: smsError.stack
+        } : undefined
       });
     }
 
@@ -1635,7 +2266,7 @@ const connexion = async (req, res, next) => {
         champ: champRecherche
       });
     }
-
+    
     // Vérifier le statut du compte
     const statutAutorise = user.peutSeConnecter();
     if (!statutAutorise.autorise) {
@@ -2222,7 +2853,7 @@ const forgotPassword = async (req, res, next) => {
 
     // Envoyer le code via WhatsApp
     const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-    const resultatEnvoi = await greenApiService.envoyerCodeResetMotDePasse(
+    const resultatEnvoi = await twilioService.envoyerCodeResetMotDePasse(
       phoneProcessed,
       codeReset,
       nomComplet
@@ -2561,7 +3192,7 @@ const resetPassword = async (req, res, next) => {
 
     // Envoyer un message de confirmation WhatsApp
     try {
-      await greenApiService.envoyerConfirmationResetMotDePasse(
+      await twilioService.envoyerConfirmationResetMotDePasse(
         phoneProcessed,
         utilisateur.prenom
       );
@@ -2677,7 +3308,7 @@ const resendResetCode = async (req, res, next) => {
 
     // Envoyer le nouveau code via WhatsApp
     const nomComplet = `${utilisateur.prenom} ${utilisateur.nom}`;
-    const resultatEnvoi = await greenApiService.envoyerCodeResetMotDePasse(
+    const resultatEnvoi = await twilioService.envoyerCodeResetMotDePasse(
       phoneProcessed,
       nouveauCode,
       nomComplet
@@ -3701,10 +4332,11 @@ const demandeReinitialisationMotDePasse = motDePasseOublie;
 
 module.exports = {
   // Inscription
-  inscription,
+  register,
   inscriptionSMS,
   passerConducteur,
-  register,
+  inscription,
+  chooseChannel,
   verifyCode,
   resendCode,
   

@@ -18,7 +18,13 @@ Thumbs.db
 # 🔐 Fichiers sensibles ou secrets
 .env
 .env.local
-.env.*.local
+.env.*.locals
+
+
+# Fichiers de config Twilio
+twilio-production-config.txt
+twilio-staging-config.txt
+*.txt
 
 # 🧪 Résultats de tests ou coverage
 coverage/
@@ -33,3 +39,25 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 test
+
+# Firebase
+config/serviceAccountKey.json
+
+# Docker
+docker-compose.override.yml
+.env.staging
+.env.production
+
+# Backups
+backups/*.gz
+
+# Uploads (ne pas versionner les fichiers uploadés)
+uploads/*
+!uploads/documents/.gitkeep
+!uploads/photos/.gitkeep
+!uploads/profils/.gitkeep
+!uploads/selfies/.gitkeep
+!uploads/users/.gitkeep
+!uploads/temp/.gitkeep
+!uploads/vehicules/.gitkeep
+

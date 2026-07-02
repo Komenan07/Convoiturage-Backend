@@ -38,7 +38,7 @@ const messageSchema = new mongoose.Schema({
     maxlength: 200
   },
   
-  // Pièces jointes
+  // Pièces jointes (complètement optionnelle)
   pieceJointe: {
     type: {
       type: String,
@@ -48,8 +48,8 @@ const messageSchema = new mongoose.Schema({
     coordonnees: {
       type: {
         type: String,
-        enum: ['Point'],
-        default: 'Point'
+        enum: ['Point']
+        // Pas de default pour éviter la création d'objets vides
       },
       coordinates: {
         type: [Number],
@@ -105,8 +105,8 @@ messageSchema.index({ expediteurId: 1, dateEnvoi: -1 });
 messageSchema.index({ destinataireId: 1, lu: 1 });
 messageSchema.index({ estSignale: 1, moderateurId: 1 });
 
-// Index géospatial pour les coordonnées
-messageSchema.index({ 'pieceJointe.coordonnees': '2dsphere' });
+// Index géospatial pour les coordonnées (sparse = ignore les documents sans ce champ)
+messageSchema.index({ 'pieceJointe.coordonnees': '2dsphere' }, { sparse: true });
 
 const Message = mongoose.model('Message', messageSchema);
 
@@ -192,8 +192,8 @@ class MessageService {
       const skip = (page - 1) * limite;
       
       const messages = await Message.find(filtre)
-        .populate('expediteurId', 'nom prenom avatar')
-        .populate('destinataireId', 'nom prenom avatar')
+        .populate('expediteurId', 'nom prenom photoProfil')
+        .populate('destinataireId', 'nom prenom photoProfil')
         .sort({ dateEnvoi: -1 })
         .skip(skip)
         .limit(limite)
@@ -270,7 +270,7 @@ class MessageService {
         destinataireId: utilisateurId,
         lu: false
       })
-      .populate('expediteurId', 'nom prenom avatar')
+      .populate('expediteurId', 'nom prenom photoProfil')
       .populate('conversationId', 'nom')
       .sort({ dateEnvoi: -1 })
       .lean();
@@ -461,7 +461,7 @@ class MessageService {
           }
         }
       })
-      .populate('expediteurId', 'nom prenom avatar')
+      .populate('expediteurId', 'nom prenom photoProfil')
       .sort({ dateEnvoi: -1 })
       .limit(50)
       .lean();

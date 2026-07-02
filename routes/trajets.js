@@ -1,33 +1,34 @@
 // routes/trajetRoutes.js
 const express = require('express');
-const { body, query, param, validationResult } = require('express-validator');
+const { body, query, param } = require('express-validator');
 const TrajetController = require('../controllers/trajetController');
 const { authMiddleware } = require('../middlewares/authMiddleware');
 const { transformerCoordonneesEnGeoJSON } = require('../middlewares/geoJsonMiddleware');
+const { handleValidationErrors } = require('../middlewares/validation');
 const router = express.Router();
 
 // ===============================================
 // MIDDLEWARE DE VALIDATION DES ERREURS
 // ===============================================
 
-/**
- * Middleware centralisé pour gérer les erreurs de validation
- */
-const handleValidationErrors = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      message: 'Erreurs de validation',
-      errors: errors.array().map(error => ({
-        champ: error.path || error.param,
-        message: error.msg,
-        valeur: error.value
-      }))
-    });
-  }
-  next();
-};
+// /**
+//  * Middleware centralisé pour gérer les erreurs de validation
+//  */
+// const handleValidationErrors = (req, res, next) => {
+//   const errors = validationResult(req);
+//   if (!errors.isEmpty()) {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'Erreurs de validation',
+//       errors: errors.array().map(error => ({
+//         champ: error.path || error.param,
+//         message: error.msg,
+//         valeur: error.value
+//       }))
+//     });
+//   }
+//   next();
+// };
 
 // ===============================================
 // VALIDATIONS RÉUTILISABLES
@@ -40,11 +41,11 @@ const validatePointDepart = [
     .notEmpty().withMessage('Le nom du point de départ est requis')
     .isLength({ min: 2, max: 200 }).withMessage('Le nom doit contenir entre 2 et 200 caractères'),
   body('pointDepart.adresse')
-    .notEmpty().withMessage('L\'adresse du point de départ est requise')
+    // .notEmpty().withMessage('L\'adresse du point de départ est requise')
     .trim()
     .isLength({ max: 500 }).withMessage('L\'adresse ne peut pas dépasser 500 caractères'),
   body('pointDepart.coordonnees')
-    .notEmpty().withMessage('Les coordonnées du point de départ sont requises')
+    // .notEmpty().withMessage('Les coordonnées du point de départ sont requises')
     .custom((value) => {
       // ✅ Accepter le format GeoJSON
       if (value.type === 'Point' && Array.isArray(value.coordinates)) {
@@ -81,15 +82,14 @@ const validatePointDepart = [
     .trim()
     .isLength({ max: 100 }).withMessage('Le nom de la ville ne peut pas dépasser 100 caractères'),
   body('pointDepart.commune')
-    .notEmpty().withMessage('La commune du point de départ est requise')
+    .optional()
     .trim()
     .isLength({ max: 100 }).withMessage('La commune ne peut pas dépasser 100 caractères'),
   body('pointDepart.quartier')
-    .notEmpty().withMessage('Le quartier du point de départ est requis')
+    .optional()
     .trim()
     .isLength({ max: 100 }).withMessage('Le quartier ne peut pas dépasser 100 caractères')
 ];
-
 
 // Validation du point d'arrivée
 const validatePointArrivee = [
@@ -139,11 +139,11 @@ const validatePointArrivee = [
     .trim()
     .isLength({ max: 100 }).withMessage('Le nom de la ville ne peut pas dépasser 100 caractères'),
   body('pointArrivee.commune')
-    .notEmpty().withMessage('La commune du point d\'arrivée est requise')
+    .optional()
     .trim()
     .isLength({ max: 100 }).withMessage('La commune ne peut pas dépasser 100 caractères'),
   body('pointArrivee.quartier')
-    .notEmpty().withMessage('Le quartier du point d\'arrivée est requis')
+    .optional()
     .trim()
     .isLength({ max: 100 }).withMessage('Le quartier ne peut pas dépasser 100 caractères')
 ];
@@ -280,7 +280,7 @@ const validatePreferences = [
     .isBoolean().withMessage('La préférence musique doit être un booléen'),
   body('preferences.conversation')
     .optional()
-    .isIn(['AUCUNE', 'LIMITEE', 'LIBRE'])
+    .isIn(['AUCUNE', 'LIMITEE', 'MODERE', 'LIBRE'])
     .withMessage('Type de conversation invalide'),
   body('preferences.fumeur')
     .optional()
@@ -397,7 +397,7 @@ router.get('/conducteur/:conducteurId', [
  * @desc    Obtenir tous les trajets expirés (admin/monitoring)
  * @access  Public (à sécuriser en production)
  */
-router.get('/expires', [
+router.get('/expirer', [
   query('page')
     .optional()
     .isInt({ min: 1 }).withMessage('Numéro de page invalide'),
@@ -409,6 +409,118 @@ router.get('/expires', [
 // ===============================================
 // ROUTES PROTÉGÉES (authentification requise)
 // ===============================================
+
+/**
+ * ⭐ Route de prévisualisation de distance
+ * @route   POST /api/trajets/preview-distance
+ * @desc    Prévisualiser la distance et durée AVANT de créer un trajet
+ * @access  Privé
+ */
+router.post('/preview-distance',
+  authMiddleware,
+  transformerCoordonneesEnGeoJSON, 
+  [
+    // Validation du point de départ
+    body('pointDepart.nom')
+      .trim()
+      .notEmpty().withMessage('Le nom du point de départ est requis')
+      .isLength({ min: 2, max: 200 }).withMessage('Le nom doit contenir entre 2 et 200 caractères'),
+    
+    body('pointDepart.adresse')
+      .notEmpty().withMessage('L\'adresse du point de départ est requise')
+      .trim()
+      .isLength({ max: 500 }).withMessage('L\'adresse ne peut pas dépasser 500 caractères'),
+    
+    body('pointDepart.coordonnees')
+      .notEmpty().withMessage('Les coordonnées du point de départ sont requises')
+      .custom((value) => {
+        // Après transformation, on attend du GeoJSON
+        if (!value.type || value.type !== 'Point') {
+          throw new Error('Format de coordonnées invalide après transformation');
+        }
+        if (!Array.isArray(value.coordinates) || value.coordinates.length !== 2) {
+          throw new Error('Les coordonnées doivent contenir [longitude, latitude]');
+        }
+        const [longitude, latitude] = value.coordinates;
+        if (typeof longitude !== 'number' || typeof latitude !== 'number') {
+          throw new Error('Les coordonnées doivent être des nombres');
+        }
+        if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+          throw new Error('Coordonnées hors limites');
+        }
+        return true;
+      }),
+    
+    body('pointDepart.commune')
+      .notEmpty().withMessage('La commune du point de départ est requise')
+      .trim()
+      .isLength({ max: 100 }).withMessage('La commune ne peut pas dépasser 100 caractères'),
+    
+    body('pointDepart.quartier')
+      .notEmpty().withMessage('Le quartier du point de départ est requis')
+      .trim()
+      .isLength({ max: 100 }).withMessage('Le quartier ne peut pas dépasser 100 caractères'),
+
+    // Validation du point d'arrivée
+    body('pointArrivee.nom')
+      .trim()
+      .notEmpty().withMessage('Le nom du point d\'arrivée est requis')
+      .isLength({ min: 2, max: 200 }).withMessage('Le nom doit contenir entre 2 et 200 caractères'),
+    
+    body('pointArrivee.adresse')
+      .notEmpty().withMessage('L\'adresse du point d\'arrivée est requise')
+      .trim()
+      .isLength({ max: 500 }).withMessage('L\'adresse ne peut pas dépasser 500 caractères'),
+    
+    body('pointArrivee.coordonnees')
+      .notEmpty().withMessage('Les coordonnées du point d\'arrivée sont requises')
+      .custom((value) => {
+        if (!value.type || value.type !== 'Point') {
+          throw new Error('Format de coordonnées invalide après transformation');
+        }
+        if (!Array.isArray(value.coordinates) || value.coordinates.length !== 2) {
+          throw new Error('Les coordonnées doivent contenir [longitude, latitude]');
+        }
+        const [longitude, latitude] = value.coordinates;
+        if (typeof longitude !== 'number' || typeof latitude !== 'number') {
+          throw new Error('Les coordonnées doivent être des nombres');
+        }
+        if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+          throw new Error('Coordonnées hors limites');
+        }
+        return true;
+      }),
+    
+    body('pointArrivee.commune')
+      .notEmpty().withMessage('La commune du point d\'arrivée est requise')
+      .trim()
+      .isLength({ max: 100 }).withMessage('La commune ne peut pas dépasser 100 caractères'),
+    
+    body('pointArrivee.quartier')
+      .notEmpty().withMessage('Le quartier du point d\'arrivée est requis')
+      .trim()
+      .isLength({ max: 100 }).withMessage('Le quartier ne peut pas dépasser 100 caractères'),
+
+    // Validation optionnelle de l'heure et date
+    body('heureDepart')
+      .optional()
+      .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/)
+      .withMessage('L\'heure de départ doit être au format HH:MM (ex: 14:30)'),
+    
+    body('dateDepart')
+      .optional()
+      .isISO8601().withMessage('La date de départ doit être au format ISO 8601')
+      .custom((value) => {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) {
+          throw new Error('Date invalide');
+        }
+        return true;
+      })
+  ],
+  handleValidationErrors,
+  TrajetController.previewDistance
+);
 
 /**
  * @route   POST /api/trajets/ponctuel
@@ -504,8 +616,8 @@ router.get('/historique',
       .withMessage('Type d\'historique invalide (tous, conduits, reserves)'),
     query('statut')
       .optional()
-      .isIn(['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE', 'EXPIRE'])
-      .withMessage('Statut invalide'),
+      .isIn(['TERMINE', 'ANNULE'])
+      .withMessage('Statut invalide pour un historique'),
     query('page')
       .optional()
       .isInt({ min: 1 }).withMessage('Numéro de page invalide'),
@@ -590,6 +702,55 @@ router.patch('/:id/preferences',
   ],
   handleValidationErrors,
   TrajetController.modifierPreferences
+);
+
+
+// : Recalculer distance manuellement
+router.patch(
+  '/:id/recalculer-distance',
+  authMiddleware,
+  TrajetController.recalculerDistance
+);
+
+/**
+ * @route   POST /api/trajets/:id/demarrer
+ * @desc    Démarrer un trajet (PROGRAMME → EN_COURS)
+ * @access  Privé (Conducteur uniquement)
+ */
+router.post('/:id/demarrer', 
+  authMiddleware,
+  [
+    param('id')
+      .isMongoId().withMessage('ID du trajet invalide'),
+    body('heureDepart')
+      .optional()
+  ],
+  handleValidationErrors,
+  TrajetController.demarrerTrajet
+);
+
+/**
+ * @route   POST /api/trajets/:id/terminer
+ * @desc    Terminer un trajet (EN_COURS → TERMINE)
+ * @access  Privé (Conducteur uniquement)
+ */
+router.post('/:id/terminer', 
+  authMiddleware,
+  [
+    param('id')
+      .isMongoId().withMessage('ID du trajet invalide'),
+    body('heureArrivee')
+      .optional()
+      .isISO8601().withMessage('Format de date invalide'),
+    body('distanceReelle')
+      .optional()
+      .isFloat({ min: 0 }).withMessage('Distance invalide'),
+    body('dureeReelle')
+      .optional()
+      .isInt({ min: 0 }).withMessage('Durée invalide')
+  ],
+  handleValidationErrors,
+  TrajetController.terminerTrajet
 );
 
 /**
@@ -677,6 +838,7 @@ router.get('/health', (req, res) => {
     version: '1.0.0',
     endpoints: {
       creation: [
+        'POST /preview-distance - Prévisualiser distance/durée',
         'POST /ponctuel - Créer un trajet ponctuel',
         'POST /recurrent - Créer un trajet récurrent'
       ],
@@ -722,6 +884,7 @@ router.get('/:id',
     param('id')
       .isMongoId().withMessage('ID du trajet invalide')
   ],
+  authMiddleware,
   handleValidationErrors,
   TrajetController.obtenirDetailsTrajet
 );
@@ -781,6 +944,5 @@ router.use((error, req, res, next) => {
   // Propager les autres erreurs au handler global
   next(error);
 });
-
 
 module.exports = router;

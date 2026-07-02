@@ -234,8 +234,8 @@ const requireModificationPermission = authorize(
 router.post('/submit',
   protectUser,
   verificationLimiter,
-  debugVerificationUpload,      // 🔍 Debug - voir les fichiers reçus
   uploadVerificationFiles,
+  debugVerificationUpload,      
   validateFlutterSubmission,
   handleValidationErrors,
   soumettreVerification

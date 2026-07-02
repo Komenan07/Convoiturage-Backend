@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Véhicule Non Validé - WAYZ-ECO</title>
+</head>
+<body style="margin: 0; padding: 0; background: linear-gradient(135deg, #f8f9fa 0%); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="padding: 20px 0; text-align: center;">
+                <!-- Container principal -->
+                <table role="presentation" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); padding: 40px 30px; text-align: center;">
+                            <div style="font-size: 60px; margin-bottom: 20px;">❌</div>
+                            <h1 style="color: white; font-size: 28px; margin: 0;">Véhicule Non Validé</h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Contenu -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <p style="font-size: 18px; color: #333;">Bonjour <strong>{{nomComplet}}</strong>,</p>
+                            
+                            <div style="background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%); border-left: 5px solid #dc3545; padding: 25px; border-radius: 10px; margin: 25px 0;">
+                                <p style="color: #333; margin: 0 0 15px 0;">
+                                    Votre véhicule <strong>{{vehicule}}</strong> ({{immatriculation}}) n'a malheureusement pas pu être validé.
+                                </p>
+                                
+                                <div style="background: white; border-radius: 8px; padding: 20px; margin-top: 20px;">
+                                    <p style="color: #dc3545; font-weight: 600; margin: 0 0 10px 0;">
+                                        📋 Raison du rejet :
+                                    </p>
+                                    <p style="color: #666; margin: 0; line-height: 1.6;">
+                                        {{raison}}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div style="background: #e8f5e8; border-radius: 12px; padding: 25px; margin: 30px 0;">
+                                <h3 style="color: #2E8B57; margin: 0 0 15px 0;">
+                                    🔧 Prochaines étapes
+                                </h3>
+                                <ol style="color: #666; line-height: 1.8; margin: 0; padding-left: 20px;">
+                                    <li>Corrigez les problèmes mentionnés ci-dessus</li>
+                                    <li>Mettez à jour les informations de votre véhicule</li>
+                                    <li>Soumettez à nouveau votre véhicule pour validation</li>
+                                </ol>
+                            </div>
+
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="#" style="display: inline-block; background: linear-gradient(135deg, #2E8B57 0%, #6A5ACD 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 50px; font-weight: 600;">
+                                    📱 Modifier mon Véhicule
+                                </a>
+                            </div>
+
+                            <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                                💡 <strong>Besoin d'aide ?</strong><br>
+                                Notre équipe support est disponible pour vous assister dans la correction de votre dossier.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
+                            <p style="color: #2E8B57; font-size: 14px; font-weight: 600; margin: 0 0 10px 0;">
+                                📞 +225 0779947665 | 📧 support@wayzeco.com
+                            </p>
+                            <p style="color: #999; font-size: 12px; margin: 10px 0 0 0;">
+                                © 2025 WAYZ-ECO - Côte d'Ivoire 🇨🇮
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

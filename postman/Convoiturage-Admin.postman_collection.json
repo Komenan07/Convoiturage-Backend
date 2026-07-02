@@ -1,0 +1,52 @@
+{
+  "info": {
+    "name": "Convoiturage - Admin",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Admin endpoints. Uses admin_email/admin_password and sets {{admin_token}} via pre-request script."
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "if (!pm.environment.get('admin_token')) {",
+          "  pm.sendRequest({",
+          "    url: pm.environment.get('baseUrl') + '/admin/login',",
+          "    method: 'POST',",
+          "    header: { 'Content-Type': 'application/json' },",
+          "    body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('admin_email'), password: pm.environment.get('admin_password') }) }",
+          "  }, function (err, res) {",
+          "    if (!err && res.code === 200) {",
+          "      try { var json = res.json(); var token = json.token || json.data?.token; if (token) pm.environment.set('admin_token', token); } catch(e){}",
+          "    }",
+          "  });",
+          "}"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Admin Auth",
+      "item": [
+        {
+          "name": "Admin Login (set admin_token)",
+          "request": { "method": "POST", "header": [ { "key":"Content-Type","value":"application/json" } ], "body": { "mode":"raw", "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}" }, "url": { "raw": "{{baseUrl}}/admin/login", "host": ["{{baseUrl}}"], "path": ["admin","login"] } }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Users",
+      "item": [
+        { "name": "Get all users", "request": { "method": "GET", "header": [ { "key":"Authorization","value":"Bearer {{admin_token}}" } ], "url": { "raw": "{{baseUrl}}/admin/users", "host": ["{{baseUrl}}"], "path": ["admin","users"] } } }
+      ]
+    },
+    {
+      "name": "Admin - Trajets",
+      "item": [
+        { "name": "Get all trajets", "request": { "method": "GET", "header": [ { "key":"Authorization","value":"Bearer {{admin_token}}" } ], "url": { "raw": "{{baseUrl}}/admin/trajets", "host": ["{{baseUrl}}"], "path": ["admin","trajets"] } } }
+      ]
+    }
+  ]
+}

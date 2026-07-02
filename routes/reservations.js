@@ -105,7 +105,7 @@ const validateStatutPaiement = [
     .withMessage('Statut de paiement invalide'),
   body('methodePaiement')
     .optional()
-    .isIn(['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'])
+    .isIn(['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY','MOBILE_MONEY'])
     .withMessage('Méthode de paiement invalide'),
   body('referencePaiement')
     .optional()
@@ -121,6 +121,80 @@ const validatePosition = [
   body('longitude')
     .isFloat({ min: -180, max: 180 })
     .withMessage('Longitude invalide (-180 à 180)')
+];
+
+const validateFraisSupplementaires = [
+  body('type')
+    .isIn(['PEAGE', 'PARKING', 'ESSENCE_SUPPLEMENTAIRE', 'AUTRE'])
+    .withMessage('Type de frais invalide (PEAGE, PARKING, ESSENCE_SUPPLEMENTAIRE, AUTRE)'),
+  body('montant')
+    .isFloat({ min: 0 })
+    .withMessage('Le montant doit être supérieur ou égal à 0'),
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('La description ne peut dépasser 200 caractères'),
+  body('repartition')
+    .optional()
+    .isIn(['EQUITABLE', 'CONDUCTEUR_SEUL'])
+    .withMessage('Répartition invalide (EQUITABLE, CONDUCTEUR_SEUL)')
+];
+
+const validateEvaluation = [
+  body('typeEvaluation')
+    .isIn(['PASSAGER_VERS_CONDUCTEUR', 'CONDUCTEUR_VERS_PASSAGER'])
+    .withMessage('Type d\'évaluation invalide'),
+  body('note')
+    .isFloat({ min: 1, max: 5 })
+    .withMessage('La note doit être entre 1 et 5'),
+  body('criteres.ponctualite')
+    .optional()
+    .isInt({ min: 1, max: 5 })
+    .withMessage('La ponctualité doit être entre 1 et 5'),
+  body('criteres.proprete')
+    .optional()
+    .isInt({ min: 1, max: 5 })
+    .withMessage('La propreté doit être entre 1 et 5'),
+  body('criteres.qualiteConduite')
+    .optional()
+    .isInt({ min: 1, max: 5 })
+    .withMessage('La qualité de conduite doit être entre 1 et 5'),
+  body('criteres.respect')
+    .optional()
+    .isInt({ min: 1, max: 5 })
+    .withMessage('Le respect doit être entre 1 et 5'),
+  body('criteres.communication')
+    .optional()
+    .isInt({ min: 1, max: 5 })
+    .withMessage('La communication doit être entre 1 et 5'),
+  body('commentaire')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Le commentaire ne peut dépasser 500 caractères'),
+  body('signalements')
+    .optional()
+    .isArray()
+    .withMessage('Les signalements doivent être un tableau'),
+  body('signalements.*')
+  .optional()
+  .isIn(['CONDUITE_DANGEREUSE', 'HARCELEMENT', 'VEHICULE_NON_CONFORME', 
+         'RETARD_EXCESSIF', 'AUTRE'])
+  .withMessage('Type de signalement invalide')
+];
+
+const validateConducteursProches = [
+  query('latitude')
+    .isFloat({ min: -90, max: 90 })
+    .withMessage('Latitude invalide (-90 à 90)'),
+  query('longitude')
+    .isFloat({ min: -180, max: 180 })
+    .withMessage('Longitude invalide (-180 à 180)'),
+  query('rayon')
+    .optional()
+    .isInt({ min: 100, max: 5000 })
+    .withMessage('Le rayon doit être entre 100 et 5000 mètres')
 ];
 
 // Routes principales
@@ -168,6 +242,31 @@ router.get('/mes-reservations',
   ],
   handleValidationErrors,
   ReservationController.obtenirMesReservations
+);
+
+/**
+ * @route   GET /api/reservations/reservations-recues
+ * @desc    Obtenir les réservations reçues (conducteur connecté)
+ * @access  Private
+ */
+router.get('/reservations-recues',
+  authMiddleware.requireAuth,
+  [
+    query('statut')
+      .optional()
+      .isIn(['EN_ATTENTE', 'CONFIRMEE', 'REFUSEE', 'ANNULEE', 'TERMINEE'])
+      .withMessage('Statut invalide'),
+    query('page')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('Le numéro de page doit être supérieur à 0'),
+    query('limite')
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage('La limite doit être entre 1 et 100')
+  ],
+  handleValidationErrors,
+  ReservationController.obtenirReservationsRecues
 );
 
 /**
@@ -255,22 +354,12 @@ router.put('/:id/annuler',
 /**
  * @route   PUT /api/reservations/:id/terminer
  * @desc    Marquer une réservation comme terminée
- * @access  Private
+ * @access  Private (Conducteur uniquement)
+ * ✅ Supprimé validations notePassager et commentaire
  */
 router.put('/:id/terminer',
   authMiddleware.requireAuth,
-  [
-    ...validateReservationId,
-    body('notePassager')
-      .optional()
-      .isFloat({ min: 1, max: 5 })
-      .withMessage('La note doit être entre 1 et 5'),
-    body('commentaire')
-      .optional()
-      .trim()
-      .isLength({ max: 500 })
-      .withMessage('Le commentaire ne peut dépasser 500 caractères')
-  ],
+  validateReservationId,
   handleValidationErrors,
   ReservationController.terminerReservation
 );
@@ -303,6 +392,136 @@ router.put('/:id/position',
   ],
   handleValidationErrors,
   ReservationController.mettreAJourPosition
+);
+
+/**
+ * @route   POST /api/reservations/:id/frais-supplementaires
+ * @desc    Ajouter des frais supplémentaires (péage, stationnement, etc.)
+ * @access  Private (Conducteur uniquement)
+ */
+router.post('/:id/frais-supplementaires',
+  authMiddleware.requireAuth,
+  [
+    ...validateReservationId,
+    ...validateFraisSupplementaires
+  ],
+  handleValidationErrors,
+  ReservationController.ajouterFraisSupplementaires
+);
+
+/**
+ * @route   GET /api/reservations/:id/frais-supplementaires
+ * @desc    Obtenir les frais supplémentaires d'une réservation
+ * @access  Private (Passager, Conducteur, Admin)
+ */
+router.get('/:id/frais-supplementaires',
+  authMiddleware.requireAuth,
+  validateReservationId,
+  handleValidationErrors,
+  ReservationController.obtenirFraisSupplementaires
+);
+
+// 🆕 NOUVELLES ROUTES - Évaluation
+
+/**
+ * @route   POST /api/reservations/:id/evaluer
+ * @desc    Évaluer un trajet (passager évalue conducteur ou vice-versa)
+ * @access  Private
+ */
+router.post('/:id/evaluer',
+  authMiddleware.requireAuth,
+  [
+    ...validateReservationId,
+    ...validateEvaluation
+  ],
+  handleValidationErrors,
+  ReservationController.evaluerTrajet
+);
+
+// 🆕 NOUVELLES ROUTES - Prise en charge
+
+/**
+ * @route   POST /api/reservations/:id/confirmer-prise-en-charge
+ * @desc    Confirmer la prise en charge du passager
+ * @access  Private (Conducteur uniquement)
+ */
+router.post('/:id/confirmer-prise-en-charge',
+  authMiddleware.requireAuth,
+  [
+    ...validateReservationId,
+    body('latitude')
+      .optional()
+      .isFloat({ min: -90, max: 90 })
+      .withMessage('Latitude invalide (-90 à 90)'),
+    body('longitude')
+      .optional()
+      .isFloat({ min: -180, max: 180 })
+      .withMessage('Longitude invalide (-180 à 180)')
+  ],
+  handleValidationErrors,
+  ReservationController.confirmerPriseEnCharge
+);
+
+// 🆕 NOUVELLES ROUTES - Suivi itinéraire
+
+/**
+ * @route   POST /api/reservations/:id/verifier-itineraire
+ * @desc    Vérifier si le véhicule est sur l'itinéraire prévu
+ * @access  Private (Passager ou Conducteur)
+ */
+router.post('/:id/verifier-itineraire',
+  authMiddleware.requireAuth,
+  [
+    ...validateReservationId,
+    ...validatePosition
+  ],
+  handleValidationErrors,
+  ReservationController.verifierItineraire
+);
+
+// 🆕 NOUVELLES ROUTES - Contacts
+
+/**
+ * @route   GET /api/reservations/:id/contacts
+ * @desc    Obtenir les contacts partagés (téléphone/WhatsApp)
+ * @access  Private (Passager ou Conducteur)
+ */
+router.get('/:id/contacts',
+  authMiddleware.requireAuth,
+  validateReservationId,
+  handleValidationErrors,
+  ReservationController.obtenirContactsPartages
+);
+
+// 🆕 NOUVELLES ROUTES - Répartition financière
+
+/**
+ * @route   GET /api/reservations/:id/repartition-financiere
+ * @desc    Obtenir la répartition financière détaillée (500F split)
+ * @access  Private (Conducteur, Admin)
+ */
+router.get('/:id/repartition-financiere',
+  authMiddleware.requireAuth,
+  validateReservationId,
+  handleValidationErrors,
+  ReservationController.obtenirRepartitionFinanciere
+);
+
+// 🆕 NOUVELLES ROUTES - Détection conflits
+
+/**
+ * @route   GET /api/reservations/:id/conducteurs-proches
+ * @desc    Détecter les conducteurs proches (éviter double réservation)
+ * @access  Private
+ */
+router.get('/:id/conducteurs-proches',
+  authMiddleware.requireAuth,
+  [
+    ...validateReservationId,
+    ...validateConducteursProches
+  ],
+  handleValidationErrors,
+  ReservationController.detecterConducteursProches
 );
 
 /**

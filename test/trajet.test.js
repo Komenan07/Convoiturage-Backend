@@ -18,6 +18,7 @@
 const request = require('supertest');
 const mongoose = require('mongoose');
 const app = require('../server');
+const Utilisateur = require('../models/Utilisateur');
 
 describe('API Trajets', () => {
   let authToken;
@@ -28,19 +29,22 @@ describe('API Trajets', () => {
     // Connexion à une base de test
     await mongoose.connect('mongodb://localhost:27017/covoiturage_test');
     
-    // Créer un utilisateur de test et récupérer le token
-    const userResponse = await request(app)
-      .post('/api/auth/register')
-      .send({
-        nom: 'Test',
-        prenom: 'User',
-        email: 'test@example.com',
-        telephone: '0123456789',
-        password: 'password123'
-      });
-    
-    authToken = userResponse.body.token;
-    userId = userResponse.body.user.id;
+    // Créer un utilisateur de test directement dans la DB puis se connecter pour obtenir le token
+    await Utilisateur.deleteMany({});
+    const newUser = new Utilisateur({
+      nom: 'Test',
+      prenom: 'User',
+      email: 'test@example.com',
+      telephone: '+2250123456789',
+      motDePasse: 'password123',
+      statutCompte: 'ACTIF',
+      estVerifie: true
+    });
+    await newUser.save();
+
+    // Générer un token directement (compte marqué ACTIF)
+    authToken = newUser.getSignedJwtToken();
+    userId = newUser._id;
   });
 
   afterAll(async () => {

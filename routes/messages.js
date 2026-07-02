@@ -3,7 +3,6 @@ const express = require('express');
 const router = express.Router();
 const MessageController = require('../controllers/messageController');
 const { 
-  authentificationRequise,
   verifierAccesConversation,
   limiterTaux,
   validerMessage,
@@ -11,6 +10,8 @@ const {
   validerModelePredefini,
   validerSignalement
 } = require('../middlewares/messageMiddleware');
+
+const {protect : authentificationRequise} = require('../middlewares/authMiddleware')
 
 // ===========================================
 // ROUTES CREATE - Création de messages

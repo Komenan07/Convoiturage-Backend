@@ -1,510 +1,842 @@
-// Importation du modèle avec gestion d'erreur
-let Evaluation;
-try {
-  Evaluation = require('../models/Evaluation');
-} catch (error) {
-  console.warn('⚠️ Modèle Evaluation non trouvé, utilisation d\'un mock');
-
-  // Mock du modèle Evaluation si non trouvé
-  Evaluation = {
-    findOne: async (_query) => null,
-    find: (_query) => ({
-      sort: () => ({
-        skip: () => ({
-          limit: () => Promise.resolve([])
-        })
-      })
-    }),
-    countDocuments: async () => 0,
-    findById: async () => null,
-    findByIdAndDelete: async () => null,
-    aggregate: async () => [{ totalEvaluations: 0, moyenneGlobale: 0, signalements: 0 }],
-    // Méthode statique mockée
-    calculerMoyenneUtilisateur: async (_userId) => {
-      return {
-        moyenneGlobale: 0,
-        totalEvaluations: 0,
-        repartitionNotes: {}
-      };
-    },
-    // Méthode statique mockée
-    detecterEvaluationsSuspectes: async (_userId) => {
-      return [];
-    },
-  };
-
-  // Constructor mock
-  const EvaluationConstructor = function(data) {
-    Object.assign(this, data);
-    this.save = async () => this;
-    this.peutRepondre = (_userId) => true; // Utilisation de _userId pour indiquer qu'elle est intentionnellement non utilisée
-  };
-
-  // Remplacer le modèle par le constructor
-  Evaluation = EvaluationConstructor;
-  Object.assign(Evaluation, Evaluation);
-}
+// services/evaluationService.js
+const Evaluation = require('../models/Evaluation');
+const Trajet = require('../models/Trajet');
+const Reservation = require('../models/Reservation');
+const Utilisateur = require('../models/Utilisateur');
+const { logger } = require('../utils/logger');
 
 class EvaluationService {
+
+  
+  // ========================================
+  // 🆕 WORKFLOW ÉVALUATION EN ATTENTE
+  // ========================================
+
   /**
-   * Créer une nouvelle évaluation
-   * @param {Object} data - Données de l'évaluation
-   * @param {string} evaluateurId - ID de l'utilisateur qui évalue
-   * @returns {Promise<Object>} - Évaluation créée
+   * Créer une évaluation en attente
    */
+  async creerEvaluationEnAttente(trajetId, evaluateurId, evalueId, typeEvaluateur) {
+    try {
+      // Vérifier qu'une évaluation n'existe pas déjà
+      const existante = await Evaluation.findOne({
+        trajetId,
+        evaluateurId
+      });
+
+      if (existante) {
+        throw new Error('Vous avez déjà créé une évaluation pour ce trajet');
+      }
+
+      // Créer l'évaluation en attente
+      const evaluation = new Evaluation({
+        trajetId,
+        evaluateurId,
+        evalueId,
+        typeEvaluateur,
+        statutEvaluation: 'EN_ATTENTE',
+        evaluationObligatoire: typeEvaluateur === 'PASSAGER'
+      });
+
+      await evaluation.save();
+
+      logger.info('✅ Évaluation en attente créée', { trajetId, evaluateurId, evalueId });
+
+      return evaluation;
+    } catch (error) {
+      logger.error('❌ Erreur création évaluation en attente:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Compléter une évaluation en attente
+   */
+  /**
+ * Compléter une évaluation en attente
+ */
+  async completerEvaluation(id, userId, typeUtilisateur, donnees) {
+  try {
+    let evaluation = null;
+
+    evaluation = await Evaluation.findById(id);
+
+    if(!evaluation){
+      evaluation = await Evaluation.findOne({
+        trajetId : id,
+        evaluateurId: userId,
+      })
+    }
+
+    if (!evaluation) {
+      throw new Error('Évaluation non trouvée');
+    }
+
+    
+
+    // ✅ VÉRIFICATION : Est-ce le bon évaluateur ?
+    if (evaluation.evaluateurId.toString() !== userId.toString()) {
+      throw new Error('Vous n\'êtes pas autorisé à compléter cette évaluation');
+    }
+
+    // ✅ Si déjà complétée, retourner l'évaluation existante (comportement idempotent)
+    if (evaluation.statutEvaluation === 'COMPLETEE') {
+      logger.info('ℹ️ Évaluation déjà complétée, retour de l\'existante', { 
+        id, 
+        userId 
+      });
+      return evaluation; // ✅ Retourne au lieu de throw
+    }
+
+    // ✅ Vérifier si expirée
+    if (evaluation.statutEvaluation === 'EXPIREE') {
+      throw new Error('Cette évaluation a expiré');
+    }
+
+    // ✅ Vérifier le délai (7 jours)
+    const delai = evaluation.calculerDelaiRestant();
+    if (delai.expire) {
+      evaluation.statutEvaluation = 'EXPIREE';
+      await evaluation.save();
+      throw new Error('Le délai pour compléter cette évaluation est expiré');
+    }
+
+    // ✅ Mettre à jour l'évaluation
+    evaluation.notes = {
+      ponctualite: donnees.notes.ponctualite,
+      proprete: donnees.notes.proprete,
+      qualiteConduite: donnees.notes.qualiteConduite,
+      respect: donnees.notes.respect,
+      communication: donnees.notes.communication,
+      // noteGlobale sera calculée par le pre-save hook
+    };
+    
+    evaluation.commentaire = donnees.commentaire;
+    evaluation.aspectsPositifs = donnees.aspectsPositifs || [];
+    evaluation.aspectsAmeliorer = donnees.aspectsAmeliorer || [];
+    evaluation.estSignalement = donnees.estSignalement || false;
+    evaluation.motifSignalement = donnees.motifSignalement;
+    evaluation.gravite = donnees.gravite;
+    evaluation.statutEvaluation = 'COMPLETEE';
+    evaluation.dateCompletion = new Date();
+
+    await evaluation.save();
+
+    // ✅ Mettre à jour le score de confiance de l'utilisateur évalué
+    await this.mettreAJourScoreConfiance(evaluation.evalueId);
+
+    logger.info('✅ Évaluation complétée', { 
+      id, 
+      userId,
+      noteGlobale: evaluation.notes.noteGlobale 
+    });
+
+    return evaluation;
+  } catch (error) {
+    logger.error('❌ Erreur complétion évaluation:', error);
+    throw error;
+  }
+  }
+
+  /**
+   * Obtenir les évaluations en attente d'un utilisateur
+   */
+  async obtenirEvaluationsEnAttente(userId) {
+    try {
+      return await Evaluation.getEvaluationsEnAttente(userId);
+    } catch (error) {
+      logger.error('❌ Erreur récupération évaluations en attente:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Vérifier le délai d'une évaluation
+   */
+  async verifierDelaiEvaluation(evaluationId, userId) {
+    try {
+      const evaluation = await Evaluation.findOne({
+        _id: evaluationId,
+        evaluateurId: userId
+      });
+
+      if (!evaluation) {
+        throw new Error('Évaluation non trouvée');
+      }
+
+      return evaluation.calculerDelaiRestant();
+    } catch (error) {
+      logger.error('❌ Erreur vérification délai:', error);
+      throw error;
+    }
+  }
+
+  // ========================================
+  // 🆕 PRISE EN CHARGE (ANTI-FRAUDE)
+  // ========================================
+
+  /**
+   * Signaler une prise en charge
+   */
+  async signalerPriseEnCharge(trajetId, conducteurId, passagerId, localisation) {
+    try {
+      // 1. Vérifier que le trajet existe
+      const trajet = await Trajet.findById(trajetId);
+      if (!trajet) {
+        throw new Error('Trajet introuvable');
+      }
+
+      // 2. Vérifier que c'est bien le conducteur du trajet
+      if (trajet.conducteurId.toString() !== conducteurId.toString()) {
+        throw new Error('Vous n\'êtes pas le conducteur de ce trajet');
+      }
+
+      // 3. Vérifier que le passager a une réservation confirmée
+      const reservation = await Reservation.findOne({
+        trajetId,
+        passagerId,
+        statutReservation: 'CONFIRMEE' 
+      });
+
+      if (!reservation) {
+        throw new Error('Aucune réservation confirmée trouvée pour ce passager');
+      }
+
+      // 4. Vérifier si déjà confirmée
+      const evaluationExistante = await Evaluation.findOne({
+        trajetId,
+        evalueId: passagerId,
+        'priseEnCharge.confirmee': true
+      });
+
+      if (evaluationExistante) {
+        throw new Error('Prise en charge déjà confirmée pour ce passager');
+      }
+
+      // 5. Détecter conducteurs proches (anti-fraude)
+      const detection = await Evaluation.detecterConducteursProches(
+        trajetId,
+        [localisation.longitude, localisation.latitude],
+        500
+      );
+
+      // 6. Créer ou mettre à jour l'évaluation avec prise en charge
+      const evaluation = await Evaluation.findOneAndUpdate(
+        {
+          trajetId,
+          evaluateurId: conducteurId,
+          evalueId: passagerId
+        },
+        {
+          $set: {
+            'priseEnCharge.confirmee': true,
+            'priseEnCharge.datePriseEnCharge': new Date(),
+            'priseEnCharge.localisationPriseEnCharge': {
+              type: 'Point',
+              coordinates: [localisation.longitude, localisation.latitude]
+            },
+            'priseEnCharge.conducteurConfirmateur': conducteurId,
+            'priseEnCharge.alerteDoublon': detection.alerteFraude,
+            'priseEnCharge.nombreConducteursProches': detection.nombreConducteurs
+          }
+        },
+        { 
+          new: true, 
+          upsert: true
+        }
+      );
+
+      logger.info('✅ Prise en charge confirmée', {
+        trajetId,
+        conducteurId,
+        passagerId,
+        alerteFraude: detection.alerteFraude
+      });
+
+      return {
+        evaluation,
+        alerteFraude: detection.alerteFraude,
+        nombreConducteursProches: detection.nombreConducteurs,
+        localisation
+      };
+
+    } catch (error) {
+      logger.error('❌ Erreur signalement prise en charge:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtenir les prises en charge d'un trajet
+   */
+  async obtenirPrisesEnChargeTrajet(trajetId) {
+    try {
+      const prisesEnCharge = await Evaluation.find({
+        trajetId,
+        'priseEnCharge.confirmee': true
+      })
+      .populate('evaluateurId', 'nom prenom')
+      .populate('evalueId', 'nom prenom')
+      .select('priseEnCharge evaluateurId evalueId')
+      .sort({ 'priseEnCharge.datePriseEnCharge': -1 });
+
+      return prisesEnCharge;
+    } catch (error) {
+      logger.error('❌ Erreur récupération prises en charge:', error);
+      throw error;
+    }
+  }
+
+  // ========================================
+  // 📊 STATISTIQUES & BADGES
+  // ========================================
+
+  /**
+   * Obtenir stats pour badges
+   */
+  async obtenirStatsPourBadges(userId) {
+    try {
+      return await Evaluation.getStatsForBadges(userId);
+    } catch (error) {
+      logger.error('❌ Erreur stats badges:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtenir meilleures évaluations
+   */
+  async obtenirMeilleuresEvaluations(limit = 10) {
+    try {
+      return await Evaluation.getMeilleuresEvaluations(limit);
+    } catch (error) {
+      logger.error('❌ Erreur meilleures évaluations:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtenir statistiques globales
+   */
+  async obtenirStatistiquesGlobales() {
+    try {
+      const stats = await Evaluation.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalEvaluations: { $sum: 1 },
+            moyenneGlobale: { $avg: '$notes.noteGlobale' },
+            totalSignalements: {
+              $sum: { $cond: ['$estSignalement', 1, 0] }
+            }
+          }
+        }
+      ]);
+
+      return stats[0] || { totalEvaluations: 0, moyenneGlobale: 0, totalSignalements: 0 };
+    } catch (error) {
+      logger.error('❌ Erreur statistiques globales:', error);
+      throw error;
+    }
+  }
+
+  // ========================================
+  // 👨‍💼 MODÉRATION ADMIN
+  // ========================================
+
+  /**
+   * Masquer une évaluation (admin)
+   */
+  async masquerEvaluation(evaluationId, raison, adminId) {
+    try {
+      const evaluation = await Evaluation.findById(evaluationId);
+
+      if (!evaluation) {
+        throw new Error('Évaluation non trouvée');
+      }
+
+      evaluation.visibilite = 'MASQUEE';
+      evaluation.raisonMasquage = raison;
+      evaluation.dateRevision = new Date();
+
+      await evaluation.save();
+
+      logger.info('✅ Évaluation masquée par admin', { evaluationId, adminId });
+
+      return evaluation;
+    } catch (error) {
+      logger.error('❌ Erreur masquage évaluation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Démasquer une évaluation (admin)
+   */
+  async demasquerEvaluation(evaluationId, adminId) {
+    try {
+      const evaluation = await Evaluation.findById(evaluationId);
+
+      if (!evaluation) {
+        throw new Error('Évaluation non trouvée');
+      }
+
+      evaluation.visibilite = 'PUBLIQUE';
+      evaluation.raisonMasquage = null;
+
+      await evaluation.save();
+
+      logger.info('✅ Évaluation démasquée par admin', { evaluationId, adminId });
+
+      return evaluation;
+    } catch (error) {
+      logger.error('❌ Erreur démasquage évaluation:', error);
+      throw error;
+    }
+  }
+ /**
+ * Récupérer une évaluation par ID avec tous les détails enrichis
+ * @param {String} evaluationId - ID de l'évaluation
+ * @returns {Promise<Object>} Évaluation enrichie avec métadonnées
+ */
+  async getEvaluationById(evaluationId) {
+    try {
+      // 1. Valider le format de l'ID MongoDB
+      const mongoose = require('mongoose');
+      if (!mongoose.Types.ObjectId.isValid(evaluationId)) {
+        throw new Error('ID d\'évaluation invalide');
+      }
+
+      // 2. Récupérer l'évaluation avec tous les populates
+      const evaluation = await Evaluation.findById(evaluationId)
+        .populate({
+          path: 'evaluateurId',
+          select: 'nom prenom email telephone photoProfil scoreConfiance role statut'
+        })
+        .populate({
+          path: 'evalueId',
+          select: 'nom prenom email telephone photoProfil scoreConfiance role statut'
+        })
+        .populate({
+          path: 'trajetId',
+          select: 'pointDepart pointArrivee dateDepart heureDepart prixParPassager placesDisponibles statutTrajet distanceKm dureeEstimee',
+          populate: {
+            path: 'conducteurId',
+            select: 'nom prenom photoProfil'
+          }
+        })
+        .lean();
+
+      if (!evaluation) {
+        throw new Error('Évaluation introuvable');
+      }
+
+      // 3. Calculer les métadonnées supplémentaires
+      const delaiReponseJours = evaluation.dateReponse && evaluation.dateEvaluation
+        ? Math.ceil((new Date(evaluation.dateReponse) - new Date(evaluation.dateEvaluation)) / (1000 * 60 * 60 * 24))
+        : null;
+
+      // 4. Enrichir avec métadonnées utiles
+      const evaluationEnrichie = {
+        ...evaluation,
+        meta: {
+          delaiReponseJours,
+          aReponse: !!evaluation.reponseEvalue,
+          estMasquee: evaluation.visibilite === 'MASQUEE',
+          estEnRevision: evaluation.visibilite === 'EN_REVISION',
+          estSignalement: evaluation.estSignalement,
+          resumeNotes: evaluation.notes ? {
+            ponctualite: evaluation.notes.ponctualite,
+            proprete: evaluation.notes.proprete,
+            qualiteConduite: evaluation.notes.qualiteConduite,
+            respect: evaluation.notes.respect,
+            communication: evaluation.notes.communication,
+            noteGlobale: evaluation.notes.noteGlobale
+          } : null
+        }
+      };
+
+      logger.info('✅ Évaluation récupérée avec succès', { 
+        evaluationId,
+        evalueId: evaluation.evalueId?._id,
+        noteGlobale: evaluation.notes?.noteGlobale 
+      });
+
+      return evaluationEnrichie;
+
+    } catch (error) {
+      logger.error('❌ Erreur getEvaluationById:', error);
+      throw error;
+    }
+  }
+  /**
+   * Récupérer toutes les évaluations d'un utilisateur (admin)
+   * @param {String} userId - ID de l'utilisateur évalué
+   * @param {Object} options - Filtres et pagination
+   */
+  async getEvaluationsUtilisateur(userId, options = {}) {
+    try {
+      const { 
+        page = 1, 
+        limit = 20, 
+        statutEvaluation,
+        visibilite,
+        noteMinimum,
+        noteMaximum
+      } = options;
+
+      // Construction de la query
+      const query = { 
+        evalueId: userId
+      };
+
+      if (statutEvaluation) {
+        query.statutEvaluation = statutEvaluation;
+      }
+
+      if (visibilite) {
+        query.visibilite = visibilite;
+      }
+
+      if (noteMinimum || noteMaximum) {
+        query['notes.noteGlobale'] = {};
+        if (noteMinimum) query['notes.noteGlobale'].$gte = parseFloat(noteMinimum);
+        if (noteMaximum) query['notes.noteGlobale'].$lte = parseFloat(noteMaximum);
+      }
+
+      // Récupération avec populates
+      const evaluations = await Evaluation.find(query)
+        .populate({
+          path: 'evaluateurId',
+          select: 'nom prenom email photoProfil'
+        })
+        .populate({
+          path: 'trajetId',
+          select: 'pointDepart pointArrivee dateDepart'
+        })
+        .sort({ dateEvaluation: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+      const total = await Evaluation.countDocuments(query);
+
+      // Calculer les stats
+      const stats = await Evaluation.getStatistiquesUtilisateur(userId);
+
+      logger.info('✅ Évaluations utilisateur récupérées', { 
+        userId, 
+        count: evaluations.length 
+      });
+
+      return {
+        evaluations,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalItems: total,
+          itemsPerPage: limit
+        },
+        statistiques: stats
+      };
+
+    } catch (error) {
+      logger.error('❌ Erreur getEvaluationsUtilisateur:', error);
+      throw error;
+    }
+  }
+  // ========================================
+  // 📝 MÉTHODES EXISTANTES (conservées)
+  // ========================================
+
+  /**
+ * Créer une évaluation (ancienne méthode - déprécié, utiliser workflow en attente)
+ */
   async creerEvaluation(data, evaluateurId) {
     try {
-      // Vérifier si une évaluation existe déjà
       const existe = await Evaluation.findOne({
         trajetId: data.trajetId,
         evaluateurId: evaluateurId,
         evalueId: data.evalueId
       });
+      
       if (existe) {
         throw new Error('Vous avez déjà évalué cet utilisateur pour ce trajet');
       }
-      // Valider les données requises
-      if (!data.trajetId || !data.evalueId || !data.note) {
-        throw new Error('Données manquantes : trajetId, evalueId et note sont requis');
+
+      if (!data.trajetId || !data.evalueId || !data.notes) {
+        throw new Error('Données manquantes : trajetId, evalueId et notes sont requis');
       }
-      // Vérifier que l'utilisateur ne s'évalue pas lui-même
+
       if (evaluateurId === data.evalueId) {
         throw new Error('Vous ne pouvez pas vous évaluer vous-même');
       }
-      // Créer l'évaluation
-      const evaluationData = {
-        ...data,
+
+      // ✅ CALCULER LA NOTE GLOBALE AVANT LA CRÉATION
+      const { ponctualite, proprete, qualiteConduite, respect, communication } = data.notes;
+      
+      if (!ponctualite || !proprete || !qualiteConduite || !respect || !communication) {
+        throw new Error('Toutes les notes sont obligatoires');
+      }
+
+      const noteGlobale = (ponctualite + proprete + qualiteConduite + respect + communication) / 5;
+
+      // ✅ CRÉER L'ÉVALUATION AVEC LA NOTE GLOBALE CALCULÉE
+      const evaluation = new Evaluation({
+        trajetId: data.trajetId,
         evaluateurId,
         evalueId: data.evalueId,
-        trajetId: data.trajetId,
-        typeEvaluateur: data.typeEvaluateur || 'PASSAGER',
+        typeEvaluateur: data.typeEvaluateur, // ✅ IMPORTANT
         notes: {
-          noteGlobale: data.note,
-          ponctualite: data.criteresEvaluation?.ponctualite || data.note,
-          proprete: data.criteresEvaluation?.proprete || data.note,
-          communication: data.criteresEvaluation?.communication || data.note,
-          conduite: data.criteresEvaluation?.conduite || data.note,
-          comportement: data.criteresEvaluation?.comportement || data.note
+          ponctualite,
+          proprete,
+          qualiteConduite,
+          respect,
+          communication,
+          noteGlobale: Math.round(noteGlobale * 10) / 10 // ✅ CALCULÉE ICI
         },
-        commentaire: data.commentaire || '',
+        commentaire: data.commentaire,
+        aspectsPositifs: data.aspectsPositifs || [],
+        aspectsAmeliorer: data.aspectsAmeliorer || [],
+        estSignalement: data.estSignalement || false,
+        motifSignalement: data.motifSignalement,
+        gravite: data.gravite,
+        statutEvaluation: 'COMPLETEE',
         dateEvaluation: new Date(),
-        estSignalement: false,
-        gravite: 'FAIBLE'
-      };
-      const evaluation = new Evaluation(evaluationData);
+        dateCompletion: new Date()
+      });
+
       await evaluation.save();
+      
+      logger.info('✅ Évaluation créée avec succès', { 
+        evaluationId: evaluation._id,
+        noteGlobale: evaluation.notes.noteGlobale 
+      });
+
+      // Mettre à jour le score de confiance
+      await this.mettreAJourScoreConfiance(evaluation.evalueId);
+
       return evaluation;
     } catch (error) {
-      console.error('Erreur création évaluation:', error);
+      logger.error('❌ Erreur création évaluation:', error);
       throw error;
     }
   }
 
   /**
    * Obtenir les évaluations d'un utilisateur
-   * @param {string} userId - ID de l'utilisateur évalué
-   * @param {Object} options - Options de pagination et filtres
-   * @returns {Promise<Object>} - Liste des évaluations avec pagination
    */
   async obtenirEvaluationsUtilisateur(userId, options = {}) {
     try {
-      const {
-        page = 1,
-        limite = 10,
-        typeEvaluateur,
-        noteMinimum,
-        dateDebut,
-        dateFin
-      } = options;
-      // Construction de la requête
-      const query = { evalueId: userId };
-      if (typeEvaluateur) {
-        query.typeEvaluateur = typeEvaluateur;
-      }
-      if (noteMinimum) {
-        query['notes.noteGlobale'] = { $gte: noteMinimum };
-      }
-      // Filtres de date
-      if (dateDebut || dateFin) {
-        query.dateEvaluation = {};
-        if (dateDebut) query.dateEvaluation.$gte = new Date(dateDebut);
-        if (dateFin) query.dateEvaluation.$lte = new Date(dateFin);
-      }
-      // Exécution des requêtes en parallèle
-      const [evaluations, total] = await Promise.all([
-        Evaluation.find(query)
-          .populate('evaluateurId', 'nom prenom photo')
-          .populate('trajetId', 'depart destination dateDepart')
-          .sort({ dateEvaluation: -1 })
-          .skip((page - 1) * limite)
-          .limit(limite),
-        Evaluation.countDocuments(query)
-      ]);
-      // Calculer les statistiques
-      const statistiques = await this.obtenirMoyenneNotes(userId);
+      const { page = 1, limit = 10, typeEvaluateur, notesMinimum } = options;
+      
+      const query = { 
+        evalueId: userId, 
+        statutEvaluation: 'COMPLETEE',
+        visibilite: 'PUBLIQUE'
+      };
+      
+      if (typeEvaluateur) query.typeEvaluateur = typeEvaluateur;
+      if (notesMinimum) query['notes.noteGlobale'] = { $gte: notesMinimum };
+
+      const evaluations = await Evaluation.find(query)
+        .populate('evaluateurId', 'nom prenom photoProfil')
+        .populate('trajetId', 'depart arrivee dateDepart')
+        .sort({ dateEvaluation: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit);
+
+      const total = await Evaluation.countDocuments(query);
+
       return {
         evaluations,
         pagination: {
-          page: parseInt(page),
-          limite: parseInt(limite),
+          page,
+          limit,
           total,
-          pages: Math.ceil(total / limite)
-        },
-        statistiques
+          pages: Math.ceil(total / limit)
+        }
       };
     } catch (error) {
-      console.error('Erreur obtention évaluations utilisateur:', error);
+      logger.error('❌ Erreur récupération évaluations utilisateur:', error);
       throw error;
     }
   }
 
   /**
    * Obtenir la moyenne des notes d'un utilisateur
-   * @param {string} userId - ID de l'utilisateur
-   * @returns {Promise<Object>} - Statistiques des notes
    */
   async obtenirMoyenneNotes(userId) {
     try {
-      // Utiliser la méthode statique si disponible
-      if (typeof Evaluation.calculerMoyenneUtilisateur === 'function') {
-        return await Evaluation.calculerMoyenneUtilisateur(userId);
-      }
-      // Calcul manuel si méthode statique non disponible
-      const pipeline = [
-        { $match: { evalueId: userId } },
-        {
-          $group: {
-            _id: null,
-            moyenneGlobale: { $avg: '$notes.noteGlobale' },
-            moyennePonctualite: { $avg: '$notes.ponctualite' },
-            moyenneProprete: { $avg: '$notes.proprete' },
-            moyenneCommunication: { $avg: '$notes.communication' },
-            moyenneConduite: { $avg: '$notes.conduite' },
-            moyenneComportement: { $avg: '$notes.comportement' },
-            totalEvaluations: { $sum: 1 },
-            note5: { $sum: { $cond: [{ $eq: ['$notes.noteGlobale', 5] }, 1, 0] } },
-            note4: { $sum: { $cond: [{ $eq: ['$notes.noteGlobale', 4] }, 1, 0] } },
-            note3: { $sum: { $cond: [{ $eq: ['$notes.noteGlobale', 3] }, 1, 0] } },
-            note2: { $sum: { $cond: [{ $eq: ['$notes.noteGlobale', 2] }, 1, 0] } },
-            note1: { $sum: { $cond: [{ $eq: ['$notes.noteGlobale', 1] }, 1, 0] } }
-          }
-        }
-      ];
-      const result = await Evaluation.aggregate(pipeline);
-      if (!result || result.length === 0) {
-        return {
-          moyenneGlobale: 0,
-          totalEvaluations: 0,
-          repartitionNotes: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-        };
-      }
-      const stats = result[0];
-      return {
-        moyenneGlobale: Math.round(stats.moyenneGlobale * 10) / 10,
-        moyennes: {
-          ponctualite: Math.round(stats.moyennePonctualite * 10) / 10,
-          proprete: Math.round(stats.moyenneProprete * 10) / 10,
-          communication: Math.round(stats.moyenneCommunication * 10) / 10,
-          conduite: Math.round(stats.moyenneConduite * 10) / 10,
-          comportement: Math.round(stats.moyenneComportement * 10) / 10
-        },
-        totalEvaluations: stats.totalEvaluations,
-        repartitionNotes: {
-          5: stats.note5,
-          4: stats.note4,
-          3: stats.note3,
-          2: stats.note2,
-          1: stats.note1
-        }
-      };
+      return await Evaluation.calculerMoyenneUtilisateur(userId);
     } catch (error) {
-      console.error('Erreur calcul moyenne notes:', error);
-      return {
-        moyenneGlobale: 0,
-        totalEvaluations: 0,
-        repartitionNotes: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-      };
+      logger.error('❌ Erreur calcul moyenne:', error);
+      throw error;
     }
   }
 
   /**
    * Obtenir les évaluations d'un trajet
-   * @param {string} trajetId - ID du trajet
-   * @returns {Promise<Array>} - Liste des évaluations
    */
   async obtenirEvaluationsTrajet(trajetId) {
     try {
-      const evaluations = await Evaluation.find({ trajetId })
-        .populate('evaluateurId', 'nom prenom photo')
-        .populate('evalueId', 'nom prenom photo')
-        .sort({ dateEvaluation: -1 });
-      const statistiques = {
-        totalEvaluations: evaluations.length,
-        moyenneGlobale: evaluations.length > 0
-          ? evaluations.reduce((sum, evaluation) => sum + evaluation.notes.noteGlobale, 0) / evaluations.length
-          : 0
-      };
-      return {
-        evaluations,
-        statistiques
-      };
+      return await Evaluation.find({ 
+        trajetId,
+        statutEvaluation: 'COMPLETEE',
+        visibilite: 'PUBLIQUE'
+      })
+      .populate('evaluateurId', 'nom prenom photoProfil')
+      .populate('evalueId', 'nom prenom photoProfil')
+      .sort({ dateEvaluation: -1 });
     } catch (error) {
-      console.error('Erreur obtention évaluations trajet:', error);
+      logger.error('❌ Erreur récupération évaluations trajet:', error);
       throw error;
     }
   }
 
   /**
-   * Répondre à une évaluation
-   * @param {string} id - ID de l'évaluation
-   * @param {string} reponse - Réponse de l'utilisateur évalué
-   * @param {string} userId - ID de l'utilisateur qui répond
-   * @returns {Promise<Object>} - Évaluation mise à jour
-   */
-  async repondreEvaluation(id, reponse, userId) {
+ * Répondre à une évaluation
+ */
+  async repondreEvaluation(evaluationId, reponse, userId) {
     try {
-      const evaluation = await Evaluation.findById(id);
+      // ✅ Recherche par ID
+      const evaluation = await Evaluation.findById(evaluationId);
+
       if (!evaluation) {
-        throw new Error('Évaluation introuvable');
+        // 🔍 Log pour debug
+        logger.error('❌ Évaluation introuvable', { evaluationId });
+        throw new Error('Évaluation non trouvée');
       }
-      // Vérifier que c'est l'utilisateur évalué qui répond
-      if (evaluation.evalueId.toString() !== userId) {
-        throw new Error('Non autorisé à répondre à cette évaluation');
+
+      // ✅ Log pour comprendre ce qui se passe
+      logger.info('🔍 Tentative de réponse', {
+        evaluationId,
+        userId,
+        evalueId: evaluation.evalueId.toString(),
+        evaluateurId: evaluation.evaluateurId.toString(),
+        match: evaluation.evalueId.toString() === userId.toString()
+      });
+
+      // ✅ Vérifier que l'utilisateur est bien la personne évaluée 
+      if (evaluation.evalueId.toString() !== userId.toString()) {
+        if (evaluation.evaluateurId.toString() === userId.toString()) {
+          throw new Error('Vous ne pouvez pas répondre à une évaluation que vous avez donnée. Seule la personne évaluée peut répondre.');
+        }
+        throw new Error('Vous n\'êtes pas autorisé à répondre à cette évaluation');
       }
-      // Vérifier qu'il n'y a pas déjà une réponse
+
+      // ✅ Vérifier qu'il n'y a pas déjà une réponse
       if (evaluation.reponseEvalue) {
-        throw new Error('Une réponse a déjà été donnée à cette évaluation');
+        throw new Error('Vous avez déjà répondu à cette évaluation');
       }
-      // Ajouter la réponse
-      evaluation.reponseEvalue = reponse.trim();
+
+      // ✅ Vérifier que l'évaluation est complétée
+      if (evaluation.statutEvaluation !== 'COMPLETEE') {
+        throw new Error('Impossible de répondre à une évaluation non complétée');
+      }
+
+      // ✅ Ajouter la réponse
+      evaluation.reponseEvalue = reponse;
       evaluation.dateReponse = new Date();
+
       await evaluation.save();
+
+      logger.info('✅ Réponse ajoutée avec succès', { evaluationId, userId });
+
       return evaluation;
     } catch (error) {
-      console.error('Erreur réponse évaluation:', error);
+      logger.error('❌ Erreur réponse évaluation:', error.message);
       throw error;
     }
   }
 
   /**
-   * Signaler une évaluation comme abusive
-   * @param {string} id - ID de l'évaluation
-   * @param {string} motif - Motif du signalement
-   * @param {string} userId - ID de l'utilisateur qui signale
-   * @returns {Promise<Object>} - Résultat du signalement
+   * Signaler une évaluation abusive
    */
-  async signalerEvaluationAbusive(id, motif, userId) {
+  async signalerEvaluationAbusive(evaluationId, motif, userId) {
     try {
-      const evaluation = await Evaluation.findById(id);
+      const evaluation = await Evaluation.findById(evaluationId);
+
       if (!evaluation) {
-        throw new Error('Évaluation introuvable');
+        throw new Error('Évaluation non trouvée');
       }
-      // Vérifier que l'utilisateur peut signaler
-      if (evaluation.evalueId.toString() !== userId && evaluation.evaluateurId.toString() !== userId) {
-        throw new Error('Non autorisé à signaler cette évaluation');
-      }
-      // Marquer comme signalée
-      evaluation.estSignalement = true;
-      evaluation.motifSignalement = motif || 'CONTENU_INAPPROPRIE';
-      evaluation.dateSignalement = new Date();
-      evaluation.signalePar = userId;
-      // Définir la gravité selon le motif
-      const graviteMap = {
-        'CONTENU_OFFENSANT': 'ELEVE',
-        'HARCELEMENT': 'CRITIQUE',
-        'DISCRIMINATION': 'CRITIQUE',
-        'FAUSSE_INFORMATION': 'MOYEN',
-        'AUTRE': 'FAIBLE'
-      };
-      evaluation.gravite = graviteMap[motif] || 'MOYEN';
+
+      evaluation.visibilite = 'EN_REVISION';
+      evaluation.raisonMasquage = `Signalement par utilisateur: ${motif}`;
+      evaluation.dateRevision = new Date();
+
       await evaluation.save();
-      return {
-        message: 'Signalement enregistré avec succès',
-        evaluation
-      };
+
+      logger.info('✅ Évaluation signalée', { evaluationId, motif, userId });
+
+      return { message: 'Signalement enregistré, l\'évaluation sera examinée' };
     } catch (error) {
-      console.error('Erreur signalement évaluation:', error);
+      logger.error('❌ Erreur signalement évaluation:', error);
       throw error;
     }
   }
 
   /**
-   * Supprimer une évaluation (admin uniquement)
-   * @param {string} id - ID de l'évaluation
-   * @param {string} adminId - ID de l'administrateur
-   * @returns {Promise<Object>} - Résultat de la suppression
+   * Supprimer une évaluation (admin)
    */
-  async supprimerEvaluation(id, adminId) {
+  async supprimerEvaluation(evaluationId, adminId) {
     try {
-      const evaluation = await Evaluation.findByIdAndDelete(id);
+      const evaluation = await Evaluation.findByIdAndDelete(evaluationId);
+
       if (!evaluation) {
-        throw new Error('Évaluation introuvable ou déjà supprimée');
+        throw new Error('Évaluation non trouvée');
       }
-      // Log de l'action admin
-      console.log(`Évaluation ${id} supprimée par l'admin ${adminId}`);
-      return {
-        message: 'Évaluation supprimée avec succès',
-        evaluation
-      };
+
+      logger.info('✅ Évaluation supprimée par admin', { evaluationId, adminId });
+
+      return { message: 'Évaluation supprimée avec succès' };
     } catch (error) {
-      console.error('Erreur suppression évaluation:', error);
+      logger.error('❌ Erreur suppression évaluation:', error);
       throw error;
     }
   }
 
   /**
-   * Détecter les évaluations suspectes d'un utilisateur
-   * @param {string} userId - ID de l'utilisateur
-   * @returns {Promise<Array>} - Liste des évaluations suspectes
+   * Détecter évaluations suspectes
    */
   async detecterEvaluationsSuspectes(userId) {
     try {
-      // Utiliser la méthode statique si disponible
-      if (typeof Evaluation.detecterEvaluationsSuspectes === 'function') {
-        return await Evaluation.detecterEvaluationsSuspectes(userId);
-      }
-      // Détection manuelle
-      const evaluations = await Evaluation.find({
-        $or: [
-          { evaluateurId: userId },
-          { evalueId: userId }
-        ]
-      });
-      const suspectes = evaluations.filter(evaluation => {
-        // Critères de suspicion
-        return (
-          evaluation.estSignalement ||
-          evaluation.notes.noteGlobale <= 2 ||
-          (evaluation.commentaire && evaluation.commentaire.length < 10) ||
-          evaluation.gravite === 'CRITIQUE'
-        );
-      });
-      return suspectes;
+      return await Evaluation.detecterEvaluationsSuspectes(userId);
     } catch (error) {
-      console.error('Erreur détection évaluations suspectes:', error);
-      return [];
+      logger.error('❌ Erreur détection évaluations suspectes:', error);
+      throw error;
     }
   }
 
   /**
-   * Mettre à jour le score de confiance d'un utilisateur
-   * @param {string} userId - ID de l'utilisateur
-   * @returns {Promise<number>} - Nouveau score de confiance
+   * Mettre à jour le score de confiance
    */
   async mettreAJourScoreConfiance(userId) {
     try {
-      const stats = await this.obtenirMoyenneNotes(userId);
-      if (stats.totalEvaluations === 0) {
-        return 0; // Score neutre pour les nouveaux utilisateurs
+      const stats = await Evaluation.getStatistiquesUtilisateur(userId);
+      
+      if (!stats) return 0;
+
+      let score = stats.moyenneGlobale * 20;
+
+      if (stats.totalEvaluations >= 10) score += 5;
+      if (stats.totalEvaluations >= 50) score += 10;
+
+      if (stats.nombreSignalements > 0) {
+        score -= stats.nombreSignalements * 5;
       }
-      // Calcul du score (0-100)
-      let score = Math.round(stats.moyenneGlobale * 20); // 5 étoiles = 100 points
-      // Bonus pour le nombre d'évaluations
-      const bonusEvaluations = Math.min(stats.totalEvaluations * 2, 20);
-      score += bonusEvaluations;
-      // Malus pour les évaluations suspectes
-      const suspectes = await this.detecterEvaluationsSuspectes(userId);
-      const malusSuspectes = suspectes.length * 5;
-      score -= malusSuspectes;
-      // Normaliser entre 0 et 100
+
       score = Math.max(0, Math.min(100, score));
-      return score;
-    } catch (error) {
-      console.error('Erreur calcul score confiance:', error);
-      return 50; // Score par défaut
-    }
-  }
 
-  /**
-   * Obtenir les statistiques globales des évaluations
-   * @returns {Promise<Object>} - Statistiques globales
-   */
-  async obtenirStatistiquesGlobales() {
-    try {
-      const pipeline = [
-        {
-          $group: {
-            _id: null,
-            totalEvaluations: { $sum: 1 },
-            moyenneGlobale: { $avg: '$notes.noteGlobale' },
-            signalements: { $sum: { $cond: ['$estSignalement', 1, 0] } },
-            evaluationsConducteur: {
-              $sum: { $cond: [{ $eq: ['$typeEvaluateur', 'CONDUCTEUR'] }, 1, 0] }
-            },
-            evaluationsPassager: {
-              $sum: { $cond: [{ $eq: ['$typeEvaluateur', 'PASSAGER'] }, 1, 0] }
-            }
-          }
-        }
-      ];
-      const result = await Evaluation.aggregate(pipeline);
-      const stats = result[0] || {
-        totalEvaluations: 0,
-        moyenneGlobale: 0,
-        signalements: 0,
-        evaluationsConducteur: 0,
-        evaluationsPassager: 0
-      };
-      return {
-        totalEvaluations: stats.totalEvaluations,
-        moyenneGlobale: Math.round(stats.moyenneGlobale * 10) / 10,
-        signalements: stats.signalements,
-        tauxSignalement: stats.totalEvaluations > 0
-          ? Math.round((stats.signalements / stats.totalEvaluations) * 100)
-          : 0,
-        repartitionTypes: {
-          conducteur: stats.evaluationsConducteur,
-          passager: stats.evaluationsPassager
-        }
-      };
-    } catch (error) {
-      console.error('Erreur statistiques globales:', error);
-      return {
-        totalEvaluations: 0,
-        moyenneGlobale: 0,
-        signalements: 0,
-        tauxSignalement: 0,
-        repartitionTypes: { conducteur: 0, passager: 0 }
-      };
-    }
-  }
+      await Utilisateur.findByIdAndUpdate(userId, {
+        $set: { scoreConfiance: Math.round(score) }
+      });
 
-  /**
-   * Modérer une évaluation
-   * @param {string} id - ID de l'évaluation
-   * @param {string} action - Action de modération
-   * @param {string} moderateurId - ID du modérateur
-   * @returns {Promise<Object>} - Résultat de la modération
-   */
-  async modererEvaluation(id, action, moderateurId) {
-    try {
-      const evaluation = await Evaluation.findById(id);
-      if (!evaluation) {
-        throw new Error('Évaluation introuvable');
-      }
-      switch (action) {
-        case 'APPROUVER':
-          evaluation.estSignalement = false;
-          evaluation.statut = 'APPROUVE';
-          break;
-        case 'MASQUER':
-          evaluation.estMasque = true;
-          evaluation.statut = 'MASQUE';
-          break;
-        case 'SUPPRIMER':
-          return await this.supprimerEvaluation(id, moderateurId);
-        default:
-          throw new Error('Action de modération invalide');
-      }
-      evaluation.moderePar = moderateurId;
-      evaluation.dateModeration = new Date();
-      await evaluation.save();
-      return evaluation;
+      return Math.round(score);
     } catch (error) {
-      console.error('Erreur modération évaluation:', error);
+      logger.error('❌ Erreur mise à jour score confiance:', error);
       throw error;
     }
   }
 }
 
-module.exports = EvaluationService;
+module.exports = new EvaluationService();

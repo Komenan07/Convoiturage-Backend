@@ -1,0 +1,237 @@
+image: docker:24
+
+services:
+  - docker:24-dind
+
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
+  # Optimisation du cache
+  DOCKER_BUILDKIT: 1
+
+# Cache pour accélérer les builds
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+before_script:
+  - docker login -u "$REGISTRY_USER" -p "$REGISTRY_PASSWORD" registry.gitlab.com
+
+# ==================== TEST ====================
+# Test sur les branches feature
+test:
+  stage: test
+  image: node:20-alpine
+  before_script:
+    - echo "Installation des dépendances..."
+  script:
+    - npm ci
+    - npm run lint
+    - npm test
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    when: always
+    reports:
+      junit: junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+    paths:
+      - coverage/
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^feature\/.*$/'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+# Test de sécurité des dépendances
+security_audit:
+  stage: test
+  image: node:20-alpine
+  script:
+    - npm audit --audit-level=high
+  allow_failure: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ==================== BUILD ====================
+# Build pour l'environnement staging
+build_staging:
+  stage: build
+  script:
+    - echo "Building Docker image for staging..."
+    - |
+      docker build \
+        --cache-from registry.gitlab.com/$CI_PROJECT_PATH:staging \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --tag registry.gitlab.com/$CI_PROJECT_PATH:staging \
+        --tag registry.gitlab.com/$CI_PROJECT_PATH:staging-$CI_COMMIT_SHORT_SHA \
+        .
+    - docker push registry.gitlab.com/$CI_PROJECT_PATH:staging
+    - docker push registry.gitlab.com/$CI_PROJECT_PATH:staging-$CI_COMMIT_SHORT_SHA
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+  retry: 2
+
+# Build pour l'environnement production
+build_prod:
+  stage: build
+  script:
+    - echo "Building Docker image for production..."
+    - |
+      docker build \
+        --cache-from registry.gitlab.com/$CI_PROJECT_PATH:prod \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        --tag registry.gitlab.com/$CI_PROJECT_PATH:prod \
+        --tag registry.gitlab.com/$CI_PROJECT_PATH:prod-$CI_COMMIT_SHORT_SHA \
+        --tag registry.gitlab.com/$CI_PROJECT_PATH:latest \
+        .
+    - docker push registry.gitlab.com/$CI_PROJECT_PATH:prod
+    - docker push registry.gitlab.com/$CI_PROJECT_PATH:prod-$CI_COMMIT_SHORT_SHA
+    - docker push registry.gitlab.com/$CI_PROJECT_PATH:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  retry: 2
+
+# ==================== DEPLOY ====================
+# Déploiement automatique sur staging
+deploy_staging:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H $VPS_HOST >> ~/.ssh/known_hosts
+  script:
+    - echo "Deploying to staging environment..."
+    - |
+      ssh $VPS_USER@$VPS_HOST << 'EOF'
+        set -e
+        cd /var/www/covoiturage-backend-staging
+        
+        # Backup de la base de données avant déploiement
+        echo "Creating backup..."
+        docker exec covoiturage-backend-staging node scripts/backup.js || true
+        
+        # Pull la nouvelle image
+        echo "Pulling new image..."
+        docker pull registry.gitlab.com/$CI_PROJECT_PATH:staging
+        
+        # Redémarrer les services
+        echo "Restarting services..."
+        docker compose -f docker-compose.staging.yml up -d --force-recreate
+        
+        # Vérifier le health check
+        echo "Waiting for health check..."
+        sleep 10
+        docker ps | grep covoiturage-backend-staging
+        
+        # Nettoyer les anciennes images
+        echo "Cleaning up old images..."
+        docker image prune -af --filter "until=72h"
+        
+        echo "✅ Staging deployment completed successfully!"
+      EOF
+  environment:
+    name: staging
+    url: https://api-staging.covoiturage-ci.com
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+  retry: 1
+
+# Déploiement manuel sur production
+deploy_prod:
+  stage: deploy
+  image: alpine:latest
+  when: manual
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H $VPS_HOST >> ~/.ssh/known_hosts
+  script:
+    - echo "Deploying to production environment..."
+    - |
+      ssh $VPS_USER@$VPS_HOST << 'EOF'
+        set -e
+        cd /var/www/covoiturage-backend-production
+        
+        # Backup obligatoire de la base de données
+        echo "Creating production backup..."
+        docker exec covoiturage-backend-prod node scripts/backup.js
+        
+        # Pull la nouvelle image
+        echo "Pulling new image..."
+        docker pull registry.gitlab.com/$CI_PROJECT_PATH:prod
+        
+        # Redémarrer les services avec zero-downtime
+        echo "Performing rolling update..."
+        docker compose -f docker-compose.prod.yml up -d --no-deps --scale app=2 app
+        sleep 15
+        docker compose -f docker-compose.prod.yml up -d --no-deps --scale app=1 app
+        
+        # Vérifier le health check
+        echo "Verifying health check..."
+        for i in {1..10}; do
+          if docker exec covoiturage-backend-prod wget -q --spider http://localhost:5500/health; then
+            echo "✅ Health check passed"
+            break
+          fi
+          echo "Waiting for health check... ($i/10)"
+          sleep 5
+        done
+        
+        # Nettoyer les anciennes images (garder les 3 dernières)
+        echo "Cleaning up old images..."
+        docker image prune -af --filter "until=168h"
+        
+        echo "✅ Production deployment completed successfully!"
+      EOF
+  environment:
+    name: production
+    url: https://api.covoiturage-ci.com
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  retry: 1
+
+# ==================== ROLLBACK ====================
+# Job de rollback en cas de problème
+rollback_prod:
+  stage: deploy
+  image: alpine:latest
+  when: manual
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H $VPS_HOST >> ~/.ssh/known_hosts
+  script:
+    - echo "Rolling back production to previous version..."
+    - |
+      ssh $VPS_USER@$VPS_HOST << 'EOF'
+        set -e
+        cd /var/www/covoiturage-backend-production
+        
+        echo "Reverting to previous image..."
+        docker compose -f docker-compose.prod.yml down
+        docker compose -f docker-compose.prod.yml up -d
+        
+        echo "✅ Rollback completed!"
+      EOF
+  environment:
+    name: production
+    action: rollback
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
