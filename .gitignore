@@ -53,4 +53,11 @@ backups/*.gz
 
 # Uploads (ne pas versionner les fichiers uploadés)
 uploads/*
-!uploads/*.gitkeep
+!uploads/documents/.gitkeep
+!uploads/photos/.gitkeep
+!uploads/profils/.gitkeep
+!uploads/selfies/.gitkeep
+!uploads/users/.gitkeep
+!uploads/temp/.gitkeep
+!uploads/vehicules/.gitkeep
+
