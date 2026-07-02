@@ -426,6 +426,7 @@ router.post('/proximity', authMiddleware, async (req, res) => {
     const { passengerId, distance, estimatedTime } = req.body;
     const driverId = req.user.userId || req.user.id;
     
+    // Validation des paramètres
     if (!passengerId || distance === undefined) {
       return res.status(400).json({
         success: false,
@@ -434,6 +435,7 @@ router.post('/proximity', authMiddleware, async (req, res) => {
       });
     }
     
+    // Récupérer le passager
     const passenger = await Utilisateur.findById(passengerId);
     
     if (!passenger) {
@@ -444,42 +446,92 @@ router.post('/proximity', authMiddleware, async (req, res) => {
       });
     }
     
-    // Vérifier les préférences
+    // Vérifier les préférences de notification
     if (passenger.notificationsActivees && !passenger.notificationsActivees('conducteurProche')) {
       return res.status(200).json({
         success: true,
-        message: 'Notification désactivée par l\'utilisateur'
+        message: 'Notification désactivée par les préférences utilisateur',
+        data: {
+          notificationsSent: false,
+          reason: 'user_preferences_disabled'
+        }
       });
     }
     
+    // Envoyer la notification via Firebase
     const result = await firebaseService.sendToUser(
       passengerId,
       {
         title: '🚗 Votre conducteur arrive !',
-        body: `Il est à ${distance}m de vous${estimatedTime ? ` (environ ${estimatedTime} min)` : ''}`,
+        message: `Il est à ${distance}m de vous${estimatedTime ? ` (environ ${estimatedTime} min)` : ''}`,
         data: {
           type: 'CONDUCTEUR_PROCHE',
           driverId: driverId.toString(),
           distance: distance.toString(),
           estimatedTime: estimatedTime ? estimatedTime.toString() : null,
           timestamp: new Date().toISOString()
-        }
+        },
+        channelId: 'trajets',
+        type: 'trajets'
       },
       Utilisateur
     );
     
-    logger.info('🚗 Notification proximité envoyée', {
-      driverId,
-      passengerId,
-      distance,
-      result
-    });
-    
-    res.status(200).json({
-      success: true,
-      message: 'Notification de proximité envoyée',
-      data: result
-    });
+    // ✅ CORRECTION : Vérifier le résultat avant de répondre
+    if (result.success) {
+      logger.info('🚗 Notification proximité envoyée avec succès', {
+        driverId,
+        passengerId,
+        distance,
+        tokensUsed: result.successCount || 1
+      });
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Notification de proximité envoyée',
+        data: {
+          notificationsSent: true,
+          tokensUsed: result.successCount || 1,
+          distance: distance,
+          estimatedTime: estimatedTime
+        }
+      });
+    } else {
+      // ❌ Échec de l'envoi
+      logger.warn('⚠️  Échec notification proximité', {
+        driverId,
+        passengerId,
+        distance,
+        reason: result.reason || result.error
+      });
+      
+      // Identifier la raison spécifique
+      const reason = result.reason || result.error || 'unknown';
+      let message = 'Impossible d\'envoyer la notification';
+      let helpMessage = null;
+      let statusCode = 400;
+      
+      if (reason.includes('token') || reason.includes('Token') || reason === 'Aucun token FCM disponible') {
+        message = 'Aucun token FCM disponible pour ce passager';
+        helpMessage = 'Le passager doit d\'abord enregistrer un token FCM via l\'application mobile';
+        statusCode = 404; // Not Found est plus approprié ici
+      } else if (reason === 'disabled') {
+        message = 'Service de notifications désactivé';
+        statusCode = 503; // Service Unavailable
+      }
+      
+      return res.status(statusCode).json({
+        success: false,
+        message: message,
+        data: {
+          notificationsSent: false,
+          reason: reason,
+          passengerId: passengerId.toString(),
+          help: helpMessage
+        },
+        code: reason === 'Aucun token FCM disponible' ? 'NO_FCM_TOKEN' : 'NOTIFICATION_FAILED'
+      });
+    }
     
   } catch (error) {
     logger.error('❌ Erreur notification proximité:', error);
@@ -504,6 +556,7 @@ router.post('/emergency', authMiddleware, async (req, res) => {
     
     const validTypes = ['ACCIDENT', 'AGRESSION', 'MALAISE', 'PANNE', 'AUTRE'];
     
+    // Validation du type d'urgence
     if (!type || !validTypes.includes(type)) {
       return res.status(400).json({
         success: false,
@@ -513,6 +566,7 @@ router.post('/emergency', authMiddleware, async (req, res) => {
       });
     }
     
+    // Validation de l'utilisateur cible
     if (!targetUserId) {
       return res.status(400).json({
         success: false,
@@ -521,6 +575,7 @@ router.post('/emergency', authMiddleware, async (req, res) => {
       });
     }
     
+    // Récupérer l'utilisateur cible
     const targetUser = await Utilisateur.findById(targetUserId);
     
     if (!targetUser) {
@@ -531,49 +586,121 @@ router.post('/emergency', authMiddleware, async (req, res) => {
       });
     }
     
-    // 🚨 Envoyer SANS vérifier les préférences (urgence)
+    // Récupérer l'expéditeur pour le message
+    const sender = await Utilisateur.findById(senderId).select('nom prenom');
+    const senderName = sender ? `${sender.prenom} ${sender.nom}` : 'Un utilisateur';
+    
+    // Construire le message d'urgence
+    const emergencyMessages = {
+      'ACCIDENT': '🚨 ACCIDENT ! Besoin d\'aide immédiate',
+      'AGRESSION': '🚨 AGRESSION ! Appeler la police',
+      'MALAISE': '🚨 MALAISE ! Assistance médicale nécessaire',
+      'PANNE': '🚨 PANNE ! Véhicule immobilisé',
+      'AUTRE': '🚨 URGENCE ! Besoin d\'aide'
+    };
+    
+    // 🚨 Envoyer SANS vérifier les préférences (urgence = priorité absolue)
     const result = await firebaseService.sendToUser(
       targetUserId,
       {
         title: '🚨 ALERTE D\'URGENCE',
-        body: message || 'Un utilisateur a besoin d\'aide',
+        body: message || emergencyMessages[type],
         data: {
           type: 'EMERGENCY',
           emergencyType: type,
           senderId: senderId.toString(),
+          senderName: senderName,
+          message: message || emergencyMessages[type],
           location: location ? JSON.stringify(location) : null,
           timestamp: new Date().toISOString(),
-          priority: 'high'
-        }
+          priority: 'high',
+          screen: 'EmergencyAlert'
+        },
+        channelId: 'emergency', // Canal dédié pour les urgences
+        priority: 'high',
+        sound: 'emergency_alert' // Son d'alerte spécial
       },
       Utilisateur,
       { 
-        ignorePreferences: true,
+        ignorePreferences: true, // ✅ Toujours envoyer, même si préférences désactivées
         priority: 'high' 
       }
     );
     
-    logger.warn('🚨 Alerte d\'urgence envoyée', {
-      senderId,
-      targetUserId,
-      type,
-      location,
-      result
-    });
-    
-    res.status(200).json({
-      success: true,
-      message: 'Alerte d\'urgence envoyée',
-      data: result
-    });
+    // ✅ CORRECTION : Vérifier le résultat avant de répondre
+    if (result.success) {
+      logger.warn('🚨 Alerte d\'urgence envoyée avec succès', {
+        senderId,
+        targetUserId,
+        type,
+        location,
+        tokensUsed: result.successCount || 1
+      });
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Alerte d\'urgence envoyée',
+        data: {
+          emergencyAlertSent: true,
+          tokensUsed: result.successCount || 1,
+          emergencyType: type,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } else {
+      // ❌ Échec de l'envoi - CRITIQUE pour les urgences
+      logger.error('❌ ÉCHEC CRITIQUE : Alerte d\'urgence non envoyée', {
+        senderId,
+        targetUserId,
+        type,
+        location,
+        reason: result.reason || result.error
+      });
+      
+      // Identifier la raison de l'échec
+      const reason = result.reason || result.error || 'unknown';
+      let message = 'ÉCHEC CRITIQUE : Impossible d\'envoyer l\'alerte d\'urgence';
+      let helpMessage = null;
+      let statusCode = 500; // 500 car c'est critique pour les urgences
+      
+      if (reason.includes('token') || reason.includes('Token') || reason === 'Aucun token FCM disponible') {
+        message = 'ÉCHEC CRITIQUE : Aucun token FCM disponible pour cet utilisateur';
+        helpMessage = 'L\'utilisateur cible doit enregistrer un token FCM. En attendant, contactez-le par téléphone.';
+        statusCode = 424; // Failed Dependency
+      } else if (reason === 'disabled') {
+        message = 'ÉCHEC CRITIQUE : Service de notifications désactivé';
+        helpMessage = 'Activez Firebase pour envoyer des alertes d\'urgence. Contactez l\'administrateur.';
+        statusCode = 503; // Service Unavailable
+      }
+      
+      return res.status(statusCode).json({
+        success: false,
+        message: message,
+        data: {
+          emergencyAlertSent: false,
+          reason: reason,
+          targetUserId: targetUserId.toString(),
+          emergencyType: type,
+          help: helpMessage,
+          fallbackAction: 'Contactez immédiatement l\'utilisateur par téléphone',
+          emergencyNumbers: {
+            police: '170',
+            pompiers: '180',
+            samu: '185'
+          }
+        },
+        code: reason === 'Aucun token FCM disponible' ? 'NO_FCM_TOKEN' : 'EMERGENCY_SEND_FAILED'
+      });
+    }
     
   } catch (error) {
-    logger.error('❌ Erreur alerte urgence:', error);
+    logger.error('❌ ERREUR CRITIQUE alerte urgence:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de l\'envoi de l\'alerte',
-      code: 'SERVER_ERROR',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'ERREUR CRITIQUE lors de l\'envoi de l\'alerte d\'urgence',
+      code: 'EMERGENCY_SERVER_ERROR',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      fallbackAction: 'Contactez immédiatement l\'utilisateur par téléphone'
     });
   }
 });
@@ -651,7 +778,7 @@ router.post('/trip-broadcast', authMiddleware, async (req, res) => {
       passengerIds,
       {
         title: title || '🚗 Message du conducteur',
-        body: message,
+        message: message,
         data: {
           type: type || 'TRIP_UPDATE',
           tripId: tripId.toString(),
@@ -912,5 +1039,78 @@ router.get('/status', authMiddleware, async (req, res) => {
     });
   }
 });
+/**
+ * @route   POST /api/notifications/test-fcm-token
+ * @desc    Tester un token FCM spécifique (debug)
+ * @access  Private
+ */
+router.post('/test-fcm-token', authMiddleware, async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token FCM requis',
+        code: 'MISSING_TOKEN'
+      });
+    }
+    
+    // Vérifier que Firebase est activé
+    if (!firebaseService.isEnabled()) {
+      return res.status(503).json({
+        success: false,
+        message: 'Service Firebase Cloud Messaging non disponible',
+        code: 'FCM_NOT_ENABLED'
+      });
+    }
+    
+    // Envoyer directement via Firebase Admin SDK
+    const admin = require('firebase-admin');
+    
+    const message = {
+      notification: {
+        title: '🧪 Test de notification direct',
+        body: 'Si vous voyez ceci, votre token fonctionne parfaitement !'
+      },
+      data: {
+        type: 'TEST_TOKEN',
+        timestamp: new Date().toISOString()
+      },
+      token: token,
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'default',
+          sound: 'default',
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1
+          }
+        }
+      }
+    };
+    
+    const response = await admin.messaging().send(message);
+    
+    res.json({
+      success: true,
+      message: 'Notification envoyée avec succès',
+      messageId: response
+    });
+    
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message,
+      errorCode: error.code
+    });
+  }
+});
+
 
 module.exports = router;

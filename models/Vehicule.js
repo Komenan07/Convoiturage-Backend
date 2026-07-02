@@ -147,8 +147,8 @@ const vehiculeSchema = new mongoose.Schema({
       validate: {
         validator: function(url) {
           if (!url) return true;
-          return /^\/uploads\/vehicules\/.+\.(pdf|jpg|jpeg|png)$/i.test(url) ||
-                 /^https?:\/\/.+\.(pdf|jpg|jpeg|png)$/i.test(url);
+          return /^\/uploads\/(vehicules|documents)\/.+\.(pdf|jpg|jpeg|png)$/i.test(url) ||
+              /^https?:\/\/.+\.(pdf|jpg|jpeg|png)$/i.test(url);
         },
         message: 'URL de carte grise invalide'
       }
@@ -297,8 +297,8 @@ const vehiculeSchema = new mongoose.Schema({
       validate: {
         validator: function(url) {
           if (!url) return true;
-          return /^\/uploads\/vehicules\/.+\.(pdf|jpg|jpeg|png)$/i.test(url) ||
-                 /^https?:\/\/.+\.(pdf|jpg|jpeg|png)$/i.test(url);
+          return /^\/uploads\/(vehicules|documents)\/.+\.(pdf|jpg|jpeg|png)$/i.test(url) ||
+              /^https?:\/\/.+\.(pdf|jpg|jpeg|png)$/i.test(url);
         },
         message: 'URL de certificat invalide'
       }
@@ -1841,7 +1841,7 @@ vehiculeSchema.statics.topParNote = function(limite = 10) {
   })
   .sort({ 'statistiques.noteMoyenne': -1, 'statistiques.nombreTrajets': -1 })
   .limit(limite)
-  .populate('proprietaireId', 'nom prenom photo');
+  .populate('proprietaireId', 'nom prenom photoProfil');
 };
 
 // Véhicules les plus actifs
@@ -1852,7 +1852,7 @@ vehiculeSchema.statics.plusActifs = function(limite = 10) {
   })
   .sort({ 'statistiques.nombreTrajets': -1, 'statistiques.noteMoyenne': -1 })
   .limit(limite)
-  .populate('proprietaireId', 'nom prenom photo');
+  .populate('proprietaireId', 'nom prenom photoProfil');
 };
 
 // Véhicules avec signalements non traités

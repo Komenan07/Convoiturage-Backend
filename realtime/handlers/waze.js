@@ -27,11 +27,11 @@ module.exports = (socket, io) => {
       // Vérifier les permissions
       const reservation = await Reservation.findOne({
         trajetId,
-        passagerId: socket.userId,
+        passagerId: socket.user.id,
         statutReservation: 'CONFIRMEE'
       });
 
-      const isConducteur = trajet.conducteurId._id.toString() === socket.userId;
+      const isConducteur = trajet.conducteurId._id.toString() === socket.user.id;
       
       if (!reservation && !isConducteur) {
         socket.emit('error', {
@@ -201,7 +201,7 @@ module.exports = (socket, io) => {
       }
 
       // Vérifier que c'est le conducteur
-      if (trajet.conducteurId._id.toString() !== socket.userId) {
+      if (trajet.conducteurId._id.toString() !== socket.user.id) {
         socket.emit('error', {
           type: 'WAZE_ERROR',
           message: 'Seul le conducteur peut partager ce trajet'
@@ -283,7 +283,7 @@ module.exports = (socket, io) => {
       // Vérifier que c'est un conducteur qui notifie
       const trajet = await Trajet.findById(trajetId);
       
-      if (!trajet || trajet.conducteurId.toString() !== socket.userId) {
+      if (!trajet || trajet.conducteurId.toString() !== socket.user.id) {
         socket.emit('error', {
           type: 'WAZE_ERROR',
           message: 'Non autorisé à envoyer cette notification'

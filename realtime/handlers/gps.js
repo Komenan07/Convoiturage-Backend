@@ -2,6 +2,7 @@ const Reservation = require('../../models/Reservation');
 const Trajet = require('../../models/Trajet');
 //const Utilisateur = require('../../models/Utilisateur');
 const { redisUtils } = require('../../config/redis');
+const TrajetPartage = require('../../models/TrajetPartage');
 
 module.exports = (socket, io) => {
 
@@ -10,10 +11,19 @@ module.exports = (socket, io) => {
     try {
       const { trajetId } = data;
 
+      // Vérifier que l'utilisateur est authentifié
+      if (!socket.user || !socket.user.id) {
+        socket.emit('error', { 
+          type: 'TRACKING_ERROR',
+          message: 'Utilisateur non authentifié' 
+        });
+        return;
+      }
+
       // Vérifier que l'utilisateur est le conducteur de ce trajet
       const trajet = await Trajet.findOne({
         _id: trajetId,
-        conducteurId: socket.userId,
+        conducteurId: socket.user.id,
         statutTrajet: { $in: ['PROGRAMME', 'EN_COURS'] }
       });
 
@@ -85,11 +95,29 @@ module.exports = (socket, io) => {
     try {
       const { 
         trajetId, 
-        coordinates, 
-        vitesse = 0, 
-        direction = 0, 
-        precision = 0 
+        latitude,
+        longitude,
+        altitude = 0,
+        accuracy = 0,
+        heading = 0,
+        speed = 0,
+        speedAccuracy = 0,
+        timestamp,
+        // Support ancien format pour compatibilité
+        coordinates: oldCoordinates,
+        vitesse: oldVitesse,
+        direction: oldDirection,
+        precision: oldPrecision
       } = positionData;
+
+      // Convertir format Dart vers format backend
+      const coordinates = (latitude !== undefined && longitude !== undefined)
+        ? [longitude, latitude] // GeoJSON format: [lng, lat]
+        : oldCoordinates;
+      
+      const vitesse = speed !== undefined ? speed : (oldVitesse || 0);
+      const direction = heading !== undefined ? heading : (oldDirection || 0);
+      const precision = accuracy !== undefined ? accuracy : (oldPrecision || 0);
 
       // Validation des coordonnées
       if (!coordinates || !Array.isArray(coordinates) || coordinates.length !== 2) {
@@ -100,10 +128,19 @@ module.exports = (socket, io) => {
         return;
       }
 
+      // Vérifier que l'utilisateur est authentifié
+      if (!socket.user || !socket.user.id) {
+        socket.emit('error', { 
+          type: 'GPS_ERROR',
+          message: 'Utilisateur non authentifié' 
+        });
+        return;
+      }
+
       // Vérifier que l'utilisateur est autorisé à mettre à jour cette position
       const trajet = await Trajet.findOne({
         _id: trajetId,
-        conducteurId: socket.userId,
+        conducteurId: socket.user.id,
         statutTrajet: 'EN_COURS'
       });
 
@@ -120,17 +157,22 @@ module.exports = (socket, io) => {
         vitesse,
         direction,
         precision,
-        timestamp: new Date()
+        altitude,
+        speedAccuracy,
+        timestamp: timestamp ? new Date(timestamp) : new Date()
       };
 
       // Stocker la position en Redis pour un accès rapide
-      await redisUtils.setUserPosition(socket.userId, positionUpdate, 600); // 10 minutes TTL
+      await redisUtils.setUserPosition(socket.user.id, positionUpdate, 600); // 10 minutes TTL
 
       // Mettre à jour dans MongoDB pour toutes les réservations de ce trajet
       await Reservation.updateMany(
         { trajetId, statutReservation: 'CONFIRMEE' },
         {
-          'positionEnTempsReel.coordonnees.coordinates': coordinates,
+          'positionEnTempsReel.coordonnees': {
+            type: 'Point',
+            coordinates: coordinates
+          },
           'positionEnTempsReel.lastUpdate': new Date()
         }
       );
@@ -178,12 +220,35 @@ module.exports = (socket, io) => {
       }
 
       // Diffuser la position générale à tous les participants du trajet
-      socket.to(`trip_${trajetId}`).emit('positionUpdate', {
+      socket.to(`trip_${trajetId}`).emit('trajet_location_update', {
         trajetId,
-        conducteurId: socket.userId,
+        conducteurId: socket.user.id,
         position: positionUpdate,
         passagerUpdates
       });
+      // Diffuser aux proches connectés via lien public ──
+      try {
+        const partagesActifs = await TrajetPartage.findActifsByTrajet(trajetId);
+
+        for (const partage of partagesActifs) {
+          const etaArrivee = await calculateETA(
+            coordinates,
+            trajet.pointArrivee.coordonnees.coordinates,
+            vitesse
+          );
+
+          io.to(`suivi:${partage.token}`).emit('positionUpdate', {
+            trajetId,
+            position: positionUpdate,
+            eta: etaArrivee,
+            pointArrivee: trajet.pointArrivee,
+            statutTrajet: trajet.statutTrajet
+          });
+        }
+      } catch (err) {
+        // Ne pas bloquer le suivi principal si la diffusion aux proches échoue
+        console.warn('⚠️ Erreur diffusion proches:', err.message);
+      }
 
       // Vérifier si le conducteur est proche d'un point de prise en charge
       await checkProximityToPickupPoints(trajetId, coordinates, io);
@@ -193,6 +258,162 @@ module.exports = (socket, io) => {
       socket.emit('error', { 
         type: 'GPS_ERROR',
         message: 'Erreur lors de la mise à jour de position' 
+      });
+    }
+  });
+
+  // Mise à jour de positions en batch (synchronisation buffer hors ligne)
+  socket.on('updatePositionBatch', async (batchData) => {
+    try {
+      const { trajetId, positions } = batchData;
+
+      if (!positions || !Array.isArray(positions) || positions.length === 0) {
+        socket.emit('error', { 
+          type: 'GPS_ERROR',
+          message: 'Batch de positions invalide' 
+        });
+        return;
+      }
+
+      // Vérifier que l'utilisateur est authentifié
+      if (!socket.user || !socket.user.id) {
+        socket.emit('error', { 
+          type: 'GPS_ERROR',
+          message: 'Utilisateur non authentifié' 
+        });
+        return;
+      }
+
+      // Vérifier autorisation
+      const trajet = await Trajet.findOne({
+        _id: trajetId,
+        conducteurId: socket.user.id,
+        statutTrajet: 'EN_COURS'
+      });
+
+      if (!trajet) {
+        socket.emit('error', { 
+          type: 'GPS_ERROR',
+          message: 'Non autorisé à mettre à jour ces positions' 
+        });
+        return;
+      }
+
+      console.log(`📦 Réception batch de ${positions.length} positions pour trajet ${trajetId}`);
+
+      // Trier les positions par timestamp
+      const sortedPositions = positions.sort((a, b) => {
+        const timeA = a.timestamp ? new Date(a.timestamp) : new Date(a.bufferedAt || 0);
+        const timeB = b.timestamp ? new Date(b.timestamp) : new Date(b.bufferedAt || 0);
+        return timeA - timeB;
+      });
+
+      // Traiter uniquement la dernière position pour les mises à jour en temps réel
+      const latestPosition = sortedPositions[sortedPositions.length - 1];
+      
+      // Convertir format Dart vers format backend
+      const coordinates = [latestPosition.longitude, latestPosition.latitude];
+      const vitesse = latestPosition.speed || 0;
+      const direction = latestPosition.heading || 0;
+      const precision = latestPosition.accuracy || 0;
+
+      const positionUpdate = {
+        coordinates,
+        vitesse,
+        direction,
+        precision,
+        altitude: latestPosition.altitude || 0,
+        speedAccuracy: latestPosition.speedAccuracy || 0,
+        timestamp: latestPosition.timestamp ? new Date(latestPosition.timestamp) : new Date()
+      };
+
+      // Stocker la dernière position en Redis
+      await redisUtils.setUserPosition(socket.user.id, positionUpdate, 600);
+
+      // Mettre à jour MongoDB
+      await Reservation.updateMany(
+        { trajetId, statutReservation: 'CONFIRMEE' },
+        {
+          'positionEnTempsReel.coordonnees': {
+            type: 'Point',
+            coordinates: coordinates
+          },
+          'positionEnTempsReel.lastUpdate': positionUpdate.timestamp
+        }
+      );
+
+      // Calculer ETA et distances pour les passagers
+      const reservations = await Reservation.find({
+        trajetId,
+        statutReservation: 'CONFIRMEE'
+      }).populate('passagerId', 'nom prenom');
+
+      for (const reservation of reservations) {
+        const distanceToPriseEnCharge = calculateDistance(
+          coordinates,
+          reservation.pointPriseEnCharge.coordonnees.coordinates
+        );
+
+        const distanceToDepose = calculateDistance(
+          coordinates,
+          reservation.pointDepose.coordonnees.coordinates
+        );
+
+        const eta = await calculateETA(coordinates, reservation.pointDepose.coordonnees.coordinates, vitesse);
+
+        // Envoyer mise à jour personnalisée
+        io.to(`user_${reservation.passagerId._id}`).emit('personalizedLocationUpdate', {
+          trajetId,
+          conducteurPosition: positionUpdate,
+          distanceToPriseEnCharge,
+          distanceToDepose,
+          eta,
+          estimatedArrival: eta.eta
+        });
+      }
+
+      // Diffuser la dernière position aux participants
+      socket.to(`trip_${trajetId}`).emit('positionUpdate', {
+        trajetId,
+        conducteurId: socket.user.id,
+        position: positionUpdate,
+        batchSync: true,
+        positionsCount: positions.length
+      });
+      // Diffuser aux proches via lien public
+      try {
+        const partagesActifs = await TrajetPartage.findActifsByTrajet(trajetId);
+        for (const partage of partagesActifs) {
+          const etaArrivee = await calculateETA(
+            coordinates,
+            trajet.pointArrivee.coordonnees.coordinates,
+            vitesse
+          );
+          io.to(`suivi:${partage.token}`).emit('positionUpdate', {
+            trajetId, position: positionUpdate,
+            eta: etaArrivee, pointArrivee: trajet.pointArrivee,
+            statutTrajet: trajet.statutTrajet
+          });
+        }
+      } catch (err) {
+        console.warn('⚠️ Erreur diffusion proches:', err.message);
+      }
+      // Vérifier proximité points de prise en charge
+      await checkProximityToPickupPoints(trajetId, coordinates, io);
+
+      socket.emit('batchPositionsSynced', {
+        trajetId,
+        count: positions.length,
+        latestPosition: positionUpdate
+      });
+
+      console.log(`✅ Batch de ${positions.length} positions synchronisé pour trajet ${trajetId}`);
+
+    } catch (error) {
+      console.error('Erreur updatePositionBatch:', error);
+      socket.emit('error', { 
+        type: 'GPS_ERROR',
+        message: 'Erreur lors de la synchronisation du batch' 
       });
     }
   });
@@ -216,11 +437,11 @@ module.exports = (socket, io) => {
       // Vérifier que l'utilisateur a le droit de voir cette position
       const reservation = await Reservation.findOne({
         trajetId,
-        passagerId: socket.userId,
+        passagerId: socket.user.id,
         statutReservation: 'CONFIRMEE'
       });
 
-      if (!reservation && trajet.conducteurId._id.toString() !== socket.userId) {
+      if (!reservation && trajet.conducteurId._id.toString() !== socket.user.id) {
         socket.emit('error', { 
           type: 'GPS_ERROR',
           message: 'Non autorisé à voir cette position' 
@@ -265,7 +486,7 @@ module.exports = (socket, io) => {
       // Vérifier les permissions
       const trajet = await Trajet.findOne({
         _id: trajetId,
-        conducteurId: socket.userId
+        conducteurId: socket.user.id
       });
 
       if (!trajet) {
@@ -299,7 +520,7 @@ module.exports = (socket, io) => {
       socket.leave(`trip_${trajetId}`);
 
       // Nettoyer la position en cache
-      await redisUtils.deleteUserPosition(socket.userId);
+      await redisUtils.deleteUserPosition(socket.user.id);
 
       socket.emit('trackingStopped', { 
         trajetId,
@@ -319,13 +540,14 @@ module.exports = (socket, io) => {
 
   // Rejoindre le suivi d'un trajet (pour les passagers)
   socket.on('joinTripTracking', async (data) => {
+    console.log('joining trip tracking with data:', data);
     try {
       const { trajetId } = data;
 
       // Vérifier que l'utilisateur a une réservation pour ce trajet
       const reservation = await Reservation.findOne({
         trajetId,
-        passagerId: socket.userId,
+        passagerId: socket.user.id,
         statutReservation: 'CONFIRMEE'
       });
 
@@ -361,7 +583,59 @@ module.exports = (socket, io) => {
       });
     }
   });
+  // Suivi public pour les proches (sans auth)
+socket.on('joinPublicTracking', async (data, ack = () => {}) => {
+  try {
+    const { token } = data || {};
+    if (!token || token.length < 10) return ack({ success: false, error: 'TOKEN_INVALIDE' });
 
+   
+    const partage = await TrajetPartage.findOne({ token, actif: true })
+      .populate({ path: 'trajetId', populate: { path: 'conducteurId', select: 'nom prenom photoProfil' } });
+
+    if (!partage || !partage.estValide()) return ack({ success: false, error: 'LIEN_EXPIRE_OU_INVALIDE' });
+
+    const trajet = partage.trajetId;
+    socket.join(`suivi:${token}`);
+    socket.suiviToken = token;
+    socket.suiviTrajetId = trajet._id.toString();
+    await partage.enregistrerVue();
+
+    const positionActuelle = await redisUtils.getUserPosition(trajet.conducteurId._id);
+
+    ack({
+      success: true,
+      trajet: {
+        _id: trajet._id,
+        statut: trajet.statutTrajet,
+        pointDepart: trajet.pointDepart,
+        pointArrivee: trajet.pointArrivee,
+        dateDepart: trajet.dateDepart,
+        heureDepart: trajet.heureDepart,
+        heureArriveePrevue: trajet.heureArriveePrevue,
+        distance: trajet.distance,
+        conducteur: {
+          nom: trajet.conducteurId?.nom,
+          prenom: trajet.conducteurId?.prenom,
+          photoProfil: trajet.conducteurId?.photoProfil
+        }
+      },
+      positionActuelle,
+      expiresAt: partage.expiresAt
+    });
+
+    console.log(`👁️ Proche connecté au suivi du trajet ${trajet._id}`);
+  } catch (error) {
+    console.error('Erreur joinPublicTracking:', error);
+    ack({ success: false, error: 'ERREUR_SERVEUR' });
+  }
+});
+
+socket.on('leavePublicTracking', async (data, ack = () => {}) => {
+  const { token } = data || {};
+  if (token) socket.leave(`suivi:${token}`);
+  ack({ success: true });
+});
   console.log(`📍 GPS handler initialisé pour ${socket.user.nom}`);
 };
 

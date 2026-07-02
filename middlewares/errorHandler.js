@@ -827,7 +827,7 @@ const businessRuleValidator = {
         }
 
         // Vérifier la méthode de paiement
-        const allowedMethods = ['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'];
+        const allowedMethods = ['ESPECES', 'WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY','MOBILE_MONEY'];
         if (!allowedMethods.includes(payment.methodePaiement)) {
             throw new AppError(
                 ERROR_MESSAGES[ERROR_CODES.PAYMENT_INVALID_METHOD],

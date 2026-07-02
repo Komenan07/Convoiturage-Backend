@@ -47,10 +47,10 @@ const rateLimiters = {
     login: rateLimit({
       ...baseConfig,
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 5, // 5 tentatives par IP/utilisateur
+      max: 5, // Limite production
       message: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.',
       skipSuccessfulRequests: true,
-      // ✅ Utilisation du keyGenerator par défaut d'express-rate-limit pour la sécurité
+      skip: () => process.env.NODE_ENV === 'development', // ✅ Désactive en dev
       handler: (req, res) => {
         console.error('[SECURITY] Tentatives de connexion excessives:', {
           ip: req.ip,
@@ -70,29 +70,33 @@ const rateLimiters = {
     register: rateLimit({
       ...baseConfig,
       windowMs: 60 * 60 * 1000, // 1 heure
-      max: 3, // 3 inscriptions par IP par heure
-      message: 'Trop d\'inscriptions depuis cette adresse. Réessayez dans 1 heure.'
+      max: 3, // Limite production
+      message: 'Trop d\'inscriptions depuis cette adresse. Réessayez dans 1 heure.',
+      skip: () => process.env.NODE_ENV === 'development'
     }),
     
     resetPassword: rateLimit({
       ...baseConfig,
       windowMs: 60 * 60 * 1000, // 1 heure
-      max: 3, // 3 demandes de reset par IP par heure
-      message: 'Trop de demandes de réinitialisation. Réessayez dans 1 heure.'
+      max: 3, // Limite production
+      message: 'Trop de demandes de réinitialisation. Réessayez dans 1 heure.',
+      skip: () => process.env.NODE_ENV === 'development'
     }),
 
     confirmEmail: rateLimit({
       ...baseConfig,
       windowMs: 60 * 60 * 1000, // 1 heure
-      max: 5, // 5 demandes de confirmation d'email par heure
-      message: 'Trop de demandes de confirmation d\'email. Réessayez dans 1 heure.'
+      max: 5, // Limite production
+      message: 'Trop de demandes de confirmation d\'email. Réessayez dans 1 heure.',
+      skip: () => process.env.NODE_ENV === 'development' 
     }),
 
     logout: rateLimit({
       ...baseConfig,
       windowMs: 60 * 1000, // 1 minute
-      max: 10, // 10 déconnexions par minute (généreux)
-      message: 'Trop de déconnexions. Attendez 1 minute.'
+      max: 10, // Déjà généreux
+      message: 'Trop de déconnexions. Attendez 1 minute.',
+      skip: () => process.env.NODE_ENV === 'development' 
     })
   },
 

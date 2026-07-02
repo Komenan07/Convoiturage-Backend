@@ -11,7 +11,7 @@ const {
   validerSignalement
 } = require('../middlewares/messageMiddleware');
 
-const {protect:authentificationRequise } = require('../middlewares/authMiddleware');
+const {protect : authentificationRequise} = require('../middlewares/authMiddleware')
 
 // ===========================================
 // ROUTES CREATE - Création de messages

@@ -192,8 +192,8 @@ class MessageService {
       const skip = (page - 1) * limite;
       
       const messages = await Message.find(filtre)
-        .populate('expediteurId', 'nom prenom avatar')
-        .populate('destinataireId', 'nom prenom avatar')
+        .populate('expediteurId', 'nom prenom photoProfil')
+        .populate('destinataireId', 'nom prenom photoProfil')
         .sort({ dateEnvoi: -1 })
         .skip(skip)
         .limit(limite)
@@ -270,7 +270,7 @@ class MessageService {
         destinataireId: utilisateurId,
         lu: false
       })
-      .populate('expediteurId', 'nom prenom avatar')
+      .populate('expediteurId', 'nom prenom photoProfil')
       .populate('conversationId', 'nom')
       .sort({ dateEnvoi: -1 })
       .lean();
@@ -461,7 +461,7 @@ class MessageService {
           }
         }
       })
-      .populate('expediteurId', 'nom prenom avatar')
+      .populate('expediteurId', 'nom prenom photoProfil')
       .sort({ dateEnvoi: -1 })
       .limit(50)
       .lean();

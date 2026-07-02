@@ -26,7 +26,7 @@ module.exports = (socket, io) => {
       }
 
       // Récupérer les informations de l'utilisateur
-      const utilisateur = await Utilisateur.findById(socket.userId);
+      const utilisateur = await Utilisateur.findById(socket.user.id);
       
       if (!utilisateur) {
         socket.emit('error', { 
@@ -38,7 +38,7 @@ module.exports = (socket, io) => {
 
       // Créer l'alerte en base de données
       const alerte = new AlerteUrgence({
-        declencheurId: socket.userId,
+        declencheurId: socket.user.id,
         trajetId: trajetId || null,
         typeAlerte,
         description: description || `Alerte ${typeAlerte} déclenchée`,
@@ -49,7 +49,7 @@ module.exports = (socket, io) => {
         },
         statutAlerte: 'ACTIVE',
         personnesPresentes: [{
-          utilisateurId: socket.userId,
+          utilisateurId: socket.user.id,
           nom: `${utilisateur.nom} ${utilisateur.prenom}`,
           telephone: utilisateur.telephone
         }]
@@ -95,13 +95,13 @@ Contactez immédiatement les secours si nécessaire.`);
             Reservation.find({
               trajetId,
               statutReservation: 'CONFIRMEE',
-              passagerId: { $ne: socket.userId }
+              passagerId: { $ne: socket.user.id }
             }).populate('passagerId', 'nom prenom telephone')
           ]);
 
           if (trajet) {
             // Ajouter le conducteur aux personnes présentes s'il n'est pas celui qui déclenche
-            if (trajet.conducteurId._id.toString() !== socket.userId) {
+            if (trajet.conducteurId._id.toString() !== socket.user.id) {
               alerte.personnesPresentes.push({
                 utilisateurId: trajet.conducteurId._id,
                 nom: `${trajet.conducteurId.nom} ${trajet.conducteurId.prenom}`,
@@ -219,7 +219,7 @@ Contactez immédiatement les secours si nécessaire.`);
       };
 
       if (nouveauStatut === 'EN_TRAITEMENT') {
-        updateData.moderateurId = socket.userId;
+        updateData.moderateurId = socket.user.id;
       } else if (nouveauStatut === 'RESOLUE') {
         updateData.dateResolution = new Date();
         updateData.commentaireResolution = commentaire;
@@ -325,7 +325,7 @@ Contactez immédiatement les secours si nécessaire.`);
         return;
       }
 
-      const isOwner = alerte.declencheurId.toString() === socket.userId;
+      const isOwner = alerte.declencheurId.toString() === socket.user.id;
       const isAdmin = socket.user.role && ['SUPER_ADMIN', 'MODERATEUR', 'SUPPORT'].includes(socket.user.role);
 
       if (!isOwner && !isAdmin) {
@@ -370,7 +370,7 @@ Contactez immédiatement les secours si nécessaire.`);
 
       const alerte = await AlerteUrgence.findOne({
         _id: alerteId,
-        declencheurId: socket.userId,
+        declencheurId: socket.user.id,
         statutAlerte: { $in: ['ACTIVE', 'EN_TRAITEMENT'] }
       });
 

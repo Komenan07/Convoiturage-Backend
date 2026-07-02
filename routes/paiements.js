@@ -117,6 +117,17 @@ router.get('/trajets/:trajetId/methodes-disponibles',
 );
 
 /**
+ * 🆕 @route   POST /api/paiements/especes/reservation/:reservationId/confirmer
+ * @desc    Confirmer un paiement en espèces après le trajet (via reservationId)
+ * @access  Private (Conducteur ou Passager)
+ * @note    Alternative à la route par referenceTransaction — utilisée par le mobile
+ */
+router.post('/especes/reservation/:reservationId/confirmer', 
+  validateConfirmerPaiementEspeces,
+  paiementController.confirmerPaiementEspeces
+);
+
+/**
  * 🆕 @route   POST /api/paiements/especes/:referenceTransaction/confirmer
  * @desc    Confirmer un paiement en espèces après le trajet
  * @access  Private (Conducteur ou Passager)

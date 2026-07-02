@@ -31,11 +31,11 @@ class PaiementController {
       const { 
         reservationId, 
         montant, 
-        methodePaiement = 'WAVE',
+        methodePaiement = 'MOBILE_MONEY',
         numeroTelephone,
         operateur 
       } = req.body;
-      const userId = req.user._id;
+      const userId = req.user._id || req.user.id;
 
       // Validation des données
       if (!reservationId || !montant) {
@@ -47,11 +47,11 @@ class PaiementController {
       }
 
       // Validation du montant
-      if (montant < 100 || montant > 1000000) {
+      if (montant < 300 || montant > 1000000) {
         return res.status(400).json({
           success: false,
           error: 'MONTANT_INVALIDE',
-          message: 'Montant doit être entre 100 et 1,000,000 FCFA'
+          message: 'Montant doit être entre 300 et 1,000,000 FCFA'
         });
       }
 
@@ -63,7 +63,7 @@ class PaiementController {
         path: 'trajetId',
         populate: {
           path: 'conducteurId',
-          select: 'nom prenom compteCovoiturage noteMoyenne statistiques'
+          select: 'nom prenom compteCovoiturage noteGenerale statistiques'
         }
       });
 
@@ -100,7 +100,7 @@ class PaiementController {
             success: false,
             error: 'PAIEMENT_ESPECES_NON_AUTORISE',
             message: 'Le conducteur n\'accepte pas les paiements en espèces. Veuillez choisir un paiement numérique.',
-            methodesDisponibles: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY']
+            methodesDisponibles: ['MOBILE_MONEY']
           });
         }
 
@@ -113,7 +113,7 @@ class PaiementController {
             success: false,
             error: 'SOLDE_INSUFFISANT_CONDUCTEUR',
             message: `Le conducteur doit avoir un solde minimum de ${soldeMinimum} FCFA pour accepter les paiements en espèces`,
-            methodesDisponibles: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY']
+            methodesDisponibles: ['MOBILE_MONEY']
           });
         }
       }
@@ -160,7 +160,7 @@ class PaiementController {
 
       // 🆕 Calculer commission dynamique selon distance et note
       const distanceKm = trajet.distanceKm || 0;
-      const noteConducteur = conducteur.noteMoyenne || 0;
+      const noteConducteur = conducteur.noteGenerale || 0;
       await paiement.calculerCommissionDynamique(distanceKm, noteConducteur);
 
       // 🆕 Appliquer bonus si applicable
@@ -187,7 +187,7 @@ class PaiementController {
       if (methodePaiement !== 'ESPECES') {
         paiement.initierPaiementMobile(
           numeroTelephone, 
-          operateur || methodePaiement.replace('_MONEY', '')
+          operateur || null
         );
       }
 
@@ -229,7 +229,8 @@ class PaiementController {
         // Paiement mobile - utiliser CinetPay
         const result = await this.cinetPayService.initierPaiement(
           reservationId, 
-          montant,
+          montant, 
+
           {
             methodePaiement,
             numeroTelephone,
@@ -289,7 +290,7 @@ class PaiementController {
       const { trajetId } = req.params;
 
       const trajet = await Trajet.findById(trajetId)
-        .populate('conducteurId', 'nom prenom compteCovoiturage noteMoyenne');
+        .populate('conducteurId', 'nom prenom compteCovoiturage noteGenerale');
 
       if (!trajet) {
         return res.status(404).json({
@@ -304,42 +305,15 @@ class PaiementController {
       const compteRecharge = conducteur.compteCovoiturage?.estRecharge && soldeConducteur >= soldeMinimum;
 
       // Méthodes numériques toujours disponibles
-      const methodesNumeriques = [
+     const methodesNumeriques = [
         {
-          id: 'WAVE',
-          nom: 'Wave',
+          id: 'MOBILE_MONEY',
+          nom: 'Mobile Money',
           type: 'mobile_money',
-          frais: '0%',
+          frais: 'Selon opérateur',
           actif: true,
           commission: '10%',
-          description: 'Commission prélevée automatiquement'
-        },
-        {
-          id: 'ORANGE_MONEY',
-          nom: 'Orange Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true,
-          commission: '10%',
-          description: 'Commission prélevée automatiquement'
-        },
-        {
-          id: 'MTN_MONEY',
-          nom: 'MTN Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true,
-          commission: '10%',
-          description: 'Commission prélevée automatiquement'
-        },
-        {
-          id: 'MOOV_MONEY',
-          nom: 'Moov Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true,
-          commission: '10%',
-          description: 'Commission prélevée automatiquement'
+          description: 'Wave, Orange Money, MTN, Moov — sélection sur CinetPay'
         }
       ];
 
@@ -367,7 +341,7 @@ class PaiementController {
             nom: `${conducteur.prenom} ${conducteur.nom}`,
             compteRecharge,
             solde: compteRecharge ? soldeConducteur : 0,
-            noteMoyenne: conducteur.noteMoyenne || 0
+            noteGenerale: conducteur.noteGenerale || 0 
           },
           informations: {
             commissionPlateforme: 'Commission de base 10% (peut être réduite selon la note du conducteur)',
@@ -391,26 +365,27 @@ class PaiementController {
   }
 
   // 🆕 Confirmer un paiement en espèces (après le trajet)
+  
   async confirmerPaiementEspeces(req, res) {
-    try {
-      const { referenceTransaction } = req.params;
-      const { codeConfirmation } = req.body;
-      const userId = req.user._id;
+  try {
+    const { referenceTransaction, reservationId } = req.params;
+    const userId = req.user._id;
 
-      const paiement = await Paiement.findOne({
-        referenceTransaction,
-        methodePaiement: 'ESPECES',
-        statutPaiement: 'EN_ATTENTE'
-      }).populate('beneficiaireId', 'compteCovoiturage nom prenom email');
+    const paiement = await Paiement.findOne({
+      ...(referenceTransaction 
+        ? { referenceTransaction } 
+        : { reservationId }),
+      methodePaiement: 'ESPECES',
+      statutPaiement: 'TRAITE'
+    }).populate('beneficiaireId', 'compteCovoiturage nom prenom email');
 
       if (!paiement) {
         return res.status(404).json({
           success: false,
-          message: 'Paiement en espèces non trouvé ou déjà traité'
+          message: 'Paiement non trouvé ou commission non encore prélevée'
         });
       }
 
-      // Vérifier que c'est le conducteur ou le passager qui confirme
       const estConducteur = paiement.beneficiaireId._id.toString() === userId.toString();
       const estPassager = paiement.payeurId.toString() === userId.toString();
 
@@ -421,41 +396,24 @@ class PaiementController {
         });
       }
 
-      // Vérifier à nouveau le solde du conducteur
-      const conducteur = paiement.beneficiaireId;
-      const soldeConducteur = conducteur.compteCovoiturage?.solde || 0;
-
-      if (soldeConducteur < paiement.commission.montant) {
-        return res.status(400).json({
-          success: false,
-          error: 'SOLDE_INSUFFISANT',
-          message: `Le solde du conducteur est insuffisant pour prélever la commission (${soldeConducteur} FCFA < ${paiement.commission.montant} FCFA)`
-        });
-      }
-
-      // Confirmer le paiement
+      // ✅ Plus de débit ici — juste marquer COMPLETE
+      // Le débit a déjà été fait dans accepterReservation()
       paiement.statutPaiement = 'COMPLETE';
       paiement.dateCompletion = new Date();
-      paiement.reglesPaiement.soldeConducteurAvant = soldeConducteur;
 
-      paiement.ajouterLog('PAIEMENT_ESPECES_CONFIRME', {
+      paiement.ajouterLog('PAIEMENT_ESPECES_CONFIRME_APRES_TRAJET', {
         confirmePar: estConducteur ? 'conducteur' : 'passager',
         userId,
-        codeConfirmation,
-        dateConfirmation: new Date()
+        dateConfirmation: new Date(),
+        note: 'Commission déjà prélevée lors de l\'acceptation de la réservation'
       });
-
-      // Traiter la commission
-      await paiement.traiterCommissionApresPayement();
 
       await paiement.save();
 
-      // Envoyer notification
-      await this.envoyerEmailConfirmationPaiement(conducteur, paiement);
-
       // Notification Firebase au conducteur
       try {
-        if (conducteur.notificationsActivees('paiements')) {
+        const conducteur = paiement.beneficiaireId;
+        if (conducteur.notificationsActivees?.('paiements')) {
           await firebaseService.notifyPaymentSuccess(
             conducteur._id,
             {
@@ -465,20 +423,15 @@ class PaiementController {
             },
             Utilisateur
           );
-          
-          logger.info('📱 Notification Firebase envoyée au conducteur', {
-            conducteurId: conducteur._id,
-            montant: paiement.montantTotal
-          });
         }
       } catch (notifError) {
         logger.error('❌ Erreur notification Firebase conducteur:', notifError);
       }
-      
+
       // Notification Firebase au passager
       try {
         const passager = await Utilisateur.findById(paiement.payeurId);
-        if (passager && passager.notificationsActivees('paiements')) {
+        if (passager?.notificationsActivees?.('paiements')) {
           await firebaseService.notifyPaymentSuccess(
             passager._id,
             {
@@ -488,25 +441,20 @@ class PaiementController {
             },
             Utilisateur
           );
-          
-          logger.info('📱 Notification Firebase envoyée au passager', {
-            passagerId: passager._id,
-            montant: paiement.montantTotal
-          });
         }
       } catch (notifError) {
         logger.error('❌ Erreur notification Firebase passager:', notifError);
       }
 
-      logger.info('Paiement espèces confirmé', {
+      logger.info('✅ Paiement espèces finalisé après trajet', {
         paiementId: paiement._id,
         referenceTransaction,
         confirmePar: estConducteur ? 'conducteur' : 'passager'
       });
 
-      res.json({
+      return res.json({
         success: true,
-        message: 'Paiement en espèces confirmé avec succès',
+        message: '✅ Paiement en espèces confirmé avec succès',
         data: {
           paiementId: paiement._id,
           referenceTransaction: paiement.referenceTransaction,
@@ -516,7 +464,7 @@ class PaiementController {
             montant: paiement.commission.montant,
             statutPrelevement: paiement.commission.statutPrelevement
           },
-          nouveauSoldeConducteur: paiement.reglesPaiement.soldeConducteurApres,
+          soldeConducteurApres: paiement.reglesPaiement.soldeConducteurApres,
           statutPaiement: paiement.statutPaiement,
           dateCompletion: paiement.dateCompletion
         }
@@ -542,7 +490,8 @@ class PaiementController {
  */
 async initierRecharge(req, res) {
   try {
-    const { montant, methodePaiement } = req.body;
+    const { montant } = req.body;
+    let { methodePaiement } = req.body; // will be normalized further down
     const userId = req.user.userId;
 
     // Vérifier utilisateur
@@ -566,26 +515,34 @@ async initierRecharge(req, res) {
     }
 
     // Validation montant
-    if (montant < 1000 || montant > 1000000) {
+    if (montant < 300 || montant > 1000000) {
       return res.status(400).json({
         success: false,
-        message: 'Montant invalide (1000 à 1 000 000 FCFA)',
+        message: 'Montant invalide (300 à 1 000 000 FCFA)',
         limites: {
-          minimum: 1000,
+          minimum: 300,
           maximum: 1000000
         }
       });
     }
 
-    // Validation méthode de paiement
-    const methodesValides = ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'];
-    if (!methodesValides.includes(methodePaiement)) {
+    // Validation méthode de paiement (on normalise pour tolérer
+    // différentes représentations envoyées par le frontend)
+    const methodesValides = ['MOBILE_MONEY'];
+    const normal = (methodePaiement || '')
+      .toString()
+      .trim()
+      .toUpperCase()
+      .replace(/[-\s]+/g, '_');
+    if (!methodesValides.includes(normal)) {
       return res.status(400).json({
         success: false,
         message: 'Méthode de paiement non supportée',
         methodesAcceptees: methodesValides
       });
     }
+    // remplacer la valeur par sa forme normalisée pour stockage
+    methodePaiement = normal;
 
     // Vérifier limites quotidiennes
     const limiteQuotidienne = await this.verifierLimitesRecharge(userId, montant);
@@ -622,7 +579,7 @@ async initierRecharge(req, res) {
       
       reglesPaiement: {
         conducteurCompteRecharge: user.compteCovoiturage?.estRecharge || false,
-        modesAutorises: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'],
+        modesAutorises: ['MOBILE_MONEY'],
         raisonValidation: 'Recharge de compte via CinetPay',
         verificationsPassees: true,
         soldeSuffisant: true
@@ -679,7 +636,8 @@ async initierRecharge(req, res) {
     try {
       const resultCinetPay = await this.cinetPayService.initierPaiement(
         null, // Pas de reservationId pour recharge
-        montant,
+        // montant,
+        100,
         {
           methodePaiement,
           referenceInterne: paiement.referenceTransaction,
@@ -790,23 +748,17 @@ async initierRecharge(req, res) {
  * 
  * la méthode confirmerRecharge existante par celle-ci
  */
-async confirmerRecharge(req, res) {
-  try {
-    const {
-      referenceTransaction,
-      statutPaiement = 'COMPLETE',
-      // Champs webhook CinetPay
-      cpm_trans_id,
-      cpm_trans_status,
-      cpm_amount,
-      cpm_custom
-    } = req.body;
+  async confirmerRecharge(req, res) {
+    try {
+      const {
+    referenceTransaction,
+    statutPaiement = 'COMPLETE',
+    merchant_transaction_id,
+    transaction_id,
+    notify_token
+  } = req.body;
 
-    // Détecter si c'est un webhook CinetPay
-    const estWebhook = req.headers['x-webhook-signature'] || 
-                       req.body.webhook === true ||
-                       cpm_trans_id; // Si contient ID transaction CinetPay
-
+const estWebhook = notify_token || merchant_transaction_id;
     if (!referenceTransaction) {
       return res.status(400).json({
         success: false,
@@ -817,7 +769,7 @@ async confirmerRecharge(req, res) {
     // Trouver le paiement de recharge
     const paiement = await Paiement.findOne({
       referenceTransaction,
-      methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
+      methodePaiement: 'MOBILE_MONEY'
     }).populate('payeurId', 'compteCovoiturage nom prenom email');
 
     if (!paiement) {
@@ -909,24 +861,22 @@ async confirmerRecharge(req, res) {
     } else {
       logger.info('📨 Webhook CinetPay reçu pour recharge', {
         referenceTransaction,
-        cpm_trans_id,
-        cpm_trans_status,
-        cpm_amount,      
-        cpm_custom 
+        transaction_id,
+        notify_token
       });
     }
 
     // ✅ TRAITER SELON LE STATUT
-    if (statutPaiement === 'COMPLETE' || cpm_trans_status === 'COMPLETED') {
+    if (statutPaiement === 'COMPLETE' || notify_token) {
       // RECHARGE RÉUSSIE
       paiement.statutPaiement = 'COMPLETE';
       paiement.dateCompletion = new Date();
       
       // Enregistrer données CinetPay si webhook
-      if (cpm_trans_id) {
-        paiement.mobileMoney.transactionId = cpm_trans_id;
+      if (transaction_id) {
+       paiement.mobileMoney.transactionId = transaction_id;
         paiement.mobileMoney.statutMobileMoney = 'SUCCESS';
-        paiement.referencePaiementMobile = cpm_trans_id;
+        paiement.referencePaiementMobile = transaction_id;
         paiement.mobileMoney.dateTransaction = new Date();
       }
 
@@ -969,7 +919,7 @@ async confirmerRecharge(req, res) {
         bonusRecharge: paiement.bonus.bonusRecharge,
         nouveauSolde: user.compteCovoiturage.solde,
         modeConfirmation: estWebhook ? 'webhook_auto' : 'manuel_admin',
-        cpm_trans_id: cpm_trans_id || null
+        transaction_id: transaction_id || null
       });
 
       logger.info('✅ Recharge confirmée avec succès', {
@@ -996,16 +946,16 @@ async confirmerRecharge(req, res) {
           statutPaiement: paiement.statutPaiement,
           dateCompletion: paiement.dateCompletion,
           modeConfirmation: estWebhook ? 'automatique' : 'manuel',
-          transactionCinetPay: cpm_trans_id || null
+          transactionCinetPay: transaction_id || null
         }
       });
 
-    } else if (statutPaiement === 'ECHEC' || cpm_trans_status === 'FAILED') {
+    } else if (statutPaiement === 'ECHEC') {
       // RECHARGE ÉCHOUÉE
       paiement.statutPaiement = 'ECHEC';
       
-      if (cpm_trans_id) {
-        paiement.mobileMoney.transactionId = cpm_trans_id;
+      if (transaction_id) {
+         paiement.mobileMoney.transactionId = transaction_id;
         paiement.mobileMoney.statutMobileMoney = 'FAILED';
       }
 
@@ -1043,7 +993,7 @@ async confirmerRecharge(req, res) {
         paiementId: paiement._id,
         userId: user._id,
         referenceTransaction,
-        cpm_trans_id: cpm_trans_id || null
+        transaction_id: transaction_id || null
       });
 
       res.json({
@@ -1054,7 +1004,7 @@ async confirmerRecharge(req, res) {
           referenceTransaction: paiement.referenceTransaction,
           statutPaiement: paiement.statutPaiement,
           raisonEchec: 'Paiement échoué sur CinetPay',
-          transactionCinetPay: cpm_trans_id || null
+          transactionCinetPay: transaction_id || null
         }
       });
     }
@@ -1093,7 +1043,7 @@ async confirmerRecharge(req, res) {
       const filtres = {
         payeurId: userId,
         beneficiaireId: userId,
-        methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
+        methodePaiement: 'MOBILE_MONEY'
       };
 
       if (statut) {
@@ -1457,14 +1407,15 @@ async confirmerRecharge(req, res) {
       const result = await this.cinetPayService.traiterWebhook(webhookData);
 
       // Envoyer notification Firebase selon le résultat
-      if (result.success && result.paiement) {
-        const paiement = result.paiement;
+      if (result.success && result.paiementId) {
+        const paiement = await Paiement.findById(result.paiementId)
+          .populate('payeurId');
         
         try {
           // Notification selon le statut du paiement
-          if (paiement.statutPaiement === 'COMPLETE') {
+         if (paiement && paiement.statutPaiement === 'COMPLETE') {
             // Paiement réussi
-            const utilisateur = await Utilisateur.findById(paiement.payeurId);
+             const utilisateur = paiement.payeurId;
             
             if (utilisateur && utilisateur.notificationsActivees('paiements')) {
               await firebaseService.notifyPaymentSuccess(
@@ -1570,7 +1521,7 @@ async confirmerRecharge(req, res) {
       } else if (type === 'recharges') {
         filtres.payeurId = userId;
         filtres.beneficiaireId = userId;
-        filtres.methodePaiement = { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] };
+        filtres.methodePaiement = 'MOBILE_MONEY';
       }
       
       if (statut) {
@@ -1653,35 +1604,22 @@ async confirmerRecharge(req, res) {
     try {
       const methodes = [
         {
-          id: 'WAVE',
-          nom: 'Wave',
+          id: 'MOBILE_MONEY',
+          nom: 'Mobile Money',
           type: 'mobile_money',
+          frais: 'Selon opérateur',
+          actif: true,
+          description: 'Wave, Orange Money, MTN, Moov — sélection sur CinetPay'
+        },
+        {
+          id: 'ESPECES',
+          nom: 'Espèces',
+          type: 'cash',
           frais: '0%',
-          actif: true
-        },
-        {
-          id: 'ORANGE_MONEY',
-          nom: 'Orange Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true
-        },
-        {
-          id: 'MTN_MONEY',
-          nom: 'MTN Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true
-        },
-        {
-          id: 'MOOV_MONEY',
-          nom: 'Moov Money',
-          type: 'mobile_money',
-          frais: '1.5%',
-          actif: true
+          actif: true,
+          description: 'Paiement direct au conducteur (sous conditions)'
         }
       ];
-
       return res.status(200).json({
         success: true,
         methodes
@@ -1759,13 +1697,10 @@ async confirmerRecharge(req, res) {
     }
 
     const regexOperateurs = {
-      'ORANGE': /^(\+225)?07[0-9]{8}$/,
-      'ORANGE_MONEY': /^(\+225)?07[0-9]{8}$/,
-      'MTN': /^(\+225)?05[0-9]{8}$/,
-      'MTN_MONEY': /^(\+225)?05[0-9]{8}$/,
-      'MOOV': /^(\+225)?01[0-9]{8}$/,
-      'MOOV_MONEY': /^(\+225)?01[0-9]{8}$/,
-      'WAVE': /^(\+225)?[0-9]{8,10}$/
+    'MOBILE_MONEY': /^(\+225)?[0-9]{8,10}$/,
+    'ORANGE': /^(\+225)?07[0-9]{8}$/,
+    'MTN': /^(\+225)?05[0-9]{8}$/,
+    'MOOV': /^(\+225)?01[0-9]{8}$/
     };
 
     const regex = regexOperateurs[operateur.toUpperCase()];
@@ -1791,7 +1726,7 @@ async confirmerRecharge(req, res) {
       payeurId: userId,
       dateInitiation: { $gte: debutJour },
       statutPaiement: { $in: ['COMPLETE', 'EN_ATTENTE'] },
-      methodePaiement: { $in: ['WAVE', 'ORANGE_MONEY', 'MTN_MONEY', 'MOOV_MONEY'] }
+      methodePaiement: 'MOBILE_MONEY'
     });
 
     const montantRechargeAujourdhui = rechargesAujourdhui.reduce((sum, r) => sum + r.montantTotal, 0);
@@ -1828,30 +1763,11 @@ async confirmerRecharge(req, res) {
 
   genererInstructionsRecharge(methodePaiement, numeroTelephone, montant) {
     const instructions = {
-      'ORANGE_MONEY': [
-        'Composez #144# sur votre téléphone Orange Money',
-        'Sélectionnez "Transfert d\'argent"',
-        'Sélectionnez "Vers un marchand"',
+      'MOBILE_MONEY': [
+        'Cliquez sur le lien de paiement CinetPay',
+        'Choisissez votre opérateur (Wave, Orange, MTN, Moov)',
         `Entrez le montant: ${montant} FCFA`,
-        'Confirmez la transaction'
-      ],
-      'MTN_MONEY': [
-        'Composez *133# sur votre téléphone MTN Money',
-        'Sélectionnez "Paiement marchand"',
-        `Entrez le montant: ${montant} FCFA`,
-        'Suivez les instructions pour finaliser'
-      ],
-      'MOOV_MONEY': [
-        'Composez *555# sur votre téléphone Moov Money',
-        'Sélectionnez "Paiement"',
-        `Entrez le montant: ${montant} FCFA`,
-        'Confirmez votre paiement'
-      ],
-      'WAVE': [
-        'Ouvrez votre application Wave',
-        'Sélectionnez "Envoyer de l\'argent"',
-        `Envoyez ${montant} FCFA au marchand WAYZ-ECO`,
-        'Notez le code de transaction reçu'
+        'Confirmez la transaction sur votre téléphone'
       ]
     };
 

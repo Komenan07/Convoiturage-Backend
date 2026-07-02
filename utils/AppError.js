@@ -92,6 +92,30 @@ class AppError extends Error {
     });
   }
 
+  static badRequest(message, context) {
+    return new AppError(message, {
+      code: CODES.BAD_REQUEST,
+      status: 400,
+      context
+    });
+  }
+
+  static notFound(message, context) {
+    return new AppError(message, {
+      code: CODES.NOT_FOUND,
+      status: 404,
+      context
+    });
+  }
+
+  static forbidden(message, context) {
+    return new AppError(message, {
+      code: CODES.FORBIDDEN,
+      status: 403,
+      context
+    });
+  }
+
   static serverError(message = "Erreur serveur", context) {
     return new AppError(message, {
       code: CODES.SERVER_ERROR,

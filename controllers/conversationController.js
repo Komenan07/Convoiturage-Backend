@@ -181,7 +181,7 @@ const obtenirDetailsConversation = async (req, res, next) => {
 
     const conversation = await Conversation.findById(id)
       .populate('trajetId')
-      .populate('participants', 'nom prenom email avatar telephone')
+      .populate('participants', 'nom prenom email photoProfil telephone')
       .populate('statistiques.dernierMessagePar', 'nom prenom');
 
     if (!conversation) {
@@ -205,7 +205,7 @@ const obtenirDetailsConversation = async (req, res, next) => {
     
     if (includeMessages === 'true') {
       messages = await Message.find({ conversationId: id })
-        .populate('expediteur', 'nom prenom avatar')
+        .populate('expediteur', 'nom prenom photoProfil')
         .sort({ createdAt: -1 })
         .limit(parseInt(messageLimit));
       messages.reverse(); // Pour avoir l'ordre chronologique
@@ -376,7 +376,7 @@ const ajouterParticipant = async (req, res, next) => {
     await conversation.save();
 
     const updatedConversation = await Conversation.findById(id)
-      .populate('participants', 'nom prenom email avatar');
+      .populate('participants', 'nom prenom email photoProfil');
 
     res.json({
       success: true,
@@ -432,7 +432,7 @@ const retirerParticipant = async (req, res, next) => {
     await conversation.save();
 
     const updatedConversation = await Conversation.findById(id)
-      .populate('participants', 'nom prenom email avatar');
+      .populate('participants', 'nom prenom email photoProfil');
 
     res.json({
       success: true,
@@ -488,6 +488,17 @@ const marquerCommeLu = async (req, res, next) => {
 
     conversation.marquerCommeLu(userId);
     await conversation.save();
+
+    // Émettre l'événement socket pour notifier les autres participants en temps réel
+    const io = req.app.get('io');
+    if (io) {
+      const conversationRoom = `conversation:${id}`;
+      io.to(conversationRoom).emit('conversation_marked_read', {
+        conversationId: id,
+        userId,
+        timestamp: new Date()
+      });
+    }
 
     res.json({
       success: true,
@@ -575,7 +586,7 @@ const obtenirConversationParTrajet = async (req, res, next) => {
     }
 
     const conversation = await Conversation.findByTrajet(trajetId)
-      .populate('participants', 'nom prenom email avatar');
+      .populate('participants', 'nom prenom email photoProfil');
 
     if (!conversation) {
       return res.status(404).json({

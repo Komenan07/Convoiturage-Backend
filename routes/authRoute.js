@@ -4,59 +4,76 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const { loginFlexibleValidation } = require('../validators/authValidator');
 const rateLimit = require('express-rate-limit');
+const jwt = require('jsonwebtoken');
+const Utilisateur = require('../models/Utilisateur');
 
-// =============== IMPORTS ===============
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+// Helpers for OAuth user creation
+const makeTempPhone = () => {
+  // Generate a +225 + 8 digits temporary phone that matches validation
+  const number = Math.floor(10000000 + Math.random() * 90000000);
+  return `+225${number}`;
+};
+const fallbackName = (explicitName, payload, email) => {
+  if (explicitName && explicitName.trim()) return explicitName;
+  if (payload) return payload.family_name || payload.name || payload.given_name || '';
+  if (email) return email.split('@')[0];
+  return '';
+};
+
 const {
-  // Inscription
-  inscription,              
-  inscriptionSMS, 
-  passerConducteur,
+  // Inscription / vérification
   register,
+  chooseChannel,
   verifyCode,
-  resendCode,          
-  
+  resendCode,
+  inscription,
+  inscriptionSMS,
+  passerConducteur,
+
   // Confirmation
-  confirmerEmail,           
-  verifierCodeSMS,          
-  renvoyerConfirmationEmail, 
-  renvoyerCodeSMS,          
-  
+  confirmerEmail,
+  verifierCodeSMS,
+  renvoyerConfirmationEmail,
+  renvoyerCodeSMS,
+
   // Connexion
   connexion,
   connexionAdmin,
   deconnexion,
   verifierToken,
   obtenirUtilisateurConnecte,
-  
+
   // Réinitialisation mot de passe
-  motDePasseOublie,         
-  motDePasseOublieSMS,      
-  verifierCodeOTPReset,     
+  motDePasseOublie,
+  motDePasseOublieSMS,
+  verifierCodeOTPReset,
   reinitialiserMotDePasse,
   demandeReinitialisationMotDePasse,
   confirmerReinitialisationMotDePasse,
 
   // Réinitialisation mot de passe WhatsApp
-  forgotPassword,          
-  resetPassword,            
-  resendResetCode,    
-  verifyResetCode,      
-  
-  // Gestion des Refresh Tokens
+  forgotPassword,
+  verifyResetCode,
+  resetPassword,
+  resendResetCode,
+
+  // Refresh / sessions
   refreshToken,
   roterToken,
   obtenirSessionsActives,
   revoquerSession,
   deconnexionGlobale,
 
-  // Gestion des Recharges
+  // Recharges
   demanderRecharge,
   confirmerRecharge,
   configurerAutoRecharge,
   desactiverAutoRecharge,
   configurerRetraitGains,
 
-  // Nouveaux contrôleurs compte covoiturage
+  // Compte covoiturage
   obtenirResumeCompteCovoiturage,
   obtenirHistoriqueRecharges,
   obtenirHistoriqueCommissions,
@@ -364,6 +381,14 @@ const handleValidationErrors = (req, res, next) => {
  * @access  Public
  */
 router.post('/register', register);
+
+router.post('/inscription/choose-channel', chooseChannel);
+/**
+ * @desc    Choisir le canal de vérification (email ou téléphone)
+ *          Appelé uniquement si requiresChoice: true à l'inscription
+ * @route   POST /api/auth/register/choose-channel
+ * @access  Public
+ */
 /**
  * @desc    Vérifier le code WhatsApp
  * @route   POST /api/auth/verify-code
@@ -831,6 +856,441 @@ router.post('/retrait/configure',
   handleValidationErrors,
   configurerRetraitGains
 );
+
+// =========================================================================
+// 🔐 ROUTES GOOGLE OAUTH
+// =========================================================================
+
+/**
+ * @route   POST /api/auth/google
+ * @desc    Authentification Google 
+ * @access  Public
+ */
+router.post('/google', async (req, res) => {
+  try {
+    const { idToken, email, nom, prenom, photoProfil } = req.body;
+
+    console.log('📧 Tentative connexion Google:', email);
+
+    // ✅ VALIDATION du token Google
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token Google requis',
+      });
+    }
+
+    // ✅ VÉRIFIER le token auprès de Google
+    let ticket;
+    try {
+      ticket = await googleClient.verifyIdToken({
+        idToken: idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+    } catch (error) {
+      console.error('❌ Token Google invalide:', error.message);
+      return res.status(401).json({
+        success: false,
+        message: 'Token Google invalide',
+      });
+    }
+
+    const payload = ticket.getPayload();
+    const googleUserId = payload['sub'];
+    const verifiedEmail = payload['email'];
+    const emailVerified = payload['email_verified'];
+
+    console.log('✅ Token Google vérifié:', verifiedEmail);
+
+    // ✅ Vérifier que l'email est vérifié chez Google
+    if (!emailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email Google non vérifié',
+      });
+    }
+
+    // Chercher l'utilisateur par googleId ou email
+    let user = await Utilisateur.findOne({
+      $or: [
+        { googleId: googleUserId },
+        { email: verifiedEmail }
+      ]
+    });
+
+    if (!user) {
+      console.log('🆕 Création nouveau compte Google');
+      const tempPhone = makeTempPhone();
+      const resolvedNom = fallbackName(nom, payload, verifiedEmail);
+      const resolvedPrenom = prenom || payload['given_name'] || '';
+
+      user = new Utilisateur({
+        email: verifiedEmail,
+        telephone: tempPhone,
+        telephoneVerifie: false,
+        nom: resolvedNom,
+        prenom: resolvedPrenom,
+        photoProfil: photoProfil || payload['picture'] || '',
+        googleId: googleUserId,
+        emailVerifie: true,
+        role: 'passager',
+        statutCompte: 'ACTIF',
+        dateInscription: new Date(),
+      });
+
+      console.log('➡️ Création utilisateur Google, champs:', { email: verifiedEmail, telephone: tempPhone, nom: resolvedNom, prenom: resolvedPrenom });
+      await user.save();
+      console.log('✅ Compte créé:', user._id);
+      
+    } else {
+      console.log('✅ Utilisateur existant:', user._id);
+      
+      if (!user.googleId) {
+        user.googleId = googleUserId;
+      }
+      
+      if (photoProfil && user.photoProfil !== photoProfil) {
+        user.photoProfil = photoProfil;
+      }
+      
+      if (!user.emailVerifie) {
+        user.emailVerifie = true;
+      }
+      
+      await user.save();
+    }
+
+    // ✅ Générer les tokens JWT
+    const accessToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Connexion Google réussie',
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          nom: user.nom,
+          prenom: user.prenom,
+          photoProfil: user.photoProfil,
+          role: user.role,
+          emailVerifie: user.emailVerifie,
+          telephoneVerifie: user.telephoneVerifie || false,
+          statutCompte: user.statutCompte,
+        },
+        token: accessToken,
+        refreshToken: refreshToken,
+      },
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur connexion Google:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la connexion avec Google',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Erreur serveur',
+    });
+  }
+});
+
+// ===================================
+// 🧪 ROUTE DE DÉVELOPPEMENT (TEST UNIQUEMENT)
+// ===================================
+router.post('/dev-google-signin', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email requis',
+      });
+    }
+
+    console.log('🧪 [DEV] Simulation connexion Google:', email);
+
+    // Chercher ou créer l'utilisateur
+    let user = await Utilisateur.findOne({ email });
+
+    if (!user) {
+      console.log('🆕 [DEV] Création nouveau compte');
+      
+      const tempPhone = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      user = new Utilisateur({
+        email: email,
+        telephone: tempPhone,
+        telephoneVerifie: false,
+        nom: email.split('@')[0], // Utilise la partie avant @ comme nom
+        prenom: 'Test',
+        photoProfil: 'https://ui-avatars.com/api/?name=' + email,
+        googleId: `dev_${Date.now()}`, // ID fictif pour dev
+        emailVerifie: true,
+        role: 'passager',
+        statutCompte: 'ACTIF',
+        dateInscription: new Date(),
+      });
+
+      await user.save();
+      console.log('✅ [DEV] Compte créé:', user._id);
+    } else {
+      console.log('✅ [DEV] Utilisateur existant:', user._id);
+    }
+
+    // Générer les tokens JWT
+    const accessToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: '🧪 [DEV] Connexion simulée réussie',
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          nom: user.nom,
+          prenom: user.prenom,
+          photoProfil: user.photoProfil,
+          role: user.role,
+          emailVerifie: user.emailVerifie,
+          telephoneVerifie: user.telephoneVerifie || false,
+          statutCompte: user.statutCompte,
+        },
+        token: accessToken,
+        refreshToken: refreshToken,
+      },
+    });
+
+  } catch (error) {
+    console.error('❌ [DEV] Erreur:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la simulation',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Erreur serveur',
+    });
+  }
+});
+// Après la route POST /google, ajoutez cette nouvelle route :
+
+/**
+ * @route   GET /api/auth/google/callback
+ * @desc    Callback OAuth Google
+ * @access  Public
+ */
+router.get('/google/callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+
+    if (!code) {
+      return res.redirect(process.env.FRONTEND_URL + '/login?error=no_code');
+    }
+
+    // Échanger le code contre un token
+    const { OAuth2Client } = require('google-auth-library');
+    const client = new OAuth2Client(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      `${process.env.BASE_URL}/api/auth/google/callback`
+    );
+
+    const { tokens } = await client.getToken(code);
+    const ticket = await client.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const googleUserId = payload['sub'];
+    const verifiedEmail = payload['email'];
+
+    // Chercher ou créer l'utilisateur
+    let user = await Utilisateur.findOne({
+      $or: [
+        { googleId: googleUserId },
+        { email: verifiedEmail }
+      ]
+    });
+
+    if (!user) {
+      const tempPhone = makeTempPhone();
+      const resolvedNom = fallbackName(null, payload, verifiedEmail);
+      const resolvedPrenom = payload['given_name'] || '';
+
+      user = new Utilisateur({
+        email: verifiedEmail,
+        telephone: tempPhone,
+        telephoneVerifie: false,
+        nom: resolvedNom,
+        prenom: resolvedPrenom,
+        photoProfil: payload['picture'] || '',
+        googleId: googleUserId,
+        emailVerifie: true,
+        role: 'passager',
+        statutCompte: 'ACTIF',
+        dateInscription: new Date(),
+      });
+
+      console.log('➡️ Création utilisateur Google (callback), champs:', { email: verifiedEmail, telephone: tempPhone, nom: resolvedNom, prenom: resolvedPrenom });
+      await user.save();
+    }
+
+    // Générer JWT tokens
+    const accessToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    // Rediriger vers le frontend avec les tokens
+    const redirectUrl = `${process.env.FRONTEND_URL}/auth/callback?token=${accessToken}&refreshToken=${refreshToken}`;
+    res.redirect(redirectUrl);
+
+  } catch (error) {
+    console.error('❌ Erreur callback Google:', error);
+    res.redirect(process.env.FRONTEND_URL + '/login?error=auth_failed');
+  }
+});
+
+/**
+ * @route   GET /api/auth/google/login
+ * @desc    Initier la connexion Google OAuth
+ * @access  Public
+ */
+router.get('/google/login', (req, res) => {
+  const { OAuth2Client } = require('google-auth-library');
+  const client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${process.env.BASE_URL}/api/auth/google/callback`
+  );
+
+  const authorizeUrl = client.generateAuthUrl({
+    access_type: 'offline',
+    scope: [
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'openid'
+    ],
+    prompt: 'consent'
+  });
+
+  res.redirect(authorizeUrl);
+});
+// =========================================================================
+// 🧪 ROUTE DE TEST GOOGLE (DEV UNIQUEMENT)
+// =========================================================================
+if (process.env.NODE_ENV === 'development') {
+  router.post('/google-test', async (req, res) => {
+    try {
+      const { email, nom, prenom, photoProfil } = req.body;
+      
+      console.log('🧪 [TEST] Connexion Google pour:', email);
+      
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email requis'
+        });
+      }
+
+      let user = await Utilisateur.findOne({ email });
+
+      if (!user) {
+        console.log('🆕 [TEST] Création nouveau compte');
+        const tempPhone = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        user = new Utilisateur({
+          email: email,
+          telephone: tempPhone,
+          telephoneVerifie: false,
+          nom: nom || 'Test',
+          prenom: prenom || 'Google',
+          photoProfil: photoProfil || '',
+          googleId: `test_google_${Date.now()}`,
+          emailVerifie: true,
+          role: 'passager',
+          statutCompte: 'ACTIF',
+          dateInscription: new Date(),
+        });
+
+        await user.save();
+        console.log('✅ [TEST] Compte créé:', user._id);
+      } else {
+        console.log('✅ [TEST] Compte existant:', user._id);
+        
+        if (nom) user.nom = nom;
+        if (prenom) user.prenom = prenom;
+        if (photoProfil) user.photoProfil = photoProfil;
+        await user.save();
+      }
+
+      const accessToken = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRE || '7d' }
+      );
+
+      const refreshToken = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+        { expiresIn: '30d' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Connexion Google réussie (TEST)',
+        data: {
+          user: {
+            _id: user._id,
+            email: user.email,
+            nom: user.nom,
+            prenom: user.prenom,
+            photoProfil: user.photoProfil,
+            role: user.role,
+            emailVerifie: user.emailVerifie,
+            telephoneVerifie: user.telephoneVerifie,
+            statutCompte: user.statutCompte,
+          },
+          token: accessToken,
+          refreshToken: refreshToken,
+        },
+      });
+
+    } catch (error) {
+      console.error('❌ [TEST] Erreur:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur test',
+        error: error.message
+      });
+    }
+  });
+}
 
 // =============== ROUTES DE MONITORING ET DIAGNOSTICS ===============
 

@@ -38,9 +38,9 @@ class EvenementService {
    */
   async obtenirEvenementParId(id) {
     return await Evenement.findById(id)
-      .populate('organisateur', 'nom prenom avatar')
+      .populate('organisateur', 'nom prenom photoProfil')
       .populate('trajetsAssocies')
-      .populate('groupesCovoiturage.membres', 'nom prenom avatar');
+      .populate('groupesCovoiturage.membres', 'nom prenom photoProfil');
   }
 
   /**
@@ -543,7 +543,7 @@ class EvenementService {
    */
   async obtenirGroupesCovoiturage(evenementId) {
     const evenement = await Evenement.findById(evenementId)
-      .populate('groupesCovoiturage.membres', 'nom prenom avatar telephone');
+      .populate('groupesCovoiturage.membres', 'nom prenom photoProfil telephone');
       
     if (!evenement) {
       throw new Error('Événement non trouvé');
@@ -1383,7 +1383,7 @@ async creerTrajetPourEvenement(donneesTrajet) {
     
     // Retourner le trajet avec les données populées
     const trajetPopule = await Trajet.findById(trajet._id)
-      .populate('conducteurId', 'nom prenom photo numeroTelephone noteGlobale')
+      .populate('conducteurId', 'nom prenom photoProfil numeroTelephone noteGenerale')
       .populate('evenementAssocie', 'nom dateDebut lieu');
     
     console.log('✅ Trajet créé avec succès:', trajet._id);
@@ -1431,7 +1431,7 @@ async creerTrajetPourEvenement(donneesTrajet) {
       }
       
       const trajets = await Trajet.find(query)
-        .populate('conducteur', 'prenom nom noteGlobale')
+        .populate('conducteur', 'prenom nom noteGenerale')
         .sort({ dateDepart: 1 })
         .limit(10);
       

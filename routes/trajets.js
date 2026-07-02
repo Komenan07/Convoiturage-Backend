@@ -1,33 +1,34 @@
 // routes/trajetRoutes.js
 const express = require('express');
-const { body, query, param, validationResult } = require('express-validator');
+const { body, query, param } = require('express-validator');
 const TrajetController = require('../controllers/trajetController');
 const { authMiddleware } = require('../middlewares/authMiddleware');
 const { transformerCoordonneesEnGeoJSON } = require('../middlewares/geoJsonMiddleware');
+const { handleValidationErrors } = require('../middlewares/validation');
 const router = express.Router();
 
 // ===============================================
 // MIDDLEWARE DE VALIDATION DES ERREURS
 // ===============================================
 
-/**
- * Middleware centralisé pour gérer les erreurs de validation
- */
-const handleValidationErrors = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      message: 'Erreurs de validation',
-      errors: errors.array().map(error => ({
-        champ: error.path || error.param,
-        message: error.msg,
-        valeur: error.value
-      }))
-    });
-  }
-  next();
-};
+// /**
+//  * Middleware centralisé pour gérer les erreurs de validation
+//  */
+// const handleValidationErrors = (req, res, next) => {
+//   const errors = validationResult(req);
+//   if (!errors.isEmpty()) {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'Erreurs de validation',
+//       errors: errors.array().map(error => ({
+//         champ: error.path || error.param,
+//         message: error.msg,
+//         valeur: error.value
+//       }))
+//     });
+//   }
+//   next();
+// };
 
 // ===============================================
 // VALIDATIONS RÉUTILISABLES
@@ -396,7 +397,7 @@ router.get('/conducteur/:conducteurId', [
  * @desc    Obtenir tous les trajets expirés (admin/monitoring)
  * @access  Public (à sécuriser en production)
  */
-router.get('/expires', [
+router.get('/expirer', [
   query('page')
     .optional()
     .isInt({ min: 1 }).withMessage('Numéro de page invalide'),
@@ -417,7 +418,7 @@ router.get('/expires', [
  */
 router.post('/preview-distance',
   authMiddleware,
-  transformerCoordonneesEnGeoJSON, // ✅ Transforme les coordonnées AVANT validation
+  transformerCoordonneesEnGeoJSON, 
   [
     // Validation du point de départ
     body('pointDepart.nom')
@@ -615,8 +616,8 @@ router.get('/historique',
       .withMessage('Type d\'historique invalide (tous, conduits, reserves)'),
     query('statut')
       .optional()
-      .isIn(['PROGRAMME', 'EN_COURS', 'TERMINE', 'ANNULE', 'EXPIRE'])
-      .withMessage('Statut invalide'),
+      .isIn(['TERMINE', 'ANNULE'])
+      .withMessage('Statut invalide pour un historique'),
     query('page')
       .optional()
       .isInt({ min: 1 }).withMessage('Numéro de page invalide'),
@@ -710,6 +711,48 @@ router.patch(
   authMiddleware,
   TrajetController.recalculerDistance
 );
+
+/**
+ * @route   POST /api/trajets/:id/demarrer
+ * @desc    Démarrer un trajet (PROGRAMME → EN_COURS)
+ * @access  Privé (Conducteur uniquement)
+ */
+router.post('/:id/demarrer', 
+  authMiddleware,
+  [
+    param('id')
+      .isMongoId().withMessage('ID du trajet invalide'),
+    body('heureDepart')
+      .optional()
+  ],
+  handleValidationErrors,
+  TrajetController.demarrerTrajet
+);
+
+/**
+ * @route   POST /api/trajets/:id/terminer
+ * @desc    Terminer un trajet (EN_COURS → TERMINE)
+ * @access  Privé (Conducteur uniquement)
+ */
+router.post('/:id/terminer', 
+  authMiddleware,
+  [
+    param('id')
+      .isMongoId().withMessage('ID du trajet invalide'),
+    body('heureArrivee')
+      .optional()
+      .isISO8601().withMessage('Format de date invalide'),
+    body('distanceReelle')
+      .optional()
+      .isFloat({ min: 0 }).withMessage('Distance invalide'),
+    body('dureeReelle')
+      .optional()
+      .isInt({ min: 0 }).withMessage('Durée invalide')
+  ],
+  handleValidationErrors,
+  TrajetController.terminerTrajet
+);
+
 /**
  * @route   PATCH /api/trajets/:id/statut
  * @desc    Mettre à jour le statut d'un trajet
@@ -841,6 +884,7 @@ router.get('/:id',
     param('id')
       .isMongoId().withMessage('ID du trajet invalide')
   ],
+  authMiddleware,
   handleValidationErrors,
   TrajetController.obtenirDetailsTrajet
 );

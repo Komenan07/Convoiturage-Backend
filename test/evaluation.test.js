@@ -6,6 +6,9 @@ const Evaluation = require('../models/Evaluation');
 const Trajet = require('../models/Trajet');
 const Utilisateur = require('../models/Utilisateur');
 
+// Augmenter le timeout des hooks si nécessaire (network calls pour le calcul de distance)
+jest.setTimeout(20000);
+
 // Configuration de la base de données de test
 beforeAll(async () => {
   const MONGODB_URI = process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/covoiturage_test';
@@ -32,7 +35,9 @@ describe('Evaluation API', () => {
       prenom: 'Amadou',
       email: 'amadou@test.ci',
       telephone: '+22507000001',
-      motDePasse: 'password123'
+      motDePasse: 'password123',
+      statutCompte: 'ACTIF',
+      estVerifie: true
     });
     await conducteur.save();
 
@@ -41,28 +46,46 @@ describe('Evaluation API', () => {
       prenom: 'Fatoumata',
       email: 'fatoumata@test.ci',
       telephone: '+22507000002',
-      motDePasse: 'password123'
+      motDePasse: 'password123',
+      statutCompte: 'ACTIF',
+      estVerifie: true
     });
     await passager.save();
 
-    // Créer un trajet terminé
+    // Token d'authentification pour le passager (JWT valide)
+    token = 'Bearer ' + passager.getSignedJwtToken();
+
+    // Créer un trajet terminé (conforme au schéma actuel)
     trajet = new Trajet({
       conducteurId: conducteur._id,
-      depart: {
-        ville: 'Abidjan',
+      pointDepart: {
+        nom: 'Plateau - Départ',
+        adresse: 'Plateau, Abidjan',
+        commune: 'Abidjan',
         quartier: 'Plateau',
-        coordinates: [-4.0435, 5.3364]
+        coordonnees: { type: 'Point', coordinates: [-4.0435, 5.3364] }
       },
-      destination: {
-        ville: 'Yamoussoukro',
+      pointArrivee: {
+        nom: 'Yamoussoukro - Centre',
+        adresse: 'Centre, Yamoussoukro',
+        commune: 'Yamoussoukro',
         quartier: 'Centre',
-        coordinates: [-5.2767, 6.8203]
+        coordonnees: { type: 'Point', coordinates: [-5.2767, 6.8203] }
       },
       dateDepart: new Date(),
       heureDepart: '08:00',
-      placesDisponibles: 3,
-      prix: 5000,
-      statut: 'TERMINE',
+      nombrePlacesTotal: 4,
+      nombrePlacesDisponibles: 3,
+      prixParPassager: 5000,
+      distance: 250,
+      vehiculeUtilise: {
+        marque: 'Toyota',
+        modele: 'Corolla',
+        couleur: 'Blanc',
+        immatriculation: 'TEST-123',
+        nombrePlaces: 4
+      },
+      statutTrajet: 'TERMINE',
       passagers: [{
         utilisateurId: passager._id,
         statut: 'CONFIRME',
@@ -71,8 +94,8 @@ describe('Evaluation API', () => {
     });
     await trajet.save();
 
-    // Token d'authentification pour le passager
-    token = 'bearer_token_' + passager._id;
+    // Token d'authentification pour le passager (JWT valide)
+    token = 'Bearer ' + passager.getSignedJwtToken();
   });
 
   describe('POST /api/evaluations', () => {
@@ -262,7 +285,7 @@ describe('Evaluation API', () => {
     });
 
     it('devrait permettre à l\'évalué de répondre', async () => {
-      const tokenConducteur = 'bearer_token_' + conducteur._id;
+      const tokenConducteur = 'Bearer ' + conducteur.getSignedJwtToken();
       const reponse = 'Merci pour votre évaluation positive!';
 
       const response = await request(app)
@@ -316,7 +339,7 @@ describe('Evaluation API', () => {
       for (let i = 0; i < 5; i++) {
         const evaluation = new Evaluation({
           trajetId: trajet._id,
-          evaluateurId: mongoose.Types.ObjectId(),
+          evaluateurId: new mongoose.Types.ObjectId(),
           evalueId: conducteur._id,
           typeEvaluateur: 'PASSAGER',
           notes: {

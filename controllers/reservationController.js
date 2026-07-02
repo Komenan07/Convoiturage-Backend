@@ -2,9 +2,11 @@ const mongoose = require('mongoose');
 const { validationResult } = require('express-validator');
 const Reservation = require('../models/Reservation');
 const Trajet = require('../models/Trajet');
-//const Utilisateur = require('../models/Utilisateur');
+const Utilisateur = require('../models/Utilisateur');
 const AppError = require('../utils/AppError');
 const notificationService = require('../services/notificationService');
+const firebaseService = require('../services/firebaseService');
+const Paiement = require('../models/Paiement');
 
 // Fonctions utilitaires
 const validerDonnees = (req) => {
@@ -19,7 +21,52 @@ const validerDonnees = (req) => {
   }
   return null;
 };
+async function _notifierConfirmationReservation(reservation) {
+  try {
+    const passager = await Utilisateur.findById(reservation.passagerId._id)
+      .select('email prenom nom fcmTokens preferencesNotifications');
+    if (!passager) return;
 
+    const trajet = reservation.trajetId;
+    await notificationService.notifierReservationConfirmee(
+      passager,
+      {
+        reservationId: reservation._id.toString(),
+        trajetId: trajet._id.toString(),
+        destination: trajet.pointArrivee?.adresse || '',
+        depart: trajet.pointDepart?.adresse || '',
+        dateDepart: trajet.dateDepart,
+        heureDepart: trajet.heureDepart,
+        montant: reservation.montantTotal
+      },
+      Utilisateur
+    );
+  } catch (error) {
+    console.error('⚠️ Erreur _notifierConfirmationReservation:', error.message);
+  }
+}
+
+async function _notifierRefusReservation(reservation) {
+  try {
+    const passager = await Utilisateur.findById(reservation.passagerId._id)
+      .select('email prenom nom fcmTokens preferencesNotifications');
+    if (!passager) return;
+
+    const trajet = reservation.trajetId;
+    await notificationService.notifierReservationRefusee(
+      passager,
+      {
+        reservationId: reservation._id.toString(),
+        trajetId: trajet._id.toString(),
+        destination: trajet.pointArrivee?.adresse || '',
+        raison: reservation.motifRefus || 'Aucun motif spécifié'
+      },
+      Utilisateur
+    );
+  } catch (error) {
+    console.error('⚠️ Erreur _notifierRefusReservation:', error.message);
+  }
+}
 const calculerMontantTotal = (trajet, nombrePlaces) => {
   return trajet.prixParPassager * nombrePlaces;
 };
@@ -30,7 +77,6 @@ class ReservationController {
    */
   static async creerReservation(req, res, next) {
     try {
-      // Vérification de l'authentification
       if (!req.user || (!req.user._id && !req.user.id && !req.user.userId)) {
         return res.status(401).json({
           success: false,
@@ -57,7 +103,6 @@ class ReservationController {
       console.log('Utilisateur:', currentUserId);
       console.log('Trajet:', trajetId);
 
-      // Vérifier que l'utilisateur n'essaie pas de réserver son propre trajet
       const trajet = await Trajet.findById(trajetId).populate('conducteurId');
       if (!trajet) {
         return res.status(404).json({
@@ -75,7 +120,6 @@ class ReservationController {
         });
       }
 
-      // Vérifier si l'utilisateur a déjà une réservation pour ce trajet
       const reservationExistante = await Reservation.findOne({
         trajetId,
         passagerId: currentUserId,
@@ -90,7 +134,6 @@ class ReservationController {
         });
       }
 
-      // Vérifier la disponibilité des places
       const disponibilite = await Reservation.verifierDisponibilite(trajetId, nombrePlacesReservees);
       if (!disponibilite.disponible) {
         return res.status(400).json({
@@ -100,10 +143,8 @@ class ReservationController {
         });
       }
 
-      // Calculer le montant total
       const montantTotal = calculerMontantTotal(trajet, nombrePlacesReservees);
 
-      // Créer la réservation
       const nouvelleReservation = new Reservation({
         trajetId,
         passagerId: currentUserId,
@@ -128,13 +169,40 @@ class ReservationController {
         bagages: bagages || {},
         statutReservation: 'EN_ATTENTE',
         statutPaiement: 'EN_ATTENTE',
-        methodePaiement: req.body.methodePaiement || 'ESPCES'
+        methodePaiement: req.body.methodePaiement || 'MOBILE_MONEY'
       });
 
       await nouvelleReservation.save();
       console.log('Réservation créée:', nouvelleReservation._id);
 
-      // Population pour la réponse
+      // ✅ 1. Mettre à jour les places D'ABORD
+      trajet.nombrePlacesDisponibles -= nombrePlacesReservees;
+      await trajet.save();
+      console.log(`✅ Places mises à jour: ${trajet.nombrePlacesDisponibles} places restantes`);
+
+      // ✅ 2. Notifier le conducteur ENSUITE
+      try {
+        const passager = await Utilisateur.findById(currentUserId).select('nom prenom');
+        await firebaseService.notifyNewReservation(
+          trajet.conducteurId._id,
+          {
+            reservationId: nouvelleReservation._id.toString(),
+            trajetId: trajetId.toString(),
+            conducteurId: trajet.conducteurId._id.toString(), 
+            passagerNom: passager.nom,
+            passagerPrenom: passager.prenom,
+            nombrePlaces: nombrePlacesReservees,
+            montant: montantTotal,
+            depart: trajet.pointDepart?.adresse || '',
+            destination: trajet.pointArrivee?.adresse || ''
+          },
+          Utilisateur
+        );
+      } catch (notifError) {
+        console.error('⚠️ Erreur notification conducteur:', notifError.message);
+      }
+
+      // ✅ 3. Population pour la réponse
       await nouvelleReservation.populate([
         {
           path: 'trajetId',
@@ -307,68 +375,211 @@ class ReservationController {
   /**
    * Confirmer une réservation (par le conducteur)
    */
-  static async confirmerReservation(req, res, next) {
-    try {
-      const { id } = req.params;
-      const currentUserId = req.user._id || req.user.id || req.user.userId;
-
-      const reservation = await Reservation.findById(id)
-        .populate('trajetId')
-        .populate('passagerId', 'nom prenom email');
-
-      if (!reservation) {
-        return res.status(404).json({
-          success: false,
-          message: 'Réservation introuvable',
-          code: 'RESERVATION_NOT_FOUND'
-        });
-      }
-
-      // Vérifier que c'est le conducteur qui confirme
-      if (reservation.trajetId.conducteurId.toString() !== currentUserId.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Seul le conducteur peut confirmer cette réservation',
-          code: 'UNAUTHORIZED'
-        });
-      }
-
-      if (reservation.statutReservation !== 'EN_ATTENTE') {
-        return res.status(400).json({
-          success: false,
-          message: 'Cette réservation ne peut plus être confirmée',
-          code: 'INVALID_STATUS'
-        });
-      }
-
-      reservation.statutReservation = 'CONFIRMEE';
-      reservation.dateConfirmation = new Date();
-      await reservation.save();
-
-      // Programmer les notifications automatiques
-      await reservation.programmerNotifications();
-
-      // Notifier le passager
+    static async confirmerReservation(req, res, next) {
       try {
-        await notificationService.notifierConfirmationReservation(reservation);
-      } catch (notifError) {
-        console.error('Erreur notification:', notifError);
-      }
+        const { id } = req.params;
+        const currentUserId = req.user._id || req.user.id || req.user.userId;
 
-      res.json({
-        success: true,
-        message: 'Réservation confirmée avec succès',
-        data: {
-          reservation
+        const reservation = await Reservation.findById(id)
+          .populate('trajetId')
+          .populate('passagerId', 'nom prenom email');
+
+        if (!reservation) {
+          return res.status(404).json({
+            success: false,
+            message: 'Réservation introuvable',
+            code: 'RESERVATION_NOT_FOUND'
+          });
         }
-      });
 
-    } catch (error) {
-      console.error('Erreur confirmation réservation:', error);
-      return next(AppError.serverError('Erreur serveur lors de la confirmation', { originalError: error.message }));
+        if (reservation.trajetId.conducteurId.toString() !== currentUserId.toString()) {
+          return res.status(403).json({
+            success: false,
+            message: 'Seul le conducteur peut confirmer cette réservation',
+            code: 'UNAUTHORIZED'
+          });
+        }
+
+        if (reservation.statutReservation !== 'EN_ATTENTE') {
+          return res.status(400).json({
+            success: false,
+            message: 'Cette réservation ne peut plus être confirmée',
+            code: 'INVALID_STATUS'
+          });
+        }
+
+        // ══════════════════════════════════════════════════════
+        // 🆕 LOGIQUE PAIEMENT ESPÈCES — DÉBIT À L'ACCEPTATION
+        // ══════════════════════════════════════════════════════
+        let paiementEspeces = null;
+
+        paiementEspeces = await Paiement.findOne({
+          reservationId: id,
+          methodePaiement: 'ESPECES',
+          statutPaiement: 'EN_ATTENTE'
+        });
+
+        if (paiementEspeces) {
+          // Recharger le conducteur avec son solde à jour depuis la DB
+          const conducteur = await Utilisateur.findById(currentUserId)
+            .select('compteCovoiturage nom prenom email');
+
+          const soldeConducteur = conducteur.compteCovoiturage?.solde || 0;
+          const commissionRequise = paiementEspeces.commission.montant;
+
+          // ── CAS 2 : Solde insuffisant → Refus ──────────────
+          if (soldeConducteur < commissionRequise) {
+
+            // Notifier le passager de changer de méthode
+            try {
+              await firebaseService.notifyNewReservation(
+                reservation.passagerId._id,
+                {
+                  reservationId: id.toString(),
+                  type: 'PAIEMENT_ESPECES_REFUSE',
+                  message: 'Le conducteur ne peut pas accepter le paiement en espèces. Veuillez choisir Mobile Money.',
+                  methodesAlternatives: ['MOBILE_MONEY'],
+                  action: 'CHANGER_METHODE_PAIEMENT'
+                },
+                Utilisateur
+              );
+            } catch (notifError) {
+              console.error('⚠️ Erreur notification passager (solde insuffisant):', notifError.message);
+            }
+
+            console.warn(`⚠️ Refus - solde insuffisant: ${soldeConducteur} FCFA < ${commissionRequise} FCFA`);
+
+            return res.status(403).json({
+              success: false,
+              error: 'SOLDE_INSUFFISANT_POUR_ACCEPTER',
+              message: 'Solde insuffisant pour accepter ce paiement en espèces.',
+              data: {
+                soldeConducteur,
+                commissionRequise,
+                manque: commissionRequise - soldeConducteur
+              },
+              actions: {
+                pourConducteur: {
+                  message: `Rechargez votre compte d'au moins ${(commissionRequise - soldeConducteur).toLocaleString()} FCFA`,
+                  route: '/api/paiements/recharges/initier'
+                },
+                pourPassager: {
+                  message: 'Le passager a été notifié de choisir un autre moyen de paiement',
+                  methodesAlternatives: ['MOBILE_MONEY']
+                }
+              }
+            });
+          }
+
+          // ── CAS 1 : Solde suffisant → Débit immédiat ───────
+          const ancienSolde = soldeConducteur;
+
+          conducteur.compteCovoiturage.solde -= commissionRequise;
+          conducteur.compteCovoiturage.totalCommissionsPayees =
+            (conducteur.compteCovoiturage.totalCommissionsPayees || 0) + commissionRequise;
+
+          if (!conducteur.compteCovoiturage.historiqueCommissions) {
+            conducteur.compteCovoiturage.historiqueCommissions = [];
+          }
+          conducteur.compteCovoiturage.historiqueCommissions.push({
+            montant: commissionRequise,
+            type: 'commission_especes',
+            referenceTransaction: paiementEspeces.referenceTransaction,
+            statut: 'preleve',
+            datePrelevement: new Date()
+          });
+
+          await conducteur.save({ validateBeforeSave: false });
+
+          // Mettre à jour le paiement → TRAITE
+          paiementEspeces.commission.statutPrelevement = 'preleve';
+          paiementEspeces.commission.datePrelevement = new Date();
+          paiementEspeces.reglesPaiement.soldeConducteurAvant = ancienSolde;
+          paiementEspeces.reglesPaiement.soldeConducteurApres = conducteur.compteCovoiturage.solde;
+          paiementEspeces.statutPaiement = 'TRAITE';
+
+          paiementEspeces.ajouterLog('COMMISSION_PRELEVEE_A_LACCEPTATION', {
+            conducteurId: currentUserId,
+            ancienSolde,
+            commissionPrelevee: commissionRequise,
+            nouveauSolde: conducteur.compteCovoiturage.solde,
+            datePrelevement: new Date()
+          });
+
+          await paiementEspeces.save();
+
+          console.log(`✅ Commission espèces prélevée: ${commissionRequise} FCFA | Solde restant: ${conducteur.compteCovoiturage.solde} FCFA`);
+
+          // Notifier le conducteur — débit effectué
+          try {
+            await firebaseService.notifyNewReservation(
+              currentUserId,
+              {
+                type: 'COMMISSION_PRELEVEE',
+                reservationId: id.toString(),
+                message: `${commissionRequise.toLocaleString()} FCFA prélevés. Solde restant : ${conducteur.compteCovoiturage.solde.toLocaleString()} FCFA`,
+              },
+              Utilisateur
+            );
+          } catch (notifError) {
+            console.error('⚠️ Erreur notification conducteur (débit):', notifError.message);
+          }
+
+          // Notifier le passager — réservation acceptée, payer en espèces
+          try {
+            await firebaseService.notifyNewReservation(
+              reservation.passagerId._id,
+              {
+                type: 'RESERVATION_ACCEPTEE_ESPECES',
+                reservationId: id.toString(),
+                message: `Votre réservation est confirmée. Préparez ${paiementEspeces.montantTotal.toLocaleString()} FCFA en espèces.`,
+              },
+              Utilisateur
+            );
+          } catch (notifError) {
+            console.error('⚠️ Erreur notification passager (acceptation):', notifError.message);
+          }
+        }
+
+        // ══════════════════════════════════════════════════════
+        // CONFIRMATION NORMALE (code existant préservé)
+        // ══════════════════════════════════════════════════════
+        reservation.statutReservation = 'CONFIRMEE';
+        reservation.dateConfirmation = new Date();
+        await reservation.save();
+
+        await reservation.programmerNotifications();
+
+        try {
+          await _notifierConfirmationReservation(reservation);
+        } catch (notifError) {
+          console.error('Erreur notification:', notifError);
+        }
+
+        return res.json({
+          success: true,
+          message: 'Réservation confirmée avec succès',
+          data: {
+            reservation,
+            // Infos paiement espèces si applicable
+            ...(paiementEspeces && {
+              paiementEspeces: {
+                referenceTransaction: paiementEspeces.referenceTransaction,
+                commissionPrelevee: paiementEspeces.commission.montant,
+                nouveauSoldeConducteur: paiementEspeces.reglesPaiement.soldeConducteurApres,
+                montantARecevoirDuPassager: paiementEspeces.montantTotal,
+                statutPaiement: paiementEspeces.statutPaiement,
+                message: `✅ Commission de ${paiementEspeces.commission.montant.toLocaleString()} FCFA prélevée.`
+              }
+            })
+          }
+        });
+
+      } catch (error) {
+        console.error('Erreur confirmation réservation:', error);
+        return next(AppError.serverError('Erreur serveur lors de la confirmation', { originalError: error.message }));
+      }
     }
-  }
-
   /**
    * Refuser une réservation (par le conducteur)
    */
@@ -413,7 +624,7 @@ class ReservationController {
 
       // Notifier le passager
       try {
-        await notificationService.notifierRefusReservation(reservation);
+        await _notifierRefusReservation(reservation);
       } catch (notifError) {
         console.error('Erreur notification:', notifError);
       }
@@ -473,23 +684,32 @@ class ReservationController {
       // Calculer le remboursement
       const montantRemboursement = reservation.calculerRemboursement(reservation.trajetId.dateDepart);
 
+      // ✅ Remettre les places disponibles
+      const trajet = await Trajet.findById(reservation.trajetId._id);
+      if (trajet) {
+        trajet.nombrePlacesDisponibles += reservation.nombrePlacesReservees;
+        await trajet.save();
+        console.log(`✅ Places restituées: ${trajet.nombrePlacesDisponibles} places disponibles`);
+      }
+
       reservation.statutReservation = 'ANNULEE';
-      reservation.raisonAnnulation = raisonAnnulation;
-      reservation.montantRemboursement = montantRemboursement;
-      await reservation.save();
+      reservation.motifRefus = raisonAnnulation || 'Annulé par le passager';
+     
 
       // Si remboursement nécessaire
       if (montantRemboursement > 0 && reservation.statutPaiement === 'PAYE') {
         reservation.statutPaiement = 'REMBOURSE';
-        await reservation.save();
       }
+
+      await reservation.save();
 
       res.json({
         success: true,
         message: 'Réservation annulée avec succès',
         data: {
           reservation,
-          montantRemboursement
+          montantRemboursement,
+          placesRestituees: reservation.nombrePlacesReservees 
         }
       });
 
@@ -596,7 +816,6 @@ class ReservationController {
   static async terminerReservation(req, res, next) {
     try {
       const { id } = req.params;
-      const { notePassager, commentaire } = req.body;
       const currentUserId = req.user._id || req.user.id || req.user.userId;
 
       const reservation = await Reservation.findById(id)
@@ -629,23 +848,544 @@ class ReservationController {
       }
 
       reservation.statutReservation = 'TERMINEE';
-      reservation.dateTerminaison = new Date();
-      if (notePassager) reservation.notePassager = notePassager;
-      if (commentaire) reservation.commentaireTrajet = commentaire;
 
       await reservation.save();
 
       res.json({
         success: true,
-        message: 'Réservation terminée avec succès',
+        message: 'Réservation terminée avec succès. Le passager peut maintenant évaluer le trajet.',
         data: {
-          reservation
+          reservation,
+          // ✅ NOUVEAU: Indiquer si l'évaluation est en attente
+          evaluationEnAttente: !reservation.evaluation.passagerVersConducteur.effectuee
         }
       });
 
     } catch (error) {
       console.error('Erreur fin réservation:', error);
       return next(AppError.serverError('Erreur serveur lors de la finalisation', { originalError: error.message }));
+    }
+  }
+
+   /**
+   * 🆕 NOUVEAU - Ajouter des frais supplémentaires
+   */
+  static async ajouterFraisSupplementaires(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { type, montant, description, repartition } = req.body;
+      const currentUserId = req.user._id || req.user.id || req.user.userId;
+
+      const reservation = await Reservation.findById(id).populate('trajetId');
+
+      if (!reservation) {
+        return res.status(404).json({
+          success: false,
+          message: 'Réservation introuvable',
+          code: 'RESERVATION_NOT_FOUND'
+        });
+      }
+
+      // Seul le conducteur peut ajouter des frais supplémentaires
+      if (reservation.trajetId.conducteurId.toString() !== currentUserId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Seul le conducteur peut ajouter des frais supplémentaires',
+          code: 'UNAUTHORIZED'
+        });
+      }
+
+      // Ajouter les frais
+      const nouveauFrais = {
+        type,
+        montant,
+        description: description || '',
+        repartition: repartition || 'EQUITABLE',
+        dateAjout: new Date()
+      };
+
+      reservation.fraisSupplementaires.push(nouveauFrais);
+      
+      // Recalculer les frais totaux (le middleware pre-save s'en charge)
+      await reservation.save();
+
+      res.json({
+        success: true,
+        message: 'Frais supplémentaires ajoutés avec succès',
+        data: {
+          fraisSupplementaires: reservation.fraisSupplementaires,
+          fraisTotauxPassager: reservation.fraisTotauxPassager,
+          montantTotal: reservation.montantTotal
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur ajout frais supplémentaires:', error);
+      return next(AppError.serverError('Erreur serveur lors de l\'ajout des frais', { originalError: error.message }));
+    }
+  }
+
+  /**
+   * 🆕 NOUVEAU - Obtenir les frais supplémentaires d'une réservation
+   */
+  static async obtenirFraisSupplementaires(req, res, next) {
+    try {
+      const { id } = req.params;
+      const currentUserId = req.user._id || req.user.id || req.user.userId;
+
+      const reservation = await Reservation.findById(id).populate('trajetId');
+
+      if (!reservation) {
+        return res.status(404).json({
+          success: false,
+          message: 'Réservation introuvable',
+          code: 'RESERVATION_NOT_FOUND'
+        });
+      }
+
+      // Vérifier les droits d'accès
+      const estPassager = reservation.passagerId.toString() === currentUserId.toString();
+      const estConducteur = reservation.trajetId.conducteurId.toString() === currentUserId.toString();
+      const estAdmin = req.user.role === 'ADMIN';
+
+      if (!estPassager && !estConducteur && !estAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Non autorisé à accéder à ces informations',
+          code: 'ACCESS_DENIED'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          fraisSupplementaires: reservation.fraisSupplementaires,
+          fraisTotauxPassager: reservation.fraisTotauxPassager,
+          montantTotal: reservation.montantTotal,
+          repartition: {
+            montantBase: reservation.montantTotal,
+            fraisSupplementaires: reservation.fraisTotauxPassager - reservation.montantTotal,
+            total: reservation.fraisTotauxPassager
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur récupération frais supplémentaires:', error);
+      return next(AppError.serverError('Erreur serveur lors de la récupération des frais', { originalError: error.message }));
+    }
+  }
+
+  /**
+   * 🆕 NOUVEAU - Évaluer un trajet (passager ou conducteur)
+   */
+  static async evaluerTrajet(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { 
+        note, 
+        criteres, 
+        commentaire, 
+        signalements,
+        typeEvaluation // 'PASSAGER_VERS_CONDUCTEUR' ou 'CONDUCTEUR_VERS_PASSAGER'
+      } = req.body;
+      const currentUserId = req.user._id || req.user.id || req.user.userId;
+
+      const reservation = await Reservation.findById(id)
+        .populate('trajetId')
+        .populate('passagerId', 'nom prenom');
+
+      if (!reservation) {
+        return res.status(404).json({
+          success: false,
+          message: 'Réservation introuvable',
+          code: 'RESERVATION_NOT_FOUND'
+        });
+      }
+
+      // Vérifier que la réservation est terminée
+      if (reservation.statutReservation !== 'TERMINEE') {
+        return res.status(400).json({
+          success: false,
+          message: 'La réservation doit être terminée pour être évaluée',
+          code: 'INVALID_STATUS'
+        });
+      }
+
+      const estPassager = reservation.passagerId._id.toString() === currentUserId.toString();
+      const estConducteur = reservation.trajetId.conducteurId.toString() === currentUserId.toString();
+
+      // Passager évalue conducteur
+      if (typeEvaluation === 'PASSAGER_VERS_CONDUCTEUR' && estPassager) {
+        if (reservation.evaluation.passagerVersConducteur.effectuee) {
+          return res.status(400).json({
+            success: false,
+            message: 'Vous avez déjà évalué ce trajet',
+            code: 'ALREADY_EVALUATED'
+          });
+        }
+
+        reservation.evaluation.passagerVersConducteur = {
+          effectuee: true,
+          note,
+          criteres: criteres || {},
+          commentaire: commentaire || '',
+          dateEvaluation: new Date(),
+          signalements: signalements || []
+        };
+
+      // Conducteur évalue passager
+      } else if (typeEvaluation === 'CONDUCTEUR_VERS_PASSAGER' && estConducteur) {
+        if (reservation.evaluation.conducteurVersPassager.effectuee) {
+          return res.status(400).json({
+            success: false,
+            message: 'Vous avez déjà évalué ce passager',
+            code: 'ALREADY_EVALUATED'
+          });
+        }
+
+        reservation.evaluation.conducteurVersPassager = {
+          effectuee: true,
+          note,
+          criteres: criteres || {},
+          commentaire: commentaire || '',
+          dateEvaluation: new Date()
+        };
+
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: 'Non autorisé à effectuer cette évaluation',
+          code: 'UNAUTHORIZED'
+        });
+      }
+
+      await reservation.save();
+
+      res.json({
+        success: true,
+        message: 'Évaluation enregistrée avec succès',
+        data: {
+          evaluation: reservation.evaluation
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur évaluation trajet:', error);
+      return next(AppError.serverError('Erreur serveur lors de l\'évaluation', { originalError: error.message }));
+    }
+  }
+
+  /**
+   * 🆕 NOUVEAU - Confirmer la prise en charge du passager
+   */
+  static async confirmerPriseEnCharge(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { latitude, longitude } = req.body;
+      const currentUserId = req.user._id || req.user.id || req.user.userId;
+
+      const reservation = await Reservation.findById(id).populate('trajetId');
+
+      if (!reservation) {
+        return res.status(404).json({
+          success: false,
+          message: 'Réservation introuvable',
+          code: 'RESERVATION_NOT_FOUND'
+        });
+      }
+
+      // Seul le conducteur peut confirmer la prise en charge
+      if (reservation.trajetId.conducteurId.toString() !== currentUserId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Seul le conducteur peut confirmer la prise en charge',
+          code: 'UNAUTHORIZED'
+        });
+      }
+
+      if (reservation.statutReservation !== 'CONFIRMEE') {
+        return res.status(400).json({
+          success: false,
+          message: 'La réservation doit être confirmée',
+          code: 'INVALID_STATUS'
+        });
+      }
+
+      // Confirmer la prise en charge
+      reservation.priseEnCharge.confirmee = true;
+      reservation.priseEnCharge.confirmeePar = currentUserId;
+      reservation.priseEnCharge.dateConfirmation = new Date();
+      
+      if (latitude && longitude) {
+        reservation.priseEnCharge.coordonneesConfirmation = {
+          type: 'Point',
+          coordinates: [parseFloat(longitude), parseFloat(latitude)]
+        };
+      }
+
+      await reservation.save();
+
+      res.json({
+        success: true,
+        message: 'Prise en charge confirmée avec succès',
+        data: {
+          priseEnCharge: reservation.priseEnCharge
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur confirmation prise en charge:', error);
+      return next(AppError.serverError('Erreur serveur lors de la confirmation', { originalError: error.message }));
+    }
+  }
+
+  /**
+   * 🆕 NOUVEAU - Vérifier si le véhicule est sur l'itinéraire
+   */
+  static async verifierItineraire(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { latitude, longitude } = req.body;
+      const currentUserId = req.user._id || req.user.id || req.user.userId;
+
+      if (!latitude || !longitude) {
+        return res.status(400).json({
+          success: false,
+          message: 'Coordonnées GPS requises',
+          code: 'MISSING_COORDINATES'
+        });
+      }
+
+      const reservation = await Reservation.findById(id).populate('trajetId');
+
+      if (!reservation) {
+        return res.status(404).json({
+          success: false,
+          message: 'Réservation introuvable',
+          code: 'RESERVATION_NOT_FOUND'
+        });
+      }
+
+      // Vérifier les droits d'accès
+      const estPassager = reservation.passagerId.toString() === currentUserId.toString();
+      const estConducteur = reservation.trajetId.conducteurId.toString() === currentUserId.toString();
+
+      if (!estPassager && !estConducteur) {
+        return res.status(403).json({
+          success: false,
+          message: 'Non autorisé',
+          code: 'UNAUTHORIZED'
+        });
+      }
+
+      // Vérifier la position
+      const surItineraire = await reservation.verifierPositionItineraire([
+        parseFloat(longitude),
+        parseFloat(latitude)
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          surItineraire,
+          alerte: reservation.suivi.alerteSortieItineraireEnvoyee,
+          distanceMaxAutorisee: reservation.suivi.distanceMaxAutorisee,
+          message: surItineraire 
+            ? 'Le véhicule est sur l\'itinéraire prévu' 
+            : '⚠️ Le véhicule s\'est écarté de l\'itinéraire prévu'
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur vérification itinéraire:', error);
+      return next(AppError.serverError('Erreur serveur lors de la vérification', { originalError: error.message }));
+    }
+  }
+
+  /**
+   * 🆕 NOUVEAU - Obtenir les contacts partagés
+   */
+  static async obtenirContactsPartages(req, res, next) {
+    try {
+      const { id } = req.params;
+      const currentUserId = req.user._id || req.user.id || req.user.userId;
+
+      const reservation = await Reservation.findById(id).populate('trajetId');
+
+      if (!reservation) {
+        return res.status(404).json({
+          success: false,
+          message: 'Réservation introuvable',
+          code: 'RESERVATION_NOT_FOUND'
+        });
+      }
+
+      // Vérifier que la réservation est confirmée
+      if (reservation.statutReservation !== 'CONFIRMEE' && reservation.statutReservation !== 'TERMINEE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Les contacts ne sont partagés qu\'après confirmation',
+          code: 'INVALID_STATUS'
+        });
+      }
+
+      // Vérifier les droits d'accès
+      const estPassager = reservation.passagerId.toString() === currentUserId.toString();
+      const estConducteur = reservation.trajetId.conducteurId.toString() === currentUserId.toString();
+
+      if (!estPassager && !estConducteur) {
+        return res.status(403).json({
+          success: false,
+          message: 'Non autorisé à accéder aux contacts',
+          code: 'UNAUTHORIZED'
+        });
+      }
+
+      // Retourner les contacts appropriés selon le rôle
+      let contacts = {};
+      if (estPassager) {
+        contacts = {
+          conducteur: reservation.contactsPartages.conducteur
+        };
+      } else if (estConducteur) {
+        contacts = {
+          passager: reservation.contactsPartages.passager
+        };
+      }
+
+      res.json({
+        success: true,
+        data: {
+          contacts,
+          partageAutorise: reservation.contactsPartages.partageAutorise
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur récupération contacts:', error);
+      return next(AppError.serverError('Erreur serveur lors de la récupération des contacts', { originalError: error.message }));
+    }
+  }
+
+  /**
+   * 🆕 NOUVEAU - Obtenir la répartition financière détaillée
+   */
+  static async obtenirRepartitionFinanciere(req, res, next) {
+    try {
+      const { id } = req.params;
+      const currentUserId = req.user._id || req.user.id || req.user.userId;
+
+      const reservation = await Reservation.findById(id).populate('trajetId');
+
+      if (!reservation) {
+        return res.status(404).json({
+          success: false,
+          message: 'Réservation introuvable',
+          code: 'RESERVATION_NOT_FOUND'
+        });
+      }
+
+      // Seul le conducteur et l'admin peuvent voir la répartition
+      const estConducteur = reservation.trajetId.conducteurId.toString() === currentUserId.toString();
+      const estAdmin = req.user.role === 'ADMIN';
+
+      if (!estConducteur && !estAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Non autorisé à accéder à ces informations',
+          code: 'UNAUTHORIZED'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          montantTotal: reservation.montantTotal,
+          nombrePlacesReservees: reservation.nombrePlacesReservees,
+          repartition: reservation.repartitionFinanciere.repartition,
+          fraisService: {
+            parPassager: reservation.repartitionFinanciere.fraisServiceParPassager,
+            total: reservation.nombrePlacesReservees * reservation.repartitionFinanciere.fraisServiceParPassager
+          },
+          fraisSupplementaires: reservation.fraisSupplementaires,
+          calculEffectue: reservation.repartitionFinanciere.calculEffectue,
+          dateCalcul: reservation.repartitionFinanciere.dateCalcul
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur récupération répartition:', error);
+      return next(AppError.serverError('Erreur serveur lors de la récupération', { originalError: error.message }));
+    }
+  }
+
+  /**
+   * 🆕 NOUVEAU - Détecter les conducteurs proches (pour éviter les conflits)
+   */
+  static async detecterConducteursProches(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { latitude, longitude, rayon = 500 } = req.query; // rayon en mètres
+
+      if (!latitude || !longitude) {
+        return res.status(400).json({
+          success: false,
+          message: 'Coordonnées GPS requises',
+          code: 'MISSING_COORDINATES'
+        });
+      }
+
+      const reservation = await Reservation.findById(id).populate('trajetId');
+
+      if (!reservation) {
+        return res.status(404).json({
+          success: false,
+          message: 'Réservation introuvable',
+          code: 'RESERVATION_NOT_FOUND'
+        });
+      }
+
+      // Chercher d'autres réservations avec positions proches
+      const reservationsProches = await Reservation.find({
+        _id: { $ne: reservation._id },
+        statutReservation: 'CONFIRMEE',
+        'positionEnTempsReel.coordonnees': {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [parseFloat(longitude), parseFloat(latitude)]
+            },
+            $maxDistance: parseInt(rayon)
+          }
+        }
+      })
+      .populate('trajetId', 'conducteurId')
+      .limit(5);
+
+      // Si plusieurs conducteurs proches, activer l'alerte
+      if (reservationsProches.length > 0) {
+        reservation.priseEnCharge.alerteConflit = true;
+        reservation.priseEnCharge.conduiteursProches = reservationsProches.map(r => ({
+          conducteurId: r.trajetId.conducteurId,
+          distance: parseInt(rayon), // Simplification, devrait calculer la distance réelle
+          dateDetection: new Date()
+        }));
+        await reservation.save();
+      }
+
+      res.json({
+        success: true,
+        data: {
+          nombreConducteursProches: reservationsProches.length,
+          alerteConflit: reservationsProches.length > 0,
+          conduiteursProches: reservation.priseEnCharge.conduiteursProches
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur détection conducteurs proches:', error);
+      return next(AppError.serverError('Erreur serveur lors de la détection', { originalError: error.message }));
     }
   }
 
@@ -812,31 +1552,113 @@ class ReservationController {
   }
 
   /**
-   * Obtenir mes réservations (utilisateur connecté)
-   */
-  static async obtenirMesReservations(req, res, next) {
+ * Obtenir mes réservations (utilisateur connecté)
+ *  Filtre les réservations expirées par défaut
+ */
+static async obtenirMesReservations(req, res, next) {
+  try {
+    const currentUserId = req.user._id || req.user.id || req.user.userId;
+    const { 
+      statut, 
+      limite = 50,
+      type = 'active' 
+    } = req.query;
+
+    const options = { 
+      limite: parseInt(limite),
+      type 
+    };
+    
+    if (statut) {
+      options.statut = statut;
+    }
+
+    const reservations = await Reservation.obtenirReservationsUtilisateur(
+      currentUserId, 
+      options
+    );
+
+    res.json({
+      success: true,
+      data: {
+        reservations,
+        meta: {
+          total: reservations.length,
+          type: type,
+          filtreStatut: statut || 'tous'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur mes réservations:', error);
+    return next(AppError.serverError(
+      'Erreur serveur lors de la récupération de vos réservations', 
+      { originalError: error.message }
+    ));
+  }
+}
+
+  /**
+ * Obtenir les réservations reçues (pour le conducteur)
+ */
+  static async obtenirReservationsRecues(req, res, next) {
     try {
+      const erreurValidation = validerDonnees(req);
+      if (erreurValidation) {
+        return res.status(400).json(erreurValidation);
+      }
+
       const currentUserId = req.user._id || req.user.id || req.user.userId;
-      const { statut, limite = 50 } = req.query;
+      const page = parseInt(req.query.page) || 1;
+      const limite = parseInt(req.query.limite) || 20;
+      const skip = (page - 1) * limite;
 
-      const options = { limite: parseInt(limite) };
-      if (statut) options.statut = statut;
+      // Trouver tous les trajets du conducteur
+      const trajets = await Trajet.find({ conducteurId: currentUserId }).select('_id');
+      const trajetIds = trajets.map(t => t._id);
 
-      const reservations = await Reservation.obtenirReservationsUtilisateur(currentUserId, options);
+      let filtres = {
+        trajetId: { $in: trajetIds }
+      };
+
+      // Filtre par statut
+      if (req.query.statut) {
+        const statuts = req.query.statut.split(',');
+        filtres.statutReservation = { $in: statuts };
+      }
+
+      const [reservations, total] = await Promise.all([
+        Reservation.find(filtres)
+          .populate({
+            path: 'trajetId',
+            select: 'pointDepart pointArrivee dateDepart heureDepart prixParPassager'
+          })
+          .populate('passagerId', 'nom prenom email photoProfil noteGenerale')
+          .sort({ dateReservation: -1 })
+          .skip(skip)
+          .limit(limite),
+        Reservation.countDocuments(filtres)
+      ]);
 
       res.json({
         success: true,
         data: {
-          reservations
+          reservations,
+          pagination: {
+            page,
+            limite,
+            total,
+            pages: Math.ceil(total / limite)
+          }
         }
       });
 
     } catch (error) {
-      console.error('Erreur mes réservations:', error);
-      return next(AppError.serverError('Erreur serveur lors de la récupération de vos réservations', { originalError: error.message }));
+      console.error('Erreur réservations reçues:', error);
+      return next(AppError.serverError('Erreur serveur lors de la récupération des réservations reçues', { originalError: error.message }));
     }
   }
-
   /**
    * Vérifier la disponibilité d'un trajet
    */

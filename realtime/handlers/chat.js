@@ -12,7 +12,7 @@ module.exports = (socket, io) => {
       // Vérifier que l'utilisateur participe à cette conversation
       const conversation = await Conversation.findOne({
         _id: conversationId,
-        participants: socket.userId
+        participants: socket.user.id
       }).populate('participants', 'nom prenom photoProfil');
 
       if (!conversation) {
@@ -30,7 +30,7 @@ module.exports = (socket, io) => {
       await Message.updateMany(
         { 
           conversationId, 
-          destinataireId: socket.userId, 
+          destinataireId: socket.user.id, 
           lu: false 
         },
         { 
@@ -90,7 +90,7 @@ module.exports = (socket, io) => {
       // Vérifier la conversation et les participants
       const conversation = await Conversation.findOne({
         _id: conversationId,
-        participants: socket.userId
+        participants: socket.user.id
       }).populate('participants', 'nom prenom photoProfil');
 
       if (!conversation) {
@@ -103,7 +103,7 @@ module.exports = (socket, io) => {
 
       // Trouver le destinataire (l'autre participant)
       const destinataire = conversation.participants.find(
-        p => p._id.toString() !== socket.userId
+        p => p._id.toString() !== socket.user.id
       );
 
       if (!destinataire) {
@@ -117,7 +117,7 @@ module.exports = (socket, io) => {
       // Créer le nouveau message
       const nouveauMessage = new Message({
         conversationId,
-        expediteurId: socket.userId,
+        expediteurId: socket.user.id,
         destinataireId: destinataire._id,
         contenu: contenu.trim(),
         typeMessage,
@@ -178,7 +178,7 @@ module.exports = (socket, io) => {
 
       // Diffuser l'état "en train de taper" aux autres participants
       socket.to(`conversation_${conversationId}`).emit('userTyping', {
-        userId: socket.userId,
+        userId: socket.user.id,
         userName: socket.user.nom,
         isTyping: Boolean(isTyping),
         timestamp: new Date()
@@ -199,7 +199,7 @@ module.exports = (socket, io) => {
         const result = await Message.findOneAndUpdate(
           { 
             _id: messageId, 
-            destinataireId: socket.userId,
+            destinataireId: socket.user.id,
             lu: false 
           },
           { 
@@ -215,7 +215,7 @@ module.exports = (socket, io) => {
           // Notifier l'expéditeur que son message a été lu
           socket.to(`user_${result.expediteurId}`).emit('messageReadByRecipient', {
             messageId,
-            readBy: socket.userId,
+            readBy: socket.user.id,
             readAt: result.dateLecture
           });
         }
@@ -224,7 +224,7 @@ module.exports = (socket, io) => {
         await Message.updateMany(
           { 
             conversationId, 
-            destinataireId: socket.userId, 
+            destinataireId: socket.user.id, 
             lu: false 
           },
           { 
@@ -249,7 +249,7 @@ module.exports = (socket, io) => {
       // Vérifier l'accès à la conversation
       const conversation = await Conversation.findOne({
         _id: conversationId,
-        participants: socket.userId
+        participants: socket.user.id
       });
 
       if (!conversation) {
@@ -307,7 +307,7 @@ module.exports = (socket, io) => {
       // Vérifier l'accès à la conversation
       const conversation = await Conversation.findOne({
         _id: conversationId,
-        participants: socket.userId
+        participants: socket.user.id
       });
 
       if (!conversation) {

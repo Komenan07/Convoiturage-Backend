@@ -56,7 +56,7 @@ module.exports = (socket, io) => {
       // Vérifier que l'utilisateur n'a pas déjà une réservation pour ce trajet
       const reservationExistante = await Reservation.findOne({
         trajetId,
-        passagerId: socket.userId,
+        passagerId: socket.user.id,
         statutReservation: { $in: ['EN_ATTENTE', 'CONFIRMEE'] }
       });
 
@@ -69,7 +69,7 @@ module.exports = (socket, io) => {
       }
 
       // Vérifier que l'utilisateur n'est pas le conducteur
-      if (trajet.conducteurId._id.toString() === socket.userId) {
+      if (trajet.conducteurId._id.toString() === socket.user.id) {
         socket.emit('error', { 
           type: 'RESERVATION_ERROR',
           message: 'Vous ne pouvez pas réserver votre propre trajet' 
@@ -80,7 +80,7 @@ module.exports = (socket, io) => {
       // Créer la réservation
       const reservation = new Reservation({
         trajetId,
-        passagerId: socket.userId,
+        passagerId: socket.user.id,
         nombrePlacesReservees,
         pointPriseEnCharge,
         pointDepose,
@@ -104,13 +104,13 @@ module.exports = (socket, io) => {
         // Créer automatiquement une conversation
         let conversation = await Conversation.findOne({
           trajetId,
-          participants: { $all: [trajet.conducteurId._id, socket.userId] }
+          participants: { $all: [trajet.conducteurId._id, socket.user.id] }
         });
 
         if (!conversation) {
           conversation = new Conversation({
             trajetId,
-            participants: [trajet.conducteurId._id, socket.userId]
+            participants: [trajet.conducteurId._id, socket.user.id]
           });
           await conversation.save();
         }
@@ -181,7 +181,7 @@ module.exports = (socket, io) => {
       }
 
       // Vérifier que c'est bien le conducteur qui accepte
-      if (reservation.trajetId.conducteurId.toString() !== socket.userId) {
+      if (reservation.trajetId.conducteurId.toString() !== socket.user.id) {
         socket.emit('error', { 
           type: 'RESERVATION_ERROR',
           message: 'Non autorisé à accepter cette réservation' 
@@ -220,13 +220,13 @@ module.exports = (socket, io) => {
       // Créer ou récupérer la conversation
       let conversation = await Conversation.findOne({
         trajetId: reservation.trajetId._id,
-        participants: { $all: [socket.userId, reservation.passagerId._id] }
+        participants: { $all: [socket.user.id, reservation.passagerId._id] }
       });
 
       if (!conversation) {
         conversation = new Conversation({
           trajetId: reservation.trajetId._id,
-          participants: [socket.userId, reservation.passagerId._id]
+          participants: [socket.user.id, reservation.passagerId._id]
         });
         await conversation.save();
       }
@@ -278,7 +278,7 @@ module.exports = (socket, io) => {
       }
 
       // Vérifier que c'est bien le conducteur qui refuse
-      if (reservation.trajetId.conducteurId.toString() !== socket.userId) {
+      if (reservation.trajetId.conducteurId.toString() !== socket.user.id) {
         socket.emit('error', { 
           type: 'RESERVATION_ERROR',
           message: 'Non autorisé à refuser cette réservation' 
@@ -343,7 +343,7 @@ module.exports = (socket, io) => {
       }
 
       // Vérifier que c'est bien le passager qui annule
-      if (reservation.passagerId.toString() !== socket.userId) {
+      if (reservation.passagerId.toString() !== socket.user.id) {
         socket.emit('error', { 
           type: 'RESERVATION_ERROR',
           message: 'Non autorisé à annuler cette réservation' 
@@ -437,7 +437,7 @@ module.exports = (socket, io) => {
       }
 
       // Vérifier que c'est bien le passager propriétaire
-      if (reservation.passagerId.toString() !== socket.userId) {
+      if (reservation.passagerId.toString() !== socket.user.id) {
         socket.emit('error', { 
           type: 'RESERVATION_ERROR',
           message: 'Non autorisé à modifier cette réservation' 
@@ -557,7 +557,7 @@ module.exports = (socket, io) => {
     try {
       // Récupérer tous les trajets du conducteur avec des réservations en attente
       const trajetsAvecReservations = await Trajet.find({
-        conducteurId: socket.userId,
+        conducteurId: socket.user.id,
         statutTrajet: 'PROGRAMME'
       }).populate({
         path: 'reservations',
@@ -595,19 +595,19 @@ module.exports = (socket, io) => {
       let query = {};
       
       if (type === 'passager') {
-        query = { passagerId: socket.userId };
+        query = { passagerId: socket.user.id };
       } else if (type === 'conducteur') {
         // Pour les réservations en tant que conducteur, on passe par les trajets
-        const trajets = await Trajet.find({ conducteurId: socket.userId }).select('_id');
+        const trajets = await Trajet.find({ conducteurId: socket.user.id }).select('_id');
         const trajetIds = trajets.map(t => t._id);
         query = { trajetId: { $in: trajetIds } };
       } else {
         // Toutes les réservations (passager + conducteur)
-        const trajets = await Trajet.find({ conducteurId: socket.userId }).select('_id');
+        const trajets = await Trajet.find({ conducteurId: socket.user.id }).select('_id');
         const trajetIds = trajets.map(t => t._id);
         query = {
           $or: [
-            { passagerId: socket.userId },
+            { passagerId: socket.user.id },
             { trajetId: { $in: trajetIds } }
           ]
         };
@@ -654,7 +654,7 @@ module.exports = (socket, io) => {
       const { reservationId } = data;
 
       const reservation = await Reservation.findById(reservationId)
-        .populate('passagerId', 'nom prenom')
+        .populate('passagerId', 'nom prenom fcmTokens')
         .populate('trajetId');
 
       if (!reservation) {
@@ -666,7 +666,7 @@ module.exports = (socket, io) => {
       }
 
       // Vérifier que c'est bien le conducteur
-      if (reservation.trajetId.conducteurId.toString() !== socket.userId) {
+      if (reservation.trajetId.conducteurId.toString() !== socket.user.id) {
         socket.emit('error', { 
           type: 'RESERVATION_ERROR',
           message: 'Seul le conducteur peut confirmer la prise en charge' 
@@ -689,12 +689,31 @@ module.exports = (socket, io) => {
         pickupTime: new Date()
       });
 
-      // Notifier le passager
-      io.to(`user_${reservation.passagerId._id}`).emit('pickedUpConfirmed', {
+      // Notifier le passager via Socket.IO
+      io.to(`user_${reservation.passagerId._id}`).emit('passenger_pickup', {
         reservationId,
         message: 'Le conducteur a confirmé votre prise en charge',
         pickupTime: new Date()
       });
+
+      // Notifier via FCM
+      const firebaseService = require('../../services/firebaseService');
+      if (reservation.passagerId?.fcmTokens?.length > 0) {
+        await firebaseService.sendToMultipleTokens(
+          reservation.passagerId.fcmTokens,
+          {
+            title: 'Prise en charge confirmée 🚗',
+            body: 'Le conducteur a confirmé votre montée à bord',
+            data: {
+              type: 'PASSENGER_PICKUP',
+              reservationId: reservationId.toString(),
+              trajetId: reservation.trajetId._id.toString(),
+              screen: 'ActiveTripPassenger'
+            }
+          },
+          { channelId: 'reservations' }
+        );
+      }
 
       socket.emit('pickupConfirmed', {
         reservationId,
@@ -710,6 +729,12 @@ module.exports = (socket, io) => {
         message: 'Erreur lors de la confirmation de prise en charge' 
       });
     }
+  });
+
+  // 🆕 Confirmer prise en charge (alias plus explicite)
+  socket.on('confirmPickup', async (data) => {
+    // Réutiliser la logique de markPassengerOnBoard
+    socket.emit('markPassengerOnBoard', data);
   });
 
   console.log(`📋 Reservation handler initialisé pour ${socket.user.nom}`);

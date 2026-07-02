@@ -1,7 +1,9 @@
 // services/alerteUrgenceService.js
 const mongoose = require('mongoose');
-const { AppError } = require('../utils/helpers');
+const AppError = require('../utils/AppError');
 const notificationService = require('./notificationService');
+const firebaseService = require('./firebaseService');
+const Utilisateur = require('../models/Utilisateur');
 
 // Modèle AlerteUrgence
 const AlerteUrgence = mongoose.model('AlerteUrgence', new mongoose.Schema({
@@ -10,11 +12,11 @@ const AlerteUrgence = mongoose.model('AlerteUrgence', new mongoose.Schema({
     unique: true,
     required: true
   },
-  declencheurId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
+  declencheurId:
+   { type: mongoose.Schema.Types.ObjectId,
+     ref: 
+     'Utilisateur'
+    },
   typeAlerte: {
     type: String,
     enum: ['accident', 'panne', 'agression', 'malaise', 'autre'],
@@ -63,12 +65,12 @@ const AlerteUrgence = mongoose.model('AlerteUrgence', new mongoose.Schema({
   },
   historiqueStatuts: [{
     statut: String,
-    modifiePar: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    modifiePar: { type: mongoose.Schema.Types.ObjectId, ref: 'Utilisateur' },
     dateModification: { type: Date, default: Date.now },
     commentaire: String
   }],
   tempsReponse: Date,
-  resoluePar: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  resoluePar: { type: mongoose.Schema.Types.ObjectId, ref: 'Utilisateur' }
 }, {
   timestamps: true
 }));
@@ -348,27 +350,22 @@ const mettreAJourStatut = async (alerteId, nouveauStatut, utilisateurId, metadon
 /**
  * Notifie les contacts d'urgence
  */
+// Remplacement temporaire dans notifierContactsUrgence
 const notifierContactsUrgence = async (alerte, contacts) => {
   try {
-    const message = `🚨 ALERTE URGENCE 🚨\n` +
-                   `Type: ${alerte.typeAlerte}\n` +
-                   `Niveau: ${alerte.niveauGravite}\n` +
-                   `Numéro: ${alerte.numeroUrgence}\n` +
-                   `Position: ${alerte.position.latitude}, ${alerte.position.longitude}`;
-
     const notifications = contacts.map(async (contact) => {
-      if (contact.telephone) {
-        await notificationService.sendSMS(contact.telephone, message);
-      }
       if (contact.email) {
         await notificationService.sendEmail(
           contact.email,
           '🚨 Alerte d\'urgence déclenchée',
-          message
+          `Type: ${alerte.typeAlerte} | Numéro: ${alerte.numeroUrgence}`
         );
       }
+      // SMS : non implémenté, logger seulement
+      if (contact.telephone) {
+        console.warn(`⚠️ SMS non implémenté pour: ${contact.telephone}`);
+      }
     });
-
     await Promise.allSettled(notifications);
   } catch (error) {
     console.error('Erreur notification contacts:', error);
@@ -381,14 +378,10 @@ const notifierContactsUrgence = async (alerte, contacts) => {
 const notifierServicesUrgence = async (alerte) => {
   try {
     console.log(`🚨 ALERTE CRITIQUE DÉCLENCHÉE - ${alerte.numeroUrgence}`);
+    console.warn(`⚠️ SMS vers services d'urgence non implémenté`);
+    console.warn(`📞 Pompiers: 180 | Police: 170 | SAMU: 185`);
     
-    // En production, intégrer avec les APIs des services d'urgence
-    const message = `ALERTE CRITIQUE - ${alerte.typeAlerte} - ${alerte.numeroUrgence}`;
-    
-    // Simulation d'appel aux services d'urgence
-    await notificationService.sendSMS('119', message); // Pompiers
-    await notificationService.sendSMS('117', message); // Police
-    
+    // TODO: Intégrer une API SMS en production (ex: Twilio, Orange SMS API)
   } catch (error) {
     console.error('Erreur notification services urgence:', error);
   }
@@ -399,14 +392,23 @@ const notifierServicesUrgence = async (alerte) => {
  */
 const notifierChangementStatut = async (alerte, ancienStatut, nouveauStatut) => {
   try {
-    const message = `Alerte ${alerte.numeroUrgence}: ${ancienStatut} → ${nouveauStatut}`;
-    
-    // Notification au déclencheur
     if (alerte.declencheurId) {
-      await notificationService.sendPushNotification(
+      await firebaseService.sendToUser(
         alerte.declencheurId,
-        'Mise à jour alerte',
-        message
+        {
+          title: '🔔 Mise à jour de votre alerte',
+          message: `Alerte ${alerte.numeroUrgence}: ${ancienStatut} → ${nouveauStatut}`,
+          data: {
+            type: 'EMERGENCY_ALERT',
+            alerteId: alerte._id.toString(),
+            numeroUrgence: alerte.numeroUrgence,
+            ancienStatut,
+            nouveauStatut
+          },
+          channelId: 'emergency',
+          type: 'emergency'
+        },
+        Utilisateur
       );
     }
   } catch (error) {

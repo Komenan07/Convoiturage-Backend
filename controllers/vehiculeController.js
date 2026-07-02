@@ -156,7 +156,7 @@ const creerVehicule = async (req, res, next) => {
     
     const nouveauVehicule = new Vehicule(vehiculeData);
     await nouveauVehicule.save();
-    await nouveauVehicule.populate('proprietaireId', 'nom prenom email telephone photo');
+    await nouveauVehicule.populate('proprietaireId', 'nom prenom email telephone photoProfil');
 
     logger.info('✅ Véhicule créé avec succès', { 
       vehiculeId: nouveauVehicule._id, 
@@ -292,7 +292,7 @@ const obtenirMesVehicules = async (req, res, next) => {
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit))
-      .populate('proprietaireId', 'nom prenom email telephone photo');
+      .populate('proprietaireId', 'nom prenom email telephone photoProfil');
 
     const total = await Vehicule.countDocuments(criteres);
 
@@ -354,7 +354,7 @@ const obtenirVehicule = async (req, res, next) => {
     const vehicule = await Vehicule.findOne({
       _id: vehiculeId,
       proprietaireId: req.user.userId
-    }).populate('proprietaireId', 'nom prenom email telephone photo noteMoyenne estCertifie');
+    }).populate('proprietaireId', 'nom prenom email telephone photoProfil noteGenerale estCertifie');
 
     if (!vehicule) {
       return res.status(404).json({
@@ -606,8 +606,17 @@ const completerDocuments = async (req, res, next) => {
       });
       
       // Traiter les fichiers de documents
+      // Traiter les fichiers de documents
+      const CHAMPS_DOCUMENTS = [
+        'documentCarteGrise', 'documentAssurance',
+        'documentVisite', 'photoVignette', 'documentCarteTransport'
+      ];
+
       req.files.forEach(file => {
-        const relativePath = `/uploads/vehicules/${file.filename}`;
+        const estDocument = CHAMPS_DOCUMENTS.includes(file.fieldname);
+        const relativePath = estDocument
+          ? `/uploads/documents/${file.filename}`
+          : `/uploads/vehicules/${file.filename}`;
         
         switch (file.fieldname) {
           case 'documentCarteGrise':
@@ -1870,7 +1879,7 @@ const obtenirVehiculePrincipal = async (req, res, next) => {
     const vehiculePrincipal = await Vehicule.findOne({
       proprietaireId: req.user.userId,
       estPrincipal: true
-    }).populate('proprietaireId', 'nom prenom email telephone photo');
+    }).populate('proprietaireId', 'nom prenom email telephone photoProfil');
 
     if (!vehiculePrincipal) {
       return res.status(404).json({
